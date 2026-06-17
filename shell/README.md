@@ -42,6 +42,15 @@ The daemon resolves the active monitor itself, so the client and the keybinds st
 dumb. Build it with `go build` in `ipc/`; the binary belongs on `PATH` as
 `ryoku-shell`.
 
+## Dependencies
+
+Beyond Hyprland, quickshell, and `go` (to build `ryoku-shell`), the shell calls at
+runtime: `awww` (wallpaper daemon), `wallust` (palette), `cliphist` and
+`wl-clipboard`, `imagemagick` (clipboard and wallpaper thumbnails), `hyprpicker`,
+`wireplumber` (`wpctl`) and `playerctl` (media keys), `jq`, and `glib2` (`gio`).
+The keybinds open `ghostty` (terminal) and `dolphin` (files). Fonts: JetBrains
+Mono Nerd and Noto; cursor: Bibata. The lock is qylock, from `ryoku/`.
+
 ## Develop it live
 
 Run the shell straight from this checkout on a running Hyprland session, no

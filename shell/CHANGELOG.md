@@ -15,6 +15,7 @@
 - `dev-run.sh`, `dev-stop.sh`, `dev-binds.sh`: run the shell from this checkout on
   a live Hyprland session via `RYOKU_SHELL_DIR` (`qs -p`), with quickshell
   hot-reload, so it can be developed without installing anything.
+- `README.md`: documented the shell's runtime dependencies and how to run it live.
 
 ### Changed
 - Replaced the per-component daemon and toggle shell scripts with the Go IPC: the
