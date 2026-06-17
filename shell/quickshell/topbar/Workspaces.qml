@@ -12,10 +12,12 @@ Item {
     property string screenName: ""
     property real s: 1
 
+    property int count: 10
     readonly property var range: {
-        if (screenName === "DP-1") return [1, 2, 3, 4, 5];
-        if (screenName === "HDMI-A-1") return [6, 7, 8, 9, 10];
-        return [];
+        var r = [];
+        for (var i = 1; i <= count; i++)
+            r.push(i);
+        return r;
     }
 
     readonly property string activeName: {

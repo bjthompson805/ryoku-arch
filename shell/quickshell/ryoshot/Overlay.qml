@@ -224,7 +224,7 @@ Item {
 
         Text {
             text: overlay.globalSel
-                ? "⛩ ryoshot · " + Math.round(overlay.globalSel.w) + "×" + Math.round(overlay.globalSel.h)
+                ? "ryoshot · " + Math.round(overlay.globalSel.w) + "×" + Math.round(overlay.globalSel.h)
                 : ""
             color: overlay.vermilion
             font.family: "JetBrains Mono"

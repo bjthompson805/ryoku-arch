@@ -93,8 +93,12 @@ func ensureWallDaemon() bool {
 }
 
 func listPics() []string {
+	root := wallDir()
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
 	var pics []string
-	_ = filepath.WalkDir(wallDir(), func(p string, info os.DirEntry, err error) error {
+	_ = filepath.WalkDir(root, func(p string, info os.DirEntry, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}

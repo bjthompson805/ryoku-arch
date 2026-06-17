@@ -42,8 +42,8 @@ hl.window_rule({
 })
 
 hl.window_rule({
-    name   = "float-dolphin",
-    match  = { class = "org.kde.dolphin" },
+    name   = "float-nautilus",
+    match  = { class = "org.gnome.Nautilus" },
     float  = true,
     size   = { 1500, 850 },
     center = true,

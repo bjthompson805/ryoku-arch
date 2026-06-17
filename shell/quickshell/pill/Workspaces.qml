@@ -6,8 +6,8 @@ import Quickshell.Hyprland
 import "Singletons"
 
 /**
- * Workspace dots for one monitor. Fixed per-monitor range always shows every
- * dot (DP-1 gets [1,2,3,4,5], HDMI-A-1 gets [6,7,8,9,10]), no numbers, no
+ * Workspace dots for one monitor. A fixed range (1..count, default 10) always
+ * shows every dot regardless of monitor name, no numbers, no
  * icons. Active one is a larger filled vermillion dot; the rest are small and
  * dim, brightening on hover. Clicking a dot focuses that workspace via the
  * Hyprland-lua dispatcher. Active marker tracks the monitor's live active
@@ -22,10 +22,12 @@ Item {
     property real dotW: 5 * s
     property real gap: 4 * s
 
+    property int count: 10
     readonly property var range: {
-        if (screenName === "DP-1") return [1, 2, 3, 4, 5];
-        if (screenName === "HDMI-A-1") return [6, 7, 8, 9, 10];
-        return [];
+        var r = [];
+        for (var i = 1; i <= count; i++)
+            r.push(i);
+        return r;
     }
 
     readonly property string activeName: {

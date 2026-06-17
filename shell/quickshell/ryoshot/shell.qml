@@ -405,6 +405,12 @@ ShellRoot {
     }
 
     Process {
+        id: ensureDir
+        command: ["mkdir", "-p", root.shotsDir]
+        Component.onCompleted: running = true
+    }
+
+    Process {
         id: saveDialog
         stdout: StdioCollector { id: saveOut }
         function open() {

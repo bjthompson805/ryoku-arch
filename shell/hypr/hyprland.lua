@@ -1,5 +1,7 @@
 require("modules.env")
-require("modules.monitors")
+require("keyboard")
+require("gpu")
+require("monitors")
 require("modules.input")
 require("modules.decoration")
 require("modules.animations")

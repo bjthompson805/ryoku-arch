@@ -19,9 +19,9 @@ yet wired into the installer. The pieces are here to build on.
 - `hypr/` The Hyprland config in Lua (`hyprland.lua` plus `modules/`), and the few
   leaf scripts the UI still calls directly (`scripts/`: clipboard and wallpaper
   thumbnailers, the imagemagick policy).
-- `wallust/` Palette generation from the current wallpaper (terminal, ghostty,
-  Hyprland colors, fastfetch).
-- `fish/`, `fastfetch/`, `ghostty/`, `kde/`, `brave-theme/` Per-app config.
+- `wallust/` Palette generation from the current wallpaper (the kitty palette and
+  the Hyprland colors).
+- `fish/`, `kde/`, `brave-theme/` Per-app config.
 - `systemd/` The user session target.
 
 ## The IPC
@@ -48,7 +48,7 @@ Beyond Hyprland, quickshell, and `go` (to build `ryoku-shell`), the shell calls 
 runtime: `awww` (wallpaper daemon), `wallust` (palette), `cliphist` and
 `wl-clipboard`, `imagemagick` (clipboard and wallpaper thumbnails), `hyprpicker`,
 `wireplumber` (`wpctl`) and `playerctl` (media keys), `jq`, and `glib2` (`gio`).
-The keybinds open `ghostty` (terminal) and `dolphin` (files). Fonts: JetBrains
+The keybinds open `kitty` (terminal) and `nautilus` (files). Fonts: JetBrains
 Mono Nerd and Noto; cursor: Bibata. The lock is qylock, from `ryoku/`.
 
 ## Develop it live
