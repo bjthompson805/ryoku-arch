@@ -1,0 +1,239 @@
+#!/usr/bin/env bash
+#
+# ryoku-gpu-detect: DRM GPU detection helpers, sourced by ryoku-gpu.
+#
+# This file defines functions only. It does nothing on its own; ryoku-gpu sources
+# it and drives the subcommands. It is kept separate so the detection logic can be
+# reused (and unit tested against a fake /sys tree) without the config writers.
+#
+# What "detection" means here:
+#   gpu_records   one strength-sorted TSV row per real DRM GPU
+#   classify      label a GPU egpu | discrete | integrated and give it a weight
+#   analyze       turn gpu_records into ordered slot/class arrays plus counts
+#   is_desktop    decide desktop vs laptop (chassis type, like ryoku-hw-laptop)
+#
+# Optional host tools: lspci (model names), nvidia-smi (NVIDIA VRAM size). Both
+# only improve display; ranking works without them because NVIDIA is always
+# treated as discrete and the discrete bias dominates reported VRAM.
+
+# Override seams: every device path can be redirected so the detector runs against
+# a synthesized DRM tree with no real hardware (used by the tests).
+DRM_ROOT="${RYOKU_GPU_DRM_ROOT:-/sys/class/drm}"
+DRI_DIR="${RYOKU_GPU_DRI_DIR:-/dev/dri}"
+SYMLINK_PREFIX="ryoku-gpu-"
+
+# A discrete card with no UMA tell needs at least this much VRAM to outrank an
+# integrated one. Used only as a fallback when the UMA test below is unavailable.
+DISCRETE_VRAM_MIN=$((2 * 1024 * 1024 * 1024))
+# An AMD/Intel APU carves its "VRAM" out of system RAM, so the whole carveout is
+# CPU-visible (vis_vram == vram) and capped by the BIOS. Treat a fully visible
+# carveout at or below this as integrated even when it tops DISCRETE_VRAM_MIN, so a
+# 4 GiB UMA Radeon 780M never outranks a real dGPU. Real dGPUs report 8 GiB or more.
+APU_UMA_CEIL=$((8 * 1024 * 1024 * 1024))
+# Bias so any discrete GPU outranks any integrated one regardless of reported VRAM
+# (an NVIDIA card with no sysfs VRAM file still beats a 4 GiB UMA APU), and an
+# external GPU outranks an internal discrete one (it was hot-plugged for power).
+DISCRETE_BIAS=$((1 << 60))
+EGPU_BIAS=$((1 << 61))
+
+gpu_field() {
+  # Read KEY=value from a card's device uevent (carries DRIVER and PCI_SLOT_NAME).
+  sed -n "s/^$2=//p" "$1/device/uevent" 2>/dev/null | head -n1 || true
+}
+
+hw_probe_ok() {
+  # Only probe real host tools (lspci, nvidia-smi) against the real DRM tree; the
+  # tests redirect DRM_ROOT to a fake tree and must stay hermetic.
+  [[ $DRM_ROOT == "/sys/class/drm" ]]
+}
+
+gpu_uint() {
+  # Read a non-negative integer sysfs field for a card, defaulting to 0.
+  local v
+  v="$(cat "$1/device/$2" 2>/dev/null || printf '0')"
+  [[ $v =~ ^[0-9]+$ ]] && printf '%s' "$v" || printf '0'
+}
+
+gpu_removable() {
+  # "removable" marks a hot-pluggable (Thunderbolt/USB4) GPU, i.e. an eGPU.
+  cat "$1/device/removable" 2>/dev/null || true
+}
+
+nvidia_vram_bytes() {
+  # NVIDIA cards expose no mem_info_vram_total (that is an amdgpu node), so sysfs
+  # reports 0. Recover the real size from nvidia-smi, keyed by PCI slot.
+  hw_probe_ok || { printf '0'; return; }
+  command -v nvidia-smi >/dev/null 2>&1 || { printf '0'; return; }
+  local bdf="${1#*:}" mib
+  mib="$(nvidia-smi --query-gpu=pci.bus_id,memory.total --format=csv,noheader,nounits 2>/dev/null \
+    | awk -F', *' -v s="$bdf" 'index(tolower($1), tolower(s)) {print $2; exit}')"
+  [[ $mib =~ ^[0-9]+$ ]] && printf '%s' "$((mib * 1024 * 1024))" || printf '0'
+}
+
+gpu_model() {
+  # Best-effort human label for the table (empty when lspci is unavailable).
+  hw_probe_ok || return 0
+  command -v lspci >/dev/null 2>&1 || return 0
+  lspci -s "$1" 2>/dev/null | head -n1 \
+    | sed -E 's/^[0-9a-fA-F:.]+ [^:]+: //; s/ \(rev [0-9a-fA-F]+\)$//'
+}
+
+slot_token() {
+  # PCI slot 0000:03:00.0 -> colon/dot-free 0000-03-00-0 for symlink names.
+  printf '%s' "${1//[:.]/-}"
+}
+
+symlink_path() {
+  printf '%s/%s%s' "$DRI_DIR" "$SYMLINK_PREFIX" "$(slot_token "$1")"
+}
+
+classify() {
+  # Sets _class (egpu|discrete|integrated) and _weight (sortable strength).
+  # Args: driver vram vis_vram removable
+  local driver="$1" vram="$2" vis_vram="${3:-0}" removable="${4:-}"
+  if [[ $removable == "removable" ]]; then
+    _class="egpu"   # hot-pluggable external GPU: attached on purpose for power
+  else
+    case "$driver" in
+      nvidia | nouveau)
+        _class="discrete"   # no in-scope NVIDIA integrated GPUs
+        ;;
+      *)
+        # An APU's whole VRAM is a CPU-visible UMA carveout (vis == total) and stays
+        # under APU_UMA_CEIL; a discrete card has dedicated VRAM (vis < total) or far
+        # more of it. Fall back to the VRAM threshold when the tell is absent.
+        if (( vis_vram > 0 )) && (( vis_vram == vram )) && (( vram <= APU_UMA_CEIL )); then
+          _class="integrated"
+        elif (( vram >= DISCRETE_VRAM_MIN )); then
+          _class="discrete"
+        else
+          _class="integrated"
+        fi
+        ;;
+    esac
+  fi
+  case "$_class" in
+    egpu)     _weight=$((EGPU_BIAS + vram)) ;;
+    discrete) _weight=$((DISCRETE_BIAS + vram)) ;;
+    *)        _weight=$vram ;;
+  esac
+}
+
+gpu_records() {
+  # One TSV row per real DRM GPU, strongest first:
+  #   weight <tab> class <tab> slot <tab> card <tab> driver <tab> vram <tab> connected <tab> model
+  local path base slot driver vram vis removable connected conn st model
+  for path in "$DRM_ROOT"/card[0-9]*; do
+    [[ -d $path ]] || continue
+    base="$(basename "$path")"
+    [[ $base == *-* ]] && continue          # skip cardN-CONNECTOR subdevices
+    [[ -e $path/device ]] || continue
+    slot="$(gpu_field "$path" PCI_SLOT_NAME)"
+    [[ -n $slot ]] || continue
+    driver="$(gpu_field "$path" DRIVER)"
+    [[ -n $driver ]] || driver="unknown"
+    vram="$(gpu_uint "$path" mem_info_vram_total)"
+    vis="$(gpu_uint "$path" mem_info_vis_vram_total)"
+    # NVIDIA exposes no amdgpu VRAM node; recover the real size for the table.
+    if (( vram == 0 )) && [[ $driver == nvidia || $driver == nouveau ]]; then
+      vram="$(nvidia_vram_bytes "$slot")"
+    fi
+    removable="$(gpu_removable "$path")"
+    connected=0
+    for conn in "$DRM_ROOT/$base"-*; do
+      [[ -r $conn/status ]] || continue
+      st="$(cat "$conn/status" 2>/dev/null || true)"
+      if [[ $st == "connected" ]]; then
+        connected=1
+        break
+      fi
+    done
+    model="$(gpu_model "$slot")"
+    classify "$driver" "$vram" "$vis" "$removable"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$_weight" "$_class" "$slot" "$base" "$driver" "$vram" "$connected" "$model"
+  done | sort -t$'\t' -k1,1nr -k3,3
+}
+
+analyze() {
+  # Populate _slots / _classes (strongest first) and counts from gpu_records.
+  local class slot
+  _slots=()
+  _classes=()
+  _ngpu=0
+  _ndiscrete=0
+  _nintegrated=0
+  while IFS=$'\t' read -r _ class slot _; do
+    [[ -n $slot ]] || continue
+    _slots+=("$slot")
+    _classes+=("$class")
+    _ngpu=$((_ngpu + 1))
+    if [[ $class == "discrete" || $class == "egpu" ]]; then
+      _ndiscrete=$((_ndiscrete + 1))
+    else
+      _nintegrated=$((_nintegrated + 1))
+    fi
+  done < <(gpu_records)
+}
+
+is_laptop() {
+  # Laptop vs desktop, ported from ryoku-hw-laptop. DMI chassis type is
+  # authoritative; a lid switch is the fallback when firmware misreports it.
+  case "${RYOKU_ASSUME_LAPTOP:-}" in
+    1) return 0 ;;
+    0) return 1 ;;
+  esac
+  local chassis_file="${RYOKU_CHASSIS_TYPE_FILE:-/sys/class/dmi/id/chassis_type}"
+  if [[ -r $chassis_file ]]; then
+    # SMBIOS portable types: 8 Portable, 9 Laptop, 10 Notebook, 11 Hand Held,
+    # 14 Sub Notebook, 30 Tablet, 31 Convertible, 32 Detachable.
+    case "$(<"$chassis_file")" in
+      8 | 9 | 10 | 11 | 14 | 30 | 31 | 32) return 0 ;;
+      3 | 4 | 5 | 6 | 7 | 13 | 23 | 24 | 25) return 1 ;;
+    esac
+  fi
+  if grep -qsi 'Lid Switch' /sys/class/input/event*/device/name 2>/dev/null; then
+    return 0
+  fi
+  [[ -d /proc/acpi/button/lid ]] && compgen -G '/proc/acpi/button/lid/*' >/dev/null && return 0
+  return 1
+}
+
+is_desktop() {
+  # Pin the strongest GPU only on desktops: on laptops Hyprland recommends
+  # iGPU-first for battery, so forcing the dGPU there would hurt. RYOKU_GPU_FORCE=1
+  # treats the machine as a desktop (Settings > Display equivalent on plain Hyprland).
+  case "${RYOKU_GPU_ASSUME_DESKTOP:-}" in
+    1) return 0 ;;
+    0) return 1 ;;
+  esac
+  [[ ${RYOKU_GPU_FORCE:-0} == "1" ]] && return 0
+  ! is_laptop
+}
+
+beneficial() {
+  # True when pinning the strongest GPU as the primary renderer is worth doing.
+  (( _ngpu >= 2 )) || return 1
+  # An external GPU is hot-plugged on purpose for power, so pin it even on a laptop.
+  [[ ${_classes[0]} == "egpu" ]] && return 0
+  # Otherwise auto-pin a discrete GPU only on desktops; laptops keep iGPU-first.
+  is_desktop || return 1
+  [[ ${_classes[0]} == "discrete" ]] || return 1
+  return 0
+}
+
+card_node_for_slot() {
+  # Resolve a PCI slot to its current /dev/dri/cardN node (fallback when the
+  # boot-stable symlinks are not installed yet).
+  local want="$1" path base
+  for path in "$DRM_ROOT"/card[0-9]*; do
+    [[ -d $path ]] || continue
+    base="$(basename "$path")"
+    [[ $base == *-* ]] && continue
+    if [[ "$(gpu_field "$path" PCI_SLOT_NAME)" == "$want" ]]; then
+      printf '%s/%s' "$DRI_DIR" "$base"
+      return 0
+    fi
+  done
+  return 1
+}

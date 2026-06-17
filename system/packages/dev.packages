@@ -1,0 +1,9 @@
+# Optional developer toolchains. Not part of the base install; offered as an
+# add-on for machines that want language runtimes out of the box.
+# One package per line; '#' and blank lines are ignored.
+
+go
+nodejs
+npm
+rust
+mise

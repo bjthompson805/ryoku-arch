@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+#
+# ryoku-monitor: DPI-derived display scaling for Hyprland.
+#
+# Scale is never hardcoded. `autoscale` derives a per-output scale from each
+# monitor's real pixel density (resolution / physical size in mm) so high-DPI
+# panels are zoomed and low-DPI external monitors are left at 1x. It applies the
+# scale live through `hyprctl keyword monitor` and writes the result to the
+# monitors drop-in that the Lua hyprland.lua require()s, so the layout survives a
+# reload or relogin. `persist` captures the current live layout without
+# recomputing the scale.
+#
+# GDK_SCALE is kept in step so GTK and XWayland apps stay crisp: it follows the
+# shared integer scale when every active monitor agrees on one (>=2x), otherwise
+# 1 (Wayland handles fractional scaling for native apps).
+#
+# A catch-all monitor rule is written last so a freshly plugged display still
+# comes up sensibly at scale 1 until the next autoscale.
+
+set -euo pipefail
+
+# Drop-in Hyprland require()s; overwritten in full on every run (never skip-if-exists).
+monitors_conf="${RYOKU_MONITORS_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitors.lua}"
+
+require_hyprctl() {
+  command -v hyprctl >/dev/null 2>&1 || {
+    echo "ryoku-monitor: hyprctl not found" >&2
+    exit 1
+  }
+}
+
+require_jq() {
+  command -v jq >/dev/null 2>&1 || {
+    echo "ryoku-monitor: jq not found" >&2
+    exit 1
+  }
+}
+
+# Live monitor state as JSON. RYOKU_MONITOR_JSON points at a fixture file for
+# tests (and suppresses the live hyprctl side effects below).
+monitors_json() {
+  if [[ -n ${RYOKU_MONITOR_JSON:-} ]]; then
+    cat "$RYOKU_MONITOR_JSON"
+  else
+    hyprctl monitors all -j
+  fi
+}
+
+# Emit "name|WxH@rate|XxY|wanted_scale|current_scale" for each enabled monitor,
+# where wanted_scale is bucketed from DPI (px * 25.4 / physical-mm). Hyprland's
+# "auto" over-zooms high-DPI panels and a flat default over-scales low-DPI ones;
+# these buckets fit every panel without hardcoding. Missing or implausible
+# physical size (EDID lies, virtual outputs) falls back to 1x.
+dpi_specs() {
+  jq -r '
+    def dpiscale(w; pw):
+      if (pw // 0) <= 0 then 1.0
+      else (w * 25.4 / pw) as $d
+      | if   ($d < 40 or $d > 700) then 1.0
+        elif $d <= 120 then 1.0
+        elif $d <= 150 then 1.25
+        elif $d <= 230 then 1.5
+        elif $d <= 290 then 1.75
+        else 2.0 end
+      end;
+    .[] | select(.disabled | not)
+    | "\(.name)|\(.width)x\(.height)@\(.refreshRate | round)|\(.x)x\(.y)|\(dpiscale(.width; .physicalWidth))|\(.scale)"
+  '
+}
+
+# Integer GDK_SCALE when every active monitor shares one whole-number scale >=2,
+# else 1. Reads monitor JSON on stdin.
+gdk_scale_value() {
+  jq -r '
+    [ .[] | select(.disabled | not) | .scale ] as $s |
+    if ($s | length) > 0 and ($s | unique | length) == 1
+       and ($s[0] == ($s[0] | floor)) and $s[0] >= 2
+    then ($s[0] | floor) else 1 end
+  '
+}
+
+# Compute GDK_SCALE from the live layout, apply it live (skipped in fixture mode),
+# and echo the chosen value.
+sync_gdk_scale() {
+  local gdk
+  gdk="$(monitors_json | gdk_scale_value 2>/dev/null)"
+  [[ $gdk =~ ^[0-9]+$ ]] || gdk=1
+  if [[ -z ${RYOKU_MONITOR_JSON:-} ]]; then
+    hyprctl keyword env "GDK_SCALE,$gdk" >/dev/null 2>&1 || true
+  fi
+  printf '%s\n' "$gdk"
+}
+
+# Write the monitors drop-in (Lua, hl API) from the live layout: one hl.monitor
+# per output, the GDK_SCALE env, and a hotplug-friendly catch-all last.
+write_monitors_conf() {
+  local gdk="$1"
+  mkdir -p "$(dirname "$monitors_conf")"
+  {
+    printf '%s\n' "-- Managed by ryoku-monitor. Per-output layout captured from the live session."
+    printf '%s\n' "-- Scale is DPI-derived (ryoku-monitor autoscale), never hardcoded per panel."
+    printf '%s\n' "-- Edits may be overwritten; re-run ryoku-monitor autoscale to regenerate."
+    printf '\n'
+    monitors_json | jq -r '
+      .[] |
+      if .disabled then
+        "hl.monitor({ output = \"\(.name)\", disabled = true })"
+      else
+        "hl.monitor({ output = \"\(.name)\", mode = \"\(.width)x\(.height)@\(.refreshRate | round)\", position = \"\(.x)x\(.y)\", scale = \(.scale)"
+        + (if .transform != 0 then ", transform = \(.transform)" else "" end)
+        + (if .vrr then ", vrr = 1" else "" end)
+        + (if (.mirrorOf // "none") != "none" then ", mirror = \"\(.mirrorOf)\"" else "" end)
+        + " })"
+      end
+    '
+    printf '\n'
+    printf '%s\n' "-- Keep GTK and XWayland apps crisp: shared integer scale when every monitor"
+    printf '%s\n' "-- agrees (>=2x), else 1 (Wayland scales native apps fractionally itself)."
+    printf 'hl.env("GDK_SCALE", "%s")\n' "$gdk"
+    printf '\n'
+    printf '%s\n' "-- Catch-all for monitors not listed above (hotplug-friendly, safe 1x default)."
+    printf '%s\n' 'hl.monitor({ output = "", mode = "highrr", position = "auto", scale = 1 })'
+  } >"$monitors_conf"
+}
+
+cmd_autoscale() {
+  require_hyprctl
+  require_jq
+  local name mode pos wanted current
+  while IFS='|' read -r name mode pos wanted current; do
+    [[ -n $name ]] || continue
+    # Only re-apply when the scale actually differs (idempotent, avoids a flicker).
+    if awk -v a="$current" -v b="$wanted" 'BEGIN { exit (a == b) ? 1 : 0 }'; then
+      if hyprctl keyword monitor "$name, $mode, $pos, $wanted" >/dev/null 2>&1; then
+        echo "ryoku-monitor: $name -> scale $wanted"
+      fi
+    fi
+  done < <(monitors_json | dpi_specs)
+  local gdk
+  gdk="$(sync_gdk_scale)"
+  write_monitors_conf "$gdk"
+  echo "ryoku-monitor: wrote $monitors_conf (GDK_SCALE=$gdk)"
+}
+
+cmd_persist() {
+  require_hyprctl
+  require_jq
+  local gdk
+  gdk="$(sync_gdk_scale)"
+  write_monitors_conf "$gdk"
+  echo "ryoku-monitor: wrote $monitors_conf (GDK_SCALE=$gdk)"
+}
+
+usage() {
+  cat <<'EOF'
+Usage: ryoku-monitor <command>
+
+  autoscale   Derive each monitor's scale from its DPI, apply it live, and write
+              the monitors drop-in (default ~/.config/hypr/monitors.lua).
+  persist     Write the monitors drop-in from the current live layout (no rescale).
+
+Both sync GDK_SCALE for GTK/XWayland apps. DPI buckets: <=120=1x, <=150=1.25,
+<=230=1.5, <=290=1.75, >290=2x.
+EOF
+}
+
+main() {
+  case "${1:-}" in
+    autoscale) cmd_autoscale ;;
+    persist) cmd_persist ;;
+    -h | --help | help) usage ;;
+    *)
+      usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+# Run only when executed; sourcing (tests) just loads the functions.
+if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
+  main "$@"
+fi

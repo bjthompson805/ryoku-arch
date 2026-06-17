@@ -1,0 +1,89 @@
+# Ryoku base package set. One package per line; '#' and blank lines are ignored.
+# The installer (installation/backend/ryoku-install) pacstraps this whole set.
+# Per-profile GPU drivers and CPU microcode come from hardware.packages.
+
+# Core system
+base
+base-devel
+linux
+linux-firmware
+mkinitcpio
+sudo
+
+# Boot chain
+btrfs-progs
+cryptsetup
+dosfstools
+efibootmgr
+limine
+plymouth
+snapper
+
+# Networking
+networkmanager
+iwd
+
+# Audio (PipeWire)
+pipewire
+pipewire-alsa
+pipewire-pulse
+wireplumber
+
+# Graphics base (vendor drivers added per profile)
+mesa
+vulkan-icd-loader
+
+# Desktop: plain Hyprland + portals
+hyprland
+xdg-desktop-portal-hyprland
+xdg-user-dirs
+
+# Login + lockscreen (SDDM greeter + qylock clockwork)
+sddm
+polkit
+gnome-keyring
+qt6-declarative
+qt6-5compat
+qt6-svg
+qt6-multimedia
+qt6-multimedia-ffmpeg
+gst-plugins-base
+gst-plugins-good
+gst-plugins-bad
+gst-plugins-ugly
+
+# Wayland tools
+brightnessctl
+fuzzel
+grim
+playerctl
+slurp
+wl-clipboard
+
+# Applications
+chromium
+kitty
+mpv
+nautilus
+
+# Shell + CLI
+bash-completion
+bat
+btop
+eza
+fastfetch
+fd
+fish
+fzf
+git
+github-cli
+lazygit
+neovim
+ripgrep
+starship
+zoxide
+
+# Fonts
+noto-fonts
+noto-fonts-emoji
+ttf-jetbrains-mono-nerd
