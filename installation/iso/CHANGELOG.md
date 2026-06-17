@@ -20,6 +20,8 @@
     with a `/usr/local/bin/ryoku-install` wrapper), and the repo payload (at
     `/usr/share/ryoku`, tracked files only via `git archive`) into the staged
     airootfs, then runs `mkarchiso`. The committed profile is never mutated.
+  - `build.sh` also prebuilds the `ryoku-shell` daemon (Go) into the repo payload,
+    so the backend can install it on the target, which has no Go toolchain.
 
 ### Fixed
 - Drop the inline comments from `packages.x86_64`: mkarchiso left their trailing

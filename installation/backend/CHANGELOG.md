@@ -20,6 +20,10 @@
 - `lib/network.sh`: in the `configure` stage, pin the target's NetworkManager
   wifi backend to iwd and copy the live session's saved `.nmconnection` profiles
   into the target (`root:root`, 0600), so wifi keeps working after first boot.
+- `lib/deploy.sh` now ships the full Ryoku shell as the desktop: the shell's
+  Hyprland config (superseding the plain set), the quickshell UI, wallust, the
+  qt/kde theme, the user session target, the prebuilt `ryoku-shell` daemon, the
+  Neovim (LazyVim) and yazi configs, and Neovim as the default text editor.
 
 ### Fixed
 - `lib/pacstrap.sh`: ensure the live pacman keyring is ready before pacstrap. It

@@ -14,6 +14,8 @@ ryoku_deploy() {
 
   ryoku_deploy_bin
   ryoku_deploy_configs "$h"
+  ryoku_deploy_shell "$h"
+  ryoku_deploy_editor "$h"
   ryoku_deploy_chown "$u"
   ryoku_deploy_qylock
 }
@@ -64,6 +66,7 @@ ryoku_deploy_bin() {
   install_bin "$RYOKU_REPO/system/hardware/gpu/ryoku-gpu-detect" ryoku-gpu-detect
   install_bin "$RYOKU_REPO/system/hardware/display/ryoku-monitor" ryoku-monitor
   install_bin "$RYOKU_REPO/ryoku/apps/fastfetch/ryoku-fastfetch" ryoku-fastfetch
+  install_bin "$RYOKU_REPO/shell/ipc/ryoku-shell" ryoku-shell
   deploy_file "$RYOKU_REPO/system/hardware/gpu/90-ryoku-gpu.rules" \
     /mnt/etc/udev/rules.d/90-ryoku-gpu.rules
 }
@@ -73,12 +76,36 @@ ryoku_deploy_configs() {
   log "deploying brand assets and dotfiles into $h"
   deploy_dir "$RYOKU_REPO/ryoku/assets/brand" "$h/.local/share/ryoku/assets/brand"
 
-  # Hyprland 0.55+ loads hyprland.lua natively; the config set is Lua.
-  deploy_glob "$RYOKU_REPO/ryoku/hyprland" "*.lua" "$h/.config/hypr"
+  # The shell's Hyprland config is the shipped desktop: it supersedes the plain
+  # ryoku/hyprland set and carries hardware-managed gpu/keyboard/monitors plus an
+  # autostart that launches ryoku-shell.
+  deploy_dir "$RYOKU_REPO/shell/hypr" "$h/.config/hypr"
   deploy_dir "$RYOKU_REPO/ryoku/apps/kitty" "$h/.config/kitty"
   deploy_file "$RYOKU_REPO/ryoku/apps/fastfetch/config.jsonc" "$h/.config/fastfetch/config.jsonc"
   deploy_file "$RYOKU_REPO/ryoku/apps/fish/config.fish" "$h/.config/fish/config.fish"
   deploy_file "$RYOKU_REPO/ryoku/apps/starship/starship.toml" "$h/.config/starship.toml"
+  deploy_dir "$RYOKU_REPO/ryoku/apps/nvim" "$h/.config/nvim"
+  deploy_dir "$RYOKU_REPO/ryoku/apps/yazi" "$h/.config/yazi"
+}
+
+# ryoku_deploy_shell installs the Ryoku shell components: the quickshell UI, the
+# wallust palette config, the qt/kde theme, and the user session target.
+ryoku_deploy_shell() {
+  local h=$1
+  log "deploying the Ryoku shell components into $h"
+  deploy_dir "$RYOKU_REPO/shell/quickshell" "$h/.config/quickshell"
+  deploy_dir "$RYOKU_REPO/shell/wallust" "$h/.config/wallust"
+  deploy_file "$RYOKU_REPO/shell/kde/kdeglobals" "$h/.config/kdeglobals"
+  deploy_dir "$RYOKU_REPO/shell/systemd/user" "$h/.config/systemd/user"
+}
+
+# ryoku_deploy_editor makes neovim the default text editor: the .desktop entry
+# plus the mimeapps defaults that route text files to it.
+ryoku_deploy_editor() {
+  local h=$1
+  log "registering neovim as the default text editor"
+  deploy_file "$RYOKU_REPO/ryoku/apps/nvim/ryoku-nvim.desktop" "$h/.local/share/applications/ryoku-nvim.desktop"
+  deploy_file "$RYOKU_REPO/ryoku/apps/mimeapps.list" "$h/.config/mimeapps.list"
 }
 
 ryoku_deploy_qylock() {
