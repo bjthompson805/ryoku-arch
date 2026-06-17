@@ -1,0 +1,39 @@
+# Ryoku prompt: directory, git branch, command duration.
+add_newline = false
+palette = "ryoku"
+
+format = """
+$directory$git_branch$cmd_duration
+$character"""
+
+[palettes.ryoku]
+accent = "#F25623"
+fg = "#CCD0CF"
+muted = "#7A7A7A"
+green = "#88A57D"
+red = "#C0392B"
+
+[directory]
+style = "bold fg:accent"
+truncation_length = 4
+truncation_symbol = "…/"
+read_only = " 󰌾"
+read_only_style = "fg:red"
+format = "[󰉋 $path]($style)[$read_only]($read_only_style) "
+
+[git_branch]
+symbol = "󰘬 "
+style = "fg:green"
+format = "[$symbol$branch]($style) "
+
+[cmd_duration]
+min_time = 500
+style = "fg:muted"
+format = "[󰪢 $duration]($style) "
+
+[character]
+success_symbol = "[❯](bold fg:accent)"
+error_symbol = "[❯](bold fg:red)"
+
+[package]
+disabled = true

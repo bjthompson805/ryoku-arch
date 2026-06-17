@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+#
+# install-qylock: install the Ryoku qylock SDDM greeter and in-session lock.
+#
+# Run this on the target system (during install, or by hand later). It installs
+# the vendored "clockwork/orbital" theme as the SDDM greeter, wires SDDM to use
+# it, and lays down the Quickshell lockscreen for in-session locking. The qylock
+# bundle ships next to this script (ryoku/lockscreen/qylock), so the install is
+# fully offline: no git clone, no network.
+#
+# What it does:
+#   1. installs themes/clockwork/orbital to /usr/share/sddm/themes/orbital
+#   2. writes /etc/sddm.conf.d/99-ryoku.conf with [Theme] Current=orbital
+#   3. installs quickshell-lockscreen to ~/.local/share/quickshell-lockscreen
+#   4. installs the themes to ~/.local/share/qylock/themes and points
+#      quickshell-lockscreen/themes_link at them
+#   5. writes ~/.config/qylock/theme = clockwork/orbital
+#
+# Runtime packages this greeter needs (install them separately, e.g. from the
+# install backend; this script does NOT install them):
+#   qt6-declarative qt6-5compat qt6-svg qt6-multimedia qt6-multimedia-ffmpeg
+#   quickshell
+#
+# Usage:
+#   install-qylock                run the install
+#   install-qylock --dry-run      print the plan, change nothing
+#   RYOKU_DRYRUN=1 install-qylock  same, via the shared installer switch
+#
+# Privilege model: system paths (/usr/share/sddm, /etc/sddm.conf.d) need root;
+# the user paths (~/.local, ~/.config) must stay owned by the login user. When
+# run as root via sudo or pkexec the user is resolved from SUDO_USER/PKEXEC_UID
+# and user files are written as that user. When run unprivileged, sudo is used
+# for the system paths.
+
+set -euo pipefail
+
+# --- dry-run switch (shared installer convention: RYOKU_DRYRUN=1) -------------
+RYOKU_DRYRUN="${RYOKU_DRYRUN:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) RYOKU_DRYRUN=1 ;;
+    -h | --help)
+      sed -n '2,32p' "$0"
+      exit 0
+      ;;
+    *)
+      echo "install-qylock: unknown argument: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
+
+run() {
+  if [[ $RYOKU_DRYRUN == 1 ]]; then
+    printf 'DRYRUN: %s\n' "$*"
+    return 0
+  fi
+  "$@"
+}
+
+# --- resolve where things live -----------------------------------------------
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BUNDLE="${RYOKU_QYLOCK_BUNDLE:-$SCRIPT_DIR/qylock}"
+
+if [[ ! -f $BUNDLE/themes/clockwork/orbital/Main.qml ]]; then
+  echo "install-qylock: qylock bundle not found at $BUNDLE" >&2
+  echo "  expected $BUNDLE/themes/clockwork/orbital/Main.qml" >&2
+  exit 1
+fi
+
+# --- resolve the target user and privilege wrappers --------------------------
+if (( EUID == 0 )); then
+  # pkexec exposes PKEXEC_UID, sudo exposes SUDO_USER. Accept either.
+  if [[ -z ${SUDO_USER:-} && -n ${PKEXEC_UID:-} ]]; then
+    SUDO_USER=$(getent passwd "$PKEXEC_UID" | cut -d: -f1)
+  fi
+  if [[ -z ${SUDO_USER:-} ]]; then
+    echo "install-qylock: cannot resolve the login user (need SUDO_USER or PKEXEC_UID)" >&2
+    exit 1
+  fi
+  TARGET_USER="$SUDO_USER"
+  TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+  PRIV=()
+  USER_RUN=(sudo -u "$TARGET_USER")
+else
+  TARGET_USER="$USER"
+  TARGET_HOME="$HOME"
+  PRIV=(sudo)
+  USER_RUN=()
+fi
+
+if [[ -z ${TARGET_HOME:-} ]]; then
+  echo "install-qylock: failed to resolve home directory for $TARGET_USER" >&2
+  exit 1
+fi
+
+priv() { run "${PRIV[@]}" "$@"; }
+user() { run "${USER_RUN[@]}" "$@"; }
+
+write_root() {
+  local path="$1" content
+  content="$(cat)"
+  if [[ $RYOKU_DRYRUN == 1 ]]; then
+    printf 'DRYRUN: write (root) %s:\n%s\n' "$path" "$content"
+    return 0
+  fi
+  printf '%s\n' "$content" | "${PRIV[@]}" tee "$path" >/dev/null
+}
+
+write_user() {
+  local path="$1" content
+  content="$(cat)"
+  if [[ $RYOKU_DRYRUN == 1 ]]; then
+    printf 'DRYRUN: write (%s) %s:\n%s\n' "$TARGET_USER" "$path" "$content"
+    return 0
+  fi
+  printf '%s\n' "$content" | "${USER_RUN[@]}" tee "$path" >/dev/null
+}
+
+QYLOCK_DIR="$TARGET_HOME/.local/share/qylock"
+LOCK_DIR="$TARGET_HOME/.local/share/quickshell-lockscreen"
+
+echo "Installing qylock clockwork/orbital greeter for $TARGET_USER"
+
+# --- 1. SDDM greeter theme (system) ------------------------------------------
+echo "  greeter theme -> /usr/share/sddm/themes/orbital"
+priv mkdir -p /usr/share/sddm/themes
+priv rm -rf /usr/share/sddm/themes/orbital
+priv cp -a "$BUNDLE/themes/clockwork/orbital" /usr/share/sddm/themes/orbital
+
+# --- 2. point SDDM at it (system) --------------------------------------------
+echo "  greeter selection -> /etc/sddm.conf.d/99-ryoku.conf"
+priv mkdir -p /etc/sddm.conf.d
+write_root /etc/sddm.conf.d/99-ryoku.conf <<'EOF'
+[Theme]
+Current=orbital
+EOF
+
+# --- 3. in-session lock (user) -----------------------------------------------
+echo "  quickshell lockscreen -> $LOCK_DIR"
+user mkdir -p "$TARGET_HOME/.local/share"
+user rm -rf "$LOCK_DIR"
+user cp -a "$BUNDLE/quickshell-lockscreen" "$LOCK_DIR"
+user chmod +x "$LOCK_DIR/lock.sh"
+
+# --- 4. themes the lock reads, plus the themes_link the lock resolves ---------
+echo "  lock themes -> $QYLOCK_DIR/themes"
+user mkdir -p "$QYLOCK_DIR"
+user rm -rf "$QYLOCK_DIR/themes"
+user cp -a "$BUNDLE/themes" "$QYLOCK_DIR/themes"
+user ln -sfn "$QYLOCK_DIR/themes" "$LOCK_DIR/themes_link"
+
+# --- 5. active lock theme (user) ---------------------------------------------
+echo "  lock theme preference -> $TARGET_HOME/.config/qylock/theme"
+user mkdir -p "$TARGET_HOME/.config/qylock"
+write_user "$TARGET_HOME/.config/qylock/theme" <<'EOF'
+clockwork/orbital
+EOF
+
+echo "qylock clockwork/orbital installed."

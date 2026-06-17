@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Ryoku branded fastfetch launcher.
+# Inside kitty the logo uses kitty's graphics protocol; elsewhere it falls back
+# to chafa, and to no logo when chafa is missing.
+set -euo pipefail
+
+config="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/config.jsonc"
+
+if [ ! -f "$config" ]; then
+  exec fastfetch "$@"
+fi
+
+if [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM:-}" = "xterm-kitty" ]; then
+  exec fastfetch --config "$config" "$@"
+fi
+
+if command -v chafa >/dev/null 2>&1; then
+  exec fastfetch --config "$config" --logo-type chafa "$@"
+fi
+
+exec fastfetch --config "$config" --logo-type none "$@"
