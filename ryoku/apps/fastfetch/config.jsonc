@@ -5,23 +5,28 @@
     "source": "~/.local/share/ryoku/assets/brand/logo-mark.png",
     "width": 16,
     "height": 8,
-    "padding": { "top": 4, "right": 4, "left": 2 }
+    "padding": { "top": 4, "right": 8, "left": 8 }
   },
   "modules": [
     "break",
-    { "type": "title" },
-    "break",
-    { "type": "os",       "key": " 󰣇  OS      ", "keyColor": "red" },
-    { "type": "kernel",   "key": " 󰌽  Kernel  ", "keyColor": "red" },
-    { "type": "wm",       "key": " 󰧨  WM      ", "keyColor": "red" },
-    "break",
+    { "type": "host",     "key": " 󰌢  PC      ", "keyColor": "red" },
     { "type": "cpu",      "key": " 󰻟  CPU     ", "keyColor": "red" },
     { "type": "gpu",      "key": " 󰢮  GPU     ", "keyColor": "red", "detectionMethod": "pci" },
     { "type": "memory",   "key": " 󰍛  Memory  ", "keyColor": "red" },
     { "type": "disk",     "key": " 󰋊  Disk    ", "keyColor": "red" },
     "break",
+    { "type": "command",  "key": " 󰣇  OS      ", "keyColor": "red",
+      "text": "version=$(ryoku-version 2>/dev/null || echo dev); echo \"Ryoku $version\"" },
+    { "type": "command",  "key": " 󰘬  Branch  ", "keyColor": "red",
+      "text": "ryoku-version-branch 2>/dev/null || echo unknown" },
+    { "type": "kernel",   "key": " 󰌽  Kernel  ", "keyColor": "red" },
+    { "type": "wm",       "key": " 󰧨  WM      ", "keyColor": "red" },
     { "type": "terminal", "key": " 󰆍  Term    ", "keyColor": "red" },
+    { "type": "packages", "key": " 󰏖  Pkgs    ", "keyColor": "red" },
+    "break",
     { "type": "uptime",   "key": " 󱫐  Uptime  ", "keyColor": "red" },
+    { "type": "command",  "key": " 󱦟  Age     ", "keyColor": "red",
+      "text": "echo $(( ($(date +%s) - $(stat -c %W /)) / 86400 )) days" },
     "break"
   ]
 }

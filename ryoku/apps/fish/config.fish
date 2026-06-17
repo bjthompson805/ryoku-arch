@@ -1,3 +1,10 @@
+# Put user-installed binaries on PATH for every shell (not just interactive),
+# so tools dropped in ~/.local/bin (e.g. claude, oh-my-posh) are runnable and
+# the ryoku-fastfetch wrapper below is found. fish_add_path is idempotent.
+if test -d $HOME/.local/bin
+  fish_add_path $HOME/.local/bin
+end
+
 if status is-interactive
   # No greeting: keep the login terminal clean.
   set -g fish_greeting

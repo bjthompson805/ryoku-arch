@@ -12,3 +12,9 @@
 - `starship/` prompt (directory, git branch, command duration) on a fixed
   Ryoku palette.
 - `nautilus/` notes on xdg-user-dirs home folders and optional GSettings defaults.
+
+### Changed
+- `fish/`: put `~/.local/bin` on `PATH` for every shell (not only interactive),
+  so user-installed tools and the `ryoku-fastfetch` wrapper resolve.
+- `fastfetch/`: align the readout to the upstream Ryoku config (host/cpu/gpu
+  layout, no `title`); the `力` brand logo uses a wider left pad to clear the edge.
