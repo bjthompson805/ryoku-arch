@@ -787,6 +787,7 @@ func (m *model) loadStep() {
 	case kPass:
 		m.pwStage, m.pw1, m.pwErr, m.input = 0, "", "", ""
 	case kNet:
+		m.netOnline = netOnline()
 		m.netStage, m.input = 0, ""
 		m.pick = newPicker(ssids(), true)
 		m.pick.height = 5
@@ -1039,6 +1040,12 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 				m.advance()
 			default:
 				m.editInput(k, &m.input)
+			}
+		} else if k == "r" && !m.pick.searching {
+			m.netOnline = netOnline()
+			if !m.netOnline {
+				m.pick = newPicker(ssids(), true)
+				m.pick.height = 5
 			}
 		} else if done, sel := m.pick.update(k); done {
 			if l := ssids(); sel < len(l) {
@@ -1759,9 +1766,9 @@ func (m model) partBody(inner int) string {
 }
 
 func (m model) netBody(inner int) string {
-	if m.netOnline { // WIRE: detect via `ip -4 route` / ping; show iface + speed
+	if m.netOnline {
 		return strings.Join([]string{
-			fg(cGreen, gOKtxt+" Connected") + fg(cSub, "   eth0 · 1000 Mb/s"), "",
+			fg(cGreen, gOKtxt+" Connected") + fg(cSub, "   "+netInterface()), "",
 			fg(cSub, "An internet connection is required to download and build"),
 			fg(cSub, "the system. You're good to go."),
 			"", fg(cDim, "enter to continue · esc back"),
@@ -1772,7 +1779,7 @@ func (m model) netBody(inner int) string {
 			fg(cText, "Wi-Fi password:") + "\n" + inputBox(m.input, "", true) + "\n\n" +
 			fg(cDim, "enter to connect · esc back")
 	}
-	return fg(cRed, gBad+" Not connected") + fg(cSub, "   pick a Wi-Fi network") + "\n\n" + m.pick.view(inner, m.phase)
+	return fg(cRed, gBad+" Not connected") + fg(cSub, "   pick a Wi-Fi network, or plug in ethernet and press r") + "\n\n" + m.pick.view(inner, m.phase) + "\n" + fg(cDim, "r to rescan")
 }
 
 func strength(s string) string {
@@ -2226,7 +2233,7 @@ func (m model) footer() string {
 		case m.netStage == 1:
 			parts = []string{keyHint("type", "password"), keyHint("enter", "connect"), keyHint("esc", "back")}
 		default:
-			parts = []string{keyHint("↑↓", "move"), keyHint("enter", "connect"), keyHint("esc", "back")}
+			parts = []string{keyHint("↑↓", "move"), keyHint("enter", "connect"), keyHint("r", "rescan"), keyHint("esc", "back")}
 		}
 	case s.kind == kSelect:
 		parts = []string{keyHint("↑↓/jk", "move"), keyHint("/", "filter")}

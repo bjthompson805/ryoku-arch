@@ -527,3 +527,12 @@ func netOnline() bool {
 	}
 	return exec.Command("ping", "-c", "1", "-W", "1", "8.8.8.8").Run() == nil
 }
+
+// netInterface returns the active default-route interface name, for the
+// connected screen (for example "eth0" or "enp1s0"). WIRE target.
+func netInterface() string {
+	if out, ok := run("sh", "-c", "ip -4 route show default | awk '{print $5; exit}'"); ok && out != "" {
+		return out
+	}
+	return "online"
+}
