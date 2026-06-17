@@ -23,9 +23,9 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-// WIRE: point this at the real Ryoku install-help / support URL (Omarchy uses a
-// Discord invite). The failure screen renders it as a scannable QR code.
-const ryokuSupportURL = "https://ryoku.sh/install-help"
+// The failure screen renders this as a scannable QR code so the user can reach
+// install help from another device.
+const ryokuSupportURL = "https://docs.ryoku.dev"
 
 // Ryoku community links shown on the welcome screen (logos, press 's' for QR).
 const (

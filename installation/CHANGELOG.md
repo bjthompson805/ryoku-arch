@@ -17,6 +17,7 @@
 - TUI: the intro holds the brand about 5 seconds longer before the wizard.
 - TUI network step: recheck connectivity on entry (so a late ethernet lease shows
   as connected), show the real interface, and add an `r` rescan to the Wi-Fi picker.
+- TUI: the install-failure screen's support QR now points at `docs.ryoku.dev`.
 
 ### Fixed
 - The live ISO now autostarts the installer instead of the stock Arch first-boot
