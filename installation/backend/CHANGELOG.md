@@ -17,6 +17,9 @@
   instead of running it, with secrets redacted, so the flow can be exercised
   without a disk.
 - README documenting the contract, the progress protocol, and the dry-run mode.
+- `lib/network.sh`: in the `configure` stage, pin the target's NetworkManager
+  wifi backend to iwd and copy the live session's saved `.nmconnection` profiles
+  into the target (`root:root`, 0600), so wifi keeps working after first boot.
 
 ### Fixed
 - `lib/pacstrap.sh`: ensure the live pacman keyring is ready before pacstrap. It
