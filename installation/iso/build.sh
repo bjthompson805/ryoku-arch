@@ -33,27 +33,13 @@ STAGE_ONLY=0
 log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
 die() { printf 'build.sh: error: %s\n' "$*" >&2; exit 1; }
 
-# Copy the repo payload, skipping git, this profile's build dirs, and any ISO.
+# Bake the repo payload from tracked files only (git archive at HEAD), so
+# gitignored developer cruft (editor and AI-tooling configs, build dirs, ISOs)
+# never ships in the image.
 stage_repo() {
   local src=$1 dst=$2
   mkdir -p "$dst"
-  if command -v rsync >/dev/null 2>&1; then
-    rsync -a \
-      --exclude='/.git' \
-      --exclude='/installation/iso/work' \
-      --exclude='/installation/iso/out' \
-      --exclude='/installation/iso/staging' \
-      --exclude='*.iso' \
-      "$src"/ "$dst"/
-  else
-    tar -C "$src" \
-      --exclude='./.git' \
-      --exclude='./installation/iso/work' \
-      --exclude='./installation/iso/out' \
-      --exclude='./installation/iso/staging' \
-      --exclude='*.iso' \
-      -cf - . | tar -C "$dst" -xf -
-  fi
+  git -C "$src" archive --format=tar HEAD | tar -C "$dst" -xf -
 }
 
 # 0. Sanity.

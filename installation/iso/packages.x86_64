@@ -10,8 +10,10 @@ base
 linux
 linux-firmware
 mkinitcpio
-mkinitcpio-archiso          # archiso initramfs hooks: locate and mount the squashfs
-amd-ucode                   # early microcode; the archiso initramfs HOOKS load it
+# mkinitcpio-archiso adds the hooks that find and mount the squashfs; the ucode
+# packages are the early microcode the archiso initramfs loads.
+mkinitcpio-archiso
+amd-ucode
 intel-ucode
 
 # Bootloaders baked onto the ISO. systemd-boot (uefi.systemd-boot) ships with the
@@ -19,7 +21,7 @@ intel-ucode
 syslinux
 
 # Backend install toolchain: partition, encrypt, format, pacstrap, bootloader.
-arch-install-scripts        # pacstrap + genfstab + arch-chroot
+arch-install-scripts
 parted
 gptfdisk
 btrfs-progs
