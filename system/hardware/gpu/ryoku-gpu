@@ -27,7 +27,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./ryoku-gpu-detect
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=ryoku-gpu-detect
 source "$SCRIPT_DIR/ryoku-gpu-detect"
 
 # Hyprland drop-in the pin is written to (require()d by the Lua hyprland.lua).
