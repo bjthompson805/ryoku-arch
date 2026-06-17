@@ -17,3 +17,12 @@
   instead of running it, with secrets redacted, so the flow can be exercised
   without a disk.
 - README documenting the contract, the progress protocol, and the dry-run mode.
+
+### Fixed
+- `lib/pacstrap.sh`: ensure the live pacman keyring is ready before pacstrap. It
+  waits for `pacman-init.service` to settle, then populates the keyring if it is
+  still empty, so the install no longer races the boot service and fails with
+  "public keyring not found / failed to install packages to new root".
+- `lib/deploy.sh`: own the user home before installing qylock, so its per-user
+  files (the lockscreen under `~/.local/share`) are writable.
+- `lib/deploy.sh`: deploy the Hyprland config as `*.lua` (it moved to Lua).

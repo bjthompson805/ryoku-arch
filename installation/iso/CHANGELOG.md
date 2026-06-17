@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+### Added
 - Add the Ryoku live ISO profile (archiso, releng-based).
   - `profiledef.sh`: iso_name `ryoku`, label `RYOKU_<YYYYMM>`, date-stamped
     version, `install_dir=arch`, BIOS (syslinux) and UEFI (systemd-boot) boot
@@ -17,5 +18,19 @@
   - `build.sh`: stages a throwaway copy of the profile, builds the TUI from
     `../tui`, bakes the TUI, the backend (under `/usr/local/lib/ryoku/backend`
     with a `/usr/local/bin/ryoku-install` wrapper), and the repo payload (at
-    `/usr/share/ryoku`) into the staged airootfs, then runs `mkarchiso`. The
-    committed profile is never mutated.
+    `/usr/share/ryoku`, tracked files only via `git archive`) into the staged
+    airootfs, then runs `mkarchiso`. The committed profile is never mutated.
+
+### Fixed
+- Drop the inline comments from `packages.x86_64`: mkarchiso left their trailing
+  whitespace on the package names, so pacstrap reported "target not found".
+- Suppress `systemd-firstboot`: ship `/etc/locale.conf`, `hostname`, `localtime`,
+  and `vconsole.conf` and mask the service, so the image autostarts the installer
+  instead of the stock Arch "Initial Setup" prompt.
+- Ship a working `/etc/pacman.d/mirrorlist` (worldwide geo mirror plus global
+  backups); the default all-commented list left pacstrap with no servers.
+- Initialize the live pacman keyring: ship and enable `pacman-init.service` plus
+  the gnupg tmpfs mount (as releng does), so pacstrap can verify packages.
+- Force a truecolor TUI and quiet the boot: the session exports
+  `COLORTERM=truecolor`, and the kernel cmdline gains `quiet loglevel=3` to hide
+  amdgpu link-training console spam before the installer.

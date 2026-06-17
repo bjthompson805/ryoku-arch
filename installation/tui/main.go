@@ -844,7 +844,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "intro":
 			m.introPos, m.introVel = m.introSpr.Update(m.introPos, m.introVel, 1.0)
 			if m.introPos > 0.995 {
-				if m.introHold++; m.introHold > 14 {
+				if m.introHold++; m.introHold > 165 { // hold the brand ~5s longer
 					m.state, m.transPos, m.transVel, m.enterPos = "transition", 0, 0, 1
 				}
 			}

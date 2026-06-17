@@ -14,6 +14,22 @@ read_section() {
   ' "$1"
 }
 
+# ryoku_ensure_keyring makes sure the live pacman keyring is ready before pacstrap.
+# pacman-init.service builds it at boot, but it can still be running (or missing)
+# when the user reaches the install step, so wait for it to settle, then populate
+# if there are still no keys. Without this, pacstrap fails to verify packages
+# (public keyring not found / failed to install packages to new root).
+ryoku_ensure_keyring() {
+  for _ in $(seq 1 60); do
+    [[ "$(systemctl is-active pacman-init.service 2>/dev/null)" == activating ]] || break
+    sleep 1
+  done
+  [[ -n "$(pacman-key --list-keys 2>/dev/null)" ]] && return 0
+  log "initializing the pacman keyring"
+  run pacman-key --init
+  run pacman-key --populate archlinux
+}
+
 ryoku_pacstrap() {
   local base_file="$RYOKU_REPO/system/packages/base.packages"
   local hw_file="$RYOKU_REPO/system/packages/hardware.packages"
@@ -38,6 +54,7 @@ ryoku_pacstrap() {
   done
   (( ${#hw[@]} )) && pkgs+=("${hw[@]}")
 
+  ryoku_ensure_keyring
   log "installing ${#pkgs[@]} packages (profile=$RYOKU_PROFILE)"
   run pacstrap -K /mnt "${pkgs[@]}"
 
