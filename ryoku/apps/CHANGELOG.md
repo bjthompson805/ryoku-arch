@@ -23,3 +23,6 @@
   so user-installed tools and the `ryoku-fastfetch` wrapper resolve.
 - `fastfetch/`: align the readout to the upstream Ryoku config (host/cpu/gpu
   layout, no `title`); the `力` brand logo uses a wider left pad to clear the edge.
+- `fastfetch/`: color the keys and percentages with fixed brand truecolor
+  instead of palette slots, so the readout stays legible under any wallust theme
+  (themed `red`/`green` could fall to near-background contrast and vanish).

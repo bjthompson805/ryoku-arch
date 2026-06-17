@@ -7,25 +7,38 @@
     "height": 8,
     "padding": { "top": 4, "right": 8, "left": 8 }
   },
+  "display": {
+    // Keys and percentages use fixed brand truecolor, not palette slots, so the
+    // readout stays legible under any wallust theme (themed accent colors can
+    // fall to near-background contrast). Values keep the default foreground.
+    "color": { "keys": "1;38;2;242;86;35" },
+    "percent": {
+      "color": {
+        "green": "38;2;163;194;147",
+        "yellow": "38;2;242;201;76",
+        "red": "38;2;245;110;15"
+      }
+    }
+  },
   "modules": [
     "break",
-    { "type": "host",     "key": " 󰌢  PC      ", "keyColor": "red" },
-    { "type": "cpu",      "key": " 󰻟  CPU     ", "keyColor": "red" },
-    { "type": "gpu",      "key": " 󰢮  GPU     ", "keyColor": "red", "detectionMethod": "pci" },
-    { "type": "memory",   "key": " 󰍛  Memory  ", "keyColor": "red" },
-    { "type": "disk",     "key": " 󰋊  Disk    ", "keyColor": "red" },
+    { "type": "host",     "key": " 󰌢  PC      " },
+    { "type": "cpu",      "key": " 󰻟  CPU     " },
+    { "type": "gpu",      "key": " 󰢮  GPU     ", "detectionMethod": "pci" },
+    { "type": "memory",   "key": " 󰍛  Memory  " },
+    { "type": "disk",     "key": " 󰋊  Disk    " },
     "break",
-    { "type": "command",  "key": " 󰣇  OS      ", "keyColor": "red",
+    { "type": "command",  "key": " 󰣇  OS      ",
       "text": "version=$(ryoku-version 2>/dev/null || echo dev); echo \"Ryoku $version\"" },
-    { "type": "command",  "key": " 󰘬  Branch  ", "keyColor": "red",
+    { "type": "command",  "key": " 󰘬  Branch  ",
       "text": "ryoku-version-branch 2>/dev/null || echo unknown" },
-    { "type": "kernel",   "key": " 󰌽  Kernel  ", "keyColor": "red" },
-    { "type": "wm",       "key": " 󰧨  WM      ", "keyColor": "red" },
-    { "type": "terminal", "key": " 󰆍  Term    ", "keyColor": "red" },
-    { "type": "packages", "key": " 󰏖  Pkgs    ", "keyColor": "red" },
+    { "type": "kernel",   "key": " 󰌽  Kernel  " },
+    { "type": "wm",       "key": " 󰧨  WM      " },
+    { "type": "terminal", "key": " 󰆍  Term    " },
+    { "type": "packages", "key": " 󰏖  Pkgs    " },
     "break",
-    { "type": "uptime",   "key": " 󱫐  Uptime  ", "keyColor": "red" },
-    { "type": "command",  "key": " 󱦟  Age     ", "keyColor": "red",
+    { "type": "uptime",   "key": " 󱫐  Uptime  " },
+    { "type": "command",  "key": " 󱦟  Age     ",
       "text": "echo $(( ($(date +%s) - $(stat -c %W /)) / 86400 )) days" },
     "break"
   ]
