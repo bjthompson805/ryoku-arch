@@ -1,0 +1,43 @@
+Ryoku Arch
+
+Ryoku Arch is distributed under the GNU General Public License version 3.
+
+The project began as an Omarchy-derived Arch environment, created by David
+Heinemeier Hansson and contributors. The original project is available at:
+
+  https://github.com/basecamp/omarchy
+
+The MIT License and original copyright notice for the Omarchy-derived base are
+preserved in LICENSES/MIT-Omarchy-Ryoku-core.txt.
+
+The current Ryoku shell seed is adapted from the Caelestia shell project:
+
+  https://github.com/caelestia-dots/shell
+
+That shell is released under the GNU General Public License version 3. Ryoku's
+copy is modified, product-renamed, and distributed under the same license.
+
+Portions of the Ryoku display configuration UI are adapted from
+DankMaterialShell, created by Avenge Media LLC and contributors:
+
+  https://github.com/AvengeMedia/DankMaterialShell
+
+DankMaterialShell is released under the MIT License. Copyright (c) 2025
+Avenge Media LLC.
+
+Ryoku's settings UI is built on the Noctalia Shell project:
+
+  https://github.com/noctalia-dev/noctalia-shell
+
+Noctalia Shell is released under the MIT License. Copyright (c) 2025
+noctalia-dev. The bundled subtree lives under shell/noctalia/.
+
+Ryoku's dynamic island, dashboard and notifications are built on the Ambxst
+shell:
+
+  https://github.com/Axenide/Ambxst
+
+Ambxst is released under the GNU Affero General Public License version 3.
+Copyright (c) Axenide / Adriano Tisera. The bundled subtree lives under
+shell/ambxst/ and remains under AGPL-3.0, including the Section 13
+source-availability obligation.
