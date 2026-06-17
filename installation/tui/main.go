@@ -723,7 +723,7 @@ type model struct {
 	diskG                       int
 	kept                        []part // existing partitions (reclaimable)
 	wipeConfirm                 bool
-	espG, swapG, rootG          int
+	espG, swapG                 int
 	snapshots, sepHome, backups bool
 	lsel                        int
 	sAnim, sVel                 float64
@@ -783,7 +783,6 @@ func (m *model) loadStep() {
 				{"Windows (C:)", 600, "ntfs", "Windows", "-", "keep"},
 			}
 		}
-		m.rootG = m.availRoot()
 	case kPass:
 		m.pwStage, m.pw1, m.pwErr, m.input = 0, "", "", ""
 	case kNet:
@@ -1232,7 +1231,8 @@ func (m model) hasKeptESP() bool {
 }
 func (m model) needNewESP() bool { return !m.hasKeptESP() }
 
-// availRoot is the space the new btrfs root (plus any leftover free) can use.
+// availRoot is the size of the root partition: the disk minus kept partitions and
+// the ESP. The swapfile is carved out of this, so usable root is availRoot - swap.
 func (m model) availRoot() int {
 	a := m.diskG - m.keptG()
 	if m.needNewESP() {
@@ -1244,6 +1244,19 @@ func (m model) availRoot() int {
 	return a
 }
 
+// swapCeil caps the swapfile size: at most 64 GiB, and always leaving at least
+// 8 GiB of usable root so the swapfile can never claim the whole disk.
+func (m model) swapCeil() int {
+	mx := m.availRoot() - 8
+	if mx > 64 {
+		mx = 64
+	}
+	if mx < 0 {
+		mx = 0
+	}
+	return mx
+}
+
 func (m model) layoutRows() []lrow {
 	var rows []lrow
 	for i, k := range m.kept {
@@ -1253,8 +1266,7 @@ func (m model) layoutRows() []lrow {
 		rows = append(rows, lrow{"size", "esp", "ESP size", "/boot · fat32", "required"})
 	}
 	rows = append(rows,
-		lrow{"size", "root", "Root size", "btrfs / · @ @nix …", "required"},
-		lrow{"size", "swap", "Swap (swapfile)", "@swap · 0 = none", "optional"},
+		lrow{"size", "swap", "Swap (swapfile)", "@swap · 0 = none · carved from root", "optional"},
 		lrow{"toggle", "snap", "Snapshots & rollbacks", "@snapshots → /.snapshots", "recommended"},
 		lrow{"toggle", "home", "Separate /home", "@home → /home", "optional"},
 		lrow{"toggle", "backups", "Backups", "@backups → /.backups", "optional"},
@@ -1266,10 +1278,8 @@ func (m model) rowSpec(key string) (int, int, int, int, int) {
 	switch key {
 	case "esp":
 		return m.espG, 1, 4, 1, 1
-	case "root":
-		return m.rootG, 8, m.availRoot(), 5, 25
 	case "swap":
-		return m.swapG, 0, 64, 2, 8
+		return m.swapG, 0, m.swapCeil(), 2, 8
 	}
 	return 0, 0, 1, 1, 1
 }
@@ -1279,9 +1289,7 @@ func (m *model) setRow(key string, v int) {
 	switch key {
 	case "esp":
 		m.espG = v
-		m.rootG = clamp(m.rootG, 8, m.availRoot()) // ESP eats from root space
-	case "root":
-		m.rootG = v
+		m.swapG = clamp(m.swapG, 0, m.swapCeil()) // ESP eats space; keep swap in range
 	case "swap":
 		m.swapG = v
 	}
@@ -1317,7 +1325,6 @@ func (m *model) reclaim(idx int) { // WIRE: parted rm of the existing partition
 		return
 	}
 	m.kept = append(m.kept[:idx], m.kept[idx+1:]...)
-	m.rootG = m.availRoot() // hand the reclaimed space to root by default
 	m.lsel = clamp(m.lsel, 0, len(m.layoutRows())-1)
 }
 
@@ -1326,7 +1333,6 @@ func (m *model) partKey(k string) {
 		switch k {
 		case "y", "enter":
 			m.kept = nil // WIRE: wipe whole disk (parted mklabel gpt)
-			m.rootG = m.availRoot()
 			m.lsel, m.wipeConfirm = 0, false
 		case "n", "esc":
 			m.wipeConfirm = false
@@ -1378,7 +1384,6 @@ func (m *model) partKey(k string) {
 	case "a": // reset to recommended (keeps current kept set)
 		m.espG, m.swapG = 1, 16
 		m.snapshots, m.sepHome, m.backups = true, true, false
-		m.rootG = m.availRoot()
 	case "tab":
 		if m.diskG < minDiskGiB { // too-small guard, mirrors the installer preflight
 			return
@@ -1411,9 +1416,13 @@ func (m model) layoutSegs() []part {
 	if m.needNewESP() {
 		segs = append(segs, part{"ESP", m.espG, "vfat", "/boot", "esp", "new"})
 	}
-	segs = append(segs, part{"root", m.rootG, "btrfs", "/", "-", "new"})
-	if rem := m.availRoot() - m.rootG; rem > 0 {
-		segs = append(segs, part{"(free)", rem, "-", "-", "-", "free"})
+	rootUsable := m.availRoot() - m.swapG
+	if rootUsable < 0 {
+		rootUsable = 0
+	}
+	segs = append(segs, part{"root", rootUsable, "btrfs", "/", "-", "new"})
+	if m.swapG > 0 {
+		segs = append(segs, part{"swap", m.swapG, "swap", "[SWAP]", "swap", "new"})
 	}
 	return segs
 }
@@ -1435,9 +1444,9 @@ func (m model) selSeg() int {
 				return i
 			}
 		}
-	case r.key == "root":
+	case r.key == "swap":
 		for i, s := range segs {
-			if s.mount == "/" {
+			if s.fs == "swap" {
 				return i
 			}
 		}
@@ -1756,10 +1765,15 @@ func (m model) partBody(inner int) string {
 			b.WriteString(prefix + "   " + labelStyled(sel, r.label, 16) + " " + mark + "  " + padTo(tagStyle(r.tag), 11) + "  " + fg(cDim, sub) + "\n")
 		}
 	}
-	note := fg(cSub, "@ / and @nix always included")
-	if free := m.availRoot() - m.rootG; free > 0 {
-		note += fg(cDim, fmt.Sprintf("  ·  %dG left free", free))
+	rootUsable := m.availRoot() - m.swapG
+	if rootUsable < 0 {
+		rootUsable = 0
 	}
+	note := fg(cSub, fmt.Sprintf("root %dG", rootUsable))
+	if m.swapG > 0 {
+		note += fg(cDim, fmt.Sprintf("  ·  swap %dG", m.swapG))
+	}
+	note += fg(cDim, "  ·  @ / and @nix always included")
 	if len(m.kept) > 0 {
 		note += fg(cDim, "  ·  ") + bold(cBrand, "w") + fg(cSub, " wipe disk")
 	}
@@ -2080,7 +2094,7 @@ func (m model) reviewBody(w int) string {
 		row("disk", m.diskDev), row("hostname", m.picks["hostname"]),
 		row("user", m.picks["username"]), row("password", m.picks["password"]),
 		row("encryption", m.picks["encryption"]), "",
-		fg(cSub, "layout     ") + fg(cText, fmt.Sprintf("ESP %s · root %dG · swap %s", esp, m.rootG, swap)),
+		fg(cSub, "layout     ") + fg(cText, fmt.Sprintf("ESP %s · root %dG · swap %s", esp, m.availRoot()-m.swapG, swap)),
 		fg(cSub, "subvols    ") + fg(cText, subs),
 	}
 	if len(m.kept) > 0 {

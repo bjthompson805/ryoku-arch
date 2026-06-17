@@ -26,3 +26,7 @@
   render (Xwayland, the polkit agent, the Qt/GTK runtime), and the first reboot
   targets the installed disk via EFI BootNext. See `system/` and the iso/backend
   changelogs.
+- TUI partition step: the swapfile is carved out of the root size and shown in the
+  disk bar, so increasing swap now reduces the usable root instead of leaving the
+  total unchanged. Root always takes the rest of the disk (the backend uses 100%),
+  so the misleading editable root-size slider and the fake free-space line are gone.
