@@ -36,3 +36,7 @@
   amdgpu link-training console spam before the installer.
 - Add `xorg-xwayland` to the live image so cage can start its Xwayland server
   (removes the "cannot create xwayland server" error).
+- Send the cage session's output to `/var/log/ryoku-session.log` and set
+  `WLR_RENDERER_ALLOW_SOFTWARE=1`, so the harmless software-render "renderer did
+  not support importing dma-bufs" line stays in the log instead of on the console
+  where it looked like an install error. Real session failures are still logged.

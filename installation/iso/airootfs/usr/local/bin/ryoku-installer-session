@@ -11,10 +11,14 @@
 export RYOKU_REPO=/usr/share/ryoku
 export RYOKU_BACKEND=ryoku-install
 export COLORTERM=truecolor   # ask the TUI for 24-bit color; foot supports it
-export WLR_RENDERER=pixman   # software render: works on VMs and GPUs with no GL
+export WLR_RENDERER=pixman             # software render: works on VMs and GPUs with no GL
+export WLR_RENDERER_ALLOW_SOFTWARE=1   # the live session ships no GPU driver yet; expected
 
+# cage + wlroots log a harmless "renderer did not support importing dma-bufs" line
+# under software rendering. Send the session's diagnostics to a log so the console
+# stays clean; real failures are still captured there.
 run_full() {
-	cage -- foot -o term=xterm-256color -f 'JetBrainsMono Nerd Font:size=14' -e ryoku-tui
+	cage -- foot -o term=xterm-256color -f 'JetBrainsMono Nerd Font:size=14' -e ryoku-tui >/var/log/ryoku-session.log 2>&1
 }
 
 # Try the full graphical TUI, relaunching on a crash so the console never drops to
