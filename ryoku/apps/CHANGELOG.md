@@ -17,6 +17,9 @@
   registers it for text files.
 - `yazi/` file manager config; its editor opener is Neovim (blocking).
 - `mimeapps.list` makes Neovim the default application for text and code files.
+- `npm/` ships `~/.npmrc` (global prefix `~/.local`) and `pip/` ships
+  `~/.config/pip/pip.conf` (`break-system-packages`), so `npm i -g` and
+  `pip install --user` work without root.
 
 ### Changed
 - `fish/`: put `~/.local/bin` on `PATH` for every shell (not only interactive),
@@ -35,3 +38,6 @@
   learns and jumps to frecent directories (`cdi` for an interactive pick).
 - `yazi/`: show hidden files by default (`[mgr] show_hidden = true`), so dotfile
   trees like `~/.config` are visible.
+- `fish/`: route `go install` (`GOBIN`) and `cargo install` (`CARGO_INSTALL_ROOT`)
+  to `~/.local/bin` and activate `mise`, so every language tool installs onto
+  `PATH` and works from day one.

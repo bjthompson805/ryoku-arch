@@ -5,6 +5,11 @@ if test -d $HOME/.local/bin
   fish_add_path $HOME/.local/bin
 end
 
+# Send `go install` and `cargo install` binaries to ~/.local/bin (already on
+# PATH), so user-installed CLI tools work without extra PATH setup.
+set -gx GOBIN $HOME/.local/bin
+set -gx CARGO_INSTALL_ROOT $HOME/.local
+
 if status is-interactive
   # No greeting: keep the login terminal clean.
   set -g fish_greeting
@@ -44,6 +49,11 @@ if status is-interactive
   # frecent directories (use `cdi` for an interactive pick).
   if command -v zoxide >/dev/null 2>&1
     zoxide init fish --cmd cd | source
+  end
+
+  # Polyglot runtime version manager (shims + per-project tool versions).
+  if command -v mise >/dev/null 2>&1
+    mise activate fish | source
   end
 
   # Let fzf walk the tree with fd when present.
