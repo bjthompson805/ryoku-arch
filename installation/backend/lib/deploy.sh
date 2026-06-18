@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Deploy the Ryoku desktop payload into the freshly installed system: the GPU /
-# monitor helper scripts, the udev GPU rule, and the user's dotfiles (Hyprland,
-# kitty, fastfetch, fish, starship), then the qylock lockscreen bundle and the
-# SDDM clockwork theme. Runs in the "configure" stage after chroot.sh, under the
+# Deploy the Ryoku desktop payload into the freshly installed system: hardware
+# helper scripts, the udev GPU rule, and the user's dotfiles (Hyprland, kitty,
+# fastfetch, fish, starship), then the qylock lockscreen bundle and the SDDM
+# clockwork theme. Runs in the "configure" stage after chroot.sh, under the
 # same @@RYOKU_STEP. Everything goes through the dry-run wrappers and tolerates a
 # missing source (so a partial repo still deploys what it has).
 
@@ -67,6 +67,7 @@ ryoku_deploy_bin() {
   install_bin "$RYOKU_REPO/system/hardware/display/ryoku-monitor" ryoku-monitor
   install_bin "$RYOKU_REPO/system/hardware/power/ryoku-hw-laptop" ryoku-hw-laptop
   install_bin "$RYOKU_REPO/system/hardware/power/ryoku-idle" ryoku-idle
+  install_bin "$RYOKU_REPO/system/hardware/leds/ryoku-leds" ryoku-leds
   install_bin "$RYOKU_REPO/ryoku/apps/fastfetch/ryoku-fastfetch" ryoku-fastfetch
   install_bin "$RYOKU_REPO/ryoku/shell/ipc/ryoku-shell" ryoku-shell
   deploy_file "$RYOKU_REPO/system/hardware/gpu/90-ryoku-gpu.rules" \

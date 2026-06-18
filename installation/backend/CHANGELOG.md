@@ -37,6 +37,8 @@
   `pip install --user` work without root out of the box.
 - `lib/deploy.sh`: installs `ryoku-hw-laptop` and `ryoku-idle` into the target so
   laptop idle policy is available on first login.
+- `lib/deploy.sh`: installs `ryoku-leds`, letting first login and later wallpaper
+  changes apply wallust colors to OpenRGB-compatible lighting devices.
 
 ### Fixed
 - `lib/chroot.sh` and the TUI: fix timezone detection. The timezone screen runs

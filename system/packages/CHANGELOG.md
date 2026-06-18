@@ -15,6 +15,8 @@
 - `aur.packages`: add `gpk-bin` (GlazePKG), the RyokuArch package manager.
 - `base.packages`: add `hypridle` for laptop dim/lock/suspend timeouts and
   `upower` for the shell battery surface.
+- `base.packages`: add `openrgb` for wallpaper-driven keyboard and lighting
+  color control through `ryoku-leds`.
 
 ### Fixed
 - `base.packages`: add the desktop session pieces a plain Hyprland needs to render

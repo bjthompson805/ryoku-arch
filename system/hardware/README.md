@@ -25,6 +25,11 @@ in the machine.
     type, battery presence, and lid switches. It is shared by GPU and idle policy.
   - `ryoku-idle` Starts `hypridle` only on laptops, using Ryoku's dim/lock/DPMS/
     suspend timeouts.
+- `leds/`
+  - `ryoku-leds` Applies the current wallust accent color to OpenRGB-compatible
+    keyboards and attached lighting devices. It is best-effort: missing OpenRGB,
+    unsupported devices, or permission failures never block login or wallpaper
+    changes.
 - `drivers/` One install script per vendor: `nvidia.sh`, `intel.sh`, `amd.sh`,
   and `vulkan.sh`. Each one checks whether its hardware is present and installs
   only what that hardware needs.

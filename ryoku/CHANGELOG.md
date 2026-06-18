@@ -15,6 +15,8 @@
 - `shell/`: the Quickshell desktop UI (pill, sidebar, topbar, launcher, ryoshot),
   the wallust palette generation, the qt/kde theme, the user session target, and
   the `ryoku-shell` Go control-plane daemon (`ipc/`).
+- `hyprland/` autostart and `shell/ipc`: apply wallust colors to
+  OpenRGB-compatible keyboards and lighting devices through `ryoku-leds`.
 
 ### Changed
 - Tuned Hyprland window decoration and motion for the Ryoku shell: stronger

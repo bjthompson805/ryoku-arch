@@ -22,6 +22,8 @@
   `--no-reload` stages the files for the next login.
 - Hyprland autostart now launches `ryoku-idle start`; that helper starts
   `hypridle` on laptops only.
+- `ipc/wallpaper.go`: after wallust regenerates the palette, call `ryoku-leds`
+  so OpenRGB-compatible keyboards and lighting devices follow wallpaper changes.
 
 ### Changed
 - Relocated from the top-level `shell/` to `ryoku/shell/` as part of folding the

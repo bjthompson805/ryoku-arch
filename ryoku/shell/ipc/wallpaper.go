@@ -64,6 +64,7 @@ func wallpaperApply(mode, arg string) error {
 	_ = os.MkdirAll(stateDir(), 0o755)
 	_ = os.WriteFile(wallState(), []byte(pic+"\n"), 0o644)
 	_ = exec.Command("wallust", "run", pic).Run()
+	_ = exec.Command("ryoku-leds", "apply").Run()
 	_ = exec.Command("hyprctl", "reload").Run()
 	return nil
 }
