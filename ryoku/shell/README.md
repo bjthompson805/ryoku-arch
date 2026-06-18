@@ -60,9 +60,15 @@ install required:
     ryoku/shell/dev-run.sh       # build ryoku-shell, then run it with RYOKU_SHELL_DIR set
     ryoku/shell/dev-binds.sh on  # optional: bind the shell keys for this session
     ryoku/shell/dev-stop.sh      # stop it (restore your keys with: hyprctl reload)
+    ryoku update                # pull a clean repo, deploy ~/.config, restart the shell
 
 The daemon launches each component with `qs -p`, so your own `~/.config` is never
 touched, and quickshell hot-reloads QML edits, so changes show as you save.
+For live-mirror updates, `ryoku update` resolves the repo (`RYOKU_REPO`, the
+current git tree, or `~/Work/ryoku-arch`), refuses uncommitted changes, runs
+`git pull --ff-only`, copies `ryoku/shell`, `ryoku/hyprland`, and shell-adjacent
+configs into `~/.config`, installs helpers into `~/.local/bin`, then reloads
+Hyprland and restarts `ryoku-shell`.
 
 ## Install
 

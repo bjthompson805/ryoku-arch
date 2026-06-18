@@ -24,6 +24,9 @@
   `hypridle` on laptops only.
 - `ipc/wallpaper.go`: after wallust regenerates the palette, call `ryoku-leds`
   so OpenRGB-compatible keyboards and lighting devices follow wallpaper changes.
+- `ryoku`: lightweight live-mirror CLI. `ryoku update` refuses dirty repo state,
+  pulls with `--ff-only`, deploys the shell and Hyprland config, reloads Hyprland,
+  and restarts `ryoku-shell`.
 
 ### Changed
 - Relocated from the top-level `shell/` to `ryoku/shell/` as part of folding the

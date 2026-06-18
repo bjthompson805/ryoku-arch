@@ -70,6 +70,7 @@ ryoku_deploy_bin() {
   install_bin "$RYOKU_REPO/system/hardware/leds/ryoku-leds" ryoku-leds
   install_bin "$RYOKU_REPO/ryoku/apps/fastfetch/ryoku-fastfetch" ryoku-fastfetch
   install_bin "$RYOKU_REPO/ryoku/shell/ipc/ryoku-shell" ryoku-shell
+  install_bin "$RYOKU_REPO/ryoku/shell/ryoku" ryoku
   deploy_file "$RYOKU_REPO/system/hardware/gpu/90-ryoku-gpu.rules" \
     /mnt/etc/udev/rules.d/90-ryoku-gpu.rules
 }

@@ -27,8 +27,9 @@
 - `power/ryoku-idle`: laptop-only `hypridle` launcher for Ryoku's dim, lock,
   display-off, and suspend policy.
 - `leds/ryoku-leds`: reads the current wallust Hyprland palette and applies the
-  active accent to OpenRGB-compatible keyboards and attached lighting devices.
-  Missing or unsupported RGB hardware is non-fatal.
+  active accent to OpenRGB-compatible keyboards and attached lighting devices via
+  generic OpenRGB mode/color controls. Missing or unsupported RGB hardware is
+  non-fatal.
 - `drivers/nvidia.sh`, `drivers/intel.sh`, `drivers/amd.sh`, `drivers/vulkan.sh`:
   per-vendor, hardware-gated, idempotent install scripts with a `RYOKU_DRYRUN=1`
   print mode. NVIDIA uses the open modules on Turing and newer and the

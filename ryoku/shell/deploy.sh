@@ -23,6 +23,26 @@ cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
 bindir="$HOME/.local/bin"
 say() { printf '  %s\n' "$*"; }
 
+restart_shell() {
+  local shell=$bindir/ryoku-shell
+  local log="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-shell.log"
+
+  [[ -x $shell ]] || return 0
+  "$shell" quit >/dev/null 2>&1 || true
+  for _ in {1..20}; do
+    "$shell" ping >/dev/null 2>&1 || break
+    sleep 0.1
+  done
+
+  mkdir -p "$(dirname -- "$log")"
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$shell" daemon >"$log" 2>&1 < /dev/null &
+  else
+    nohup "$shell" daemon >"$log" 2>&1 < /dev/null &
+  fi
+  say "restarted ryoku-shell daemon -> $log"
+}
+
 hypr_live=0
 if command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then
   hypr_live=1
@@ -34,9 +54,11 @@ say "building ryoku-shell"
 mkdir -p "$bindir"
 install -m755 "$here/ipc/ryoku-shell" "$bindir/ryoku-shell"
 say "installed $bindir/ryoku-shell"
+install -m755 "$here/ryoku" "$bindir/ryoku"
 install -m755 "$here/../../system/hardware/power/ryoku-hw-laptop" "$bindir/ryoku-hw-laptop"
 install -m755 "$here/../../system/hardware/power/ryoku-idle" "$bindir/ryoku-idle"
-say "installed laptop idle helpers"
+install -m755 "$here/../../system/hardware/leds/ryoku-leds" "$bindir/ryoku-leds"
+say "installed Ryoku CLI and hardware helpers"
 
 # Quickshell components: a deployed daemon runs `qs -c <name>`, reading
 # ~/.config/quickshell/<name>.
@@ -69,8 +91,10 @@ mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 command -v systemctl >/dev/null 2>&1 && systemctl --user daemon-reload 2>/dev/null || true
 
 if (( hypr_live && reload )); then
-  # Apply now in one clean reload (this also restores auto-reload).
+  # Apply now in one clean reload (this also restores auto-reload), then restart
+  # the shell daemon so a changed binary and changed QML both take effect.
   hyprctl reload >/dev/null 2>&1 || true
+  restart_shell
   say "deployed and reloaded Hyprland."
 else
   # Staged: leave auto-reload paused so the running session keeps its current
