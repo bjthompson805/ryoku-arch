@@ -17,6 +17,8 @@
   `upower` for the shell battery surface.
 - `base.packages`: add `openrgb` for wallpaper-driven keyboard and lighting
   color control through `ryoku-leds`.
+- `base.packages`: add `noto-fonts-cjk` and `inter-font` so Japanese Ryoku shell
+  labels, the 力 brand mark, and the configured UI font render on fresh installs.
 
 ### Fixed
 - `base.packages`: add the desktop session pieces a plain Hyprland needs to render

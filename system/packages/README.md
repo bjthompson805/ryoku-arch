@@ -11,7 +11,8 @@ time (`RYOKU_REPO/system/packages/`).
   qylock dependencies, laptop idle/battery support (`hypridle`, `upower`), OpenRGB
   for wallpaper-driven keyboard/LED color, the terminal apps (kitty, nautilus,
   chromium, mpv), the shell stack (fish, starship, fastfetch and friends), and
-  fonts.
+  fonts: Inter for Ryoku UI text, Noto Emoji, and Noto CJK so Japanese labels and
+  the 力 mark render in browsers and Qt.
 - `hardware.packages` Per-profile microcode and GPU drivers, grouped into
   `[amd]`, `[intel]`, `[nvidia]`, and `[vm]` sections. The installer picks the
   section(s) for the chosen `RYOKU_PROFILE` (`amd-nvidia` takes `[amd]` and

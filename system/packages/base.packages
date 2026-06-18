@@ -103,5 +103,7 @@ yazi
 
 # Fonts
 noto-fonts
+noto-fonts-cjk
+inter-font
 noto-fonts-emoji
 ttf-jetbrains-mono-nerd

@@ -43,7 +43,7 @@ Singleton {
     readonly property color creamMenu:     Qt.rgba(0.902, 0.839, 0.796, 0.82)
     readonly property real shadowOpacity: 0.5
     readonly property string font: "Inter"
-    readonly property string fontJp: "Zen Kaku Gothic New"
+    readonly property string fontJp: "Noto Sans CJK JP"
 
     /**
      * MPRIS trackArtists arrives as a JS array from some players and as a
