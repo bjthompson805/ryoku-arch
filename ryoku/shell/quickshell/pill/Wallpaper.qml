@@ -239,7 +239,7 @@ PillSurface {
     Text {
         anchors.centerIn: parent
         visible: Walls.count === 0
-        text: "No wallpapers in ~/Ryoku/wallpapers"
+        text: "No wallpapers in ~/Pictures/Wallpapers"
         color: Theme.faint
         font.family: Theme.font
         font.pixelSize: 10.5 * root.s

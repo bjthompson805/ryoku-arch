@@ -40,6 +40,9 @@
 - `lib/deploy.sh`: installs `ryoku` and `ryoku-leds`, letting the live mirror pull
   and reload repo changes while wallpaper changes apply wallust colors to
   OpenRGB-compatible lighting devices.
+- `lib/deploy.sh`: seed `~/Pictures/Wallpapers` from the shipped
+  `ryoku/assets/wallpapers`, so a fresh install has a wallpaper set and the first
+  login lands on a random one.
 
 ### Fixed
 - `lib/chroot.sh` and the TUI: fix timezone detection. The timezone screen runs

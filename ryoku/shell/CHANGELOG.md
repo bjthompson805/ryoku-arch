@@ -70,11 +70,14 @@
   shell's wallust fastfetch template and `fastfetch/` dir, so wallust no longer
   overwrites `~/.config/fastfetch/config.jsonc`. wallust themes the kitty palette
   and Hyprland colors only.
+- The shell reads wallpapers from `~/Pictures/Wallpapers` (the XDG Pictures home,
+  was `~/Ryoku/wallpapers`); the random picker, the picker strip, and the
+  thumbnailer accept `.webp` alongside `.jpg`/`.jpeg`/`.png`.
 
 ### Fixed
 - `ipc/wallpaper.go`: resolve a symlinked wallpaper directory (`EvalSymlinks`)
   before scanning, so `wallpaper next` and the picker work when
-  `~/Ryoku/wallpapers` links to a collection elsewhere.
+  `~/Pictures/Wallpapers` links to a collection elsewhere.
 - `quickshell/ryoshot`: create `~/Pictures/Screenshots` on launch; it did not
   exist, so the screenshot grab failed and copy/save silently did nothing.
 - `quickshell/ryoshot`: de-branded the selection label (dropped the leftover

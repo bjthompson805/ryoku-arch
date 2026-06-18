@@ -77,8 +77,11 @@ ryoku_deploy_bin() {
 
 ryoku_deploy_configs() {
   local h=$1
-  log "deploying brand assets and dotfiles into $h"
+  log "deploying brand assets, wallpapers, and dotfiles into $h"
   deploy_dir "$RYOKU_REPO/ryoku/assets/brand" "$h/.local/share/ryoku/assets/brand"
+  # The shipped wallpaper collection seeds ~/Pictures/Wallpapers so a fresh
+  # install has a set to pick from; ryoku-shell sets a random one on first start.
+  deploy_dir "$RYOKU_REPO/ryoku/assets/wallpapers" "$h/Pictures/Wallpapers"
 
   # The shipped desktop is the Ryoku Hyprland config: a self-contained set with
   # hardware-managed gpu/keyboard/monitors plus an autostart that launches

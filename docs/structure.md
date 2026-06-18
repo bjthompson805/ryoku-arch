@@ -32,7 +32,8 @@ truth for the live desktop.
   wallpaper), `kde/` (`kdeglobals`), `systemd/` (the user session target), `ipc/`
   (`ryoku-shell`, the Go control-plane daemon), `brave-theme/`. `deploy.sh` and
   `dev-*.sh` are the live dev-loop tools.
-- `assets/` `brand/` the 力 logo and icons.
+- `assets/` `brand/` the 力 logo and icons, and `wallpapers/` the shipped
+  wallpaper set (installs to `~/Pictures/Wallpapers`).
 
 ## `system/` the machine
 

@@ -11,7 +11,9 @@
   setup.
 - `apps/`: kitty, fastfetch (with the branded wrapper), fish (greeting off),
   starship, and nautilus notes.
-- `assets/`: the 力 brand logo and icons.
+- `assets/`: the 力 brand logo and icons, plus the shipped wallpaper collection
+  (`wallpapers/`) that installs to `~/Pictures/Wallpapers`; `ryoku-shell` picks a
+  random one on first login.
 - `shell/`: the Quickshell desktop UI (pill, sidebar, topbar, launcher, ryoshot),
   the wallust palette generation, the qt/kde theme, the user session target, and
   the `ryoku-shell` Go control-plane daemon (`ipc/`).

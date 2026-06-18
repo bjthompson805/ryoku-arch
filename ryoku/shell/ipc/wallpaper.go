@@ -16,7 +16,7 @@ const (
 	wallDaemonStart = "awww-daemon"
 )
 
-func wallDir() string   { return filepath.Join(os.Getenv("HOME"), "Ryoku", "wallpapers") }
+func wallDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "Wallpapers") }
 func wallState() string { return filepath.Join(stateDir(), "ryoku-wallpaper") }
 func wallBag() string   { return filepath.Join(stateDir(), "ryoku-wallpaper-bag") }
 
@@ -104,7 +104,7 @@ func listPics() []string {
 			return nil
 		}
 		switch strings.ToLower(filepath.Ext(p)) {
-		case ".jpg", ".jpeg", ".png":
+		case ".jpg", ".jpeg", ".png", ".webp":
 			pics = append(pics, p)
 		}
 		return nil
