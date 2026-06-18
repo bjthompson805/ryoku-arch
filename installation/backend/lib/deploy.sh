@@ -66,7 +66,7 @@ ryoku_deploy_bin() {
   install_bin "$RYOKU_REPO/system/hardware/gpu/ryoku-gpu-detect" ryoku-gpu-detect
   install_bin "$RYOKU_REPO/system/hardware/display/ryoku-monitor" ryoku-monitor
   install_bin "$RYOKU_REPO/ryoku/apps/fastfetch/ryoku-fastfetch" ryoku-fastfetch
-  install_bin "$RYOKU_REPO/shell/ipc/ryoku-shell" ryoku-shell
+  install_bin "$RYOKU_REPO/ryoku/shell/ipc/ryoku-shell" ryoku-shell
   deploy_file "$RYOKU_REPO/system/hardware/gpu/90-ryoku-gpu.rules" \
     /mnt/etc/udev/rules.d/90-ryoku-gpu.rules
 }
@@ -76,10 +76,10 @@ ryoku_deploy_configs() {
   log "deploying brand assets and dotfiles into $h"
   deploy_dir "$RYOKU_REPO/ryoku/assets/brand" "$h/.local/share/ryoku/assets/brand"
 
-  # The shell's Hyprland config is the shipped desktop: it supersedes the plain
-  # ryoku/hyprland set and carries hardware-managed gpu/keyboard/monitors plus an
-  # autostart that launches ryoku-shell.
-  deploy_dir "$RYOKU_REPO/shell/hypr" "$h/.config/hypr"
+  # The shipped desktop is the Ryoku Hyprland config: a self-contained set with
+  # hardware-managed gpu/keyboard/monitors plus an autostart that launches
+  # ryoku-shell.
+  deploy_dir "$RYOKU_REPO/ryoku/hyprland" "$h/.config/hypr"
   deploy_dir "$RYOKU_REPO/ryoku/apps/kitty" "$h/.config/kitty"
   deploy_file "$RYOKU_REPO/ryoku/apps/fastfetch/config.jsonc" "$h/.config/fastfetch/config.jsonc"
   deploy_file "$RYOKU_REPO/ryoku/apps/fish/config.fish" "$h/.config/fish/config.fish"
@@ -93,10 +93,10 @@ ryoku_deploy_configs() {
 ryoku_deploy_shell() {
   local h=$1
   log "deploying the Ryoku shell components into $h"
-  deploy_dir "$RYOKU_REPO/shell/quickshell" "$h/.config/quickshell"
-  deploy_dir "$RYOKU_REPO/shell/wallust" "$h/.config/wallust"
-  deploy_file "$RYOKU_REPO/shell/kde/kdeglobals" "$h/.config/kdeglobals"
-  deploy_dir "$RYOKU_REPO/shell/systemd/user" "$h/.config/systemd/user"
+  deploy_dir "$RYOKU_REPO/ryoku/shell/quickshell" "$h/.config/quickshell"
+  deploy_dir "$RYOKU_REPO/ryoku/shell/wallust" "$h/.config/wallust"
+  deploy_file "$RYOKU_REPO/ryoku/shell/kde/kdeglobals" "$h/.config/kdeglobals"
+  deploy_dir "$RYOKU_REPO/ryoku/shell/systemd/user" "$h/.config/systemd/user"
 }
 
 # ryoku_deploy_editor makes neovim the default text editor: the .desktop entry

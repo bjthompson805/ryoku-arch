@@ -29,6 +29,8 @@
   as the user with a temporary passwordless-sudo grant. Online-gated and
   best-effort: an offline install or a failed build logs a warning and the
   install still completes.
+- `lib/deploy.sh`: read the desktop payload from the consolidated tree, the shell
+  from `ryoku/shell/*` and the Hyprland config from `ryoku/hyprland`.
 
 ### Fixed
 - `lib/chroot.sh`: set the root password to the chosen install password instead

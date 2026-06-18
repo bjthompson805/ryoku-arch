@@ -104,16 +104,17 @@ At `$RYOKU_REPO` the backend reads:
   template with the `@@CMDLINE@@` token), `system/boot/mkinitcpio/ryoku.conf`
   (HOOKS drop-in), and `system/boot/plymouth/ryoku/` (the splash theme). Each
   has a built-in fallback so a dry run works even before those files exist.
-- During the `configure` stage (after the chroot config, no separate sentinel)
-  it also deploys the desktop payload into the new system: the GPU/monitor
-  helper scripts from `system/hardware/` and `ryoku/apps/fastfetch/` into
-  `/usr/local/bin`, the `90-ryoku-gpu.rules` udev rule, the brand assets, and the
-  user dotfiles (`ryoku/hyprland/*.lua` -> `~/.config/hypr/`, kitty, fastfetch,
-  fish, starship). It installs the qylock bundle to `/usr/share/ryoku/qylock` and
-  runs `ryoku/lockscreen/sddm/setup` and `ryoku/lockscreen/install-qylock` in the
-  chroot (which set up the SDDM clockwork theme), then chowns the home directory.
-  `RYOKU_DRYRUN` is passed through to those scripts. Missing sources are skipped,
-  so a partial repo still deploys what it has.
+- During the `configure` stage (after the chroot config, no separate sentinel) it
+  also deploys the desktop payload into the new system: the GPU/monitor helper
+  scripts from `system/hardware/`, `ryoku/apps/fastfetch/ryoku-fastfetch`, and the
+  prebuilt `ryoku/shell/ipc/ryoku-shell` into `/usr/local/bin`; the
+  `90-ryoku-gpu.rules` udev rule; the brand assets; the user dotfiles
+  (`ryoku/hyprland` -> `~/.config/hypr`, plus kitty, fastfetch, fish, starship,
+  nvim, yazi, and the mimeapps/`.desktop` editor defaults); and the shell
+  components (`ryoku/shell/{quickshell,wallust,kde,systemd}`). It installs the
+  qylock bundle to `/usr/share/ryoku/qylock` and runs `ryoku/lockscreen/sddm/setup`
+  and `ryoku/lockscreen/install-qylock` in the chroot, then chowns the home.
+  `RYOKU_DRYRUN` is passed through; missing sources are skipped.
 
 The backend enables `sddm` and `NetworkManager`; first-login autostart (from the
 Hyprland config) runs `ryoku-gpu` and `ryoku-monitor`, so those are not run here.

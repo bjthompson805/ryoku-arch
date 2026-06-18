@@ -1,8 +1,8 @@
--- Managed by the hardware GPU script (ryoku-gpu). Empty by default: Hyprland uses
--- its own GPU selection on single-GPU machines.
+-- Managed by ryoku-gpu. Empty by default: Hyprland uses its own GPU selection.
 --
--- On multi-GPU machines (a discrete GeForce or Radeon beside the CPU's integrated
--- GPU) ryoku-gpu rewrites this file with an hl.env("AQ_DRM_DEVICES", ...) call that
--- pins the strongest GPU as the primary renderer, plus
--- hl.config({ cursor = { no_hardware_cursors = true } }) for reverse-PRIME cursors.
--- Required after the env defaults so the pinned values win. Edit via ryoku-gpu.
+-- On a multi-GPU machine (a discrete Radeon or GeForce beside the CPU's
+-- integrated GPU), `ryoku-gpu persist` rewrites this file with an
+-- hl.env("AQ_DRM_DEVICES", ...) call that pins the strongest GPU as the primary
+-- renderer. Reset to Hyprland's default selection with `ryoku-gpu disable`.
+--
+-- Changes take effect on the next Hyprland login (the env is read at start).

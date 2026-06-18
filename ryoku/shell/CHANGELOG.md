@@ -1,4 +1,4 @@
-# Changelog: shell/
+# Changelog: ryoku/shell/
 
 ## Unreleased
 
@@ -22,6 +22,10 @@
   `--no-reload` stages the files for the next login.
 
 ### Changed
+- Relocated from the top-level `shell/` to `ryoku/shell/` as part of folding the
+  whole desktop into one `ryoku/` tree. The Hyprland config moved to
+  `ryoku/hyprland` (the single Hyprland config); the duplicate `fish` was dropped
+  for the base `ryoku/apps/fish`.
 - Replaced the per-component daemon and toggle shell scripts with the Go IPC: the
   `*-daemon.sh` watchdogs, `cliphist-watch.sh`, and the `launcher`/`sidebar`/
   `clipboard`/`link`/`lock`/`wallpaper`/`wallpaper-picker` scripts are gone. The

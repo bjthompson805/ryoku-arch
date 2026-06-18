@@ -1,12 +1,4 @@
--- Managed by the hardware display script (ryoku-monitor). Edits may be overwritten.
---
--- No per-output line ships on purpose: every display uses the catch-all below
--- until ryoku-monitor writes explicit hl.monitor{} entries (sized to each panel's
--- real pixel density, and setting GDK_SCALE to match). Those come after this seed,
--- so they win. Scale 1 here means a panel is never over-zoomed before autoscale.
-hl.monitor({
-    output = "",
-    mode = "preferred",
-    position = "auto",
-    scale = 1,
-})
+-- Managed by ryoku-monitor (DPI-derived autoscale). Seed uses `highrr` so every
+-- panel comes up at its highest refresh; ryoku-monitor then captures per-output
+-- entries (and the matching GDK_SCALE) on Hyprland start.
+hl.monitor({ output = "", mode = "highrr", position = "auto", scale = 1 })

@@ -56,11 +56,11 @@ if [[ -d $cfg/hypr ]]; then
 fi
 rm -rf "$cfg/hypr"
 mkdir -p "$cfg/hypr"
-cp -a "$here/hypr/." "$cfg/hypr/"
+cp -a "$here/../hyprland/." "$cfg/hypr/"
 
 # Palette generation, per-app config, and the user session target.
 mkdir -p "$cfg/wallust";   cp -a "$here/wallust/." "$cfg/wallust/"
-mkdir -p "$cfg/fish";      cp -a "$here/fish/config.fish" "$cfg/fish/config.fish"
+cp -a "$here/../apps/fish/config.fish" "$cfg/fish/config.fish"
 cp -a "$here/kde/kdeglobals" "$cfg/kdeglobals"
 mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 command -v systemctl >/dev/null 2>&1 && systemctl --user daemon-reload 2>/dev/null || true

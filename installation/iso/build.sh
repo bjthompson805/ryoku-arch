@@ -78,9 +78,9 @@ stage_repo "$REPO_ROOT" "$AIROOTFS/usr/share/ryoku"
 # 4b. Build the Ryoku shell daemon (Go). Like the TUI, neither the live ISO nor
 #     the target has a Go toolchain, so it ships prebuilt inside the repo payload
 #     for the backend's deploy step to install onto the target.
-log "Building ryoku-shell from $REPO_ROOT/shell/ipc"
-install -d "$AIROOTFS/usr/share/ryoku/shell/ipc"
-( cd "$REPO_ROOT/shell/ipc" && CGO_ENABLED=0 go build -trimpath -o "$AIROOTFS/usr/share/ryoku/shell/ipc/ryoku-shell" . )
+log "Building ryoku-shell from $REPO_ROOT/ryoku/shell/ipc"
+install -d "$AIROOTFS/usr/share/ryoku/ryoku/shell/ipc"
+( cd "$REPO_ROOT/ryoku/shell/ipc" && CGO_ENABLED=0 go build -trimpath -o "$AIROOTFS/usr/share/ryoku/ryoku/shell/ipc/ryoku-shell" . )
 
 # 5. Keep the staged launchers executable (profiledef file_permissions also sets
 #    these at build time; this keeps the staged tree self-consistent meanwhile).
