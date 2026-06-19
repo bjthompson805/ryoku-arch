@@ -61,6 +61,11 @@
   the `send`/`install`/`compress`/`download` `GlyphIcon` glyphs, `Singletons/Stash`
   actions, and the `hyprland/scripts/stash-install.sh`, `stash-compress.sh`,
   `stash-download.sh` helpers (plus a `send-all` mode on `localsend.sh`) behind them.
+- `quickshell/pill`: a TOOLKIT centre island (Super+D) of four screen tools that
+  grow from the pill and run self-contained `hypr/scripts` helpers: Google Lens
+  (upload a region and open the search), a color picker (hyprpicker to the
+  clipboard), OCR (tesseract on a region to the clipboard), and a webcam Mirror (a
+  flipped mpv picture-in-picture, floated and toggled).
 
 ### Changed
 - Relocated from the top-level `shell/` to `ryoku/shell/` as part of folding the
@@ -94,6 +99,7 @@
   takes a ryoshot screenshot; dropped the SUPER-tap launcher and `SUPER+T` float.
   `SUPER+[1..0]` focus workspaces, `SUPER+SHIFT+[1..0]` move the window there.
   `SUPER+N` opens Neovim, `SUPER+ALT+E` opens yazi; `EDITOR`/`VISUAL` are nvim.
+- `binds.lua`: Super+Z opens the file stash.
 - `input.lua`: matched the upstream Ryoku input, `sensitivity` 0, no explicit
   `accel_profile` (libinput's adaptive default), `touchpad.natural_scroll` false,
   and hardware cursors. The shell's reversed scroll and a positive sensitivity
@@ -148,6 +154,10 @@
   It keyed off the un-latched `hoverArrived`, so every in-hover geometry twitch
   re-fired it; a one-shot `islandWoken` latch now plays it once per open and clears
   only on the return to rest.
+- `quickshell/pill`: the wake wave waits for the open morph to fully settle
+  before streaking, instead of drawing over a still-growing island (which warped
+  the line); and the hover content stays lit once settled, so async tray and
+  weather re-morphs cannot flash it blank.
 
 ### Not included
 - The GRUB theme (the system boots with Limine) and the SDDM theme (a 38 MB

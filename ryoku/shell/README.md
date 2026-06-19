@@ -59,6 +59,8 @@ idle/dim), `upower` (battery state), `wireplumber` (`wpctl`), `pipewire-pulse`
 (`pactl` voice-call state), `cava` (music visualizer), `playerctl` (media keys),
 `jq`, `glib2` (`gio`), `curl` (weather and LocalSend), and `python`/`openssl`/
 `libnotify`/`xdg-utils` (the LocalSend file stash and opening stashed files).
+The Super+D screen toolkit reuses `grim`/`slurp`, `hyprpicker`, `curl`/`jq`, and
+`mpv`, and adds `tesseract` for OCR.
 The keybinds open `kitty` (terminal) and `nautilus` (files). Fonts: JetBrains
 Mono Nerd and Noto; cursor: Bibata. The lock is qylock, from `ryoku/`.
 

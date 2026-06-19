@@ -47,6 +47,7 @@ Item {
     readonly property bool batteryOpen: surface === "battery"
     readonly property bool sysinfoOpen: surface === "sysinfo"
     readonly property bool stashOpen: surface === "stash"
+    readonly property bool toolkitOpen: surface === "toolkit"
     readonly property bool hasMedia: Mpris.players.values.length > 0
 
     readonly property var netDevices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
@@ -79,6 +80,7 @@ Item {
     readonly property real batteryW: 316 * s
     readonly property real sysinfoW: 360 * s
     readonly property real stashW: 420 * s
+    readonly property real toolkitW: 336 * s
     readonly property real toastW: 342 * s
     readonly property real restCorner: 18 * s
     readonly property real openCorner: 22 * s
@@ -92,9 +94,10 @@ Item {
         : (batteryOpen ? "battery"
         : (sysinfoOpen ? "sysinfo"
         : (stashOpen ? "stash"
+        : (toolkitOpen ? "toolkit"
         : (osdActive && !held ? "osd"
         : (toastActive && !held ? "toast"
-        : (expanded ? "hover" : "rest")))))))))))
+        : (expanded ? "hover" : "rest"))))))))))))
 
     signal requestSurface(string name)
     signal requestClose()
@@ -160,6 +163,7 @@ Item {
         battery:   () => Qt.size(batteryW, battery.implicitHeight + 26 * s),
         sysinfo:   () => Qt.size(sysinfoW, sysinfo.implicitHeight + 32 * s),
         stash:     () => Qt.size(stashW, stash.implicitHeight + 28 * s),
+        toolkit:   () => Qt.size(toolkitW, toolkit.implicitHeight + 28 * s),
         osd:       () => Qt.size(osd.desiredW, osd.desiredH),
         toast:     () => Qt.size(toastW, toastLoader.item ? toastLoader.item.implicitHeight + 24 * s : restH),
         hover:     () => Qt.size(hoverW, hoverH)
@@ -194,12 +198,15 @@ Item {
      */
     property bool hoverSoulGate: false
     // One-shot wake latch: the WakeWave flourish fires exactly once per open
-    // cycle. Set when the hover morph first settles, cleared only on return to
-    // rest -- so in-hover geometry twitches, surface hops and toast/osd
-    // interruptions never restart the streak (the "wave repeats" glitch).
+    // cycle, and only after the morph fully settles. Set on hoverSettled and
+    // cleared only on return to rest, so in-hover geometry twitches never
+    // restart it (no repeat) and it never streaks over a still-growing island
+    // (no warp).
     property bool islandWoken: false
     readonly property bool hoverArrived: mode === "hover" && morphCloseness > 0.55
-    onHoverArrivedChanged: if (hoverArrived) { hoverSoulGate = true; islandWoken = true; }
+    readonly property bool hoverSettled: mode === "hover" && morphCloseness > 0.96
+    onHoverArrivedChanged: if (hoverArrived) hoverSoulGate = true;
+    onHoverSettledChanged: if (hoverSettled) islandWoken = true;
     onModeChanged: if (mode !== "hover") {
         hoverSoulGate = false;
         soulTarget = "";
@@ -286,7 +293,8 @@ Item {
         : (linkOpen ? link
         : (sysinfoOpen ? sysinfo
         : (stashOpen ? stash
-        : (batteryOpen ? battery : null)))))))
+        : (toolkitOpen ? toolkit
+        : (batteryOpen ? battery : null))))))))
 
     Ame {
         id: ame
@@ -389,7 +397,7 @@ Item {
     Item {
         id: hover
         anchors.fill: parent
-        opacity: pill.mode === "hover" ? Math.pow(pill.morphCloseness, 1.2) : 0
+        opacity: pill.mode === "hover" ? (pill.islandWoken ? 1 : Math.pow(pill.morphCloseness, 1.2)) : 0
         visible: true
         Behavior on opacity { NumberAnimation { duration: pill.mode === "hover" ? Motion.fast : 40 } }
 
@@ -748,6 +756,14 @@ Item {
         id: stash
         s: pill.s
         open: pill.stashOpen
+        morphCloseness: pill.morphCloseness
+        onRequestClose: pill.requestClose()
+    }
+
+    ToolkitSurface {
+        id: toolkit
+        s: pill.s
+        open: pill.toolkitOpen
         morphCloseness: pill.morphCloseness
         onRequestClose: pill.requestClose()
     }

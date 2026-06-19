@@ -60,7 +60,11 @@ Item {
         "send": { d: "M22 2L11 13M22 2L15 22L11 13L2 9Z", fill: false },
         "install": { d: "M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8 M3 8l9-5 9 5 M9 11l3 3 3-3 M12 14V5", fill: false },
         "compress": { d: "M4 14h6v6 M20 10h-6V4 M14 10l7-7 M3 21l7-7", fill: false },
-        "download": { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3", fill: false }
+        "download": { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3", fill: false },
+        "lens": { d: "M4 9V6.5A2.5 2.5 0 0 1 6.5 4H9 M15 4h2.5A2.5 2.5 0 0 1 20 6.5V9 M20 15v2.5A2.5 2.5 0 0 1 17.5 20H15 M9 20H6.5A2.5 2.5 0 0 1 4 17.5V15 M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z", fill: false },
+        "ocr": { d: "M4 8V6a2 2 0 0 1 2-2h2 M16 4h2a2 2 0 0 1 2 2v2 M20 16v2a2 2 0 0 1-2 2h-2 M8 20H6a2 2 0 0 1-2-2v-2 M8 9.5h8 M8 12.5h8 M8 15.5h5", fill: false },
+        "webcam": { d: "M12 3.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15z M12 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M8.5 21h7", fill: false },
+        "eyedropper": { d: "M4 20l1-3.5 8.5-8.5 2.5 2.5-8.5 8.5L4 20z M14.5 6l3.5 3.5 1.5-1.5a1.8 1.8 0 0 0-3.5-3.5z", fill: false }
     })
 
     readonly property var g: glyphs[name] !== undefined ? glyphs[name] : ({ d: "", fill: false })

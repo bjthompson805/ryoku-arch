@@ -147,6 +147,7 @@ ShellRoot {
         }
         function sysinfo(mon: string): void { root.toggleSurface(mon, "sysinfo"); }
         function stash(mon: string): void { root.toggleSurface(mon, "stash"); }
+        function toolkit(mon: string): void { root.toggleSurface(mon, "toolkit"); }
         function peek(mon: string): void { root.peek(mon); }
         function hide(): void { root.close(); }
     }
