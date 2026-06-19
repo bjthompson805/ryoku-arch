@@ -26,6 +26,9 @@
   live mic wave (`ryoku-shell voice start|stop`); autostart Handy hidden and
   tray-less (it is keybind-driven and configured from app search) when the
   optional `handy` binary is installed.
+- `hyprland/` autostart: normalize the default microphone to unity gain on login
+  through `ryoku-mic`, so an over-amplified codec does not clip Handy's recording
+  or peg the voice wave.
 
 ### Changed
 - Tuned Hyprland window decoration and motion for the Ryoku shell: stronger
