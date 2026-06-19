@@ -172,6 +172,10 @@
   close spring was underdamped enough to spring the body back open past flush,
   re-triggering the hover and sticking the popout (power especially) open; the
   close now eases out with no overshoot.
+- `quickshell/pill`: the activity-strip chips (REC stop, stash) now receive hover
+  and clicks. The strip rides left of the pill, outside the pill's input mask, so
+  its region was never grabbed and clicks fell through to the window behind; the
+  mask now covers the strip's bounds, like the music island and edge popouts.
 - `ipc/wallpaper.go`: resolve a symlinked wallpaper directory (`EvalSymlinks`)
   before scanning, so `wallpaper next` and the picker work when
   `~/Pictures/Wallpapers` links to a collection elsewhere.

@@ -265,6 +265,10 @@ ShellRoot {
                 Region { x: mixerPop.bodyX; y: mixerPop.bodyY; width: mixerPop.bodyW; height: mixerPop.bodyH }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
                 Region { x: powerPop.bodyX; y: powerPop.bodyY; width: powerPop.bodyW; height: powerPop.bodyH }
+                // The activity strip rides left of the pill, outside the pill body,
+                // so input must be grabbed over it for its chips (REC stop, stash) to
+                // receive hover and clicks instead of passing through to the window.
+                Region { x: activityStrip.x; y: activityStrip.y; width: activityStrip.width; height: activityStrip.height }
             }
             Region {
                 id: fullRegion
