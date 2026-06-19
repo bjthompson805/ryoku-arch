@@ -97,16 +97,17 @@ write_monitors_conf() {
   local gdk="$1"
   mkdir -p "$(dirname "$monitors_conf")"
   {
-    printf '%s\n' "-- Managed by ryoku-monitor. Per-output layout captured from the live session."
-    printf '%s\n' "-- Scale is DPI-derived (ryoku-monitor autoscale), never hardcoded per panel."
-    printf '%s\n' "-- Edits may be overwritten; re-run ryoku-monitor autoscale to regenerate."
+    printf '%s\n' "-- Managed by ryoku-monitor. Scale and position are captured from the live"
+    printf '%s\n' "-- session (DPI-derived, never hardcoded); refresh is always highrr so a"
+    printf '%s\n' "-- slow-training link cannot pin a low rate. Edits may be overwritten;"
+    printf '%s\n' "-- re-run ryoku-monitor autoscale to regenerate."
     printf '\n'
     monitors_json | jq -r '
       .[] |
       if .disabled then
         "hl.monitor({ output = \"\(.name)\", disabled = true })"
       else
-        "hl.monitor({ output = \"\(.name)\", mode = \"\(.width)x\(.height)@\(.refreshRate | round)\", position = \"\(.x)x\(.y)\", scale = \(.scale)"
+        "hl.monitor({ output = \"\(.name)\", mode = \"" + (if (.mirrorOf // "none") != "none" then "\(.width)x\(.height)@\(.refreshRate | round)" else "highrr" end) + "\", position = \"\(.x)x\(.y)\", scale = \(.scale)"
         + (if .transform != 0 then ", transform = \(.transform)" else "" end)
         + (if .vrr then ", vrr = 1" else "" end)
         + (if (.mirrorOf // "none") != "none" then ", mirror = \"\(.mirrorOf)\"" else "" end)
@@ -130,6 +131,30 @@ apply_monitor() {
   hyprctl eval "hl.monitor({ $1 })" >/dev/null 2>&1
 }
 
+# Ride out a cold-boot DisplayPort link that first advertises a low refresh (common
+# on a discrete GPU): while an enabled, non-mirrored output runs below the top rate
+# its EDID lists, re-assert highrr and wait. Bounded, and a no-op once every output
+# already sits at its max, so it only costs time on a link still training.
+settle_refresh() {
+  [[ -n ${RYOKU_MONITOR_JSON:-} ]] && return 0
+  local tries=0 name
+  while ((tries < 6)); do
+    monitors_json | jq -e '
+      any(.[];
+        (.disabled | not)
+        and ((.mirrorOf // "none") == "none")
+        and ((.availableModes // []
+              | map(capture("@(?<r>[0-9.]+)Hz") | .r | tonumber)
+              | max // 0) - .refreshRate > 1))' >/dev/null 2>&1 || return 0
+    while IFS= read -r name; do
+      [[ -n $name ]] || continue
+      apply_monitor "output = \"$name\", mode = \"highrr\"" || true
+    done < <(monitors_json | jq -r '.[] | select((.disabled | not) and ((.mirrorOf // "none") == "none")) | .name')
+    sleep 2
+    tries=$((tries + 1))
+  done
+}
+
 cmd_autoscale() {
   require_hyprctl
   require_jq
@@ -142,6 +167,7 @@ cmd_autoscale() {
       echo "ryoku-monitor: $name -> scale $wanted"
     fi
   done < <(monitors_json | dpi_specs)
+  settle_refresh
   local gdk
   gdk="$(sync_gdk_scale)"
   write_monitors_conf "$gdk"

@@ -45,6 +45,11 @@
   proprietary modules otherwise.
 
 ### Fixed
+- `display/ryoku-monitor`: write each output's refresh as `highrr` instead of the
+  live rate, and settle the refresh after applying scale. A panel whose
+  DisplayPort link first comes up at a low refresh (common on a discrete GPU at
+  cold boot) no longer has that low rate captured back into the drop-in and locked
+  in; every monitor now holds its highest refresh across reboots.
 - `drivers/nvidia.sh`: also write the early-KMS modprobe option
   (`nvidia_drm modeset=1`) and the initramfs `MODULES`, which are mandatory for a
   working NVIDIA Wayland session. Detection-gated, so they apply whenever an
