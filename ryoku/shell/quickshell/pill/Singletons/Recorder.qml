@@ -3,15 +3,47 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
+/**
+ * Screen-recording state and control. Drives ryoku-cmd-screenrecord (gpu-screen-recorder,
+ * falling back to wf-recorder on multi-GPU machines) and reconciles against the live
+ * recorder process, so a failed launch or an external stop can't strand the UI. Pause
+ * is optimistic and gpu-screen-recorder only (wf-recorder cannot pause). The activity
+ * strip chip and the utilities Record card share this one source of truth.
+ */
 Singleton {
     id: root
 
     property bool active: false
     property bool paused: false
+    // Backend that owns the live recording: "gsr", "wf", or "" when idle.
+    property string backend: ""
+    readonly property bool canPause: backend === "gsr"
     property int startedAt: 0
     property int elapsedSec: 0
     property real pulse: 1
     readonly property string elapsedText: fmt(elapsedSec)
+
+    function start(extraArgs) {
+        Quickshell.execDetached(["ryoku-cmd-screenrecord", ...(extraArgs || [])]);
+        root.paused = false;
+        root.active = true;
+        root.startedAt = Math.floor(Date.now() / 1000);
+        root.elapsedSec = 0;
+        confirm.restart();
+    }
+
+    function stop() {
+        Quickshell.execDetached(["ryoku-cmd-screenrecord", "--stop"]);
+        root.active = false;
+        root.paused = false;
+    }
+
+    function togglePause() {
+        if (!root.canPause)
+            return;
+        Quickshell.execDetached(["ryoku-cmd-screenrecord", "--pause"]);
+        root.paused = !root.paused;
+    }
 
     SequentialAnimation on pulse {
         running: root.active && !root.paused
@@ -20,13 +52,15 @@ Singleton {
         NumberAnimation { to: 1.0; duration: 620; easing.type: Easing.InOutSine }
     }
 
+    // Reconcile against the live process: report the owning backend and clear
+    // stale state when nothing is recording. Pause stays optimistic while active.
     Process {
         id: poll
-        command: ["sh", "-c", "PF=$HOME/.cache/qs_recording_state/wl_pid; PA=$HOME/.cache/qs_recording_state/paused; if [ -f \"$PF\" ] && kill -0 $(cat \"$PF\") 2>/dev/null; then [ -f \"$PA\" ] && echo paused || echo active; elif pgrep -x wf-recorder >/dev/null 2>&1 || pgrep -x gpu-screen-recorder >/dev/null 2>&1; then echo active; else echo off; fi"]
+        command: ["sh", "-c", "if pgrep -x gpu-screen-recorder >/dev/null 2>&1; then echo gsr; elif pgrep -x wf-recorder >/dev/null 2>&1; then echo wf; else echo off; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
-                var state = text.trim();
-                var nowActive = state === "active" || state === "paused";
+                var b = text.trim();
+                var nowActive = b === "gsr" || b === "wf";
                 if (nowActive && !root.active) {
                     root.startedAt = Math.floor(Date.now() / 1000);
                     root.elapsedSec = 0;
@@ -35,9 +69,10 @@ Singleton {
                     root.startedAt = 0;
                     root.elapsedSec = 0;
                     root.pulse = 1;
+                    root.paused = false;
                 }
                 root.active = nowActive;
-                root.paused = state === "paused";
+                root.backend = nowActive ? b : "";
             }
         }
     }
@@ -50,11 +85,21 @@ Singleton {
         onTriggered: if (!poll.running) poll.running = true
     }
 
+    // Confirm the recorder actually came up after a start, so a failed launch
+    // clears the optimistic running state instead of counting up forever.
+    Timer {
+        id: confirm
+        interval: 2500
+        onTriggered: poll.running = true
+    }
+
+    // Elapsed increments (rather than recomputing from startedAt) so a pause
+    // freezes the clock and a resume continues it.
     Timer {
         interval: 1000
         running: root.active && !root.paused
         repeat: true
-        onTriggered: root.elapsedSec = Math.max(0, Math.floor(Date.now() / 1000) - root.startedAt)
+        onTriggered: root.elapsedSec++
     }
 
     function fmt(sec) {

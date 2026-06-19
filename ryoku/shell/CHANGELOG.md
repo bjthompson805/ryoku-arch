@@ -36,6 +36,18 @@
   `--no-reload` stages the files for the next login.
 - Hyprland autostart now launches `ryoku-idle start`; that helper starts
   `hypridle` on laptops only.
+- The Super+D screen toolkit gained a Caffeine tile: a coffee-glyph toggle that
+  holds `Flags.keepAwake` (and thus the pill and sidebar `IdleInhibitor`) on until
+  it is turned back off, so the screen never dims or locks. Unlike the launcher
+  tiles it flips in place and stays lit warm while active.
+- `quickshell/pill`: a Utilities surface grown from the pill centre (Super+U), the
+  legacy bottom-right panel reworked as a centre island. Keep-Awake with a live
+  elapsed counter (shared `Flags.keepAwakeSince`), a Screen Recorder card with a
+  record-mode dropdown (display / region / +sound) and running controls
+  (pause/stop, elapsed, REC pulse), quick toggles (wifi / bluetooth / mic / DND),
+  and a recordings list with play / open-folder / trash. Recording is driven by
+  the `Recorder` singleton (`ryoku-cmd-screenrecord`: gpu-screen-recorder with a
+  wf-recorder fallback).
 - `ipc/wallpaper.go`: after wallust regenerates the palette, call `ryoku-leds`
   so OpenRGB-compatible keyboards and lighting devices follow wallpaper changes.
 - `ryoku`: lightweight live-mirror CLI. `ryoku update` refuses dirty repo state,

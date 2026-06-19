@@ -8,13 +8,26 @@ import Quickshell.Io
  * change, so every Ryoku daemon (pill, sidebar) reads and writes the same
  * Do-Not-Disturb and Keep-Awake state live without a second notification server
  * or idle inhibitor. Toggling in one surface updates the others on the next file
- * event, and the state survives a daemon restart.
+ * event, and the state survives a daemon restart. keepAwakeSince is the epoch
+ * millisecond Keep-Awake was last enabled (0 when off), so every surface reads
+ * the same "how long" elapsed time.
  */
 Singleton {
     id: root
 
     property alias dnd: adapter.dnd
     property alias keepAwake: adapter.keepAwake
+    property alias keepAwakeSince: adapter.keepAwakeSince
+
+    // Stamp the start time when Keep-Awake turns on and clear it when off, so no
+    // toggle site has to track it. Guarded so a file reload (where the stamp is
+    // already set) never resets the running clock.
+    onKeepAwakeChanged: {
+        if (keepAwake && !adapter.keepAwakeSince)
+            adapter.keepAwakeSince = Date.now();
+        else if (!keepAwake)
+            adapter.keepAwakeSince = 0;
+    }
 
     FileView {
         id: file
@@ -30,6 +43,7 @@ Singleton {
             id: adapter
             property bool dnd: false
             property bool keepAwake: false
+            property real keepAwakeSince: 0
         }
     }
 
