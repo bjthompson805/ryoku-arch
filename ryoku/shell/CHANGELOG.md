@@ -98,6 +98,9 @@
   copying the result and opening URLs).
 
 ### Changed
+- `quickshell/pill`: the media player's seek line is the Ryoku wave now, a uniform
+  sine ripple with a dim track and a bright played crest, matching the WaveMeter
+  signature instead of the damped brush stroke it used to draw.
 - `quickshell/pill`: the mixer is audio and display faders only. The DND and
   Keep-Awake chips moved out (they already live on the Utilities centre island),
   and each fader now shows its level at rest instead of only on hover.

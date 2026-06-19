@@ -409,6 +409,8 @@ PillSurface {
 
             readonly property real inset: 3 * root.s
             readonly property real usable: Math.max(1, width - 2 * inset)
+            readonly property real amp: 2.2 * root.s
+            readonly property real wavelength: 8 * root.s
             property real targetF: root.frac
             property real lastFrac: 0
             property real drawF: targetF
@@ -429,9 +431,10 @@ PillSurface {
             onWidthChanged: requestPaint()
             onVisibleChanged: if (visible) requestPaint()
 
-            /** stroke spine waver: strong near the tail, flattens toward the end. */
+            /** A Ryoku wave: a uniform sine ripple across the stroke, the same
+             * signature the WaveMeter draws, so the seek line reads as the house wave. */
             function waveY(u) {
-                return height / 2 - 2.6 * Math.sin(3 * Math.PI * u) * Math.exp(-2.5 * u) * root.s;
+                return height / 2 + amp * Math.sin(u * usable * (6.28318 / wavelength));
             }
 
             onPaint: {
@@ -439,35 +442,41 @@ PillSurface {
                 ctx.reset();
                 if (width <= 0 || height <= 0)
                     return;
-                const n = 48;
-                ctx.strokeStyle = Theme.border;
-                ctx.lineWidth = 2.5 * root.s;
+                ctx.lineWidth = 2 * root.s;
                 ctx.lineCap = "round";
                 ctx.lineJoin = "round";
+                const steps = Math.max(8, Math.round(usable / 1.5));
+
+                // Dim full-width base: the track the playback head has not reached.
+                ctx.strokeStyle = Theme.border;
                 ctx.beginPath();
-                ctx.moveTo(inset, waveY(0));
-                for (let i = 1; i <= n; i++)
-                    ctx.lineTo(inset + (i / n) * usable, waveY(i / n));
+                for (let i = 0; i <= steps; i++) {
+                    const u = i / steps;
+                    const x = inset + u * usable;
+                    const y = waveY(u);
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
                 ctx.stroke();
 
                 if (drawF <= 0.002)
                     return;
-                const hTail = 2.5 * root.s;
-                const hHead = 1.75 * root.s;
-                const m = Math.max(2, Math.ceil(n * drawF));
+
+                // Bright crest from the tail to the playback head.
+                ctx.strokeStyle = Theme.verm;
+                ctx.beginPath();
+                const lit = Math.max(2, Math.round(steps * drawF));
+                for (let i = 0; i <= lit; i++) {
+                    const u = (i / lit) * drawF;
+                    const x = inset + u * usable;
+                    const y = waveY(u);
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                // Head dot: the playback position, where the soul bead docks.
                 ctx.fillStyle = Theme.verm;
                 ctx.beginPath();
-                ctx.arc(inset, waveY(0), hTail, Math.PI / 2, 3 * Math.PI / 2);
-                for (let i = 0; i <= m; i++) {
-                    const u = (i / m) * drawF;
-                    ctx.lineTo(inset + u * usable, waveY(u) - (hTail + (hHead - hTail) * (i / m)));
-                }
-                ctx.arc(headX, headY, hHead, -Math.PI / 2, Math.PI / 2);
-                for (let i = m; i >= 0; i--) {
-                    const u = (i / m) * drawF;
-                    ctx.lineTo(inset + u * usable, waveY(u) + (hTail + (hHead - hTail) * (i / m)));
-                }
-                ctx.closePath();
+                ctx.arc(headX, headY, 2.6 * root.s, 0, 6.28318);
                 ctx.fill();
             }
 
