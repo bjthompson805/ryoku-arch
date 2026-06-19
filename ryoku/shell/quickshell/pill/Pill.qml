@@ -397,7 +397,7 @@ Item {
     Item {
         id: hover
         anchors.fill: parent
-        opacity: pill.mode === "hover" ? (pill.islandWoken ? 1 : Math.pow(pill.morphCloseness, 1.2)) : 0
+        opacity: pill.mode === "hover" ? Math.pow(pill.morphCloseness, 1.2) : 0
         visible: true
         Behavior on opacity { NumberAnimation { duration: pill.mode === "hover" ? Motion.fast : 40 } }
 

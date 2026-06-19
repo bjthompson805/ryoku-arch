@@ -155,9 +155,8 @@
   re-fired it; a one-shot `islandWoken` latch now plays it once per open and clears
   only on the return to rest.
 - `quickshell/pill`: the wake wave waits for the open morph to fully settle
-  before streaking, instead of drawing over a still-growing island (which warped
-  the line); and the hover content stays lit once settled, so async tray and
-  weather re-morphs cannot flash it blank.
+  before streaking, instead of drawing over a still-growing island that warped
+  the line.
 
 ### Not included
 - The GRUB theme (the system boots with Limine) and the SDDM theme (a 38 MB
