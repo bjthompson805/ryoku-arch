@@ -112,6 +112,11 @@ ffmpeg
 yt-dlp
 desktop-file-utils
 
+# Screen toolkit (pill Super+D): OCR text recognition. The lens, color picker,
+# and webcam mirror reuse curl/jq/grim/slurp, hyprpicker, and mpv from above.
+tesseract
+tesseract-data-eng
+
 # Fonts
 noto-fonts
 noto-fonts-cjk

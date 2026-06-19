@@ -26,6 +26,8 @@
 - `base.packages`: add `ffmpeg` and `yt-dlp` for the stash's media compress and
   download actions, and `desktop-file-utils` so installing AppImages and tarballs
   refreshes the launcher's desktop database.
+- `base.packages`: add `tesseract` and `tesseract-data-eng` for the pill's Super+D
+  toolkit OCR (recognize text in a screen region to the clipboard).
 
 ### Fixed
 - `base.packages`: add the desktop session pieces a plain Hyprland needs to render
