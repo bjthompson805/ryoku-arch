@@ -24,6 +24,8 @@ Row {
         accent: Theme.vermLit
         dot: true
         dotOpacity: Recorder.paused ? 0.35 : Recorder.pulse
+        clickable: true
+        onActivated: Recorder.stop()
     }
 
     ActivityChip {

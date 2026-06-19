@@ -68,6 +68,9 @@
   voice call, WireGuard tunnel) folds open beside the pill while each state is
   live, and a separated album-art/CAVA music island sits to the right that
   expands its own transport controls on hover without resizing the main pill.
+- `quickshell/pill`: the REC activity chip stops the recording on click. Its dot
+  squares into a stop icon on hover, so the chip reads as a control rather than a
+  readout, and the recording can be ended without opening the Utilities surface.
 - `quickshell/pill`: three more native surfaces grown from the pill. A SYSTEM
   card (`SysInfoSurface` + `Singletons/SysInfo`) reads user@host, distro, kernel,
   CPU/GPU, memory and disk meters, uptime and packages; a file STASH
@@ -162,6 +165,13 @@
 - `quickshell/pill`: the Recorder detects gpu-screen-recorder by full command line.
   Linux truncates the process comm name to 15 chars, so `pgrep -x
   gpu-screen-recorder` never matched and a live recording read as stopped.
+- `quickshell/pill`: the Recorder runs `ryoku-cmd-screenrecord` by its full path.
+  `~/.config/hypr/scripts` is not on the shell's PATH, so the bare name never
+  resolved and the Record button silently did nothing.
+- `quickshell/pill`: the mixer and power edge popouts close on hover-leave. The
+  close spring was underdamped enough to spring the body back open past flush,
+  re-triggering the hover and sticking the popout (power especially) open; the
+  close now eases out with no overshoot.
 - `ipc/wallpaper.go`: resolve a symlinked wallpaper directory (`EvalSymlinks`)
   before scanning, so `wallpaper next` and the picker work when
   `~/Pictures/Wallpapers` links to a collection elsewhere.

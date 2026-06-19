@@ -53,9 +53,12 @@ Item {
             visible: root.dot
             width: 7 * root.s
             height: 7 * root.s
-            radius: width / 2
+            // The recording dot squares off into a stop icon on hover, so it reads
+            // as a clickable control that ends the recording.
+            radius: root.lit ? 1.5 * root.s : width / 2
             color: root.accent
-            opacity: root.dotOpacity
+            opacity: root.lit ? 1 : root.dotOpacity
+            Behavior on radius { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
             Behavior on opacity { NumberAnimation { duration: 80 } }
         }
 
