@@ -28,12 +28,34 @@ PillSurface {
 
     readonly property var tools: [
         { key: "lens",   glyph: "lens",       label: "Lens",   argv: [root.scripts + "ryoku-cmd-google-lens"] },
-        { key: "color",  glyph: "eyedropper", label: "Color",  argv: [root.scripts + "ryoku-cmd-color-picker", "--repeat"] },
+        { key: "color",  glyph: "eyedropper", label: "Color",  argv: [root.scripts + "ryoku-cmd-color-picker"] },
         { key: "ocr",    glyph: "ocr",        label: "OCR",    argv: [root.scripts + "ryoku-cmd-ocr"] },
         { key: "mirror", glyph: "webcam",     label: "Mirror", argv: [root.scripts + "ryoku-cmd-mirror"] }
     ]
 
     property string hovered: ""
+
+    // Tools that grab the screen (slurp region, hyprpicker freeze) need the
+    // overlay gone first: it holds exclusive keyboard focus and would otherwise
+    // be frozen into the pick. Close, let the morph settle, then launch.
+    property var pendingArgv: null
+
+    function launch(argv) {
+        root.pendingArgv = argv;
+        root.requestClose();
+        launchTimer.restart();
+    }
+
+    Timer {
+        id: launchTimer
+        interval: 400
+        onTriggered: {
+            if (root.pendingArgv) {
+                Quickshell.execDetached(root.pendingArgv);
+                root.pendingArgv = null;
+            }
+        }
+    }
 
     Item {
         id: tiles
@@ -100,10 +122,7 @@ PillSurface {
                         cursorShape: Qt.PointingHandCursor
                         onEntered: root.hovered = tile.modelData.key
                         onExited: if (root.hovered === tile.modelData.key) root.hovered = ""
-                        onClicked: {
-                            Quickshell.execDetached(tile.modelData.argv);
-                            root.requestClose();
-                        }
+                        onClicked: root.launch(tile.modelData.argv)
                     }
                     Rectangle {
                         visible: tile.index < root.tools.length - 1
