@@ -145,6 +145,12 @@ PillSurface {
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                 Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
+                // Subtle lift on hover, a modern micro-interaction.
+                transform: Translate {
+                    y: tile.hovered ? -3 * root.s : 0
+                    Behavior on y { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
+                }
+
                 // Thumbnail for image files
                 Image {
                     anchors.fill: parent
