@@ -98,6 +98,12 @@ PillSurface {
                     width: 38 * root.s
                     height: 56 * root.s
 
+                    // Subtle lift on hover, matching the stash tiles.
+                    transform: Translate {
+                        y: root.hovered === tile.modelData.key ? -3 * root.s : 0
+                        Behavior on y { NumberAnimation { duration: Motion.fast; easing.type: Motion.easeStandard } }
+                    }
+
                     Rectangle {
                         id: btn
                         anchors.top: parent.top
