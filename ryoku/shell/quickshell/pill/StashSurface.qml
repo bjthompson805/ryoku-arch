@@ -25,6 +25,17 @@ PillSurface {
 
     ameForm: "off"
 
+    // File-type category for the non-image tile glyph, by extension.
+    function catGlyph(ext) {
+        var e = ext.toLowerCase();
+        if (/^(zip|tar|gz|tgz|bz2|xz|7z|rar|zst)$/.test(e)) return "archive";
+        if (/^(mp4|mkv|webm|mov|avi|m4v)$/.test(e)) return "film";
+        if (/^(mp3|flac|wav|ogg|opus|m4a|aac)$/.test(e)) return "music";
+        if (/^(png|jpe?g|webp|gif|bmp|svg|tiff?|ico)$/.test(e)) return "image";
+        if (/^(js|ts|jsx|tsx|py|sh|bash|c|h|cpp|hpp|rs|go|lua|json|ya?ml|toml|qml|css|html?|xml)$/.test(e)) return "code";
+        return "file";
+    }
+
     // ── Header ──────────────────────────────────────────────────────────
     Item {
         id: header
@@ -148,17 +159,16 @@ PillSurface {
                     clip: true
                 }
 
-                // Extension fallback for non-image files
-                Text {
+                // File-type glyph for non-image files
+                GlyphIcon {
                     anchors.centerIn: parent
-                    anchors.verticalCenterOffset: -8 * root.s
+                    anchors.verticalCenterOffset: -7 * root.s
                     visible: !tile.isImage
-                    text: tile.ext
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: 17 * root.s
-                    font.weight: Font.Bold
-                    font.letterSpacing: 1 * root.s
+                    width: 28 * root.s
+                    height: 28 * root.s
+                    name: root.catGlyph(tile.ext)
+                    color: tile.hovered ? Theme.cream : Theme.iconDim
+                    stroke: 1.5
                 }
 
                 // Legibility scrim under the name on image tiles
@@ -275,26 +285,42 @@ PillSurface {
     }
 
     // ── Empty state ─────────────────────────────────────────────────────
-    Column {
-        anchors.centerIn: grid
+    Item {
+        anchors.fill: grid
         visible: Stash.count === 0
-        spacing: 6 * root.s
 
         Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "Drop files to stash"
-            color: Theme.faint
-            font.family: Theme.font
-            font.pixelSize: 12 * root.s
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: -10 * root.s
+            text: "力"
+            color: Theme.brand
+            opacity: 0.16
+            font.family: Theme.fontJp
             font.weight: Font.Medium
+            font.pixelSize: 86 * root.s
         }
-        Text {
+
+        Column {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "~/Downloads/Stash"
-            color: Theme.ghost
-            font.family: Theme.font
-            font.pixelSize: 9.5 * root.s
-            font.weight: Font.Normal
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 14 * root.s
+            spacing: 4 * root.s
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Drop files here"
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: 11.5 * root.s
+                font.weight: Font.Medium
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "~/Downloads/Stash"
+                color: Theme.ghost
+                font.family: Theme.font
+                font.pixelSize: 9 * root.s
+            }
         }
     }
 

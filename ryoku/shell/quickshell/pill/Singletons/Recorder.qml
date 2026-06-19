@@ -56,7 +56,10 @@ Singleton {
     // stale state when nothing is recording. Pause stays optimistic while active.
     Process {
         id: poll
-        command: ["sh", "-c", "if pgrep -x gpu-screen-recorder >/dev/null 2>&1; then echo gsr; elif pgrep -x wf-recorder >/dev/null 2>&1; then echo wf; else echo off; fi"]
+        // Match the full command line, not the comm name: Linux truncates comm to
+        // 15 chars so "gpu-screen-recorder" (19) never matches `pgrep -x`. The [g]
+        // bracket keeps this poll's own command from matching itself.
+        command: ["sh", "-c", "if pgrep -f '(^|/)[g]pu-screen-recorder( |$)' >/dev/null 2>&1; then echo gsr; elif pgrep -f '(^|/)[w]f-recorder( |$)' >/dev/null 2>&1; then echo wf; else echo off; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var b = text.trim();

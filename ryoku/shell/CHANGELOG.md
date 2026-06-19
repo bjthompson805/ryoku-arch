@@ -80,6 +80,9 @@
   flipped mpv picture-in-picture, floated and toggled).
 
 ### Changed
+- `quickshell/pill`: the Stash tiles show a file-type glyph (archive, image, film,
+  music, code, document) instead of a large extension label, and the empty state
+  is a faint 力 watermark over a minimal prompt, for a less templated look.
 - Relocated from the top-level `shell/` to `ryoku/shell/` as part of folding the
   whole desktop into one `ryoku/` tree. The Hyprland config moved to
   `ryoku/hyprland` (the single Hyprland config); the duplicate `fish` was dropped
@@ -141,6 +144,9 @@
   surface); the transport controls it reveals on hover already cover playback.
 
 ### Fixed
+- `quickshell/pill`: the Recorder detects gpu-screen-recorder by full command line.
+  Linux truncates the process comm name to 15 chars, so `pgrep -x
+  gpu-screen-recorder` never matched and a live recording read as stopped.
 - `ipc/wallpaper.go`: resolve a symlinked wallpaper directory (`EvalSymlinks`)
   before scanning, so `wallpaper next` and the picker work when
   `~/Pictures/Wallpapers` links to a collection elsewhere.
