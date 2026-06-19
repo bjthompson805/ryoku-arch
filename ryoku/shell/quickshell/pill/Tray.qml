@@ -21,7 +21,20 @@ Item {
     property real s: 1
     property var barWindow
 
-    visible: SystemTray.items.values.length > 0
+    // Show only Active/NeedsAttention items. Per the StatusNotifier spec a
+    // Passive item is idle and meant to be hidden; Handy (run --no-tray) marks
+    // its item Passive, so this keeps the keybind-driven dictation tool out of
+    // the pill instead of churning the hover row and flickering the island.
+    readonly property var shown: {
+        const out = [];
+        const items = SystemTray.items.values;
+        for (let i = 0; i < items.length; i++)
+            if (items[i] && items[i].status !== Status.Passive)
+                out.push(items[i]);
+        return out;
+    }
+
+    visible: shown.length > 0
     implicitWidth: visible ? row.implicitWidth : 0
     implicitHeight: 24 * tray.s
 
@@ -45,7 +58,7 @@ Item {
         spacing: 2 * tray.s
 
         Repeater {
-            model: SystemTray.items
+            model: tray.shown
 
             delegate: Item {
                 id: slot

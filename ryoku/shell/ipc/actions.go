@@ -78,6 +78,24 @@ func lockSession() string {
 	return "ok"
 }
 
+// toggleHandy flips Handy's push-to-talk transcription on the running instance
+// (the Super+` hold). Handy is an optional AUR app (handy-bin); when it is not
+// installed this is a no-op, so the voice visualizer still works as a plain mic
+// meter. The flag is forwarded to the already-running instance via Handy's
+// single-instance plugin, so the process started here exits at once.
+func toggleHandy() {
+	if _, err := exec.LookPath("handy"); err != nil {
+		return
+	}
+	cmd := exec.Command("handy", "--toggle-transcription")
+	if err := cmd.Start(); err != nil {
+		return
+	}
+	// Reap the short-lived forwarder in the background so it does not linger as a
+	// zombie; toggleHandy fires twice per dictation (key down and key up).
+	go func() { _ = cmd.Wait() }()
+}
+
 // startCliphist starts the wl-paste watchers that feed clipboard history, once.
 func startCliphist() {
 	for _, kind := range []string{"text", "image"} {

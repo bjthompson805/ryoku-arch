@@ -42,6 +42,7 @@ socket and one place that knows how to talk to the components:
 | `sidebar` | toggle the sidebar |
 | `lock` | lock the screen with qylock (the shell ships no lock of its own) |
 | `wallpaper [next\|init\|set <path>]` | change the wallpaper and retheme |
+| `voice <start\|stop>` | hold ``Super+` ``: toggle Handy push-to-talk transcription and the live mic wave surface |
 | `reload`, `status`, `ping`, `quit` | manage the daemon |
 
 The daemon resolves the active monitor itself, so the client and the keybinds stay
@@ -56,13 +57,16 @@ runtime: `awww` (wallpaper daemon), `wallust` (palette), `openrgb` (keyboard and
 LED color), `cliphist` and `wl-clipboard`, `imagemagick` (clipboard and
 wallpaper thumbnails), `hyprpicker`, `hypridle` and `brightnessctl` (laptop
 idle/dim), `upower` (battery state), `wireplumber` (`wpctl`), `pipewire-pulse`
-(`pactl` voice-call state), `cava` (music visualizer), `playerctl` (media keys),
+(`pactl` voice-call state and mic source), `cava` (music and mic visualizers), `playerctl` (media keys),
 `jq`, `glib2` (`gio`), `curl` (weather and LocalSend), and `python`/`openssl`/
 `libnotify`/`xdg-utils` (the LocalSend file stash and opening stashed files).
 The Super+D screen toolkit reuses `grim`/`slurp`, `hyprpicker`, `curl`/`jq`, and
 `mpv`, and adds `tesseract` (OCR) and `zbar` (QR scan). The Super+U utilities
 panel adds `gpu-screen-recorder`/`wf-recorder` (screen recording) and
 `hyprsunset` (night light).
+The ``Super+` `` voice dictation drives `handy` (optional, from `handy-bin`) for
+the transcription and `wtype` to type it into the focused app; Handy also appears
+in app search (its desktop entry ships with `handy-bin`) for configuring models.
 The keybinds open `kitty` (terminal) and `nautilus` (files). Fonts: JetBrains
 Mono Nerd and Noto; cursor: Bibata. The lock is qylock, from `ryoku/`.
 

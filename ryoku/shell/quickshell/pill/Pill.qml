@@ -50,6 +50,7 @@ Item {
     readonly property bool stashOpen: surface === "stash"
     readonly property bool toolkitOpen: surface === "toolkit"
     readonly property bool utilitiesOpen: surface === "utilities"
+    readonly property bool voiceOpen: surface === "voice"
     readonly property bool hasMedia: Mpris.players.values.length > 0
 
     readonly property var netDevices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
@@ -85,6 +86,7 @@ Item {
     readonly property real stashW: 420 * s
     readonly property real toolkitW: 418 * s
     readonly property real utilitiesW: 360 * s
+    readonly property real voiceW: 320 * s
     readonly property real toastW: 342 * s
     readonly property real restCorner: 18 * s
     readonly property real openCorner: 22 * s
@@ -101,9 +103,10 @@ Item {
         : (stashOpen ? "stash"
         : (toolkitOpen ? "toolkit"
         : (utilitiesOpen ? "utilities"
+        : (voiceOpen ? "voice"
         : (osdActive && !held ? "osd"
         : (toastActive && !held ? "toast"
-        : (expanded ? "hover" : "rest"))))))))))))))
+        : (expanded ? "hover" : "rest")))))))))))))))
 
     signal requestSurface(string name)
     signal requestClose()
@@ -172,6 +175,7 @@ Item {
         stash:     () => Qt.size(stashW, stash.implicitHeight + 28 * s),
         toolkit:   () => Qt.size(toolkitW, toolkit.implicitHeight + 28 * s),
         utilities: () => Qt.size(utilitiesW, utilities.implicitHeight + 30 * s),
+        voice:     () => Qt.size(voiceW, voice.implicitHeight + 26 * s),
         osd:       () => Qt.size(osd.desiredW, osd.desiredH),
         toast:     () => Qt.size(toastW, toastLoader.item ? toastLoader.item.implicitHeight + 24 * s : restH),
         hover:     () => Qt.size(hoverW, hoverH)
@@ -294,7 +298,8 @@ Item {
         : (stashOpen ? stash
         : (toolkitOpen ? toolkit
         : (utilitiesOpen ? utilities
-        : (batteryOpen ? battery : null))))))))))
+        : (voiceOpen ? voice
+        : (batteryOpen ? battery : null)))))))))))
 
     Ame {
         id: ame
@@ -773,6 +778,14 @@ Item {
         id: utilities
         s: pill.s
         open: pill.utilitiesOpen
+        morphCloseness: pill.morphCloseness
+        onRequestClose: pill.requestClose()
+    }
+
+    VoiceSurface {
+        id: voice
+        s: pill.s
+        open: pill.voiceOpen
         morphCloseness: pill.morphCloseness
         onRequestClose: pill.requestClose()
     }

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `quickshell/pill`: a voice dictation surface, held open with ``Super+` ``.
+  `ryoku-shell voice start|stop` toggles Handy's push-to-talk transcription and
+  grows a centre-island Ryoku wave driven by the live microphone (`VoiceBars`
+  runs cava on the default input): flat while silent, swelling into highs and
+  lows as you speak. The surface is non-focus-grabbing, so Handy types the
+  transcription into the focused app rather than the pill. The pill's tray hides
+  Passive StatusNotifier items (per spec), so Handy, run `--no-tray`, stays out of
+  the island instead of churning the hover row and flickering it.
 - `quickshell/pill`: a dedicated 力 INBOX surface for notifications, opened by the
   pill's bell icon. Notifications group per app with expandable stacks, critical
   entries flagged, an empty IDLE state, and clear-all. The bell used to open the

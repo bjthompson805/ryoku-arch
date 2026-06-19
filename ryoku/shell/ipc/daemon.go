@@ -273,6 +273,8 @@ func (d *daemon) dispatch(line string) string {
 	}
 
 	switch cmd {
+	case "voice":
+		return d.voice(args)
 	case "lock":
 		return lockSession()
 	case "wallpaper":
@@ -303,6 +305,27 @@ func (d *daemon) dispatch(line string) string {
 		return "ok"
 	default:
 		return "err unknown command: " + cmd
+	}
+}
+
+// voice drives the Super+` push-to-talk hold: it toggles Handy's transcription
+// and opens or closes the pill voice surface (the live mic wave). "start" is the
+// key press, "stop" the release.
+func (d *daemon) voice(args []string) string {
+	action := "start"
+	if len(args) > 0 {
+		action = args[0]
+	}
+	switch action {
+	case "start":
+		d.ensure("pill")
+		toggleHandy()
+		return ipcCall("pill", "pill", "voiceShow", activeMonitor())
+	case "stop":
+		toggleHandy()
+		return ipcCall("pill", "pill", "voiceHide", "")
+	default:
+		return "err voice: unknown action " + action
 	}
 }
 

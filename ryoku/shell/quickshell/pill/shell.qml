@@ -174,6 +174,8 @@ ShellRoot {
         function stash(mon: string): void { root.toggleSurface(mon, "stash"); }
         function toolkit(mon: string): void { root.toggleSurface(mon, "toolkit"); }
         function utilities(mon: string): void { root.toggleSurface(mon, "utilities"); }
+        function voiceShow(mon: string): void { root.show(mon, "voice"); }
+        function voiceHide(): void { if (root.openSurface === "voice") root.close(); }
         function peek(mon: string): void { root.peek(mon); }
         function hide(): void { root.close(); }
     }
@@ -212,7 +214,11 @@ ShellRoot {
             readonly property real topGap: 8 * s
             readonly property string surface: root.openMon === modelData.name ? root.openSurface : ""
             readonly property bool surfaceOpen: surface.length > 0
-            readonly property bool modal: surfaceOpen || pill.held
+            // Voice dictation must not steal keyboard focus or block the pointer:
+            // Handy types the transcription into whatever app the user is dictating
+            // into, so the voice surface stays non-modal and OnDemand-focus.
+            readonly property bool focusSurface: surfaceOpen && surface !== "voice"
+            readonly property bool modal: focusSurface || pill.held
 
             /**
              * True while this monitor's active workspace holds a real
@@ -243,7 +249,7 @@ ShellRoot {
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: surfaceOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+            WlrLayershell.keyboardFocus: focusSurface ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
             WlrLayershell.namespace: "pill"
 
             anchors { top: true; left: true; right: true; bottom: true }
@@ -296,7 +302,7 @@ ShellRoot {
             FocusScope {
                 id: focusScope
                 anchors.fill: parent
-                focus: overlay.surfaceOpen
+                focus: overlay.focusSurface
 
                 Keys.onEscapePressed: if (!pill.linkBack()) root.close()
                 Keys.onLeftPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperMove(-1); e.accepted = true; } }
@@ -503,7 +509,7 @@ ShellRoot {
                 }
             }
 
-            onSurfaceOpenChanged: if (surfaceOpen) focusScope.forceActiveFocus()
+            onSurfaceOpenChanged: if (focusSurface) focusScope.forceActiveFocus()
         }
     }
 }
