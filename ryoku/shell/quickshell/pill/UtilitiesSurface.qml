@@ -141,6 +141,28 @@ PillSurface {
     ]
     property bool menuOpen: false
 
+    // Recording grabs the screen: a region mode runs slurp, and gpu-screen-recorder
+    // would otherwise capture this very panel. Close the surface, let the morph
+    // settle, then start, so slurp gets a clear screen and the panel stays out of
+    // the recording.
+    property var pendingRec: null
+    function startRecording(args) {
+        root.pendingRec = args;
+        root.menuOpen = false;
+        root.requestClose();
+        recLaunch.restart();
+    }
+    Timer {
+        id: recLaunch
+        interval: 400
+        onTriggered: {
+            if (root.pendingRec !== null) {
+                Recorder.start(root.pendingRec);
+                root.pendingRec = null;
+            }
+        }
+    }
+
     function fmtAwake(sec) {
         var s = Math.max(0, sec);
         var h = Math.floor(s / 3600);
@@ -477,8 +499,7 @@ PillSurface {
                         HoverHandler { id: mHov }
                         TapHandler {
                             onTapped: {
-                                Recorder.start(mItem.modelData.args);
-                                root.menuOpen = false;
+                                root.startRecording(mItem.modelData.args);
                             }
                         }
                     }
