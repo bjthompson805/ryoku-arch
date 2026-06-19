@@ -41,10 +41,11 @@ Singleton {
     }
 
     /**
-     * ryoku-shell wallpaper blocks through the whole transition (awww wave, wallust,
-     * reload), easily 1-2s; a pick landing in that window used to be silently
-     * swallowed. Now the newest request is queued and replayed once the
-     * running transition exits, so rapid iteration converges on the last pick.
+     * ryoku-shell wallpaper returns once the daemon has kicked off the transition
+     * (~150ms; the wave, palette and reload run in the background), but a pick
+     * landing while applyProc is still in flight would be dropped. The newest
+     * request is queued and replayed once the running call returns, so rapid
+     * iteration converges on the last pick.
      */
     property string queuedApply: ""
 

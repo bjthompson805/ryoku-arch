@@ -6,6 +6,20 @@
 - The Ryoku desktop shell, imported and reorganized into this tree: the Quickshell
   UI (`pill` bar, `sidebar`, `topbar`, `launcher`, `ryoshot`), the Hyprland
   config in Lua, wallust palette generation, and the per-app configs.
+- `plugin/` and the pill-shell frame: the screen frame, brought over from the
+  legacy shell and reorganized. `plugin/` is `Ryoku.Blobs`, a C++/QML SDF
+  metaball module: a rounded border (`BlobInvertedRect`) that popouts
+  (`FramePanel`/`BlobRect`) melt into through one shared smooth-min field, with a
+  velocity spring that squashes them as they move. The pill shell now hosts the
+  field per monitor: a click-through rounded border in Hyprland's outer gap
+  (retracting to nothing on fullscreen) plus the pill itself as a top blob
+  necked into the border, so the island reads as the frame swelling open at
+  top-centre rather than a bar on top; the music and activity islands stay
+  separate. See docs/frame.md. `deploy.sh` builds the module (cmake + ninja +
+  qt6-shadertools) onto `~/.local/lib/qt6/qml` when that toolchain is present
+  (skipping cleanly otherwise), and `ryoku-shell` points the quickshell
+  processes' `QML2_IMPORT_PATH` there. The
+  module ships prebuilt, like the Go binaries.
 - `ipc/`: `ryoku-shell`, a single Go program that is the shell's control plane.
   `ryoku-shell daemon` supervises the Quickshell components (restarting them if
   they exit), brings up the clipboard-history watchers and the wallpaper, and
@@ -27,6 +41,19 @@
 - `ryoku`: lightweight live-mirror CLI. `ryoku update` refuses dirty repo state,
   pulls with `--ff-only`, deploys the shell and Hyprland config, reloads Hyprland,
   and restarts `ryoku-shell`.
+- `quickshell/pill`: ported ActivSpot's live-activity functions as Ryoku-native
+  islands. A left strip of automatic status chips (screen recording, Discord
+  voice call, WireGuard tunnel) folds open beside the pill while each state is
+  live, and a separated album-art/CAVA music island sits to the right that
+  expands its own transport controls on hover without resizing the main pill.
+- `quickshell/pill`: three more native surfaces grown from the pill. A SYSTEM
+  card (`SysInfoSurface` + `Singletons/SysInfo`) reads user@host, distro, kernel,
+  CPU/GPU, memory and disk meters, uptime and packages; a file STASH
+  (`StashSurface` + `Singletons/Stash` + `hyprland/scripts/localsend.sh`) is a
+  drop-target grid over `~/Downloads/Stash` that sends any file to a LAN peer over
+  LocalSend; and current weather (`Singletons/Weather`, from wttr.in) shows in the
+  calendar surface and the hover clock. The card and stash open from new hover-row
+  glyphs, and the stash also rides the activity strip as a live chip.
 
 ### Changed
 - Relocated from the top-level `shell/` to `ryoku/shell/` as part of folding the
@@ -75,6 +102,13 @@
   thumbnailer accept `.webp` alongside `.jpg`/`.jpeg`/`.png`.
 - Removed the orphaned `brave-theme/`: the shipped browser is chromium (`Super+B`)
   and the theme was deployed by neither the dev nor the install path.
+- `ipc/wallpaper.go`: Super+W now cycles nine hand-tuned awww transitions
+  (`fade`, `wipe`, `wave`, and the `grow`/`center`/`outer`/`any` circle reveals)
+  picked at random and never repeated back-to-back, instead of the one fixed wave.
+  All share one slow, smooth speed (a single `--transition-duration`/`--transition-fps`
+  appended to every preset), so only the shape varies. Border colors follow the
+  wallpaper via `hyprctl reload config-only` (Hyprland's new parser rejects runtime
+  `keyword`, and `config-only` leaves the monitors untouched).
 
 ### Fixed
 - `ipc/wallpaper.go`: resolve a symlinked wallpaper directory (`EvalSymlinks`)
@@ -84,6 +118,20 @@
   exist, so the screenshot grab failed and copy/save silently did nothing.
 - `quickshell/ryoshot`: de-branded the selection label (dropped the leftover
   torii glyph; it now reads `ryoshot · WxH`).
+- `quickshell/pill`: music track changes no longer open the main pill as a media
+  OSD; main and music islands use their own rounded-shape hover masks, so workspace
+  dots stay reachable and the separated music island owns its compact controls.
+- `quickshell/pill`: the separated music island's close animation no longer pops.
+  `scale` was derived from the animated `reveal` but carried its own `Behavior`
+  (a ~220ms lag), and opacity was a constant, so the bubble vanished mid-shrink;
+  it now fades with `reveal` and scales directly, retracting cleanly behind the pill.
+- `ipc/wallpaper.go`: Super+W no longer lags. The retheme (wallust palette, the
+  Hyprland reload, and the OpenRGB LED pass) ran synchronously under the wallpaper
+  lock, so every press blocked on the multi-second `ryoku-leds`/OpenRGB device scan
+  and presses serialized behind it. The keybind now only fires the transition and
+  returns (~150ms); the palette+border reload and the slow LED pass run on
+  coalescing background workers, so rapid presses stay smooth and the settled
+  wallpaper still themes once.
 
 ### Not included
 - The GRUB theme (the system boots with Limine) and the SDDM theme (a 38 MB

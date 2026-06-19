@@ -20,11 +20,82 @@ func wallDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "W
 func wallState() string { return filepath.Join(stateDir(), "ryoku-wallpaper") }
 func wallBag() string   { return filepath.Join(stateDir(), "ryoku-wallpaper-bag") }
 
-// wallpaperApply selects a wallpaper per mode (init, set, next) and applies it,
-// then rethemes with wallust and reloads Hyprland. It is best-effort: a missing
-// wallpaper directory or daemon is a no-op rather than an error.
-func wallpaperApply(mode, arg string) error {
-	wasRunning := wallDaemonAlive()
+// transition is one hand-tuned awww transition flavour: the flags appended after
+// `awww img <pic>`. Super+W picks one at random per change so switches feel varied.
+type transition struct {
+	name string
+	args []string
+}
+
+// transitionSpeed: every Super+W transition runs for the same wall-clock duration
+// so they share one speed; only the shape (type, easing, edge) varies per preset.
+// awww binds each non-'simple' transition to elapsed time, so duration alone sets
+// the speed; fps is smoothness only (the panel runs at 165Hz).
+const (
+	transitionDuration = "2.2"
+	transitionFPS      = "144"
+)
+
+// transitionPresets are hand-tuned, source-verified awww transition shapes Super+W
+// cycles through; showWallpaper appends the shared duration/fps. Mechanics that
+// matter: sweep timing is set by --transition-duration + --transition-bezier +
+// --transition-fps; for geometric/wipe/wave types --transition-step only sets edge
+// softness (low = a dreamy feathered band, high = a crisp edge), and 'fade' ignores
+// it entirely. Beziers stay monotonic (y in [0,1]) so 'fade' never wraps its alpha.
+var transitionPresets = []transition{
+	// Crossfade.
+	{"silk_fade", []string{ // calm even crossfade, easeInOutCubic
+		"--transition-type", "fade",
+		"--transition-bezier", "0.65,0,0.35,1",
+	}},
+	// Directional sweeps (wipe/wave).
+	{"diagonal_silk", []string{ // 30deg wipe, launches fast and glides to rest, easeOutExpo
+		"--transition-type", "wipe", "--transition-angle", "30",
+		"--transition-bezier", "0.16,1,0.3,1", "--transition-step", "110",
+	}},
+	{"dream_curtain", []string{ // top-to-bottom curtain with a soft feathered edge, easeInOutQuint
+		"--transition-type", "wipe", "--transition-angle", "90",
+		"--transition-bezier", "0.83,0,0.17,1", "--transition-step", "35",
+	}},
+	{"liquid_ribbon", []string{ // broad diagonal rolling waves, easeInOutQuart
+		"--transition-type", "wave", "--transition-angle", "45",
+		"--transition-wave", "25,35",
+		"--transition-bezier", "0.76,0,0.24,1", "--transition-step", "90",
+	}},
+	// Circle reveals (center/grow/outer/any).
+	{"iris_open", []string{ // camera-iris bloom from dead center, easeOutQuint
+		"--transition-type", "center",
+		"--transition-bezier", "0.22,1,0.36,1", "--transition-step", "100",
+	}},
+	{"corner_bloom", []string{ // blooms from the lower-left corner, easeOutExpo
+		"--transition-type", "grow", "--transition-pos", "bottom-left",
+		"--transition-bezier", "0.16,1,0.3,1", "--transition-step", "90",
+	}},
+	{"spotlight_rise", []string{ // circle swells up from bottom-center, easeOutCirc
+		"--transition-type", "grow", "--transition-pos", "bottom",
+		"--transition-bezier", "0,0.55,0.45,1", "--transition-step", "90",
+	}},
+	{"wander_iris", []string{ // bloom from a random on-screen point, easeOutQuart
+		"--transition-type", "any",
+		"--transition-bezier", "0.25,1,0.5,1", "--transition-step", "100",
+	}},
+	{"vignette_close", []string{ // new image seals in from the edges to center, easeInOutCubic
+		"--transition-type", "outer",
+		"--transition-bezier", "0.65,0,0.35,1", "--transition-step", "90",
+	}},
+}
+
+// wallpaperApply selects a wallpaper per mode (init, set, next) and shows it. Only
+// the visible transition runs on this hot path; the slow retheme (palette, border
+// colors, LEDs) is handed to the coalescing background workers via scheduleTheme,
+// so rapid Super+W presses stay smooth. Best-effort: a missing wallpaper directory
+// or daemon is a no-op rather than an error.
+func (d *daemon) wallpaperApply(mode, arg string) error {
+	// Only init cares whether a wallpaper is already on screen; next/set skip the
+	// extra liveness probe and let ensureWallDaemon do the single check.
+	if mode == "init" && wallDaemonAlive() {
+		return nil
+	}
 	if !ensureWallDaemon() {
 		return nil
 	}
@@ -32,9 +103,6 @@ func wallpaperApply(mode, arg string) error {
 	var pic string
 	switch mode {
 	case "init":
-		if wasRunning {
-			return nil
-		}
 		if cur := readState(); cur != "" && isFile(cur) {
 			pic = cur
 		} else {
@@ -52,21 +120,78 @@ func wallpaperApply(mode, arg string) error {
 		return nil
 	}
 
-	if err := exec.Command(wallDaemon, "img", pic,
-		"--transition-type", "wave",
-		"--transition-angle", "30",
-		"--transition-wave", "60,30",
-		"--transition-fps", "60",
-		"--transition-step", "90").Run(); err != nil {
+	if err := d.showWallpaper(pic); err != nil {
 		return err
 	}
-
 	_ = os.MkdirAll(stateDir(), 0o755)
 	_ = os.WriteFile(wallState(), []byte(pic+"\n"), 0o644)
-	_ = exec.Command("wallust", "run", pic).Run()
-	_ = exec.Command("ryoku-leds", "apply").Run()
-	_ = exec.Command("hyprctl", "reload").Run()
+	d.scheduleTheme()
 	return nil
+}
+
+// showWallpaper sends the image to the wallpaper daemon with a random transition
+// preset at the shared transition speed. It returns once the daemon accepts the
+// image (~100ms); the daemon animates on its own, so this never blocks for the
+// whole transition.
+func (d *daemon) showWallpaper(pic string) error {
+	argv := append([]string{"img", pic}, d.pickTransition()...)
+	argv = append(argv, "--transition-duration", transitionDuration, "--transition-fps", transitionFPS)
+	return exec.Command(wallDaemon, argv...).Run()
+}
+
+// pickTransition returns a random preset's flags, never the previous one so
+// consecutive switches feel varied. Called under wallMu, so lastTransition needs
+// no extra guard.
+func (d *daemon) pickTransition() []string {
+	n := len(transitionPresets)
+	if n == 0 {
+		return nil
+	}
+	i := rand.Intn(n)
+	if n > 1 && i == d.lastTransition {
+		i = (i + 1 + rand.Intn(n-1)) % n
+	}
+	d.lastTransition = i
+	return transitionPresets[i].args
+}
+
+// scheduleTheme wakes the palette/border worker without blocking. The buffered
+// channel coalesces a burst of changes into the latest one, so theming runs once
+// the presses settle rather than once per press.
+func (d *daemon) scheduleTheme() {
+	select {
+	case d.paintSig <- struct{}{}:
+	default:
+	}
+}
+
+// paintWorker regenerates the wallust palette for the wallpaper on screen and
+// reloads the Hyprland config so the border colors follow it (config-only, so the
+// monitors are left alone), then wakes the LED worker. It reads the state file each
+// pass, so a coalesced burst themes the final wallpaper. Runs for the life of the
+// daemon.
+func (d *daemon) paintWorker() {
+	for range d.paintSig {
+		pic := readState()
+		if pic == "" || !isFile(pic) {
+			continue
+		}
+		_ = exec.Command("wallust", "run", pic).Run()
+		_ = exec.Command("hyprctl", "reload", "config-only").Run()
+		select {
+		case d.ledsSig <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// ledsWorker pushes the accent color to OpenRGB devices. OpenRGB device detection
+// is slow (seconds), so it lives on its own coalescing worker and never touches
+// the wallpaper hot path. Runs for the life of the daemon.
+func (d *daemon) ledsWorker() {
+	for range d.ledsSig {
+		_ = exec.Command("ryoku-leds", "apply").Run()
+	}
 }
 
 func wallDaemonAlive() bool {
