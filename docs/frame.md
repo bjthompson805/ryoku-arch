@@ -62,8 +62,8 @@ file per popup:
   own width so it retracts in lockstep and never snaps off as a flickering sliver.
   Opening is a curtain (a clip widens inward from the border, so fixed-size content
   reveals edge-first without resizing).
-- `Mixer.qml` the left popout: brightness/vibrance/volume/mic ink-faders plus the
-  DND and Keep-Awake chips.
+- `Mixer.qml` the left popout: brightness/vibrance/volume/mic ink-faders, each
+  showing its level at rest.
 - `Power.qml` the right popout: a vertical session column with Shutdown enlarged at
   the centre and press-and-hold on the destructive actions.
 

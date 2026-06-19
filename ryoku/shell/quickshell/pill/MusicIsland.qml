@@ -189,8 +189,16 @@ Item {
         cursorShape: root.controlsOpen ? Qt.ArrowCursor : Qt.PointingHandCursor
     }
 
-    TapHandler {
-        enabled: root.live && root.playing && !root.controlsOpen
-        onTapped: root.activated()
+    // Clicking the now-playing area (art and bars) opens the full media player;
+    // the transport buttons sit to the right and keep their own taps, so this
+    // stays clear of them and works whether or not the controls are revealed.
+    MouseArea {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 74 * root.s
+        enabled: root.live && root.playing
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.activated()
     }
 }

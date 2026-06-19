@@ -44,6 +44,7 @@ Item {
     readonly property bool wallpaperOpen: surface === "wallpaper"
     readonly property bool mediaOpen: surface === "media"
     readonly property bool linkOpen: surface === "link"
+    readonly property bool inboxOpen: surface === "inbox"
     readonly property bool batteryOpen: surface === "battery"
     readonly property bool sysinfoOpen: surface === "sysinfo"
     readonly property bool stashOpen: surface === "stash"
@@ -79,6 +80,7 @@ Item {
     readonly property real mediaW: 390 * s
     readonly property real mediaH: 150 * s
     readonly property real batteryW: 316 * s
+    readonly property real inboxW: 340 * s
     readonly property real sysinfoW: 360 * s
     readonly property real stashW: 420 * s
     readonly property real toolkitW: 418 * s
@@ -93,6 +95,7 @@ Item {
         : (wallpaperOpen ? "wallpaper"
         : (mediaOpen ? "media"
         : (linkOpen ? "link"
+        : (inboxOpen ? "inbox"
         : (batteryOpen ? "battery"
         : (sysinfoOpen ? "sysinfo"
         : (stashOpen ? "stash"
@@ -100,7 +103,7 @@ Item {
         : (utilitiesOpen ? "utilities"
         : (osdActive && !held ? "osd"
         : (toastActive && !held ? "toast"
-        : (expanded ? "hover" : "rest")))))))))))))
+        : (expanded ? "hover" : "rest"))))))))))))))
 
     signal requestSurface(string name)
     signal requestClose()
@@ -163,6 +166,7 @@ Item {
         wallpaper: () => Qt.size(wallpaperW, wallpaperH),
         media:     () => Qt.size(mediaW, mediaH),
         link:      () => Qt.size(link.desiredW, link.implicitHeight + 26 * s),
+        inbox:     () => Qt.size(inboxW, inbox.implicitHeight + 26 * s),
         battery:   () => Qt.size(batteryW, battery.implicitHeight + 26 * s),
         sysinfo:   () => Qt.size(sysinfoW, sysinfo.implicitHeight + 32 * s),
         stash:     () => Qt.size(stashW, stash.implicitHeight + 28 * s),
@@ -285,11 +289,12 @@ Item {
         : (clipboardOpen ? clip
         : (calendarOpen ? calendar
         : (linkOpen ? link
+        : (inboxOpen ? inbox
         : (sysinfoOpen ? sysinfo
         : (stashOpen ? stash
         : (toolkitOpen ? toolkit
         : (utilitiesOpen ? utilities
-        : (batteryOpen ? battery : null)))))))))
+        : (batteryOpen ? battery : null))))))))))
 
     Ame {
         id: ame
@@ -642,7 +647,7 @@ Item {
                         hoverEnabled: true
                         enabled: hover.live
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: pill.requestSurface("link")
+                        onClicked: pill.requestSurface("inbox")
                         onContainsMouseChanged: if (containsMouse) pill.soulTarget = "inbox"
                     }
 
@@ -720,6 +725,14 @@ Item {
         id: link
         s: pill.s
         open: pill.linkOpen
+        morphCloseness: pill.morphCloseness
+        onRequestClose: pill.requestClose()
+    }
+
+    Inbox {
+        id: inbox
+        s: pill.s
+        open: pill.inboxOpen
         morphCloseness: pill.morphCloseness
         onRequestClose: pill.requestClose()
     }
@@ -807,7 +820,7 @@ Item {
                 s: pill.s
                 live: pill.mode === "toast"
                 notif: Notifs.popups.length > 0 ? Notifs.popups[Notifs.popups.length - 1] : null
-                onOpenCenter: pill.requestSurface("link")
+                onOpenCenter: pill.requestSurface("inbox")
             }
 
             Text {

@@ -7,7 +7,7 @@ import ".."
 import "../Singletons"
 
 /**
- * Mixer popout content: a header (力 MIXER + DND / Keep-Awake chips) over a row
+ * Mixer popout content: a 力 MIXER header over a row
  * of vertical ink-faders wired to real hardware (per-monitor brightness via
  * ddcutil, vibrance via nvibrant, volume and mic via Pipewire). A plain
  * transparent Item; the frame blob behind it is the surface, and Popout sizes
@@ -74,34 +74,6 @@ Item {
         objects: [root.sink, root.source].filter(Boolean)
     }
 
-    component IconChip: Rectangle {
-        id: chip
-        property string glyph: ""
-        property bool on: false
-        signal toggled()
-
-        width: 26 * root.s
-        height: 26 * root.s
-        radius: 8 * root.s
-        color: chip.on ? Theme.frameBg : "transparent"
-        border.width: 1
-        border.color: chip.on ? Theme.frameBorder : Theme.border
-
-        GlyphIcon {
-            anchors.centerIn: parent
-            width: 15 * root.s
-            height: 15 * root.s
-            name: chip.glyph
-            color: chip.on ? Theme.vermLit : Theme.iconDim
-            stroke: 1.7
-        }
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: chip.toggled()
-        }
-    }
-
     Item {
         id: body
         anchors.fill: parent
@@ -142,22 +114,6 @@ Item {
                     font.weight: Font.DemiBold
                     font.capitalization: Font.AllUppercase
                     font.letterSpacing: 1.6 * root.s
-                }
-            }
-
-            Row {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 6 * root.s
-                IconChip {
-                    glyph: "dnd"
-                    on: Flags.dnd
-                    onToggled: Flags.dnd = !Flags.dnd
-                }
-                IconChip {
-                    glyph: "awake"
-                    on: Flags.keepAwake
-                    onToggled: Flags.keepAwake = !Flags.keepAwake
                 }
             }
         }

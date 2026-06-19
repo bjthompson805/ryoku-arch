@@ -98,7 +98,7 @@ RowLayout {
     }
     Pill {
         active: Flags.keepAwake
-        icon: "eye"
+        icon: "coffee"
         title: "Keep Awake"
         state: Flags.keepAwake ? "On" : "Off"
         onClicked: Flags.keepAwake = !Flags.keepAwake

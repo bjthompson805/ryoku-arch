@@ -3,7 +3,7 @@ import "Singletons"
 
 /**
  * Vertical filament fader. A thin matte thread with a rising fill and a flat
- * tick marker. Dim at rest; saturates and reveals its readout when focused.
+ * tick marker. Dim at rest; saturates and brightens its readout when focused.
  * Hover targeting is owned by the parent surface, which maps pointer position
  * to a fader column and drives `focused`. No knob, no glow. Value is 0..1.
  */
@@ -116,7 +116,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         text: root.valueLabel
         color: root.lit ? Theme.cream : Theme.dim
-        opacity: root.lit ? 1 : 0
+        opacity: root.lit ? 1 : 0.55
         font.family: Theme.font
         font.pixelSize: 9 * root.s
         font.weight: Font.DemiBold

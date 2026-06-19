@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `quickshell/pill`: a dedicated 力 INBOX surface for notifications, opened by the
+  pill's bell icon. Notifications group per app with expandable stacks, critical
+  entries flagged, an empty IDLE state, and clear-all. The bell used to open the
+  LINK surface with the notification inbox buried under the connectivity rows.
 - The Ryoku desktop shell, imported and reorganized into this tree: the Quickshell
   UI (`pill` bar, `sidebar`, `ryoshot`), the Hyprland
   config in Lua, wallust palette generation, and the per-app configs.
@@ -94,6 +98,15 @@
   copying the result and opening URLs).
 
 ### Changed
+- `quickshell/pill`: the mixer is audio and display faders only. The DND and
+  Keep-Awake chips moved out (they already live on the Utilities centre island),
+  and each fader now shows its level at rest instead of only on hover.
+- `quickshell/pill`: the LINK surface is connectivity only (Network, Bluetooth).
+  Its notification inbox moved to the new INBOX surface: the bell icon opens that,
+  the wifi icon opens LINK.
+- `quickshell`: Keep-Awake shows one icon everywhere (the coffee glyph). The
+  Utilities toggle and the sidebar quick toggle dropped their eye and clock glyphs
+  to match the Toolkit Caffeine tile.
 - `ryoku-cmd-screenrecord`: starting a recording no longer raises a "recording
   started" toast. The REC chip on the pill's activity strip is the live indicator,
   so the toast was redundant noise; the stop and failure notifications stay.
@@ -157,10 +170,11 @@
 - `quickshell/pill`: the STASH signs itself with a `WaveMeter` house mark under
   the header that fills on open, dropping the Ame bead that used to dock in its
   centre; the surface is wider and taller so the rail and a two-row grid have room.
-- `quickshell/pill`: the music island opens the file stash on tap (was the media
-  surface); the transport controls it reveals on hover already cover playback.
 
 ### Fixed
+- `quickshell/pill`: the media player surface is reachable from the UI. Tapping
+  the now-playing music island opens it; the tap was wired to the file stash, so
+  the media surface had no entry point other than the IPC command.
 - `quickshell/pill`: Keep-Awake now holds across a shell reload. The in-process
   Wayland `IdleInhibitor` dies with the pill on every respawn, so a durable
   `ryoku-cmd-caffeine` systemd-inhibit (launched outside the shell) bridges the

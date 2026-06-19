@@ -322,7 +322,7 @@ PillSurface {
 
                 IconChip {
                     anchors.verticalCenter: parent.verticalCenter
-                    glyph: "awake"
+                    glyph: "coffee"
                     lit: Flags.keepAwake
                 }
 

@@ -162,6 +162,7 @@ ShellRoot {
         function launcher(mon: string): void { root.toggleSurface(mon, "launcher"); }
         function power(mon: string): void { root.togglePopout(mon, "power"); }
         function link(mon: string): void { root.toggleSurface(mon, "link"); }
+        function inbox(mon: string): void { root.toggleSurface(mon, "inbox"); }
         function battery(mon: string): void { root.toggleSurface(mon, "battery"); }
         function clipboard(mon: string): void { root.toggleSurface(mon, "clipboard"); }
         function wallpaper(mon: string): void { root.toggleSurface(mon, "wallpaper"); }
@@ -489,7 +490,7 @@ ShellRoot {
                     }
                     y: Math.max(pill.y + pill.height / 2 - height / 2, 22)
                     onHoveredChanged: if (hovered) pill.hovered = false
-                    onActivated: root.toggleSurface(overlay.modelData.name, "stash")
+                    onActivated: root.toggleSurface(overlay.modelData.name, "media")
                 }
 
                 ActivityStrip {
