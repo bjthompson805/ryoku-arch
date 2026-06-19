@@ -23,6 +23,9 @@
 - `base.packages`: add `curl`, `python`, `libnotify`, and `xdg-utils` for the
   pill's file stash (LocalSend LAN discovery and send), weather (wttr.in), and
   opening stashed files with the default app.
+- `base.packages`: add `ffmpeg` and `yt-dlp` for the stash's media compress and
+  download actions, and `desktop-file-utils` so installing AppImages and tarballs
+  refreshes the launcher's desktop database.
 
 ### Fixed
 - `base.packages`: add the desktop session pieces a plain Hyprland needs to render

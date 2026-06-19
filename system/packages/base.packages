@@ -102,11 +102,15 @@ jq
 openrgb
 yazi
 
-# File stash (LocalSend), weather, and file-open integration for the pill
+# File stash + weather: LocalSend, AppImage/tar install, ffmpeg compress,
+# yt-dlp download, and file-open integration for the pill
 curl
 libnotify
 python
 xdg-utils
+ffmpeg
+yt-dlp
+desktop-file-utils
 
 # Fonts
 noto-fonts
