@@ -35,6 +35,12 @@
 - `base.packages`: add `gpu-screen-recorder` and `wf-recorder` for the pill's
   Super+U utilities Screen Recorder (gpu-screen-recorder, with a wf-recorder
   fallback on multi-GPU machines).
+- `aur.packages`: add `handy-bin`, the offline speech-to-text app behind the
+  pill's ``Super+` `` voice dictation. It provides `handy`, a normal desktop entry
+  (so Handy shows in app search for configuring models), and pulls in
+  `gtk-layer-shell`.
+- `base.packages`: add `wtype` so Handy types the transcription into the focused
+  app on Wayland.
 
 ### Fixed
 - `base.packages`: add the desktop session pieces a plain Hyprland needs to render

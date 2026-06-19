@@ -128,6 +128,10 @@ wf-recorder
 # ryoku-cmd-nightlight.
 hyprsunset
 
+# Voice dictation (pill Super+`, Handy from handy-bin): wtype types the
+# transcription into the focused app on Wayland.
+wtype
+
 # Fonts
 noto-fonts
 noto-fonts-cjk
