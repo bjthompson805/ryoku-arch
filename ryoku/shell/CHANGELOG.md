@@ -55,7 +55,7 @@
   record-mode dropdown (display / region / +sound) and running controls
   (pause/stop, elapsed, REC pulse), quick toggles (wifi / bluetooth / mic / DND /
   night light via hyprsunset),
-  and a recordings list with play / open-folder / trash. Recording is driven by
+  and a recordings list (with file sizes) and play / open-folder / trash. Recording is driven by
   the `Recorder` singleton (`ryoku-cmd-screenrecord`: gpu-screen-recorder with a
   wf-recorder fallback).
 - `ipc/wallpaper.go`: after wallust regenerates the palette, call `ryoku-leds`

@@ -48,7 +48,7 @@ PillSurface {
 
     Process {
         id: recProc
-        command: ["sh", "-c", "find \"$1\" -maxdepth 1 -type f -name 'recording_*.mp4' -printf '%T@\\t%p\\n' 2>/dev/null | sort -rn", "_", root.recDir]
+        command: ["sh", "-c", "find \"$1\" -maxdepth 1 -type f -name 'recording_*.mp4' -printf '%T@\\t%s\\t%p\\n' 2>/dev/null | sort -rn", "_", root.recDir]
         stdout: StdioCollector {
             onStreamFinished: {
                 recModel.clear();
@@ -57,12 +57,12 @@ PillSurface {
                     var ln = lines[i];
                     if (!ln.length)
                         continue;
-                    var tab = ln.indexOf("\t");
-                    if (tab < 0)
+                    var parts = ln.split("\t");
+                    if (parts.length < 3)
                         continue;
-                    var path = ln.substring(tab + 1);
+                    var path = parts[2];
                     var base = path.substring(path.lastIndexOf("/") + 1).replace(/\.mp4$/, "");
-                    recModel.append({ path: path, label: root.prettyName(base) });
+                    recModel.append({ path: path, label: root.prettyName(base), size: root.humanSize(parseInt(parts[1], 10)) });
                 }
             }
         }
@@ -74,6 +74,18 @@ PillSurface {
             return base;
         var d = new Date(m[1], m[2] - 1, m[3], m[4], m[5], m[6]);
         return Qt.formatDateTime(d, "MMM d, HH:mm");
+    }
+
+    function humanSize(bytes) {
+        if (!bytes || bytes < 1024)
+            return (bytes || 0) + " B";
+        var kb = bytes / 1024;
+        if (kb < 1024)
+            return Math.round(kb) + " KB";
+        var mb = kb / 1024;
+        if (mb < 1024)
+            return mb.toFixed(mb < 10 ? 1 : 0) + " MB";
+        return (mb / 1024).toFixed(1) + " GB";
     }
 
     onOpenChanged: if (open) {
@@ -585,6 +597,7 @@ PillSurface {
                     id: recItem
                     required property string path
                     required property string label
+                    required property string size
                     width: ListView.view.width
                     height: 32 * root.s
                     radius: 8 * root.s
@@ -595,7 +608,7 @@ PillSurface {
                     Text {
                         anchors.left: parent.left
                         anchors.leftMargin: 9 * root.s
-                        anchors.right: actions.left
+                        anchors.right: sizeText.left
                         anchors.rightMargin: 6 * root.s
                         anchors.verticalCenter: parent.verticalCenter
                         text: recItem.label
@@ -603,6 +616,18 @@ PillSurface {
                         color: Theme.subtle
                         font.family: Theme.font
                         font.pixelSize: 11 * root.s
+                    }
+
+                    Text {
+                        id: sizeText
+                        anchors.right: actions.left
+                        anchors.rightMargin: 8 * root.s
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: recItem.size
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: 9.5 * root.s
+                        font.features: { "tnum": 1 }
                     }
 
                     Row {
