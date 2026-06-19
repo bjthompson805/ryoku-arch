@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Night light: toggle a warm screen color temperature via hyprsunset. Re-running
+# turns it back off, since killing hyprsunset reverts the gamma. Optional first
+# argument overrides the temperature in Kelvin (default 4000).
+set -u
+
+temp="${1:-4000}"
+
+# An active night light turns off (toggle): pkill returns 0 when it killed it.
+if pkill -x hyprsunset 2>/dev/null; then
+  exit 0
+fi
+
+command -v hyprsunset >/dev/null 2>&1 || { notify-send -u normal "Night light" "hyprsunset is not installed"; exit 1; }
+
+exec hyprsunset -t "$temp"
