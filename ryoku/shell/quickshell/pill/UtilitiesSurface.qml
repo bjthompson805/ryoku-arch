@@ -282,25 +282,28 @@ PillSurface {
     }
 
     component QToggle: Rectangle {
+        id: qt
         property string glyph: ""
         property bool on: false
         signal acted()
         Layout.fillWidth: true
         implicitHeight: 42 * root.s
         radius: 12 * root.s
-        color: on ? Theme.brand : Theme.tileBg
+        color: qt.on ? Theme.brand : (qhov.hovered ? Theme.frameBg : Theme.tileBg)
         border.width: 1
-        border.color: on ? Theme.brand : Theme.border
+        border.color: qt.on ? Theme.brand : (qhov.hovered ? Theme.frameBorder : Theme.border)
         Behavior on color { ColorAnimation { duration: Motion.fast } }
+        Behavior on border.color { ColorAnimation { duration: Motion.fast } }
         GlyphIcon {
             anchors.centerIn: parent
             width: 18 * root.s
             height: 18 * root.s
-            name: parent.glyph
-            color: parent.on ? Theme.cardTop : Theme.iconDim
+            name: qt.glyph
+            color: qt.on ? Theme.cardTop : (qhov.hovered ? Theme.cream : Theme.iconDim)
             stroke: 1.7
         }
-        TapHandler { onTapped: parent.acted() }
+        HoverHandler { id: qhov; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: qt.acted() }
     }
 
     // ── Cards ─────────────────────────────────────────────────────────────
