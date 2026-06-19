@@ -30,6 +30,10 @@
   active accent to OpenRGB-compatible keyboards and attached lighting devices via
   generic OpenRGB mode/color controls. Missing or unsupported RGB hardware is
   non-fatal.
+- `audio/ryoku-mic`: caps the default microphone at its Base Volume (0 dB
+  hardware gain) so codecs that map a 100% source to maximum analog gain do not
+  clip speech into distortion. Reads the level from the device and only lowers an
+  over-amplified mic, never raising a quiet one. Launched from Hyprland autostart.
 - `drivers/nvidia.sh`, `drivers/intel.sh`, `drivers/amd.sh`, `drivers/vulkan.sh`:
   per-vendor, hardware-gated, idempotent install scripts with a `RYOKU_DRYRUN=1`
   print mode. NVIDIA uses the open modules on Turing and newer and the

@@ -30,6 +30,12 @@ in the machine.
     keyboards and attached lighting devices. It is best-effort: missing OpenRGB,
     unsupported devices, or permission failures never block login or wallpaper
     changes.
+- `audio/`
+  - `ryoku-mic` Caps the default microphone at its Base Volume (the level the
+    device reports as 0 dB hardware gain, no amplification) so a codec that runs
+    capture far hotter than unity does not clip speech into distortion. A mic
+    already at or below unity is left alone. Launched from Hyprland autostart for
+    Handy speech-to-text and the pill voice visualizer.
 - `drivers/` One install script per vendor: `nvidia.sh`, `intel.sh`, `amd.sh`,
   and `vulkan.sh`. Each one checks whether its hardware is present and installs
   only what that hardware needs.
@@ -64,6 +70,15 @@ without starting anything. On laptops it starts `hypridle` with
 powers displays down, and 30 minutes suspends. The shell's Keep Awake toggle uses
 Wayland idle inhibition, so hypridle stays paused while that toggle is on.
 
+## How mic normalization works
+
+Some laptop codecs let the analog capture gain reach its maximum (often +30 dB)
+at a 100% source volume, which clips every word into broken audio. `ryoku-mic`
+reads the default source's Base Volume, the device's own 0 dB hardware-gain
+point, and lowers the source to it when it is running hotter. Nothing is
+hardcoded per model: a mic that is already at or below unity is untouched, so a
+well-behaved codec is a no-op.
+
 ## Per-vendor drivers
 
 - NVIDIA: the open kernel modules on recent cards (Turing and newer), the
@@ -88,4 +103,5 @@ first login already renders on the right GPU at the right size.
 `lspci` (GPU model names and the NVIDIA generation check) and `udevadm` (loading
 the GPU rule) are expected on the target. `nvidia-smi` is optional and only fills
 in the NVIDIA VRAM figure. `hyprctl` and `jq` are needed for live display
-changes. `pacman` does the installing.
+changes. `pacman` does the installing. `pactl` (PipeWire-Pulse) reads and sets
+the microphone base volume for `ryoku-mic`.
