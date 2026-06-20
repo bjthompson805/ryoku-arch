@@ -723,8 +723,11 @@ func reconcileBacklight(_ bool) recResult {
 			detail = fmt.Sprintf("hybrid GPU (%s): the kernel reports the dGPU has no working backlight, and the firmware fallback (%s) does not dim the panel",
 				strings.Join(gpus, "+"), strings.Join(devs, ","))
 		}
-		return warnRes("%s", detail).
-			withFix("route the panel to the iGPU (BIOS GPU/MUX mode -> Hybrid, or `supergfxctl -m Hybrid`, then reboot); a working amdgpu_bl0 then appears")
+		fix := "route the panel to the iGPU: set the BIOS GPU/MUX mode to Hybrid and reboot, then amdgpu_bl0 appears"
+		if has("supergfxctl") {
+			fix += "; on a supported ASUS laptop `supergfxctl -m Hybrid` switches it without a BIOS trip"
+		}
+		return warnRes("%s", detail).withFix(fix)
 	}
 	return okRes("backlight: %s", strings.Join(devs, ", "))
 }

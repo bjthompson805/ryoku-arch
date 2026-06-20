@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- `doctor` backlight remedy no longer recommends `supergfxctl -m Hybrid` when
+  that tool is not installed (it is ASUS-specific and absent on most machines, so
+  users hit "Unknown command"). The fix now leads with the universal BIOS GPU/MUX
+  route and only mentions the `supergfxctl` shortcut when the binary is present.
+  This also cleans up `--explain`, which was echoing the bad command from the
+  report it is fed.
 - `status` bounds the `checkupdates` call (120s) so a slow or stuck update check
   can never hang `ryoku status` -- the data seam the Hub and the update island
   poll for pending updates.
