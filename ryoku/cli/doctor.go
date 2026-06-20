@@ -4,19 +4,27 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
-// ryoku doctor runs convergent reconcilers: idempotent fixes for stateful drift
-// that `ryoku update` and `ryoku materialize` cannot express declaratively (disk
-// layout and the like). Each reconciler reports "ok" when the machine already
-// matches the desired state, otherwise it converges (or, with --check, reports
-// what it would do). Reconcilers are safe to run on every update; retire one once
-// every supported install has run it, so the set stays small instead of piling up
-// like an ordered migration ledger.
+// ryoku doctor runs convergent reconcilers: idempotent checks (and, where it is
+// safe, fixes) for stateful drift that `ryoku update` and `ryoku materialize`
+// cannot express declaratively (disk layout, package channel, session pieces).
+// Each reconciler reports "ok" when the machine already matches the desired
+// state, otherwise it converges, proposes the exact fix, or flags it for a human.
+// What it cannot fix it records: `ryoku doctor --report` writes a single shareable
+// text file of findings plus system state for the maintainers.
+//
+// Reconcilers are safe to run on every update; retire one once every supported
+// install has run it, so the set stays small instead of piling up like an ordered
+// migration ledger.
+
+const ryokuIssuesURL = "https://github.com/neur0map/ryoku-arch/issues"
 
 type recStatus int
 
@@ -28,16 +36,48 @@ const (
 	recFailed
 )
 
+func (s recStatus) label() string {
+	switch s {
+	case recOK:
+		return "ok"
+	case recFixed:
+		return "fixed"
+	case recWouldFix:
+		return "todo"
+	case recWarn:
+		return "warn"
+	case recFailed:
+		return "fail"
+	}
+	return "?"
+}
+
 type recResult struct {
 	status recStatus
 	detail string
+	remedy string // exact command or hint, shown for todo/warn/fail
 }
 
-func okRes(f string, a ...any) recResult    { return recResult{recOK, fmt.Sprintf(f, a...)} }
-func fixedRes(f string, a ...any) recResult { return recResult{recFixed, fmt.Sprintf(f, a...)} }
-func wouldRes(f string, a ...any) recResult { return recResult{recWouldFix, fmt.Sprintf(f, a...)} }
-func warnRes(f string, a ...any) recResult  { return recResult{recWarn, fmt.Sprintf(f, a...)} }
-func failRes(f string, a ...any) recResult  { return recResult{recFailed, fmt.Sprintf(f, a...)} }
+func okRes(f string, a ...any) recResult {
+	return recResult{status: recOK, detail: fmt.Sprintf(f, a...)}
+}
+func fixedRes(f string, a ...any) recResult {
+	return recResult{status: recFixed, detail: fmt.Sprintf(f, a...)}
+}
+func wouldRes(f string, a ...any) recResult {
+	return recResult{status: recWouldFix, detail: fmt.Sprintf(f, a...)}
+}
+func warnRes(f string, a ...any) recResult {
+	return recResult{status: recWarn, detail: fmt.Sprintf(f, a...)}
+}
+func failRes(f string, a ...any) recResult {
+	return recResult{status: recFailed, detail: fmt.Sprintf(f, a...)}
+}
+
+func (r recResult) withFix(f string, a ...any) recResult {
+	r.remedy = fmt.Sprintf(f, a...)
+	return r
+}
 
 type reconciler struct {
 	name string
@@ -47,49 +87,124 @@ type reconciler struct {
 func reconcilers() []reconciler {
 	return []reconciler{
 		{"swap kept out of snapshots", reconcileSwapSubvolume},
+		{"snapper configuration", reconcileSnapper},
+		{"pacman database lock", reconcilePacmanLock},
+		{"ryoku package channel", reconcileRyokuChannel},
+		{"desktop session components", reconcileSessionComponents},
+		{"failed services", reconcileFailedUnits},
+		{"btrfs device health", reconcileBtrfsHealth},
+		{"pending config (.pacnew)", reconcilePacnew},
+		{"orphaned packages", reconcileOrphans},
 	}
 }
 
-// cmdDoctor runs every reconciler. `--check` (or `-n`) reports without changing
-// anything.
+type finding struct {
+	name string
+	res  recResult
+}
+
+func runReconcilers(checkOnly bool) []finding {
+	out := make([]finding, 0, len(reconcilers()))
+	for _, r := range reconcilers() {
+		out = append(out, finding{r.name, r.run(checkOnly)})
+	}
+	return out
+}
+
+// printFindings prints one line per finding (plus its remedy). When not verbose
+// it shows only the non-ok lines, matching the "a healthy machine is quiet"
+// convention. It returns the warn and fail counts.
+func printFindings(fs []finding, verbose bool) (warns, fails int) {
+	printed := 0
+	for _, f := range fs {
+		switch f.res.status {
+		case recWarn:
+			warns++
+		case recFailed:
+			fails++
+		}
+		if !verbose && f.res.status == recOK {
+			continue
+		}
+		w := os.Stdout
+		if f.res.status == recWarn || f.res.status == recFailed {
+			w = os.Stderr
+		}
+		fmt.Fprintf(w, "  %-5s %s: %s\n", f.res.status.label(), f.name, f.res.detail)
+		if f.res.remedy != "" && f.res.status >= recWouldFix {
+			fmt.Fprintf(w, "        fix: %s\n", f.res.remedy)
+		}
+		printed++
+	}
+	if printed == 0 {
+		fmt.Println("  all checks passed")
+	}
+	return warns, fails
+}
+
+func doctorUsage() {
+	fmt.Print(`Usage: ryoku doctor [--check] [--report [file]]
+
+  (no args)        check, and apply the safe automatic fixes
+  --check, -n      report what is wrong without changing anything
+  --report [file]  write a shareable diagnostic report for the maintainers
+                   (default: ` + reportPath("") + `)
+`)
+}
+
+// cmdDoctor checks the machine, applies safe fixes, and on trouble it cannot fix
+// writes a maintainer report so the user always has something to share.
 func cmdDoctor(args []string) error {
-	checkOnly := false
-	for _, a := range args {
-		if a == "--check" || a == "-n" || a == "--dry-run" {
+	checkOnly, wantReport := false, false
+	reportTo := ""
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; a {
+		case "--check", "-n", "--dry-run":
 			checkOnly = true
+		case "--report":
+			wantReport = true
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				reportTo = args[i+1]
+				i++
+			}
+		case "-h", "--help":
+			doctorUsage()
+			return nil
+		default:
+			return fmt.Errorf("unknown argument: %s (try --help)", a)
 		}
 	}
-	if runDoctor(checkOnly) {
-		return fmt.Errorf("one or more checks failed; see the output above")
+
+	verbose := checkOnly || wantReport
+	findings := runReconcilers(verbose) // report and check modes never mutate
+	warns, fails := printFindings(findings, verbose)
+
+	if wantReport {
+		path, err := writeReport(reportTo, findings)
+		if err != nil {
+			return fmt.Errorf("writing report: %w", err)
+		}
+		fmt.Printf("\n==> Diagnostic report written to %s\n", path)
+		fmt.Println("    Share it with the maintainers: " + ryokuIssuesURL)
+		return nil
+	}
+
+	// Could not fix everything: gather a report automatically so the user has a
+	// file to hand to the maintainers, no extra steps required.
+	if warns+fails > 0 {
+		if path, err := writeReport("", findings); err == nil {
+			fmt.Fprintf(os.Stderr, "\n==> %d issue(s) doctor could not fix automatically.\n", warns+fails)
+			fmt.Fprintf(os.Stderr, "    Saved a diagnostic report for the maintainers:\n      %s\n", path)
+			fmt.Fprintf(os.Stderr, "    Export a copy anywhere with:  ryoku doctor --report ~/ryoku-doctor.txt\n")
+		}
+	}
+	if fails > 0 {
+		return fmt.Errorf("%d check(s) failed", fails)
 	}
 	return nil
 }
 
-// runDoctor runs the reconcilers and prints one line each. It returns whether any
-// reconciler failed; the update path ignores that so a finding never aborts an
-// update.
-func runDoctor(checkOnly bool) bool {
-	anyFailed := false
-	for _, r := range reconcilers() {
-		res := r.run(checkOnly)
-		switch res.status {
-		case recOK:
-			fmt.Printf("  ok    %s: %s\n", r.name, res.detail)
-		case recFixed:
-			fmt.Printf("  fixed %s: %s\n", r.name, res.detail)
-		case recWouldFix:
-			fmt.Printf("  todo  %s: %s\n", r.name, res.detail)
-		case recWarn:
-			fmt.Fprintf(os.Stderr, "  warn  %s: %s\n", r.name, res.detail)
-		case recFailed:
-			anyFailed = true
-			fmt.Fprintf(os.Stderr, "  fail  %s: %s\n", r.name, res.detail)
-		}
-	}
-	return anyFailed
-}
-
-// --- reconciler: keep the swapfile out of snapshotted subvolumes --------------
+// ---- reconciler: swapfile out of snapshotted subvolumes ----------------------
 
 // reconcileSwapSubvolume relocates a swapfile that lives inside @ (the
 // snapshotted root) into its own btrfs subvolume. btrfs cannot snapshot a
@@ -105,13 +220,15 @@ func reconcileSwapSubvolume(checkOnly bool) recResult {
 	for _, sw := range activeSwapFiles() {
 		dir := filepath.Dir(sw.path)
 		if !isBtrfs(dir) || isBtrfsSubvolumeRoot(dir) {
-			continue // not btrfs, or already its own subvolume: nothing to do
+			continue
 		}
 		if !dirOnlyContains(dir, filepath.Base(sw.path)) {
-			return warnRes("swapfile %s blocks snapshots; move it into its own subvolume by hand (%s holds other files)", sw.path, dir)
+			return warnRes("swapfile %s blocks snapshots; %s holds other files", sw.path, dir).
+				withFix("move the swapfile into its own subvolume by hand")
 		}
 		if checkOnly {
-			return wouldRes("swapfile %s sits in snapshotted %s; would move it into its own btrfs subvolume", sw.path, dir)
+			return wouldRes("swapfile %s sits in snapshotted %s", sw.path, dir).
+				withFix("ryoku doctor (moves it into its own btrfs subvolume)")
 		}
 		if err := relocateSwapToSubvolume(sw, dir); err != nil {
 			return failRes("relocating %s: %v", sw.path, err)
@@ -120,6 +237,249 @@ func reconcileSwapSubvolume(checkOnly bool) recResult {
 	}
 	return okRes("swap is out of snapshots")
 }
+
+// ---- reconciler: snapper configuration consistency ---------------------------
+
+func reconcileSnapper(_ bool) recResult {
+	if !exists("/etc/snapper/configs/root") {
+		return okRes("root snapshots not configured")
+	}
+	var problems []string
+	if exists("/.snapshots") && !isBtrfsSubvolumeRoot("/.snapshots") {
+		problems = append(problems, "/.snapshots is a plain directory, not a btrfs subvolume")
+	}
+	if fi, err := os.Stat("/.snapshots"); err == nil && fi.Mode().Perm() != 0o750 {
+		problems = append(problems, fmt.Sprintf("/.snapshots is mode %04o, expected 0750", fi.Mode().Perm()))
+	}
+	if conf, err := os.ReadFile("/etc/conf.d/snapper"); err == nil && !strings.Contains(string(conf), "root") {
+		problems = append(problems, "/etc/conf.d/snapper does not list the root config (timers and hooks will skip it)")
+	}
+	if len(problems) == 0 {
+		return okRes("snapper root config is consistent")
+	}
+	return warnRes("%s", strings.Join(problems, "; ")).
+		withFix("see https://wiki.archlinux.org/title/Snapper")
+}
+
+// ---- reconciler: stale pacman lock -------------------------------------------
+
+func reconcilePacmanLock(checkOnly bool) recResult {
+	const lock = "/var/lib/pacman/db.lck"
+	if !exists(lock) {
+		return okRes("no stale pacman lock")
+	}
+	if processRunning("pacman") {
+		return okRes("pacman is running; lock is in use")
+	}
+	if checkOnly {
+		return wouldRes("stale pacman lock present (no pacman running)").withFix("sudo rm %s", lock)
+	}
+	if err := run("sudo", "rm", "-f", lock); err != nil {
+		return failRes("could not remove stale lock: %v", err).withFix("sudo rm %s", lock)
+	}
+	return fixedRes("removed stale pacman lock")
+}
+
+// ---- reconciler: ryoku package channel + keyring -----------------------------
+
+func reconcileRyokuChannel(_ bool) recResult {
+	if !pkgInstalled("ryoku-desktop") {
+		return okRes("not a packaged install (desktop runs from a checkout)")
+	}
+	conf, _ := os.ReadFile("/etc/pacman.conf")
+	if !strings.Contains(string(conf), "[ryoku]") {
+		return warnRes("ryoku-desktop is installed but the [ryoku] repo is not in pacman.conf; updates will not arrive").
+			withFix("add the [ryoku] repo (see docs/development.md)")
+	}
+	if !pkgInstalled("ryoku-keyring") {
+		return warnRes("the [ryoku] repo is configured but ryoku-keyring is missing; signatures will fail").
+			withFix("sudo pacman -S ryoku-keyring")
+	}
+	return okRes("ryoku package channel configured")
+}
+
+// ---- reconciler: desktop session components ----------------------------------
+
+func reconcileSessionComponents(_ bool) recResult {
+	if !exists(filepath.Join(homeDir(), ".config", "hypr")) && !has("Hyprland") {
+		return okRes("not a Hyprland desktop")
+	}
+	checks := []struct {
+		role, fix string
+		any       []string
+	}{
+		{"authentication agent", "sudo pacman -S hyprpolkitagent", []string{"hyprpolkitagent", "polkit-gnome", "polkit-kde-agent", "lxsession"}},
+		{"desktop portal", "sudo pacman -S xdg-desktop-portal-hyprland", []string{"xdg-desktop-portal-hyprland"}},
+		{"audio server", "sudo pacman -S pipewire wireplumber", []string{"pipewire"}},
+		{"network manager", "sudo pacman -S networkmanager", []string{"networkmanager"}},
+	}
+	var missing []string
+	for _, c := range checks {
+		if !anyPkgInstalled(c.any...) {
+			missing = append(missing, fmt.Sprintf("%s [%s]", c.role, c.fix))
+		}
+	}
+	if len(missing) == 0 {
+		return okRes("desktop session components present")
+	}
+	return warnRes("missing: %s", strings.Join(missing, "; "))
+}
+
+// ---- reconciler: failed systemd units ----------------------------------------
+
+func reconcileFailedUnits(_ bool) recResult {
+	var failed []string
+	sys, _ := runOut("systemctl", "--failed", "--no-legend", "--plain")
+	for _, l := range nonEmptyLines(sys) {
+		if f := strings.Fields(l); len(f) > 0 {
+			failed = append(failed, f[0])
+		}
+	}
+	usr, _ := runOut("systemctl", "--user", "--failed", "--no-legend", "--plain")
+	for _, l := range nonEmptyLines(usr) {
+		if f := strings.Fields(l); len(f) > 0 {
+			failed = append(failed, f[0]+" (user)")
+		}
+	}
+	if len(failed) == 0 {
+		return okRes("no failed services")
+	}
+	return warnRes("failed: %s", strings.Join(failed, ", ")).
+		withFix("inspect with `systemctl status <unit>` and `journalctl -u <unit>`")
+}
+
+// ---- reconciler: btrfs device health -----------------------------------------
+
+func reconcileBtrfsHealth(_ bool) recResult {
+	if !isBtrfs("/") {
+		return okRes("root is not btrfs")
+	}
+	opts, _ := runOut("findmnt", "-n", "-o", "OPTIONS", "/")
+	if first := strings.SplitN(strings.TrimSpace(opts), ",", 2); len(first) > 0 && first[0] == "ro" {
+		return warnRes("root filesystem is mounted read-only (btrfs may be protecting itself)").
+			withFix("check `btrfs filesystem usage /`; may need `btrfs balance` or more free space")
+	}
+	stats, err := runOut("sudo", "-n", "btrfs", "device", "stats", "/")
+	if err != nil || strings.TrimSpace(stats) == "" {
+		return okRes("btrfs ok (device error counters need root for full detail)")
+	}
+	for _, l := range nonEmptyLines(stats) {
+		f := strings.Fields(l)
+		if len(f) == 2 && f[1] != "0" {
+			return warnRes("btrfs reports device errors: %s", strings.TrimSpace(l)).
+				withFix("back up, then `sudo btrfs scrub start /`; a non-zero counter can mean a failing disk")
+		}
+	}
+	return okRes("btrfs device error counters clean")
+}
+
+// ---- reconciler: pending .pacnew config --------------------------------------
+
+func reconcilePacnew(_ bool) recResult {
+	out, _ := runOut("find", "/etc", "-name", "*.pacnew")
+	files := nonEmptyLines(out)
+	if len(files) == 0 {
+		return okRes("no pending config updates")
+	}
+	return warnRes("%d pending config update(s) (.pacnew)", len(files)).
+		withFix("review and merge with `sudo pacdiff` (from pacman-contrib)")
+}
+
+// ---- reconciler: orphaned packages -------------------------------------------
+
+func reconcileOrphans(_ bool) recResult {
+	out, err := runOut("pacman", "-Qtdq")
+	orphans := nonEmptyLines(out)
+	if err != nil || len(orphans) == 0 {
+		return okRes("no orphaned packages")
+	}
+	return warnRes("%d orphaned package(s)", len(orphans)).
+		withFix("review `pacman -Qtd`, then `sudo pacman -Rns $(pacman -Qtdq)` if unneeded")
+}
+
+// ---- diagnostic report -------------------------------------------------------
+
+func reportPath(override string) string {
+	if override != "" {
+		return override
+	}
+	return filepath.Join(xdg("XDG_STATE_HOME", ".local/state"), "ryoku", "doctor-report.txt")
+}
+
+func writeReport(override string, findings []finding) (string, error) {
+	path := reportPath(override)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, []byte(gatherReport(findings)), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// gatherReport builds a single self-contained text report: the doctor findings
+// followed by the system state a maintainer needs to diagnose the unknown. It is
+// safe to share, it contains system state and recent error logs, no secrets.
+func gatherReport(findings []finding) string {
+	var b strings.Builder
+	line := func(f string, a ...any) { fmt.Fprintf(&b, f+"\n", a...) }
+	section := func(title string) { line("\n## %s", title) }
+	cmd := func(name string, args ...string) {
+		line("$ %s %s", name, strings.Join(args, " "))
+		line("%s", captureOut(name, args...))
+	}
+
+	line("Ryoku diagnostic report")
+	line("generated: %s", time.Now().Format(time.RFC3339))
+	line("Safe to share with the Ryoku maintainers: system state and recent error")
+	line("logs only, no passwords or keys. Open an issue: %s", ryokuIssuesURL)
+	line(strings.Repeat("=", 70))
+
+	section("doctor findings")
+	for _, f := range findings {
+		line("  %-5s %s: %s", f.res.status.label(), f.name, f.res.detail)
+		if f.res.remedy != "" {
+			line("        fix: %s", f.res.remedy)
+		}
+	}
+
+	section("system")
+	cmd("uname", "-srvmo")
+	line("os-release:\n%s", readFileSafe("/etc/os-release"))
+
+	section("ryoku")
+	cmd("ryoku", "status")
+	line("state dir:\n%s", captureOut("ls", "-la", filepath.Join(xdg("XDG_STATE_HOME", ".local/state"), "ryoku")))
+	line("[ryoku] repo configured: %v", strings.Contains(readFileSafe("/etc/pacman.conf"), "[ryoku]"))
+
+	section("storage (btrfs)")
+	cmd("sudo", "-n", "btrfs", "filesystem", "usage", "/")
+	cmd("sudo", "-n", "btrfs", "device", "stats", "/")
+	line("/proc/swaps:\n%s", readFileSafe("/proc/swaps"))
+	line("/etc/conf.d/snapper:\n%s", readFileSafe("/etc/conf.d/snapper"))
+
+	section("packages")
+	cmd("pacman", "-Qtdq")
+	cmd("pacman", "-Dk")
+	line(".pacnew files:\n%s", captureOut("find", "/etc", "-name", "*.pacnew"))
+	line("pacman.log (tail):\n%s", tailLines(readFileSafe("/var/log/pacman.log"), 25))
+
+	section("services")
+	cmd("systemctl", "--failed", "--no-legend", "--plain")
+	cmd("systemctl", "--user", "--failed", "--no-legend", "--plain")
+	line("journal errors this boot (tail):\n%s", tailLines(captureOut("journalctl", "-b", "-p", "err", "--no-pager"), 40))
+
+	section("desktop")
+	cmd("ryoku-shell", "status")
+	cmd("pgrep", "-af", "quickshell")
+	for _, v := range []string{"WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "XDG_SESSION_TYPE", "HYPRLAND_INSTANCE_SIGNATURE"} {
+		line("%s=%s", v, os.Getenv(v))
+	}
+
+	return b.String()
+}
+
+// ---- swap helpers ------------------------------------------------------------
 
 type swapFile struct {
 	path   string
@@ -156,7 +516,6 @@ func parseProcSwaps(s string) []swapFile {
 	return out
 }
 
-// isBtrfs reports whether path lives on a btrfs filesystem.
 func isBtrfs(path string) bool {
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(path, &st); err != nil {
@@ -202,4 +561,70 @@ func relocateSwapToSubvolume(sw swapFile, dir string) error {
 		}
 	}
 	return nil
+}
+
+// ---- small shared helpers ----------------------------------------------------
+
+func homeDir() string {
+	if h, err := os.UserHomeDir(); err == nil {
+		return h
+	}
+	return os.Getenv("HOME")
+}
+
+func pkgInstalled(name string) bool {
+	return exec.Command("pacman", "-Q", name).Run() == nil
+}
+
+func anyPkgInstalled(names ...string) bool {
+	for _, n := range names {
+		if pkgInstalled(n) {
+			return true
+		}
+	}
+	return false
+}
+
+func processRunning(name string) bool {
+	return exec.Command("pgrep", "-x", name).Run() == nil
+}
+
+func nonEmptyLines(s string) []string {
+	var out []string
+	for _, l := range strings.Split(s, "\n") {
+		if strings.TrimSpace(l) != "" {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// captureOut runs a command and returns its combined output (or the error text),
+// for best-effort diagnostics where a non-zero exit is still informative.
+func captureOut(name string, args ...string) string {
+	out, err := exec.Command(name, args...).CombinedOutput()
+	s := strings.TrimRight(string(out), "\n")
+	if s == "" && err != nil {
+		return "(" + err.Error() + ")"
+	}
+	if s == "" {
+		return "(none)"
+	}
+	return s
+}
+
+func readFileSafe(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "(" + err.Error() + ")"
+	}
+	return strings.TrimRight(string(b), "\n")
+}
+
+func tailLines(s string, n int) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
 }

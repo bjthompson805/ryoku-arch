@@ -32,13 +32,20 @@
 
 ### Added
 - `doctor`: convergent reconcilers for stateful drift the package and config
-  layers cannot reach. Each is idempotent (reports `ok`, or converges; `--check`
-  previews), and is retired once every install has run it, so the set never piles
-  up like ordered migrations. `ryoku update` invokes the `ryoku doctor` command
-  after it installs the new binary, so it is one command, not a copy baked into
-  update, and the reconcilers shipped in a release run during that same update.
-  The first reconciler moves a swapfile an older installer left inside `@` into
-  its own btrfs subvolume so snapper can snapshot again.
+  layers cannot reach, each idempotent (reports `ok`, converges where safe, or
+  proposes the exact fix; `--check` previews) and retireable so the set never
+  piles up like ordered migrations. `ryoku update` invokes the `ryoku doctor`
+  command after it installs the new binary, so it is one command (not a copy
+  baked into update) running the reconcilers from the release just installed. The
+  batch covers swap-out-of-snapshots, snapper config consistency, stale pacman
+  lock, the `[ryoku]` channel + keyring, desktop session components, failed
+  services, btrfs device health, pending `.pacnew`, and orphaned packages.
+- `doctor --report [file]`: when a problem cannot be auto-fixed (or is unknown),
+  doctor writes one shareable `.txt` -- the findings plus system state (btrfs
+  usage/errors, swaps, failed units, recent journal errors, pacman and ryoku
+  channel state, session env) -- and points the user to it, so maintainers have
+  the context to diagnose further. Default `~/.local/state/ryoku/doctor-report.txt`;
+  no secrets included.
 - `recovery`: a last-resort restore for a broken desktop. It resets a clean
   checkout to `origin/main`, reinstalls the base packages, and rebuilds and
   redeploys the desktop, overwriting the Ryoku configs in `~/.config`. A preflight

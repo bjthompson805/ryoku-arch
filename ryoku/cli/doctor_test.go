@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -46,5 +47,49 @@ func TestDirOnlyContains(t *testing.T) {
 	}
 	if dirOnlyContains(dir, "swapfile") {
 		t.Error("dir with an extra file must not match")
+	}
+}
+
+func TestNonEmptyLines(t *testing.T) {
+	got := nonEmptyLines("a\n\n  \nb\n")
+	if len(got) != 2 || got[0] != "a" || got[1] != "b" {
+		t.Errorf("nonEmptyLines dropped wrong lines: %q", got)
+	}
+}
+
+func TestTailLines(t *testing.T) {
+	if got := tailLines("1\n2\n3\n4\n5", 2); got != "4\n5" {
+		t.Errorf("tailLines = %q, want \"4\\n5\"", got)
+	}
+	if got := tailLines("1\n2", 10); got != "1\n2" {
+		t.Errorf("tailLines fewer-than-n = %q, want \"1\\n2\"", got)
+	}
+}
+
+func TestReportPathOverride(t *testing.T) {
+	if got := reportPath("/tmp/x.txt"); got != "/tmp/x.txt" {
+		t.Errorf("explicit path = %q, want /tmp/x.txt", got)
+	}
+	t.Setenv("XDG_STATE_HOME", "/state")
+	if got := reportPath(""); got != "/state/ryoku/doctor-report.txt" {
+		t.Errorf("default path = %q, want /state/ryoku/doctor-report.txt", got)
+	}
+}
+
+func TestRecStatusLabels(t *testing.T) {
+	for s, want := range map[recStatus]string{recOK: "ok", recFixed: "fixed", recWouldFix: "todo", recWarn: "warn", recFailed: "fail"} {
+		if got := s.label(); got != want {
+			t.Errorf("label(%d) = %q, want %q", s, got, want)
+		}
+	}
+}
+
+func TestGatherReportIncludesFindings(t *testing.T) {
+	fs := []finding{{"swap kept out of snapshots", warnRes("swapfile in @").withFix("ryoku doctor")}}
+	rep := gatherReport(fs)
+	for _, want := range []string{"Ryoku diagnostic report", "swap kept out of snapshots", "swapfile in @", "fix: ryoku doctor", "## system", "## packages"} {
+		if !strings.Contains(rep, want) {
+			t.Errorf("report missing %q", want)
+		}
 	}
 }

@@ -127,17 +127,27 @@ when the local build is broken.
 
 ### `ryoku doctor`
 
-Runs the convergent reconcilers: idempotent fixes for stateful drift the package
-and config layers cannot express (disk layout and the like). Each reconciler
-reports `ok` when the machine already matches the desired state, otherwise it
-converges; `--check` reports what it would do without changing anything. `ryoku
-update` runs it first so healing is seamless, and a finding never aborts the
+Runs the convergent reconcilers: idempotent checks (and, where it is safe, fixes)
+for stateful drift the package and config layers cannot express. Each reconciler
+reports `ok` when the machine matches the desired state, otherwise it converges,
+proposes the exact fix, or flags it for a human. A healthy machine is quiet;
+`--check` (or `-n`) shows the full list without changing anything. `ryoku update`
+runs `ryoku doctor` itself, so healing is seamless and a finding never aborts the
 update.
 
-The reconcilers live in `ryoku/cli/doctor.go`. The first moves a swapfile an
-older installer left inside `@` into its own btrfs subvolume, so snapper can
-snapshot again. Reconcilers retire once every supported install has run them, so
-the set stays small rather than growing like an ordered migration list.
+Current reconcilers (in `ryoku/cli/doctor.go`): swap kept out of snapshots,
+snapper config consistency, stale pacman lock, the ryoku package channel + keyring,
+desktop session components, failed services, btrfs device health, pending
+`.pacnew` config, and orphaned packages. Reconcilers retire once every supported
+install has run them, so the set stays small rather than growing like an ordered
+migration list.
+
+**When doctor cannot fix something** (or finds an unknown problem), it writes a
+single shareable text report and points you to it. Generate one any time with
+`ryoku doctor --report [file]`: it bundles the findings with system state (btrfs
+usage and device errors, `/proc/swaps`, failed units, recent journal errors,
+pacman state, the ryoku channel state, session env) into one `.txt` the
+maintainers can read. It contains no passwords or keys.
 
 ## Environment and state
 
@@ -157,6 +167,8 @@ State the CLI keeps under `$XDG_STATE_HOME/ryoku` (default `~/.local/state/ryoku
   measures the channel against.
 - `materialized` the manifest of Ryoku-owned files, so the next `materialize`
   can prune cleanly.
+- `doctor-report.txt` the latest diagnostic report `doctor` wrote (also the
+  default target of `ryoku doctor --report`).
 
 Runtime: `$XDG_RUNTIME_DIR/ryoku-update.json` is the update island's progress
 file, written by `update`.
