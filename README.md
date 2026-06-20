@@ -1,104 +1,140 @@
 <div align="center">
 
-# 力 Ryoku Arch
+<img src="https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku/assets/brand/logo-mark.png" alt="Ryoku" width="160" />
 
-**A hand-built Arch Linux distribution: one cohesive Hyprland desktop, an installer, and the system that reproduces it, all from a single repository.**
+# Ryoku Arch
 
-[![Version](https://img.shields.io/badge/version-v0.1.0%20Beta--5-F25623)](https://github.com/neur0map/ryoku-arch/releases)
-[![Base](https://img.shields.io/badge/base-Arch%20Linux-1793D1)](https://archlinux.org)
-[![Compositor](https://img.shields.io/badge/wayland-Hyprland-58E1FF)](https://hypr.land)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
+**力と美のために** &middot; *For the sake of power and beauty.*
 
-[Install](#install) - [Update](#update) - [How it fits](#how-it-fits) - [For maintainers](#for-maintainers)
+Ryoku is a hand-built Arch Linux distribution: one cohesive Hyprland desktop, a
+guided installer, and the system definition that reproduces them, all from a
+single repository. The base is lean enough to live in from first boot and
+deliberate in how it looks and moves.
+
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-F25623?style=for-the-badge)](LICENSE)
+[![Built on Arch](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://archlinux.org)
+[![Hyprland](https://img.shields.io/badge/Hyprland-58E1C2?style=for-the-badge&logoColor=white)](https://hypr.land)
+[![Status: 0.1.0 Beta 5](https://img.shields.io/badge/status-0.1.0_Beta_5-F25623?style=for-the-badge)](https://ryoku.dev)
+[![Build ISO](https://github.com/neur0map/ryoku-arch/actions/workflows/build-iso.yml/badge.svg)](https://github.com/neur0map/ryoku-arch/actions/workflows/build-iso.yml)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/8KjBmUEyKA)
+[![Reddit](https://img.shields.io/badge/Reddit-r%2FRyokuArch-FF4500?style=for-the-badge&logo=reddit&logoColor=white)](https://www.reddit.com/r/RyokuArch/)
+
+<kbd>[Ryoku](docs/ryoku.md)</kbd> &middot; <kbd>[Docs](docs/)</kbd> &middot; <kbd>[Structure](docs/structure.md)</kbd> &middot; <kbd>[Discord](https://discord.gg/8KjBmUEyKA)</kbd> &middot; <kbd>[Subreddit](https://www.reddit.com/r/RyokuArch/)</kbd>
+
+<p>
+  <a href="https://youtu.be/h18vLuERKFo">
+    <img src="https://img.youtube.com/vi/h18vLuERKFo/maxresdefault.jpg" alt="Ryoku showcase: watch on YouTube" width="960" />
+  </a>
+</p>
+
+<sub>&#9654; <a href="https://youtu.be/h18vLuERKFo">Watch the Ryoku showcase on YouTube</a></sub>
 
 </div>
 
 ---
 
-Ryoku (力, "power") is not a config dump. It is a complete, opinionated desktop
-plus the installer and system definition that put it on any machine. The repo is
-the single source of truth; a live machine is only ever a deployment target.
+## About
 
-## Why Ryoku
+Ryoku means power, and the name is the point. The power is a modular shell built
+to be extended: the desktop is composed of small, independent surfaces, and a
+plugin system is on the way, so the shell grows with what you actually use
+instead of bloating by default. The beauty is the shell itself, one continuous
+and deliberate surface where the bar, panels, launcher, lockscreen, and session
+controls move as a single thing. 力と美のために: for the sake of power and beauty.
 
-- **One desktop, one motion language.** The bar, panels, launcher, lock screen,
-  notifications, and screenshot tool are a single morphing shell (the *pill* and
-  its islands), not a pile of unrelated widgets.
-- **Works on day one.** Sensible defaults that are usable immediately. Developer
-  toolchains and their package managers work without root; theming follows the
-  wallpaper; the GPU, displays, and laptop power are detected and configured.
-- **Reproducible.** A fresh install reaches the exact desktop the repo describes.
-- **Safe to update.** Every update is a Btrfs snapshot away from a clean
-  rollback you can boot into from the loader.
-- **Minimal and legible.** No cruft, no dead code, no duplicated config. Small,
-  focused files you can actually read.
+Underneath, Ryoku is a hand-built Arch distribution rather than a config dump.
+The desktop, the installer, and the system definition all live in this
+repository, and every machine is built from it; the repository is the single
+source of truth, and a live machine is only ever a deployment target. The
+desktop is a Hyprland Wayland session authored in Lua with the Quickshell-based
+Ryoku shell on top. Its install flow and command shape descend from Omarchy, and
+the shell seed is adapted from the Caelestia project and reworked into Ryoku's
+own surface.
 
-## Install
+## What ships
 
-1. Download the signed ISO from **[iso.ryoku.dev](https://iso.ryoku.dev)**.
-2. Verify it against the Ryoku release key:
-   ```sh
-   gpg --import keys/ryoku-release-key.pub.asc   # fingerprint EB6D 3C0F 55A7 B3CA BA6B  2838 847B 274F 025D D6E3
-   gpg --verify ryoku-*.iso.sig ryoku-*.iso
-   ```
-3. Write it to a USB stick and boot it.
-4. Run the guided TUI installer. It partitions (Btrfs with subvolumes), pacstraps
-   the package set, sets up the Limine boot chain, installs the Ryoku desktop
-   from the signed `[ryoku]` repository, and configures snapshots.
+- **The desktop** under `ryoku/`: a Hyprland session authored in Lua (not a
+  hand-written `hyprland.conf`), the Quickshell-based Ryoku shell, the
+  lockscreen, app configs, and brand assets.
+- **The system definition** under `system/`: the boot chain, hardware policy,
+  and package sets that make a machine a Ryoku machine.
+- **The installer** under `installation/`: a guided TUI, the backend installer,
+  and the archiso profile that builds the signed ISO.
+- **The update system** under `release/`: the `ryoku` control CLI, the desktop
+  packages, and the signed `[ryoku]` pacman repository.
 
-## Update
+## Updating
 
 Everything updates through one command:
 
-```sh
-ryoku update      # snapshot -> pacman -Syu (+ AUR) -> apply desktop -> reload, with rollback if it fails
+```bash
+ryoku update
 ```
 
-```mermaid
-flowchart LR
-  A[ryoku update] --> S[snapper pre-snapshot]
-  S --> P[pacman -Syu: official + ryoku] --> Y[yay: AUR]
-  Y --> M[materialize configs -> ~/.config] --> R[reload shell] --> S2[post-snapshot]
-  P -- fails --> RB[ryoku rollback / boot a snapshot in Limine]
+It takes a snapshot, runs the package transactions (`pacman -Syu` against the
+official repos and the signed `[ryoku]` repo, then `yay` for the AUR), re-lays
+the desktop configs into your home, reloads the shell, and takes a paired
+post-snapshot. A failed package step aborts before anything else changes.
+
+The desktop ships from the `[ryoku]` pacman repository, signed by the release key
+and trusted through the `ryoku-keyring` package, so updates are verified the same
+way the rest of the system is.
+
+Your settings survive every update. The base configs are Ryoku-owned and
+refreshed in place, while your own edits live in override files that are never
+shipped or touched (`hypr/user.lua`, `kitty/user.conf`, `fish/user.fish`); they
+load last, so your changes win. There are no migration scripts: an upgraded
+machine reaches the same state as a fresh install. If an update goes wrong, run
+`ryoku rollback` or pick the previous snapshot from the Limine boot menu.
+
+## Install
+
+Signed ISO builds are published at [ryoku.dev](https://ryoku.dev). Download the
+latest ISO, signature, and checksums there, write it to a USB stick, and boot it.
+The guided installer partitions the disk (Btrfs with subvolumes), installs the
+package set and the Ryoku desktop from the signed repository, sets up the Limine
+boot chain, and configures snapshots.
+
+Releases are signed with:
+
+- **Key:** `Ryoku Releases <releases@ryoku.dev>`
+- **Fingerprint:** `EB6D 3C0F 55A7 B3CA BA6B  2838 847B 274F 025D D6E3`
+- **Public key in repo:** [`keys/ryoku-release-key.pub.asc`](keys/ryoku-release-key.pub.asc)
+
+Verify the imported key's fingerprint matches before trusting it:
+
+```bash
+gpg --import keys/ryoku-release-key.pub.asc
+gpg --verify ryoku-*.iso.sig ryoku-*.iso
 ```
 
-- **Signed.** The desktop ships from the `[ryoku]` pacman repo, signed by the
-  release key and trusted via `ryoku-keyring`.
-- **Your settings survive.** Base configs are owned by Ryoku and refreshed in
-  place; your edits live in untouched override files (`hypr/user.lua`,
-  `kitty/user.conf`, `fish/user.fish`) that load last and win.
-- **No migration scripts.** Updates are declarative: configs are re-materialized,
-  packages resolve through pacman, and the rare imperative change rides in the
-  package that owns it. Roll back with `ryoku rollback` or pick the prior
-  snapshot in the Limine menu.
+Prefer to build it yourself? The archiso profile and build script live in
+`installation/iso`.
 
-## How it fits
+## Repository layout
 
 | Path | One job |
 |---|---|
-| `ryoku/` | The desktop: the Hyprland (Lua) config, the Quickshell UI (pill, hub, lockscreen), app configs, brand assets. |
+| `ryoku/` | The desktop: the Hyprland (Lua) config, the Quickshell shell, the lockscreen, app configs, brand assets. |
 | `system/` | The machine definition: boot chain, hardware policy, package sets. |
-| `installation/` | How a machine is built: the Go TUI, the backend installer, the ISO profile. |
+| `installation/` | How a machine is built: the TUI, the backend installer, the ISO profile. |
 | `release/` | Packaging: the desktop PKGBUILDs, the `[ryoku]` repo builder, the signing keyring. |
-| `docs/` | The guides. Start with `docs/ryoku.md` and `docs/structure.md`. |
+| `docs/` | The guides. Start with [`docs/ryoku.md`](docs/ryoku.md) and [`docs/structure.md`](docs/structure.md). |
 
-The control plane is a single Go daemon (`ryoku-shell`); the `ryoku` CLI is the
-front door to updates, rollback, and the shell.
+## Channels
 
-## For maintainers
+`main` is the stable channel everyone runs; it is published to the `[ryoku]`
+repository and the ISO only on tagged releases. `unstable-dev` is the maintainer
+preview, consumed through the dev loop and never published. A release promotes
+`unstable-dev` to `main`. See [`docs/development.md`](docs/development.md) for the
+deploy, test, and commit loop.
 
-- **`main`** is the stable channel everyone runs, published to `[ryoku]` and the
-  ISO only on tagged releases.
-- **`unstable-dev`** is the maintainer preview, consumed through the dev loop
-  (`ryoku/shell/dev-run.sh`), and is **never** published. Releases are batched
-  promotions from `unstable-dev` to `main`.
+## Credits and license
 
-See `docs/development.md` for the deploy/test/commit loop and the git gates.
-
-## Credits & license
-
-Ryoku began as an Omarchy-derived environment and stands on the shoulders of
-several open shells; see [`NOTICE`](NOTICE) for the full attribution. Released
-under the [GNU GPL v3](LICENSE).
-
-<div align="center"><sub>力 built from one source of truth.</sub></div>
+Ryoku began as an Omarchy-derived Arch environment, created by David Heinemeier
+Hansson and contributors. The Ryoku shell seed is adapted from the
+[Caelestia shell](https://github.com/caelestia-dots/shell), and parts of the
+display configuration UI are adapted from
+[DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell). Full
+attribution and upstream links are in [`NOTICE`](NOTICE). Ryoku is released under
+the [GNU GPL v3](LICENSE).
