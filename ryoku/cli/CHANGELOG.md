@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+- `status` bounds the `checkupdates` call (120s) so a slow or stuck update check
+  can never hang `ryoku status` -- the data seam the Hub and the update island
+  poll for pending updates.
+
 ### Added
 - `ryoku` (Go): the user-facing update CLI and single front door to the distro.
   - `update`: snapper pre-snapshot, `pacman -Syu` + `yay`, `materialize`, shell

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+- `quickshell/pill` update island: re-check `ryoku status` on a steady cadence
+  (every 5 min) instead of only once at startup, so the island reliably surfaces
+  updates that appear during a session and recovers if the first check came back
+  empty.
+
 ### Added
 - `quickshell/pill`: a workspace switcher overview grown from the pill centre
   (`Super + Tab`, `ryoku-shell workspaces`). A filmstrip of this monitor's

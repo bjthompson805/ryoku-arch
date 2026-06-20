@@ -80,6 +80,16 @@ Singleton {
 
     Component.onCompleted: root.check()
 
+    // checkupdates' first read after boot can be slow or come back empty; re-check
+    // on a steady cadence so the island reliably surfaces updates that appear
+    // during a session and recovers if an early read returned nothing.
+    Timer {
+        interval: 300000
+        running: true
+        repeat: true
+        onTriggered: root.check()
+    }
+
     FileView {
         id: state
         path: root.statePath

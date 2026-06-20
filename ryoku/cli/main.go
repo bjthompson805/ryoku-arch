@@ -13,12 +13,14 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const snapperConfig = "root"
@@ -201,8 +203,13 @@ func pendingUpdates() []pkgUpdate {
 	if !has("checkupdates") {
 		return ups
 	}
-	out, _ := runOut("checkupdates")
-	sc := bufio.NewScanner(strings.NewReader(out))
+	// Bound the check: checkupdates syncs package databases over the network and
+	// is polled by the update island, so it must never hang a status query; cap
+	// it generously so a slow sync still completes.
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	out, _ := exec.CommandContext(ctx, "checkupdates").Output()
+	sc := bufio.NewScanner(strings.NewReader(string(out)))
 	for sc.Scan() {
 		f := strings.Fields(sc.Text())
 		if len(f) >= 4 && f[2] == "->" {
