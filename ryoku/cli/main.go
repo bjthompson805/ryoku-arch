@@ -79,16 +79,11 @@ func usage() {
 
 // cmdUpdate runs the full, safe update inside a snapper pre/post snapshot pair:
 // the git update channel on a checkout (fast-forward + redeploy), or the package
-// transactions + materialize + reload on a packaged install. Snapshots are
-// best-effort so an unconfigured snapper never blocks an update, but a failed
-// step aborts before anything else.
+// transactions + materialize + reload on a packaged install. Once the new binary
+// is in place it runs `ryoku doctor` (the same command users run by hand) to heal
+// stateful drift, then takes the post snapshot. Snapshots are best-effort so an
+// unconfigured snapper never blocks an update, but a failed step aborts first.
 func cmdUpdate(_ []string) error {
-	// Heal stateful drift the package and config layers cannot reach (e.g. a
-	// swapfile stuck inside @) before snapshotting, so the pre-snapshot below can
-	// be taken. Best-effort: a doctor finding never blocks the update.
-	fmt.Println("==> Checking system")
-	runDoctor(false, true)
-
 	pre := snapperPre("ryoku-update")
 	publishRun("running", 0.05)
 	defer publishRun("idle", 0)
@@ -99,6 +94,7 @@ func cmdUpdate(_ []string) error {
 	if handled, err := channelUpdate(); err != nil {
 		return err
 	} else if handled {
+		runFreshDoctor()
 		snapperPost(pre, "ryoku-update")
 		fmt.Println("==> Update complete")
 		return nil
@@ -134,9 +130,19 @@ func cmdUpdate(_ []string) error {
 	hyprReload()
 	restartShell()
 
+	runFreshDoctor()
 	snapperPost(pre, "ryoku-update")
 	fmt.Println("==> Update complete")
 	return nil
+}
+
+// runFreshDoctor runs `ryoku doctor` after an update has installed the new binary,
+// so the reconcilers shipped in this release run in the same update. It is the
+// same command users run standalone; invoking it here keeps doctor a single thing
+// instead of a copy baked into update. Best-effort: a finding never fails update.
+func runFreshDoctor() {
+	fmt.Println("==> Running doctor")
+	_ = run("ryoku", "doctor")
 }
 
 func cmdRollback(args []string) error {

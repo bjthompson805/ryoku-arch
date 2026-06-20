@@ -59,25 +59,22 @@ func cmdDoctor(args []string) error {
 			checkOnly = true
 		}
 	}
-	if runDoctor(checkOnly, false) {
+	if runDoctor(checkOnly) {
 		return fmt.Errorf("one or more checks failed; see the output above")
 	}
 	return nil
 }
 
-// runDoctor runs the reconcilers and prints one line each. quiet drops the
-// "already ok" lines when called from `ryoku update`. It returns whether any
-// reconciler failed; the update caller ignores that so a finding never aborts an
+// runDoctor runs the reconcilers and prints one line each. It returns whether any
+// reconciler failed; the update path ignores that so a finding never aborts an
 // update.
-func runDoctor(checkOnly, quiet bool) bool {
+func runDoctor(checkOnly bool) bool {
 	anyFailed := false
 	for _, r := range reconcilers() {
 		res := r.run(checkOnly)
 		switch res.status {
 		case recOK:
-			if !quiet {
-				fmt.Printf("  ok    %s: %s\n", r.name, res.detail)
-			}
+			fmt.Printf("  ok    %s: %s\n", r.name, res.detail)
 		case recFixed:
 			fmt.Printf("  fixed %s: %s\n", r.name, res.detail)
 		case recWouldFix:
