@@ -87,6 +87,30 @@ load last, so your changes win. There are no migration scripts: an upgraded
 machine reaches the same state as a fresh install. If an update goes wrong, run
 `ryoku rollback` or pick the previous snapshot from the Limine boot menu.
 
+## Recovery
+
+When an update leaves the desktop unusable and `ryoku update` cannot fix it,
+there is a last-resort recovery. It pulls the latest `main`, reinstalls the base
+packages, and rebuilds and redeploys the whole desktop from source, overwriting
+your Ryoku configs:
+
+```bash
+ryoku recovery
+```
+
+If the `ryoku` command itself is gone, drop to a TTY (`Ctrl+Alt+F2`, then log in)
+and run the same recovery straight from the repo:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/bin/ryoku-recovery | bash
+```
+
+This is a true last resort. It discards local Ryoku config customizations
+(`hypr/user.lua` and friends) and resets you to the latest `main`. It refuses to
+run on a machine that is not Ryoku, and asks you to confirm before it changes
+anything. Pass `--yes` to skip the prompt and `--no-packages` to pull and
+redeploy the configs without the pacman step.
+
 ## Install
 
 Signed ISO builds are published at [ryoku.dev](https://ryoku.dev). Download the

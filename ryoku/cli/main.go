@@ -9,6 +9,7 @@
 //	ryoku materialize       lay the base configs into ~/.config (override-safe)
 //	ryoku reload            restart the shell + reload Hyprland
 //	ryoku deploy            DEV ONLY: build + materialize from a checkout
+//	ryoku recovery          last resort: reset to main + redeploy (overwrites configs)
 package main
 
 import (
@@ -46,6 +47,8 @@ func main() {
 		err = run("ryoku-shell", "reload")
 	case "deploy":
 		err = cmdDeploy(os.Args[2:])
+	case "recovery":
+		err = cmdRecovery(os.Args[2:])
 	case "-h", "--help", "help", "":
 		usage()
 	default:
@@ -66,6 +69,7 @@ func usage() {
   materialize    lay the base configs into ~/.config (keeps your overrides)
   reload         restart the shell and reload Hyprland
   deploy         DEV ONLY: deploy from a repo checkout (RYOKU_REPO)
+  recovery       last resort: reset to main and redeploy (overwrites configs)
 `)
 }
 

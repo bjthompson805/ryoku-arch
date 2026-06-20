@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# ryoku panic button. last resort for when an update wrecks the desktop and
+# `ryoku update` cant dig me out. i pull main fresh, reinstall the base packages,
+# and rebuild + redeploy the whole desktop, which overwrites my ryoku configs.
+# dont edit this lightly, talk to me first.
+set -euo pipefail
+
+REPO_URL="${RYOKU_RECOVERY_URL:-https://github.com/neur0map/ryoku-arch.git}"
+CHANNEL="${RYOKU_CHANNEL:-main}"
+RECOVERY_DIR="${RYOKU_RECOVERY_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/ryoku/repo}"
+ASSUME_YES=0
+DO_PACKAGES=1
+
+say()  { printf '==> %s\n' "$*"; }
+warn() { printf '!!  %s\n' "$*" >&2; }
+die()  { printf 'ryoku-recovery: %s\n' "$*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "missing required tool: $1"; }
+
+usage() {
+  cat <<EOF
+ryoku-recovery: last-resort restore of the Ryoku desktop from origin/$CHANNEL.
+Resets a clean checkout to the latest commit, reinstalls the base packages, and
+rebuilds + redeploys the desktop, OVERWRITING your Ryoku configs in ~/.config.
+
+  ryoku recovery [--yes] [--no-packages]
+  curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/bin/ryoku-recovery | bash
+
+  -y, --yes          skip the confirmation prompt
+      --no-packages  only pull and redeploy configs, skip the pacman step
+EOF
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    -y | --yes) ASSUME_YES=1 ;;
+    --no-packages) DO_PACKAGES=0 ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *) die "unknown argument: $arg (try --help)" ;;
+  esac
+done
+
+is_ryoku() {
+  command -v ryoku-shell >/dev/null 2>&1 && return 0
+  command -v ryoku >/dev/null 2>&1 && return 0
+  [[ -d /usr/share/ryoku ]] && return 0
+  [[ -d ${XDG_DATA_HOME:-$HOME/.local/share}/ryoku ]] && return 0
+  [[ -d ${XDG_STATE_HOME:-$HOME/.local/state}/ryoku ]] && return 0
+  grep -qs '^\[ryoku\]' /etc/pacman.conf && return 0
+  return 1
+}
+
+# i will not run on a box that isnt clearly Ryoku, so this never nukes someone
+# elses distro by accident. override with RYOKU_RECOVERY_FORCE=1 if you know better.
+if [[ ${RYOKU_RECOVERY_FORCE:-0} != 1 ]] && ! is_ryoku; then
+  die "this does not look like a Ryoku system; refusing to overwrite configs (set RYOKU_RECOVERY_FORCE=1 to override)"
+fi
+
+need git
+need go
+
+if [[ $ASSUME_YES != 1 ]]; then
+  [[ -r /dev/tty ]] || die "non-interactive shell; re-run with --yes once you are sure"
+  warn "this resets Ryoku to origin/$CHANNEL and OVERWRITES your Ryoku configs in ~/.config."
+  printf 'type "recover" to continue: ' >/dev/tty
+  ans=""
+  read -r ans </dev/tty || true
+  [[ $ans == recover ]] || die "aborted (you did not type recover)"
+fi
+
+say "Ryoku recovery starting on channel $CHANNEL"
+
+if git -C "$RECOVERY_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  say "refreshing recovery checkout at $RECOVERY_DIR"
+  git -C "$RECOVERY_DIR" remote set-url origin "$REPO_URL"
+  git -C "$RECOVERY_DIR" fetch --prune origin "$CHANNEL"
+else
+  say "cloning $REPO_URL into $RECOVERY_DIR"
+  rm -rf "$RECOVERY_DIR"
+  mkdir -p "$(dirname "$RECOVERY_DIR")"
+  git clone --branch "$CHANNEL" "$REPO_URL" "$RECOVERY_DIR"
+fi
+
+git -C "$RECOVERY_DIR" checkout -B "$CHANNEL" "origin/$CHANNEL"
+git -C "$RECOVERY_DIR" reset --hard "origin/$CHANNEL"
+git -C "$RECOVERY_DIR" clean -fdx
+
+commit="$(git -C "$RECOVERY_DIR" rev-parse --short=7 HEAD)"
+say "checkout is on $CHANNEL at $commit"
+
+if [[ $DO_PACKAGES == 1 ]]; then
+  pkglist="$RECOVERY_DIR/system/packages/base.packages"
+  if command -v pacman >/dev/null 2>&1 && [[ -f $pkglist ]]; then
+    mapfile -t pkgs < <(grep -vE '^[[:space:]]*(#|$)' "$pkglist")
+    if ((${#pkgs[@]})); then
+      say "reinstalling the base package set (sudo pacman)"
+      sudo pacman -Syu --needed --noconfirm "${pkgs[@]}" ||
+        warn "pacman step failed (offline or a package error); continuing with the redeploy"
+    fi
+  else
+    warn "skipping packages (pacman or base.packages not found)"
+  fi
+fi
+
+deploy="$RECOVERY_DIR/ryoku/shell/deploy.sh"
+[[ -x $deploy ]] || die "recovery checkout is missing $deploy"
+say "rebuilding and redeploying the desktop (overwrites Ryoku configs)"
+"$deploy"
+
+say "recovery done: Ryoku restored to $CHANNEL ($commit). log out and back in if the shell did not reload."

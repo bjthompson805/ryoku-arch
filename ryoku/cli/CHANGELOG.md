@@ -31,6 +31,13 @@
   `RYOKU_CHANNEL` overrides the branch.
 
 ### Added
+- `recovery`: a last-resort restore for a broken desktop. It resets a clean
+  checkout to `origin/main`, reinstalls the base packages, and rebuilds and
+  redeploys the desktop, overwriting the Ryoku configs in `~/.config`. A preflight
+  refuses to run on a non-Ryoku machine, and it confirms before touching anything
+  (`--yes` skips the prompt, `--no-packages` does configs only). The logic lives
+  in the standalone `bin/ryoku-recovery`, which `ryoku recovery` runs from the
+  checkout and which doubles as a `curl | bash` rescue when the CLI itself is gone.
 - `ryoku` (Go): the user-facing update CLI and single front door to the distro.
   - `update`: snapper pre-snapshot, `pacman -Syu` + `yay`, `materialize`, shell
     reload, snapper post-snapshot. Aborts safely on a package failure.
