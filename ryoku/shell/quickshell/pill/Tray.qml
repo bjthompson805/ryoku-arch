@@ -21,16 +21,22 @@ Item {
     property real s: 1
     property var barWindow
 
-    // Show only Active/NeedsAttention items. Per the StatusNotifier spec a
-    // Passive item is idle and meant to be hidden; Handy (run --no-tray) marks
-    // its item Passive, so this keeps the keybind-driven dictation tool out of
-    // the pill instead of churning the hover row and flickering the island.
+    // Hide idle items (Passive per the StatusNotifier spec) and Handy. Handy runs
+    // --start-hidden so its window never opens, but it still registers an Active
+    // tray item, and it is keybind-driven (Super+`), so it does not belong in the
+    // island. Match it by title, since its StatusNotifier id carries a per-launch
+    // pid.
     readonly property var shown: {
         const out = [];
         const items = SystemTray.items.values;
-        for (let i = 0; i < items.length; i++)
-            if (items[i] && items[i].status !== Status.Passive)
-                out.push(items[i]);
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (!it || it.status === Status.Passive)
+                continue;
+            if ((it.title || "").toLowerCase() === "handy")
+                continue;
+            out.push(it);
+        }
         return out;
     }
 
