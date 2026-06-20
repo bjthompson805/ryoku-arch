@@ -151,6 +151,16 @@ pacman state, the ryoku channel state, session env, and hardware: backlight
 devices, GPU drivers, kernel cmdline, recent display-driver log) into one `.txt`
 the maintainers can read. It contains no passwords or keys.
 
+**When you want it to reason, not just match rules**, `ryoku doctor --explain`
+sends that same report to a cloud model and prints its root-cause analysis and fix
+steps. This is the long tail the reconcilers cannot pre-encode: it reasons over
+the evidence the way a human would, then tells you what to change (including
+hardware/BIOS causes it cannot touch). It is strictly **advisory and read-only**,
+it never runs anything, so a wrong answer can only mislead. It is opt-in and uses
+**your own key**: nothing is sent unless you set one. Defaults target Groq (free,
+fast); OpenRouter's free models work by overriding the URL and model. See the
+environment variables below.
+
 ## Environment and state
 
 Overrides (mostly for `deploy` and tests):
@@ -161,6 +171,15 @@ Overrides (mostly for `deploy` and tests):
   (default `/usr/share/ryoku/config`).
 - `RYOKU_CHANNEL` overrides the update-channel branch (default `main`; used by
   tests).
+
+AI reasoning for `doctor --explain` (opt-in; the report is sent only when a key is
+set). Any OpenAI-compatible endpoint works:
+
+- `RYOKU_AI_KEY` your provider key, or write it to `~/.config/ryoku/ai-key`.
+- `RYOKU_AI_URL` the API base (default `https://api.groq.com/openai/v1`; for
+  OpenRouter use `https://openrouter.ai/api/v1`).
+- `RYOKU_AI_MODEL` the model (Groq default `llama-3.3-70b-versatile`; an
+  OpenRouter free model is e.g. `meta-llama/llama-3.3-70b-instruct:free`).
 
 State the CLI keeps under `$XDG_STATE_HOME/ryoku` (default `~/.local/state/ryoku`):
 

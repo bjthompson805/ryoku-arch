@@ -1,0 +1,163 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// ryoku doctor --explain is the reasoning layer over the deterministic
+// reconcilers: it sends the diagnostic report to the user's own cloud model and
+// prints the model's root-cause analysis and fix steps. It is strictly advisory
+// and read-only: it never runs anything, so a wrong answer can only mislead, never
+// break the machine (cognition is kept separate from actuation). The provider,
+// key, and model are the user's; nothing is sent anywhere unless they set a key.
+//
+// Any OpenAI-compatible chat endpoint works. The defaults target Groq (fast, free
+// tier); OpenRouter's free models work by overriding RYOKU_AI_URL and _MODEL.
+
+const (
+	defaultAIEndpoint = "https://api.groq.com/openai/v1"
+	defaultAIModel    = "llama-3.3-70b-versatile"
+)
+
+// aiSystemPrompt is the compact context injected so the model knows the system it
+// is diagnosing and exactly what to produce. Kept short on purpose: it is the
+// task framing, the report is the data.
+const aiSystemPrompt = "You are the diagnostic brain for Ryoku, an Arch-based Linux distro running the " +
+	"Hyprland Wayland compositor (btrfs root with snapper; the `ryoku` CLI manages updates, snapshots, and " +
+	"config). You are given a `ryoku doctor` report: deterministic findings plus system state (btrfs, " +
+	"packages, services, journal errors, and hardware: GPU and backlight). Name the single most likely root " +
+	"cause and give the exact, safe fix, preferring precise shell commands. When the cause is hardware, " +
+	"firmware, or BIOS, say so plainly: software cannot fix it, so tell the user what to change. Never give a " +
+	"destructive command without a clear warning. Be brief: lead with the cause, then the fix."
+
+func aiKey() string {
+	if k := strings.TrimSpace(os.Getenv("RYOKU_AI_KEY")); k != "" {
+		return k
+	}
+	b, err := os.ReadFile(filepath.Join(xdg("XDG_CONFIG_HOME", ".config"), "ryoku", "ai-key"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func envOr(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
+
+func explainSetupHelp() {
+	fmt.Print(`
+ryoku doctor --explain reasons over the report with a cloud model. It needs a
+free API key (your own, opt-in: nothing is sent without it). Groq is recommended,
+fast and free:
+
+  1. get a key at https://console.groq.com/keys
+  2. export RYOKU_AI_KEY=...        (or write it to ~/.config/ryoku/ai-key)
+
+Or use OpenRouter's free models:
+
+  export RYOKU_AI_KEY=...           (from https://openrouter.ai/keys)
+  export RYOKU_AI_URL=https://openrouter.ai/api/v1
+  export RYOKU_AI_MODEL=meta-llama/llama-3.3-70b-instruct:free
+
+Override the model with RYOKU_AI_MODEL (Groq default: ` + defaultAIModel + `).
+`)
+}
+
+func explainFindings(findings []finding) error {
+	key := aiKey()
+	if key == "" {
+		explainSetupHelp()
+		if path, err := writeReport("", findings); err == nil {
+			fmt.Printf("\nThe full report is at %s; you can also paste it into any assistant yourself.\n", path)
+		}
+		return nil
+	}
+	endpoint := envOr("RYOKU_AI_URL", defaultAIEndpoint)
+	model := envOr("RYOKU_AI_MODEL", defaultAIModel)
+	report := gatherReport(findings)
+
+	fmt.Fprintf(os.Stderr, "\n==> Asking %s (%s) to diagnose. Sends the diagnostic report; advisory only, nothing runs.\n", endpoint, model)
+	answer, err := aiDiagnose(endpoint, key, model, report)
+	if err != nil {
+		path, _ := writeReport("", findings)
+		return fmt.Errorf("AI request failed: %v\n    The report is at %s; paste it into any assistant.", err, path)
+	}
+	fmt.Printf("\n%s\n", answer)
+	return nil
+}
+
+type aiMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type aiRequest struct {
+	Model    string      `json:"model"`
+	Messages []aiMessage `json:"messages"`
+}
+
+type aiResponse struct {
+	Choices []struct {
+		Message aiMessage `json:"message"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// aiDiagnose sends the report to an OpenAI-compatible chat-completions endpoint
+// and returns the assistant's text. The OpenAI wire format is the de-facto
+// standard, so the same code serves Groq, OpenRouter, and any compatible host.
+func aiDiagnose(endpoint, key, model, report string) (string, error) {
+	body, err := json.Marshal(aiRequest{
+		Model: model,
+		Messages: []aiMessage{
+			{Role: "system", Content: aiSystemPrompt},
+			{Role: "user", Content: "Diagnose this machine and tell me how to fix it:\n\n" + report},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		strings.TrimRight(endpoint, "/")+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+key)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+
+	var ar aiResponse
+	if err := json.Unmarshal(raw, &ar); err != nil {
+		return "", fmt.Errorf("unexpected response (HTTP %d)", resp.StatusCode)
+	}
+	if ar.Error != nil && ar.Error.Message != "" {
+		return "", fmt.Errorf("%s", ar.Error.Message)
+	}
+	if len(ar.Choices) == 0 || strings.TrimSpace(ar.Choices[0].Message.Content) == "" {
+		return "", fmt.Errorf("no answer returned (HTTP %d)", resp.StatusCode)
+	}
+	return strings.TrimSpace(ar.Choices[0].Message.Content), nil
+}

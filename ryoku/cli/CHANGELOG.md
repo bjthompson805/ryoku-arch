@@ -50,6 +50,13 @@
   channel state, session env) -- and points the user to it, so maintainers have
   the context to diagnose further. Default `~/.local/state/ryoku/doctor-report.txt`;
   no secrets included.
+- `doctor --explain`: the reasoning layer over the deterministic reconcilers. It
+  sends the diagnostic report to the user's own cloud model (defaults to Groq,
+  free; OpenRouter and any OpenAI-compatible endpoint work via `RYOKU_AI_URL`/
+  `RYOKU_AI_MODEL`) and prints a root-cause analysis with fix steps, reaching the
+  long tail the rules cannot pre-encode. Strictly advisory and read-only: it never
+  executes anything (cognition kept separate from actuation), and it is opt-in --
+  nothing is sent unless `RYOKU_AI_KEY` (or `~/.config/ryoku/ai-key`) is set.
 - `recovery`: a last-resort restore for a broken desktop. It resets a clean
   checkout to `origin/main`, reinstalls the base packages, and rebuilds and
   redeploys the desktop, overwriting the Ryoku configs in `~/.config`. A preflight

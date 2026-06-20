@@ -144,19 +144,20 @@ func printFindings(fs []finding, verbose bool) (warns, fails int) {
 }
 
 func doctorUsage() {
-	fmt.Print(`Usage: ryoku doctor [--check] [--report [file]]
+	fmt.Print(`Usage: ryoku doctor [--check] [--report [file]] [--explain]
 
   (no args)        check, and apply the safe automatic fixes
   --check, -n      report what is wrong without changing anything
   --report [file]  write a shareable diagnostic report for the maintainers
                    (default: ` + reportPath("") + `)
+  --explain        ask your cloud model (Groq/OpenRouter) to reason over the report
 `)
 }
 
 // cmdDoctor checks the machine, applies safe fixes, and on trouble it cannot fix
 // writes a maintainer report so the user always has something to share.
 func cmdDoctor(args []string) error {
-	checkOnly, wantReport := false, false
+	checkOnly, wantReport, wantExplain := false, false, false
 	reportTo := ""
 	for i := 0; i < len(args); i++ {
 		switch a := args[i]; a {
@@ -168,6 +169,8 @@ func cmdDoctor(args []string) error {
 				reportTo = args[i+1]
 				i++
 			}
+		case "--explain":
+			wantExplain = true
 		case "-h", "--help":
 			doctorUsage()
 			return nil
@@ -176,9 +179,13 @@ func cmdDoctor(args []string) error {
 		}
 	}
 
-	verbose := checkOnly || wantReport
+	verbose := checkOnly || wantReport || wantExplain
 	findings := runReconcilers(verbose) // report and check modes never mutate
 	warns, fails := printFindings(findings, verbose)
+
+	if wantExplain {
+		return explainFindings(findings)
+	}
 
 	if wantReport {
 		path, err := writeReport(reportTo, findings)
