@@ -406,8 +406,6 @@ ShellRoot {
                     id: islandGroup
                     color: Theme.cardTop
                     smoothing: 24
-                    shadowStrength: 0.5
-                    shadowSize: 20
                 }
 
                 BlobRect {

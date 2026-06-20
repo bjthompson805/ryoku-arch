@@ -271,11 +271,12 @@ void main() {
     float fw = fwidth(mergedSdf);
     float bodyAlpha = 1.0 - smoothstep(-fw, fw, mergedSdf);
 
-    // Contact shadow: a soft dark falloff just outside the merged body, cast once
-    // by the shape nearest each outside pixel (gOwner) so the frame, pill and
-    // popouts each shadow their own surroundings without double-darkening overlaps.
+    // Contact shadow: a soft dark falloff just inside the frame border, cast only
+    // by the border (myIndex == -1) where the frame is the nearest boundary
+    // (gOwner == -1). The pill and popouts are the frame swelling open, not panels
+    // on top, so they deliberately cast no shadow of their own.
     float shadowAlpha = 0.0;
-    if (shadowStrength > 0.0 && shadowSize > 0.0 && myIndex == gOwner && mergedSdf > 0.0) {
+    if (shadowStrength > 0.0 && shadowSize > 0.0 && myIndex == -1 && gOwner == -1 && mergedSdf > 0.0) {
         float t = clamp(1.0 - mergedSdf / shadowSize, 0.0, 1.0);
         shadowAlpha = shadowStrength * t * t;
     }
