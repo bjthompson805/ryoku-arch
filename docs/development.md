@@ -10,8 +10,10 @@ Edit the repo, deploy, test on the running system.
   runs it from the checkout (`qs -p`, hot-reload). `dev-binds.sh on` binds the
   shell keys for the session; `dev-stop.sh` stops it. Your own `~/.config` is not
   touched.
-- **Configs:** `ryoku/shell/deploy.sh` lays the repo into `~/.config` one way, or
-  let the installer's `deploy` step do it. Never edit `~/.config` and copy back.
+- **Configs:** `ryoku deploy` builds the binaries and lays the repo into
+  `~/.config` from a checkout (it runs `ryoku/shell/deploy.sh`); on an installed
+  system `ryoku materialize` copies the base config in. Never edit `~/.config`
+  and copy back.
 
 ## Verify before committing
 
@@ -34,14 +36,17 @@ Edit the repo, deploy, test on the running system.
 - **A shell surface:** a new component under `ryoku/shell/quickshell/`, with any
   state wired through `ryoku-shell` (`ryoku/shell/ipc/`).
 - **A system helper:** a `ryoku-<thing>` script under `system/hardware/.../`,
-  installed via `install_bin` in `installation/backend/lib/deploy.sh`, and invoked
-  by name from Lua autostart or a keybind.
+  shipped to `/usr/bin` by the `ryoku-desktop` package (its PKGBUILD installs
+  every `system/hardware/*/ryoku-*`), and invoked by name from Lua autostart or
+  a keybind.
 
 ## Binaries and package managers
 
-- Go programs (the TUI, `ryoku-shell`) ship **prebuilt**: `installation/iso/
-  build.sh` compiles them into the image. The target has no build toolchain;
-  never assume `go` at install time.
+- The desktop ships as signed pacman packages from the `[ryoku]` repo
+  (`release/packages/`): `ryoku-shell`, `ryoku-hub`, `ryoku`, and `ryoku-blobs`
+  build from source via their PKGBUILDs. The live ISO still prebuilds the
+  installer TUI (`installation/iso/build.sh`); the installed desktop's binaries
+  come from the repo, so never assume `go` at install time.
 - AUR packages install in the post-install step (`installation/backend/lib/
   aur.sh`), not via pacstrap.
 - User-level package managers install without root, into `~/.local/bin` (`npm`,

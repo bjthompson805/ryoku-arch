@@ -19,9 +19,12 @@ desktop. See `docs/structure.md` for the repo-wide map.
   `pill` island and its `popouts`, the `sidebar`, and `ryoshot`), `plugin/`
   (`Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders with; ships
   prebuilt), `wallust/` (palette from the wallpaper), `kde/` (`kdeglobals`),
-  `systemd/` (the user session target), and `ipc/` (`ryoku-shell`, the Go
-  control-plane daemon that supervises the UI and owns wallpaper, clipboard, and
-  lock). `deploy.sh` and `dev-*.sh` are the live dev-loop tools.
+  `systemd/` (the user session target), and `ipc/` (`ryoku-shell`, the Go shell
+  daemon that supervises the UI, owns wallpaper/clipboard/lock, and serves the
+  control socket). `deploy.sh` and `dev-*.sh` are the live dev-loop tools.
+- `cli/` The user-facing control CLI (`ryoku`): `update`, `rollback`,
+  `snapshots`, `status`, `materialize`, and `reload`. It orchestrates pacman,
+  yay, and snapper rather than reimplementing them.
 - `hub/` Ryoku Hub, the control-center GUI (`Super + ,`): `backend/` (`ryoku-hub`,
   the Go data plane that reads the keybind legend from the live Hyprland config and
   persists hub state as TOML) and `quickshell/` (the Qt6/QML app).
@@ -39,7 +42,8 @@ desktop. See `docs/structure.md` for the repo-wide map.
 
 Fonts (JetBrains Mono Nerd, Noto, Inter) ship as packages in `system/packages`.
 The cursor theme (Bibata) is an AUR package, selected by the Hyprland environment.
-The Go binaries (`ryoku-shell`, `ryoku-hub`) and the `Ryoku.Blobs` plugin ship
-prebuilt: the ISO build compiles them, because the target has no build toolchain.
+The Go binaries (`ryoku`, `ryoku-shell`, `ryoku-hub`) and the `Ryoku.Blobs`
+plugin ship as signed packages from the `[ryoku]` repo (`release/packages/`),
+built from source, so the installed target needs no build toolchain.
 System helper scripts live next to what they serve under `system/hardware/` and
-deploy to `/usr/local/bin`.
+ship to `/usr/bin` via the `ryoku-desktop` package.

@@ -18,8 +18,8 @@ file next to the one you are editing.
 
 ## QML is one component per file
 
-`ryoku/shell/quickshell/` is the UI. Each surface (`pill`, `sidebar`, `topbar`,
-`launcher`, `ryoshot`) is its own directory, and each component is a single
+`ryoku/shell/quickshell/` is the UI. Each surface (`pill`, `sidebar`, `ryoshot`)
+is its own directory, and each component is a single
 `.qml` file. Compose components; do not merge unrelated UI into one file.
 
 View and logic stay apart: QML renders and animates, `ryoku-shell` (Go, in
@@ -29,9 +29,9 @@ embed policy.
 ## System logic is a named helper
 
 Anything with real shell logic is a `ryoku-<thing>` script in
-`system/hardware/.../` installed to `/usr/local/bin` and invoked by name from
-Lua autostart or keybinds: `ryoku-gpu`, `ryoku-monitor`, `ryoku-hw-laptop`,
-`ryoku-idle`, `ryoku-fastfetch`, `ryoku-shell`. Do not inline multi-step shell
+`system/hardware/.../`, shipped to `/usr/bin` by the `ryoku-desktop` package and
+invoked by name from Lua autostart or keybinds: `ryoku-gpu`, `ryoku-monitor`,
+`ryoku-hw-laptop`, `ryoku-idle`, `ryoku-mic`, `ryoku-leds`. Do not inline multi-step shell
 into Lua, and do not copy a helper's logic into a second place; if two callers
 need it, it is one shared helper (as `ryoku-hw-laptop` is).
 

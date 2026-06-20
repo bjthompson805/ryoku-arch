@@ -26,6 +26,10 @@ built from it; the live machine is only ever a deployment target.
   `ryoshot` screenshot tool). `ipc/ryoku-shell` is a single Go daemon that is the
   control plane: it supervises the UI components, owns the wallpaper, clipboard,
   and lock, and answers one socket. Keybinds and the UI talk to it; it decides.
+- **The control CLI** (`ryoku/cli/`, the `ryoku` command) is the system front
+  door: `ryoku update` (snapshot, then pacman and the AUR, then materialize, then
+  reload), plus `rollback`, `snapshots`, `status`, and `materialize`. It
+  orchestrates pacman, yay, and snapper.
 - **Hyprland** (`ryoku/hyprland/`) is the compositor, configured in Lua, one
   concern per module. Its autostart brings up the shell and the hardware helpers.
 - **Theming** is wallpaper-driven: `wallust` regenerates the palette from the
@@ -34,9 +38,10 @@ built from it; the live machine is only ever a deployment target.
 - **The system** (`system/`) defines the boot chain, the hardware policy
   (GPU/driver/display/power helper scripts), and the package sets.
 - **The installer** (`installation/`) is a Go TUI plus a shell backend that
-  partitions, pacstraps the package sets, deploys the `ryoku/` payload, and sets
-  up the boot chain. The ISO bakes the repo and prebuilt binaries so an install
-  needs no build toolchain.
+  partitions, pacstraps the base, adds the `[ryoku]` package repo and installs
+  `ryoku-desktop`, and sets up the boot chain. The desktop comes from signed
+  packages and the ISO prebuilds the installer, so an install needs no build
+  toolchain.
 
 ## Working on it
 

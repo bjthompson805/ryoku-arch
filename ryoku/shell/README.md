@@ -1,8 +1,9 @@
 # ryoku/shell/
 
 The Ryoku desktop shell: the bar, panels, launcher, and screenshot tool that run
-on top of the Hyprland config in `ryoku/hyprland`. The installer deploys all of
-it to `~/.config` (see `installation/backend/lib/deploy.sh`).
+on top of the Hyprland config in `ryoku/hyprland`. It ships in the `ryoku-desktop`
+package as the base config under `/usr/share/ryoku/config`, which
+`ryoku materialize` copies into `~/.config`.
 
 ## Layout
 
@@ -78,21 +79,21 @@ install required:
     ryoku/shell/dev-run.sh       # build ryoku-shell, then run it with RYOKU_SHELL_DIR set
     ryoku/shell/dev-binds.sh on  # optional: bind the shell keys for this session
     ryoku/shell/dev-stop.sh      # stop it (restore your keys with: hyprctl reload)
-    ryoku update                # pull a clean repo, deploy ~/.config, restart the shell
+    ryoku deploy                # build + materialize this checkout into ~/.config, then reload
 
 The daemon launches each component with `qs -p`, so your own `~/.config` is never
 touched, and quickshell hot-reloads QML edits, so changes show as you save.
-For live-mirror updates, `ryoku update` resolves the repo (`RYOKU_REPO`, the
-current git tree, or `~/Work/ryoku-arch`), refuses uncommitted changes, runs
-`git pull --ff-only`, copies `ryoku/shell`, `ryoku/hyprland`, and shell-adjacent
-configs into `~/.config`, installs helpers into `~/.local/bin`, then reloads
-Hyprland and restarts `ryoku-shell`.
+On an installed system, `ryoku update` is the real system update: a snapper
+pre-snapshot, `pacman -Syu` plus the AUR, a config materialize, a shell reload,
+then a post-snapshot. `ryoku deploy` is the dev-only path that builds the Go
+binaries and the plugin and materializes from a checkout. Both leave user files
+(`hypr/user.lua`, `fish/user.fish`) untouched.
 
 ## Install
 
-The installer deploys this tree to `~/.config` and the prebuilt `ryoku-shell` to
-`/usr/local/bin`: `installation/iso/build.sh` builds the daemon and prebuilds the
-`Ryoku.Blobs` plugin into the image, and `installation/backend/lib/deploy.sh` lays
-down the configs and installs the plugin onto the QML import path (`ryoku-shell`
-points `QML2_IMPORT_PATH` there for the components it supervises). The lock screen
-is qylock, shipped by `ryoku/lockscreen`; the shell does not replace it.
+This tree ships in the `[ryoku]` packages: `ryoku-shell` builds the daemon to
+`/usr/bin`, `ryoku-blobs` installs the `Ryoku.Blobs` plugin onto the QML import
+path (`ryoku-shell` points `QML2_IMPORT_PATH` there for the components it
+supervises), and `ryoku-desktop` lays the QML and configs under
+`/usr/share/ryoku/config` for `ryoku materialize` to copy into `~/.config`. The
+lock screen is qylock, shipped by `ryoku/lockscreen`; the shell does not replace it.

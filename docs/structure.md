@@ -36,8 +36,14 @@ truth for the live desktop.
   `plugin/` (`Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders
   with; `build.sh` builds it, and it ships prebuilt), `wallust/` (palette from
   the wallpaper), `kde/` (`kdeglobals`),
-  `systemd/` (the user session target), `ipc/` (`ryoku-shell`, the Go
-  control-plane daemon). `deploy.sh` and `dev-*.sh` are the live dev-loop tools.
+  `systemd/` (the user session target), `ipc/` (`ryoku-shell`, the Go shell
+  daemon that supervises the Quickshell components, owns wallpaper/clipboard/
+  lock, and serves the control socket). `deploy.sh` and `dev-*.sh` are the live
+  dev-loop tools.
+- `cli/` the user-facing control CLI, one Go program (`ryoku`): `update`,
+  `rollback`, `snapshots`, `status`, `materialize` (lay the base configs into
+  `~/.config`), and `reload`. It orchestrates pacman, yay, and snapper; it does
+  not reimplement them.
 - `hub/` Ryoku Hub, the central control-center GUI (`Super + ,`): `backend/`
   (`ryoku-hub`, the Go data plane that reads the keybind legend from the live
   Hyprland config and persists hub state as TOML) and `quickshell/` (the native
@@ -52,8 +58,8 @@ truth for the live desktop.
 System-level definition installed into the target.
 
 - `boot/` the boot chain: `limine/`, `mkinitcpio/`, `plymouth/`.
-- `hardware/` hardware policy and helper scripts (installed to
-  `/usr/local/bin`): `gpu/` (`ryoku-gpu`, `ryoku-gpu-detect`, udev rule),
+- `hardware/` hardware policy and helper scripts (shipped to `/usr/bin` by
+  `ryoku-desktop`): `gpu/` (`ryoku-gpu`, `ryoku-gpu-detect`, udev rule),
   `display/` (`ryoku-monitor`), `audio/` (`ryoku-mic`, the mic-gain normalizer),
   `leds/` (`ryoku-leds`, the OpenRGB accent sync), `drivers/` (per-vendor
   `nvidia`/`intel`/`amd`/`vulkan` install scripts), `power/` (`ryoku-hw-laptop`,
@@ -68,25 +74,46 @@ System-level definition installed into the target.
   contract, and drives the backend.
 - `backend/` `ryoku-install` (the orchestrator) and `lib/` (one file per step:
   `preflight`, `disk`, `luks`, `filesystem`, `pacstrap`, `chroot`, `deploy`,
-  `drivers`, `bootloader`, `network`, `aur`). It reads `system/packages/` and
-  deploys the `ryoku/` payload.
+  `drivers`, `bootloader`, `network`, `aur`). It reads `system/packages/`, adds
+  the `[ryoku]` package repository, and installs the desktop onto the target.
 - `iso/` the archiso profile. `build.sh` bakes the repo payload into the image,
   prebuilds the Go binaries, and runs `mkarchiso`. `profiledef.sh`,
   `packages.x86_64` (live-only set), and `airootfs/` complete the live image.
 
-## The deploy model
+## The distribution model
 
-- `installation/backend/lib/deploy.sh` copies the `ryoku/` payload into the
-  target home and a few system paths.
-- `installation/iso/build.sh` bakes every git-tracked file at
-  `/usr/share/ryoku`, prebuilds the Go binaries (the TUI and `ryoku-shell`), and
-  prebuilds the `Ryoku.Blobs` QML plugin into the payload, because the target has
-  no build toolchain.
-- It only ever flows **repo to system**. A change starts in the repo and is
-  deployed; nothing is harvested back from a live machine.
+- The desktop ships as signed pacman packages from the `[ryoku]` repository
+  (`release/packages/`). `ryoku-desktop` is the umbrella: it depends on
+  `ryoku-shell`, `ryoku-hub`, `ryoku`, `ryoku-blobs`, and `ryoku-keyring`, and
+  lays the base config under `/usr/share/ryoku/config`.
+- The installer adds the `[ryoku]` repo, imports the keyring, and installs
+  `ryoku-desktop`; per-user config is then copied into `~/.config` by
+  `ryoku materialize`, which clobbers Ryoku-owned files and prunes dropped ones
+  but never touches user files.
+- It only ever flows **repo to system**. A change starts in the repo, is built
+  into a package, and is installed; nothing is harvested back from a live machine.
 
 ## Shared, not duplicated
 
 When two subsystems need the same thing, it lives once and both reference it:
 `ryoku-hw-laptop` is the single laptop/desktop detector used by both GPU policy
 and the idle policy. Reuse the helper; never re-implement its logic.
+
+## `release/` packaging
+
+- `packages/` one directory per pacman package in the `[ryoku]` repo
+  (`ryoku-shell`, `ryoku-hub`, `ryoku`, `ryoku-blobs`, `ryoku-desktop`,
+  `ryoku-keyring`), each a `PKGBUILD` that builds from the checked-out monorepo.
+- `repo/` builds the signed `[ryoku]` repo from those PKGBUILDs: `build-repo.sh`
+  runs `makepkg`, signs every artifact with the release key, and `repo-add`s the
+  signed `ryoku.db` into `out/`, laid out exactly as the public mirror serves it.
+
+## Tooling
+
+- `bin/` repo tooling: the release version helpers (`ryoku-release-version`,
+  `ryoku-release-bump`) and the CI/hook checks (`ryoku-dev-scan-slop`,
+  `ryoku-dev-audit-shell-binds`).
+- `tests/` standalone CI check scripts (install chroot-safety, shell tool
+  availability).
+- `.github/` the workflows and issue/PR templates; `.githooks/` the commit gates.
+- `VERSION` the base semver; `.woke.yml` the inclusive-language config.

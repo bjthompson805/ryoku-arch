@@ -43,9 +43,12 @@ These are not negotiable. Most are enforced by the git hooks in `.githooks/`.
    Comment the *why* when it is not obvious, never the *what*. Delete dead code
    instead of commenting it out. A file that is mostly comments is a smell.
 
-7. **Binaries ship prebuilt.** Go programs are compiled into the ISO image; AUR
-   packages install in the post-install step. The installed target has no build
-   toolchain assumptions. See `docs/development.md`.
+7. **The desktop ships as signed packages.** The Go programs and the QML plugin
+   build from source into the `[ryoku]` pacman repo (`release/packages/`); the
+   installer adds that repo and installs `ryoku-desktop`, and AUR packages
+   install in the post-install step. The live ISO prebuilds only the installer;
+   the installed target has no build toolchain assumptions. See
+   `docs/development.md`.
 
 ## Top-level map
 
@@ -54,6 +57,7 @@ These are not negotiable. Most are enforced by the git hooks in `.githooks/`.
 | `ryoku/` | The desktop: app configs, the Hyprland (Lua) config, the shell UI, the lockscreen, brand assets. |
 | `system/` | The machine definition: boot chain, hardware policy, package sets. |
 | `installation/` | How a machine is built: the TUI, the backend installer, the ISO profile. |
+| `release/` | Packaging: the desktop PKGBUILDs, the `[ryoku]` repo, the signing keyring. |
 | `docs/` | These guides. |
 | `.githooks/` | The commit/push gates every change must pass. |
 
