@@ -69,8 +69,8 @@ func clamp(n int) int {
 // paragraph breaks.
 func wrap(s string, width int, indent string) string {
 	avail := width - len(indent)
-	if avail < 24 {
-		avail = 24
+	if avail < 8 {
+		avail = 8
 	}
 	var out strings.Builder
 	for i, para := range strings.Split(s, "\n") {
