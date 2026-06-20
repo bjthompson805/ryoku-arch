@@ -3,18 +3,17 @@
 ## Unreleased
 
 ### Added
-- An Updates section: a typographic status header (the version bump current ->
-  latest, commits behind, branch, last-checked) with an automatic-check schedule
-  in the top right (Off / Hourly / Daily / Weekly, persisted to the hub's TOML via
-  a new `update_interval` key) over a git-style commit timeline tagged by area.
-  Update now runs the update in place with a live, colour-coded log console and a
-  Ryoku wave progress line; on success a Refresh shell button reloads the shell so
-  changes apply (`ryoku-shell reload`), on failure the log exports to
-  `~/ryoku-update-<stamp>.log`. The run publishes its state to a runtime file so
-  the shell's update island mirrors it (a wave while running, a refresh affordance
-  on success). A live count badge rides the nav rail. The commit data and the run
-  are mock (in `Singletons/Updates.qml`); Refresh shell and Export logs are real,
-  and the scheduled check waits on a `ryoku-hub updates` backend.
+- An Updates section wired to the `ryoku` CLI (`ryoku status --json`): a
+  typographic status header (installed version, the pending-update count, and a
+  live "checked Xm ago") over the real list of pending package updates (each
+  `name old -> new`), with an automatic-check schedule in the top right (Off /
+  Hourly / Daily / Weekly, persisted to the hub's TOML via an `update_interval`
+  key) that re-runs the check on its cadence. "Update now" runs the real
+  `ryoku update` in a terminal; the page mirrors its progress from the run-state
+  file the CLI publishes (a spinner and a Ryoku wave while it applies), and the
+  shell's update island reads the same file. A live count badge rides the nav
+  rail. When the system is current there are no rows ("Everything is up to
+  date") and the island stays hidden.
 - Ryoku Hub: the desktop's central control center, a native Qt6/QML app
   (Quickshell, not a webview) with Kirigami-style sidebar navigation. Opened with
   `Super + ,`; it floats and centres on top of the current windows via a Hyprland
