@@ -438,6 +438,9 @@ ShellRoot {
 
                 DropArea {
                     // Drag a file onto the island and the stash opens for the drop.
+                    // ...except while the workspace switcher is open, where its
+                    // own card drags move windows between workspaces.
+                    enabled: !pill.workspacesOpen
                     x: pill.x
                     y: pill.y
                     width: pill.width
