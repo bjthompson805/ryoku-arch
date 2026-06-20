@@ -137,17 +137,19 @@ update.
 
 Current reconcilers (in `ryoku/cli/doctor.go`): swap kept out of snapshots,
 snapper config consistency, stale pacman lock, the ryoku package channel + keyring,
-desktop session components, failed services, btrfs device health, pending
-`.pacnew` config, and orphaned packages. Reconcilers retire once every supported
-install has run them, so the set stays small rather than growing like an ordered
-migration list.
+desktop session components, failed services, btrfs device health, display
+backlight (catches a missing interface, missing brightnessctl, or a hybrid-GPU
+firmware-only backlight), pending `.pacnew` config, and orphaned packages.
+Reconcilers retire once every supported install has run them, so the set stays
+small rather than growing like an ordered migration list.
 
 **When doctor cannot fix something** (or finds an unknown problem), it writes a
 single shareable text report and points you to it. Generate one any time with
 `ryoku doctor --report [file]`: it bundles the findings with system state (btrfs
 usage and device errors, `/proc/swaps`, failed units, recent journal errors,
-pacman state, the ryoku channel state, session env) into one `.txt` the
-maintainers can read. It contains no passwords or keys.
+pacman state, the ryoku channel state, session env, and hardware: backlight
+devices, GPU drivers, kernel cmdline, recent display-driver log) into one `.txt`
+the maintainers can read. It contains no passwords or keys.
 
 ## Environment and state
 

@@ -39,7 +39,9 @@
   baked into update) running the reconcilers from the release just installed. The
   batch covers swap-out-of-snapshots, snapper config consistency, stale pacman
   lock, the `[ryoku]` channel + keyring, desktop session components, failed
-  services, btrfs device health, pending `.pacnew`, and orphaned packages.
+  services, btrfs device health, display backlight (no interface, missing
+  brightnessctl, or a hybrid-GPU firmware-only backlight that will not dim),
+  pending `.pacnew`, and orphaned packages.
 - `doctor --report [file]`: when a problem cannot be auto-fixed (or is unknown),
   doctor writes one shareable `.txt` -- the findings plus system state (btrfs
   usage/errors, swaps, failed units, recent journal errors, pacman and ryoku

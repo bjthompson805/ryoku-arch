@@ -93,6 +93,7 @@ func reconcilers() []reconciler {
 		{"desktop session components", reconcileSessionComponents},
 		{"failed services", reconcileFailedUnits},
 		{"btrfs device health", reconcileBtrfsHealth},
+		{"display backlight", reconcileBacklight},
 		{"pending config (.pacnew)", reconcilePacnew},
 		{"orphaned packages", reconcileOrphans},
 	}
@@ -476,6 +477,22 @@ func gatherReport(findings []finding) string {
 		line("%s=%s", v, os.Getenv(v))
 	}
 
+	section("hardware")
+	bl := backlightDevices()
+	if len(bl) == 0 {
+		line("backlight: (none found)")
+	}
+	for _, d := range bl {
+		base := "/sys/class/backlight/" + d
+		line("backlight %s: type=%s max=%s cur=%s actual=%s", d,
+			readFileSafe(base+"/type"), readFileSafe(base+"/max_brightness"),
+			readFileSafe(base+"/brightness"), readFileSafe(base+"/actual_brightness"))
+	}
+	line("gpu drivers loaded: %s", strings.Join(gpuDriversLoaded(), ", "))
+	cmd("sh", "-c", "lspci -k 2>/dev/null | grep -iA3 'vga\\|3d controller' || true")
+	line("kernel cmdline: %s", readFileSafe("/proc/cmdline"))
+	line("kernel display log (tail):\n%s", captureOut("sh", "-c", "journalctl -k -b --no-pager 2>/dev/null | grep -iE 'backlight|amdgpu|nvidia|i915|drm' | tail -30 || true"))
+
 	return b.String()
 }
 
@@ -627,4 +644,79 @@ func tailLines(s string, n int) string {
 		lines = lines[len(lines)-n:]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// ---- reconciler: display backlight -------------------------------------------
+
+// reconcileBacklight flags the common display-brightness failures: no backlight
+// interface at all, a backlight present but no brightnessctl to drive it, and the
+// hybrid-GPU laptop case where the only interface is a firmware backlight that
+// often accepts writes without dimming the panel. These are detect-and-warn: the
+// fixes (kernel parameters, GPU mux) are too machine-specific to apply blindly.
+func reconcileBacklight(_ bool) recResult {
+	devs := backlightDevices()
+	if len(devs) == 0 {
+		if !isLaptop() {
+			return okRes("no internal backlight (desktop or external display)")
+		}
+		return warnRes("no backlight interface found; display brightness cannot be set").
+			withFix("try a kernel parameter such as acpi_backlight=native or acpi_backlight=vendor")
+	}
+	if !has("brightnessctl") {
+		return warnRes("backlight present but brightnessctl is missing; brightness keys and idle-dim will not work").
+			withFix("sudo pacman -S brightnessctl")
+	}
+	if gpus := gpuDriversLoaded(); len(gpus) >= 2 && onlyFirmwareBacklight(devs) {
+		return warnRes("hybrid GPU (%s) with only a firmware backlight (%s); the panel may not dim", strings.Join(gpus, "+"), strings.Join(devs, ",")).
+			withFix("if brightness does not work, see your laptop's Arch wiki page (kernel param, or route the panel to the iGPU)")
+	}
+	return okRes("backlight: %s", strings.Join(devs, ", "))
+}
+
+func backlightDevices() []string {
+	entries, err := os.ReadDir("/sys/class/backlight")
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.Name())
+	}
+	return out
+}
+
+func onlyFirmwareBacklight(devs []string) bool {
+	for _, d := range devs {
+		if strings.TrimSpace(readFileSafe("/sys/class/backlight/"+d+"/type")) != "firmware" {
+			return false
+		}
+	}
+	return len(devs) > 0
+}
+
+// gpuDriversLoaded returns the loaded GPU kernel drivers, so a hybrid-GPU machine
+// is recognizable.
+func gpuDriversLoaded() []string {
+	var out []string
+	for _, m := range []string{"amdgpu", "nvidia", "i915", "nouveau", "xe"} {
+		if exists("/sys/module/" + m) {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// isLaptop reports whether the machine has a battery, i.e. an internal panel
+// whose backlight we would expect to control.
+func isLaptop() bool {
+	entries, err := os.ReadDir("/sys/class/power_supply")
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "BAT") {
+			return true
+		}
+	}
+	return false
 }
