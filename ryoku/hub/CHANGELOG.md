@@ -38,6 +38,12 @@
   the single deliberate accent, the 力 mark, JetBrains Mono keycaps, and the
   shell's morph motion (a single sliding selection indicator in the rail).
 
+### Changed
+- `backend/`: the keybind legend parser keeps lambda binds (multi-dispatch
+  actions like `Super + A`, which floats and centres) in the legend, taking the
+  description from the trailing comment, instead of dropping every bind whose
+  action is not a bare `hl.dsp` expression.
+
 ### Fixed
 - Ryoku Hub: `Super + ,` no longer goes dead after the hub is dismissed with the
   compositor's close (`Super + Q`). The keybind guards against a second instance

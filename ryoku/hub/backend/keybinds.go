@@ -43,7 +43,7 @@ func keybinds() legend {
 
 var (
 	reHeader = regexp.MustCompile(`^--\s+(.+?)\s*$`)
-	reBind   = regexp.MustCompile(`hl\.bind\((.*?),\s*(hl\.dsp.*)$`)
+	reBind   = regexp.MustCompile(`hl\.bind\((.*?),\s*(.+)$`)
 	reTrail  = regexp.MustCompile(`\s--\s+(.+?)\s*$`)
 	reExec   = regexp.MustCompile(`exec_cmd\("([^"]*)"`)
 )

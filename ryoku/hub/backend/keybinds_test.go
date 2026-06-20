@@ -116,3 +116,22 @@ func TestPrettyKeyGrave(t *testing.T) {
 		t.Errorf("grave key = %q, want backtick", got)
 	}
 }
+
+// A lambda action (multi-dispatch, e.g. SUPER+A float + centre) is not an
+// hl.dsp expression, but it still belongs in the legend; its description comes
+// from the trailing comment.
+func TestLambdaBind(t *testing.T) {
+	const src = `-- Windows
+hl.bind(mod .. " + A", function() hl.dispatch(hl.dsp.window.float({ action = "toggle" })); hl.dispatch(hl.dsp.window.center()) end) -- float + centre the window
+`
+	w := find(parseBinds(src), "Windows")
+	if w == nil || len(w.Binds) != 1 {
+		t.Fatalf("Windows category malformed: %+v", w)
+	}
+	if got := strings.Join(w.Binds[0].Keys, "|"); got != "Super|A" {
+		t.Errorf("keys = %q, want Super|A", got)
+	}
+	if w.Binds[0].Desc != "Float + centre the window" {
+		t.Errorf("desc = %q, want comment-derived description", w.Binds[0].Desc)
+	}
+}
