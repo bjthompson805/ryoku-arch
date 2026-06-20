@@ -12,7 +12,7 @@ never as a panel stacked on top.
 The merge is real geometry, not layered translucency. It is a compiled Quickshell
 plugin, `Ryoku.Blobs` (C++ scene-graph, SDF metaball shader), because the
 smooth-min and the per-shape physics cannot be done in pure QML at this quality.
-Like the Go binaries it **ships prebuilt**: built by `ryoku/shell/plugin/build.sh`
+Like the rest of the desktop it **ships as a signed package** (`ryoku-blobs`): built by `ryoku/shell/plugin/build.sh`
 and installed onto the QML import path (`ryoku-shell` points `QML2_IMPORT_PATH`
 there for the components it supervises), so the target builds nothing.
 
