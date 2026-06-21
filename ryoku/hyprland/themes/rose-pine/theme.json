@@ -1,12 +1,12 @@
 {
   "name": "Rosé Pine",
   "blurb": "Muted, elegant, and a little romantic.",
+  "summary": "Round corners · elegant motion · muted",
   "tags": [
     "rounded",
     "muted",
-    "dark"
+    "elegant"
   ],
-  "fixed": true,
   "accent": "#ebbcba",
   "swatch": [
     "#191724",
@@ -16,6 +16,7 @@
     "#eb6f92",
     "#f6c177"
   ],
+  "hasPalette": true,
   "look": {
     "rounding": 14,
     "gapsIn": 8,

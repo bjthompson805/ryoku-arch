@@ -1,12 +1,12 @@
 {
   "name": "Aqua",
-  "blurb": "Apple-style liquid glass: big rounding, heavy frost, translucent.",
+  "blurb": "Apple-style liquid glass. Big rounding, heavy frost.",
+  "summary": "Round · glassy · graceful motion",
   "tags": [
     "rounded",
     "glass",
-    "cool"
+    "smooth"
   ],
-  "fixed": true,
   "accent": "#5ac8fa",
   "swatch": [
     "#0d1117",
@@ -16,6 +16,7 @@
     "#ff7b72",
     "#bc8cff"
   ],
+  "hasPalette": true,
   "look": {
     "rounding": 20,
     "gapsIn": 10,

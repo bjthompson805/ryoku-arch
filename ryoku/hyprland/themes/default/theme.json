@@ -1,12 +1,12 @@
 {
-  "name": "Ryoku",
-  "blurb": "Wallpaper-driven warmth. Borders and accents follow your wallpaper.",
+  "name": "Ryoku Default",
+  "blurb": "The look and motion Ryoku ships with. Warm, glassy, wallpaper-driven.",
+  "summary": "Shipped look · wallpaper colours",
   "tags": [
+    "default",
     "warm",
-    "glass",
-    "adaptive"
+    "glass"
   ],
-  "fixed": false,
   "accent": "#e0563b",
   "swatch": [
     "#1a1410",
@@ -16,6 +16,7 @@
     "#c4411d",
     "#e8ddd4"
   ],
+  "hasPalette": false,
   "look": {
     "rounding": 16,
     "gapsIn": 8,

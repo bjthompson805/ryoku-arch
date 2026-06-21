@@ -1,12 +1,12 @@
 {
   "name": "Gruvbox",
   "blurb": "Warm retro earth tones. Cozy and high-contrast.",
+  "summary": "Soft corners · quick motion · warm",
   "tags": [
     "warm",
     "retro",
-    "dark"
+    "quick"
   ],
-  "fixed": true,
   "accent": "#fe8019",
   "swatch": [
     "#282828",
@@ -16,6 +16,7 @@
     "#fb4934",
     "#83a598"
   ],
+  "hasPalette": true,
   "look": {
     "rounding": 6,
     "gapsIn": 6,

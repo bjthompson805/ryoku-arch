@@ -1,12 +1,12 @@
 {
   "name": "Catppuccin",
   "blurb": "Mocha: soft pastel mauve on a calm dark base.",
+  "summary": "Rounded · pastel · gentle motion",
   "tags": [
     "rounded",
     "pastel",
-    "dark"
+    "soft"
   ],
-  "fixed": true,
   "accent": "#cba6f7",
   "swatch": [
     "#1e1e2e",
@@ -16,6 +16,7 @@
     "#f38ba8",
     "#fab387"
   ],
+  "hasPalette": true,
   "look": {
     "rounding": 12,
     "gapsIn": 8,

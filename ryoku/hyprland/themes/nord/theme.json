@@ -1,12 +1,12 @@
 {
   "name": "Nord",
   "blurb": "Cool arctic minimalism. Calm frost blues.",
+  "summary": "Clean corners · even motion · cool",
   "tags": [
     "cool",
     "minimal",
-    "dark"
+    "clean"
   ],
-  "fixed": true,
   "accent": "#88c0d0",
   "swatch": [
     "#2e3440",
@@ -16,6 +16,7 @@
     "#bf616a",
     "#ebcb8b"
   ],
+  "hasPalette": true,
   "look": {
     "rounding": 10,
     "gapsIn": 8,

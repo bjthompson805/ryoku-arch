@@ -1,12 +1,12 @@
 {
   "name": "Tokyo Night",
-  "blurb": "Omarchy's deep blue-purple night. Sharp and focused.",
+  "blurb": "Omarchy's deep blue-purple night.",
+  "summary": "Sharp corners · snappy motion · cool palette",
   "tags": [
     "sharp",
     "cool",
-    "dark"
+    "snappy"
   ],
-  "fixed": true,
   "accent": "#7aa2f7",
   "swatch": [
     "#1a1b26",
@@ -16,6 +16,7 @@
     "#f7768e",
     "#e0af68"
   ],
+  "hasPalette": true,
   "look": {
     "rounding": 3,
     "gapsIn": 6,
@@ -25,7 +26,7 @@
     "blurSize": 4,
     "blurPasses": 1,
     "shadowEnabled": false,
-    "shadowRange": 20,
+    "shadowRange": 30,
     "activeOpacity": 1.0,
     "inactiveOpacity": 0.94,
     "layout": "dwindle",
