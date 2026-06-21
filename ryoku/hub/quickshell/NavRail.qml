@@ -93,23 +93,15 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 14
 
-                Rectangle {
+                Image {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 44
                     height: 44
-                    radius: 13
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Theme.ember }
-                        GradientStop { position: 1.0; color: Theme.emberDeep }
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        text: "\u529b"
-                        color: Theme.onAccent
-                        font.family: Theme.fontJp
-                        font.pixelSize: 24
-                        font.weight: Font.Bold
-                    }
+                    source: Qt.resolvedUrl("brand-icon.png")
+                    sourceSize.width: 96
+                    sourceSize.height: 96
+                    smooth: true
+                    fillMode: Image.PreserveAspectFit
                 }
 
                 Column {

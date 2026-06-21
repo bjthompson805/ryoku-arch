@@ -316,6 +316,13 @@ func runHypr(args []string) error {
 		return printJSON(listCursorThemes())
 	case "layouts":
 		return printJSON(listKbLayouts())
+	case "themes":
+		return printJSON(listThemes())
+	case "theme":
+		if len(args) < 2 {
+			return fmt.Errorf("hypr theme needs a slug")
+		}
+		return applyTheme(args[1])
 	default:
 		return fmt.Errorf("unknown hypr subcommand: %s", args[0])
 	}

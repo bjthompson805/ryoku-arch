@@ -17,7 +17,7 @@ Item {
     // Read by the hub to drop an unsaved live preview when this page is left.
     readonly property bool previewDirty: store.dirty
 
-    property string group: "look"
+    property string group: "themes"
     property var cursorThemes: []
 
     Process {
@@ -140,6 +140,7 @@ Item {
         anchors.left: parent.left
         anchors.top: parent.top
         model: [
+            { "key": "themes", "label": "Themes" },
             { "key": "look", "label": "Look" },
             { "key": "borders", "label": "Borders" },
             { "key": "cursor", "label": "Cursor" },
@@ -192,7 +193,8 @@ Item {
             width: flick.width - 12
             height: item ? item.implicitHeight : 0
             y: 0
-            sourceComponent: page.group === "look" ? lookComp
+            sourceComponent: page.group === "themes" ? themeComp
+                : page.group === "look" ? lookComp
                 : page.group === "borders" ? bordersComp
                 : page.group === "cursor" ? cursorComp
                 : page.group === "wallpaper" ? wallpaperComp
@@ -206,6 +208,11 @@ Item {
         }
 
         NumberAnimation { id: fade; target: loader.item; property: "opacity"; to: 1; duration: Theme.medium; easing.type: Theme.ease }
+    }
+
+    Component {
+        id: themeComp
+        ThemesPage {}
     }
 
     Component {

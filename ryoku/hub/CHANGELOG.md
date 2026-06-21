@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- A **Themes** tab in Appearance: full-system "rices" as preset cards (Ryoku,
+  Tokyo Night, Aqua glass, Catppuccin, Gruvbox, Nord, Rosé Pine). Applying one
+  (`ryoku-hub hypr theme <slug>`) sets the appearance store (so Look/Borders
+  reflect it), writes the wallust palette every consumer reads (kitty, the
+  visualiser, window borders), and reloads. A fixed-palette theme locks the
+  colours so a wallpaper change keeps them; the Ryoku theme is wallpaper-driven.
+  `ryoku-hub hypr themes` lists them. The frame and island keep the Ryoku identity.
+- The settings brand mark uses the real Ryoku icon asset instead of a procedural
+  gradient square.
 - **Ryoku Settings**: the hub is now a full settings app for everything the
   Hyprland (Lua) config drives, plus the shell. New sections, each a live editor:
   **Displays** (detect and arrange monitors on a drag canvas with snapping;
