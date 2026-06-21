@@ -1,0 +1,41 @@
+name: Monitor profiles
+
+# Guards ryoku-monitor's Ryoku Settings surface: explicit layout apply (keeps the
+# chosen modes, not highrr), named hardware-keyed profiles, and the identity remap
+# that survives a connector rename. Runs in fixture mode, so no compositor is
+# needed. See tests/monitor-profiles.sh.
+
+on:
+  pull_request:
+    paths:
+      - 'system/hardware/display/ryoku-monitor'
+      - 'tests/monitor-profiles.sh'
+  push:
+    branches:
+      - main
+    paths:
+      - 'system/hardware/display/ryoku-monitor'
+      - 'tests/monitor-profiles.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  monitor-profiles:
+    name: ryoku-monitor apply and profiles
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Run monitor-profiles test
+        shell: bash
+        run: bash tests/monitor-profiles.sh

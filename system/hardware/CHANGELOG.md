@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- `display/ryoku-monitor`: a GUI/profile surface for Ryoku Settings. `list` prints
+  the connected monitors (identity, modes, layout) as JSON; `apply JSON` applies an
+  explicit layout live and persists it with the chosen modes (not highrr); `save
+  NAME JSON`/`load NAME`/`profiles`/`rm NAME` manage named layout profiles under
+  `~/.config/ryoku/monitors/`. Profiles match on monitor hardware identity
+  (make|model|serial), so they survive connector renames, and `autoscale` applies
+  a matching profile at login/hotplug, falling back to DPI scaling when none fits
+  (`--no-profile` forces DPI). Fixture mode (`RYOKU_MONITOR_JSON`) now skips the
+  hyprctl requirement so the path is testable without a live compositor.
 - `display/ryoku-monitor`: `mirror`, `extend`, and `toggle` subcommands to
   duplicate displays or lay them side by side (driven by `Super + P`). Live
   changes now go through `hyprctl eval` (the `hl.monitor` API), since the Lua

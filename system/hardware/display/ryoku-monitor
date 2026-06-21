@@ -22,7 +22,13 @@ set -euo pipefail
 # Drop-in Hyprland require()s; overwritten in full on every run (never skip-if-exists).
 monitors_conf="${RYOKU_MONITORS_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitors.lua}"
 
+# Named monitor profiles (Ryoku Settings). Keyed by hardware identity, not the
+# connector name, so a layout follows the physical displays across reshuffles.
+monitors_dir="${RYOKU_MONITORS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/monitors}"
+
 require_hyprctl() {
+  # Fixture mode (tests) never touches the live compositor.
+  [[ -n ${RYOKU_MONITOR_JSON:-} ]] && return 0
   command -v hyprctl >/dev/null 2>&1 || {
     echo "ryoku-monitor: hyprctl not found" >&2
     exit 1
@@ -158,6 +164,15 @@ settle_refresh() {
 cmd_autoscale() {
   require_hyprctl
   require_jq
+  # Login/hotplug: a saved profile for exactly this set of displays wins over DPI
+  # scaling. --no-profile (used by extend/toggle and the hub's DPI button) skips it.
+  if [[ "${1:-}" != "--no-profile" ]]; then
+    local prof
+    if prof="$(matching_profile)" && [[ -n $prof ]]; then
+      cmd_load "$prof"
+      return
+    fi
+  fi
   local name mode pos wanted current
   while IFS='|' read -r name mode pos wanted current; do
     [[ -n $name ]] || continue
@@ -212,7 +227,7 @@ cmd_extend() {
     [[ -n $name ]] || continue
     apply_monitor "output = \"$name\", mode = \"preferred\", position = \"auto\", scale = 1, mirror = \"none\""
   done < <(monitors_json | jq -r '.[] | select(.disabled | not) | .name')
-  cmd_autoscale
+  cmd_autoscale --no-profile
 }
 
 # Toggle mirror <-> extend (the Super+P display switch).
@@ -226,6 +241,183 @@ cmd_toggle() {
   fi
 }
 
+# --- GUI and profile support (Ryoku Settings) ----------------------------
+#
+# The hub reads the live layout with `list`, applies a user-chosen layout with
+# `apply` (live only) or `save NAME` (live + a named profile), and recalls one
+# with `load NAME`. Profiles match on monitor hardware identity, so they survive
+# connector renames; `autoscale` applies a matching profile at login/hotplug.
+
+# Emit the connected monitors as GUI-ready JSON: identity, current mode, layout,
+# and the available modes for the resolution picker.
+cmd_list() {
+  require_hyprctl
+  require_jq
+  monitors_json | jq -c '[ .[] | {
+    name, description, make, model, serial,
+    id: ((.make // "") + "|" + (.model // "") + "|" + (.serial // "")),
+    width, height, refresh: (.refreshRate | round),
+    x, y, scale, transform, vrr, disabled, focused,
+    mirror: (.mirrorOf // "none"),
+    modes: (.availableModes // [])
+  } ]'
+}
+
+# Apply an explicit layout (JSON array of monitor specs on stdin) live, one
+# hl.monitor per entry.
+apply_specs() {
+  local args
+  while IFS= read -r args; do
+    [[ -n $args ]] || continue
+    apply_monitor "$args"
+  done < <(jq -r '
+    .[] |
+    if .disabled then "output = \"\(.output)\", disabled = true"
+    else "output = \"\(.output)\", mode = \"\(.mode)\", position = \"\(.position)\", scale = \(.scale)"
+      + (if (.transform // 0) != 0 then ", transform = \(.transform)" else "" end)
+      + (if (.vrr // 0) != 0 then ", vrr = \(.vrr)" else "" end)
+      + (if (.mirror // "") != "" and (.mirror // "") != "none" then ", mirror = \"\(.mirror)\"" else "" end)
+    end')
+}
+
+# Write monitors.lua from an explicit layout (JSON array on stdin), preserving the
+# chosen modes (unlike persist, which captures highrr). Keeps GDK_SCALE in step
+# and appends the hotplug catch-all.
+write_monitors_explicit() {
+  local specs gdk
+  specs="$(cat)"
+  gdk="$(printf '%s' "$specs" | jq -r '
+    [ .[] | select(.disabled | not) | .scale ] as $s |
+    if ($s | length) > 0 and ($s | unique | length) == 1
+       and ($s[0] == ($s[0] | floor)) and $s[0] >= 2
+    then ($s[0] | floor) else 1 end')"
+  [[ $gdk =~ ^[0-9]+$ ]] || gdk=1
+  if [[ -z ${RYOKU_MONITOR_JSON:-} ]]; then
+    hyprctl eval "hl.env(\"GDK_SCALE\", \"$gdk\")" >/dev/null 2>&1 || true
+  fi
+  mkdir -p "$(dirname "$monitors_conf")"
+  {
+    printf '%s\n' "-- Managed by ryoku-monitor (Ryoku Settings layout). The per-output modes are"
+    printf '%s\n' "-- the ones chosen in the Displays section; edits here may be overwritten."
+    printf '\n'
+    printf '%s' "$specs" | jq -r '
+      .[] |
+      if .disabled then
+        "hl.monitor({ output = \"\(.output)\", disabled = true })"
+      else
+        "hl.monitor({ output = \"\(.output)\", mode = \"\(.mode)\", position = \"\(.position)\", scale = \(.scale)"
+        + (if (.transform // 0) != 0 then ", transform = \(.transform)" else "" end)
+        + (if (.vrr // 0) != 0 then ", vrr = \(.vrr)" else "" end)
+        + (if (.mirror // "") != "" and (.mirror // "") != "none" then ", mirror = \"\(.mirror)\"" else "" end)
+        + " })"
+      end'
+    printf '\n'
+    printf '%s\n' "-- Keep GTK and XWayland apps crisp (shared integer scale when every monitor"
+    printf '%s\n' "-- agrees at >=2x, else 1)."
+    printf 'hl.env("GDK_SCALE", "%s")\n' "$gdk"
+    printf '\n'
+    printf '%s\n' "-- Catch-all for monitors not listed above (hotplug-friendly, safe 1x default)."
+    printf '%s\n' 'hl.monitor({ output = "", mode = "highrr", position = "auto", scale = 1 })'
+  } >"$monitors_conf"
+}
+
+# Apply a layout live without saving a profile. JSON array as $1 or on stdin.
+cmd_apply() {
+  require_hyprctl
+  require_jq
+  local json="${1:-}"
+  [[ -n $json ]] || json="$(cat)"
+  printf '%s' "$json" | apply_specs
+  printf '%s' "$json" | write_monitors_explicit
+  echo "ryoku-monitor: applied layout -> $monitors_conf"
+}
+
+# Save the layout as a named, hardware-keyed profile and apply it now. JSON array
+# as $2 or on stdin.
+cmd_save() {
+  require_hyprctl
+  require_jq
+  local name="${1:-}" json="${2:-}"
+  [[ -n $name ]] || { echo "ryoku-monitor: save needs a profile name" >&2; return 1; }
+  [[ -n $json ]] || json="$(cat)"
+  mkdir -p "$monitors_dir"
+  printf '%s' "$json" | jq '{monitors: .}' >"$monitors_dir/$name.json"
+  printf '%s' "$json" | apply_specs
+  printf '%s' "$json" | write_monitors_explicit
+  echo "ryoku-monitor: saved profile $name"
+}
+
+# Hardware identities of the connected monitors, sorted and de-duplicated. The
+# profile-match key.
+connected_ids() {
+  monitors_json | jq -r '[ .[] | ((.make // "") + "|" + (.model // "") + "|" + (.serial // "")) ] | sort | unique | .[]'
+}
+
+# Name of the first saved profile whose monitor set matches the connected one (by
+# hardware identity), or nothing.
+matching_profile() {
+  [[ -d $monitors_dir ]] || return 1
+  local conn f pids
+  conn="$(connected_ids)"
+  for f in "$monitors_dir"/*.json; do
+    [[ -e $f ]] || continue
+    pids="$(jq -r '[ .monitors[].id ] | sort | unique | .[]' "$f" 2>/dev/null)"
+    if [[ -n $pids && "$pids" == "$conn" ]]; then
+      basename "$f" .json
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Apply a saved profile, mapping each saved monitor to the connector that now
+# carries its hardware identity, so DP-1/DP-2 swaps do not matter.
+cmd_load() {
+  require_hyprctl
+  require_jq
+  local name="${1:-}" file
+  file="$monitors_dir/$name.json"
+  [[ -f $file ]] || { echo "ryoku-monitor: no such profile: $name" >&2; return 1; }
+  local resolved
+  resolved="$(jq -n --argjson live "$(monitors_json)" --slurpfile prof "$file" '
+    [ $prof[0].monitors[]
+      | . as $m
+      | (first($live[] | select(((.make // "") + "|" + (.model // "") + "|" + (.serial // "")) == $m.id) | .name)) as $out
+      | select($out != null)
+      | $m + { output: $out } ]')"
+  printf '%s' "$resolved" | apply_specs
+  printf '%s' "$resolved" | write_monitors_explicit
+  echo "ryoku-monitor: loaded profile $name"
+}
+
+# List saved profiles as JSON, each tagged with whether it matches the connected
+# monitor set.
+cmd_profiles() {
+  require_jq
+  local conn arr f name pids match
+  conn="$(connected_ids 2>/dev/null)"
+  arr="[]"
+  if [[ -d $monitors_dir ]]; then
+    for f in "$monitors_dir"/*.json; do
+      [[ -e $f ]] || continue
+      name="$(basename "$f" .json)"
+      pids="$(jq -r '[ .monitors[].id ] | sort | unique | .[]' "$f" 2>/dev/null)"
+      match=false
+      [[ -n $pids && "$pids" == "$conn" ]] && match=true
+      arr="$(jq --arg n "$name" --argjson m "$match" --slurpfile p "$f" \
+        '. + [ { name: $n, matches: $m, monitors: $p[0].monitors } ]' <<<"$arr")"
+    done
+  fi
+  printf '%s\n' "$arr"
+}
+
+cmd_rm() {
+  local name="${1:-}"
+  [[ -n $name ]] || { echo "ryoku-monitor: rm needs a profile name" >&2; return 1; }
+  rm -f "$monitors_dir/$name.json"
+  echo "ryoku-monitor: removed profile $name"
+}
+
 usage() {
   cat <<'EOF'
 Usage: ryoku-monitor <command>
@@ -236,6 +428,12 @@ Usage: ryoku-monitor <command>
   mirror [SRC] Mirror every other display onto SRC (default: the focused one).
   extend      Clear mirroring and lay displays side by side, DPI-scaled.
   toggle      Switch between mirror and extend.
+  list        Print the connected monitors as JSON (for Ryoku Settings).
+  apply JSON  Apply an explicit layout live (JSON array of monitor specs).
+  save NAME JSON  Apply a layout and save it as a hardware-keyed profile.
+  load NAME   Apply a saved profile, matching displays by hardware identity.
+  profiles    List saved profiles as JSON (each tagged if it matches now).
+  rm NAME     Delete a saved profile.
 
 Both sync GDK_SCALE for GTK/XWayland apps. DPI buckets: <=120=1x, <=150=1.25,
 <=230=1.5, <=290=1.75, >290=2x.
@@ -244,11 +442,17 @@ EOF
 
 main() {
   case "${1:-}" in
-    autoscale) cmd_autoscale ;;
+    autoscale) cmd_autoscale "${2:-}" ;;
     persist) cmd_persist ;;
     mirror) cmd_mirror "${2:-}" ;;
     extend) cmd_extend ;;
     toggle) cmd_toggle ;;
+    list) cmd_list ;;
+    apply) cmd_apply "${2:-}" ;;
+    save) cmd_save "${2:-}" "${3:-}" ;;
+    load) cmd_load "${2:-}" ;;
+    profiles) cmd_profiles ;;
+    rm) cmd_rm "${2:-}" ;;
     -h | --help | help) usage ;;
     *)
       usage >&2
