@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `hyprland/monitors_user.lua.example`: a hand-written manual monitor override.
+  `hyprland.lua` now `require`s `monitors_user` (a `pcall`, after the generated
+  `monitors.lua`), so `~/.config/hypr/monitors_user.lua` wins and lets you force a
+  mode, a custom modeline, position, scale, rotation, or mirror for a panel whose
+  EDID is wrong (for example a fake/generic EDID). It is never shipped or
+  overwritten, and `ryoku-monitor` leaves any output named in it alone.
 - `hyprland/themes/`: full-system theme "rices", one folder each, with the look
   (`theme.json`), real Hyprland Lua (`init.lua`: motion and decoration finish), and
   a 16-colour `colors.json` for fixed palettes. Ships **default** (the shipped

@@ -2,6 +2,11 @@ require("modules.env")
 require("keyboard")
 require("gpu")
 require("monitors")
+-- Manual monitor overrides: ~/.config/hypr/monitors_user.lua is hand-written and
+-- never shipped or touched by ryoku-monitor. Loaded after the generated
+-- monitors.lua so a hand-set panel (a fake-EDID display that needs a forced mode
+-- or modeline, or a pinned layout) wins. See monitors_user.lua.example.
+pcall(require, "monitors_user")
 require("modules.displays")
 require("modules.input")
 require("modules.decoration")
