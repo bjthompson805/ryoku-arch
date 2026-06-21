@@ -45,14 +45,27 @@ hl.bind(mod .. " + SHIFT + C", hl.dsp.exec_cmd("hyprpicker -a"))                
 hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
--- Workspaces
+-- Workspaces. Super+N shows workspace N on the monitor under the cursor: the
+-- workspace is first pulled to the focused monitor, so the same keys drive
+-- whichever screen the mouse is on instead of always yanking focus to the
+-- laptop. Super+Alt+N sends the active window to that workspace, on that screen.
+local function ws_to_current(i)
+    hl.dispatch(hl.dsp.workspace.move({ workspace = i, monitor = "current" }))
+end
+
 hl.bind(mod .. " + H",          hl.dsp.workspace.toggle_special(""))            -- toggle the scratchpad (special workspace)
 hl.bind(mod .. " + mouse_up",   hl.dsp.focus({ workspace = "r-1" }))            -- previous workspace
 hl.bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "r+1" }))            -- next workspace
 for i = 1, 10 do
     local key = i % 10 -- 10 maps to the 0 key
-    hl.bind(mod .. " + " .. key,         hl.dsp.focus({ workspace = i }))
-    hl.bind(mod .. " + ALT + " .. key,   hl.dsp.window.move({ workspace = i }))
+    hl.bind(mod .. " + " .. key, function()
+        ws_to_current(i)
+        hl.dispatch(hl.dsp.focus({ workspace = i }))
+    end)
+    hl.bind(mod .. " + ALT + " .. key, function()
+        ws_to_current(i)
+        hl.dispatch(hl.dsp.window.move({ workspace = i }))
+    end)
 end
 
 -- Media and volume keys
