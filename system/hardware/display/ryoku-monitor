@@ -53,24 +53,37 @@ monitors_json() {
 }
 
 # Emit "name|WxH@rate|XxY|wanted_scale|current_scale" for each enabled monitor,
-# where wanted_scale is bucketed from DPI (px * 25.4 / physical-mm). Hyprland's
-# "auto" over-zooms high-DPI panels and a flat default over-scales low-DPI ones;
-# these buckets fit every panel without hardcoding. Missing or implausible
-# physical size (EDID lies, virtual outputs) falls back to 1x.
+# where wanted_scale is the DPI bucket (px * 25.4 / physical-mm) snapped to the
+# nearest Hyprland-valid scale for the panel: a 1/120 multiple whose logical
+# width AND height are both whole pixels. Hyprland rejects anything else (1.5 on
+# a 2560 panel is 1706.67px wide, an "Invalid scale" error overlay), so the raw
+# bucket cannot be applied as-is. Missing or implausible physical size (EDID
+# lies, virtual outputs) falls back to 1x.
 dpi_specs() {
   jq -r '
-    def dpiscale(w; pw):
-      if (pw // 0) <= 0 then 1.0
-      else (w * 25.4 / pw) as $d
-      | if   ($d < 40 or $d > 700) then 1.0
-        elif $d <= 120 then 1.0
-        elif $d <= 150 then 1.25
-        elif $d <= 230 then 1.5
-        elif $d <= 290 then 1.75
-        else 2.0 end
-      end;
+    def abs: if . < 0 then - . else . end;
+    # Nearest scale to $target that Hyprland accepts for a w x h panel: a 1/120
+    # multiple (1.0 .. 3.0) whose logical width and height both land on whole
+    # pixels. This mirrors what robust tools (HyprDynamicMonitors, omarchy) do.
+    def snap($w; $h; $target):
+      [ range(120; 361) | . / 120
+        | select(((($w / .) - (($w / .) | round)) | abs) < 0.01
+             and ((($h / .) - (($h / .) | round)) | abs) < 0.01) ] as $valid
+      | if ($valid | length) == 0 then 1.0
+        else ($valid | min_by(((. - $target) | abs)) | (. * 10000 | round) / 10000) end;
+    def dpiscale($w; $h; $pw):
+      ( if ($pw // 0) <= 0 then 1.0
+        else ($w * 25.4 / $pw) as $d
+        | if   ($d < 40 or $d > 700) then 1.0
+          elif $d <= 120 then 1.0
+          elif $d <= 150 then 1.25
+          elif $d <= 230 then 1.5
+          elif $d <= 290 then 1.75
+          else 2.0 end
+        end ) as $target
+      | snap($w; $h; $target);
     .[] | select(.disabled | not)
-    | "\(.name)|\(.width)x\(.height)@\(.refreshRate | round)|\(.x)x\(.y)|\(dpiscale(.width; .physicalWidth))|\(.scale)"
+    | "\(.name)|\(.width)x\(.height)@\(.refreshRate | round)|\(.x)x\(.y)|\(dpiscale(.width; .height; .physicalWidth))|\(.scale)"
   '
 }
 

@@ -72,4 +72,23 @@ RYOKU_MONITOR_JSON="$tmp/swapped.json" RYOKU_MONITORS_CONF="$conf" RYOKU_MONITOR
 grep -q 'output = "DP-2", mode = "3840x2160@60"' "$conf" || fail "load did not remap Dell to its new connector DP-2"
 grep -q 'output = "DP-1", mode = "2560x1440@144"' "$conf" || fail "load did not remap LG to its new connector DP-1"
 
+# --- autoscale DPI snapping: the wanted scale must be Hyprland-valid for the
+# panel (a 1/120 multiple dividing both dims to whole pixels), never the raw DPI
+# bucket, which Hyprland rejects with an "Invalid scale" error on many panels.
+cat >"$tmp/dpi.json" <<'JSON'
+[
+  {"name":"eDP-1","width":2560,"height":1600,"refreshRate":165.0,"x":0,"y":0,"scale":1.0,"physicalWidth":300,"physicalHeight":190,"disabled":false},
+  {"name":"DP-3","width":3840,"height":2160,"refreshRate":144.0,"x":0,"y":0,"scale":1.0,"physicalWidth":600,"physicalHeight":340,"disabled":false},
+  {"name":"DP-4","width":1920,"height":1080,"refreshRate":60.0,"x":0,"y":0,"scale":1.0,"physicalWidth":530,"physicalHeight":300,"disabled":false}
+]
+JSON
+specout="$(RYOKU_MONITOR_JSON="$tmp/dpi.json" bash -c 'source "$1"; monitors_json | dpi_specs' _ "$mon")"
+field4() { awk -F'|' -v n="$1" '$1==n {print $4}' <<<"$specout"; }
+# 2560x1600 at ~216dpi buckets to 1.5, invalid (2560/1.5=1706.67); snap to 1.6.
+[[ "$(field4 eDP-1)" == "1.6" ]] || fail "high-DPI 2560 panel must snap to valid 1.6, got $(field4 eDP-1)"
+# 4K at ~163dpi buckets to 1.5, which IS valid (3840/1.5=2560), so it is kept.
+[[ "$(field4 DP-3)" == "1.5" ]] || fail "valid 4K 1.5 must be kept, got $(field4 DP-3)"
+# Low-DPI 1080p stays 1x.
+[[ "$(field4 DP-4)" == "1" ]] || fail "low-DPI 1080p must stay 1x, got $(field4 DP-4)"
+
 echo "monitor-profiles: all checks passed"
