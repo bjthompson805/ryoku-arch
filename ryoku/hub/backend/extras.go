@@ -42,6 +42,7 @@ type registryEntry struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Tagline     string `json:"tagline,omitempty"`
 	Sources     string `json:"sources,omitempty"`
 	Path        string `json:"path"`
 }
@@ -73,6 +74,7 @@ type catalogBundle struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
+	Tagline     string       `json:"tagline,omitempty"`
 	Sources     string       `json:"sources,omitempty"`
 	Path        string       `json:"path"`
 	Items       []bundleItem `json:"items"`
@@ -178,7 +180,7 @@ func buildCatalog() (map[string][]catalogBundle, error) {
 		if path == "" {
 			path = "bundles/" + e.ID
 		}
-		cb := catalogBundle{ID: e.ID, Name: e.Name, Description: e.Description, Sources: e.Sources, Path: path}
+		cb := catalogBundle{ID: e.ID, Name: e.Name, Description: e.Description, Tagline: e.Tagline, Sources: e.Sources, Path: path}
 		if b, err := fetchOrCache(path + "/bundle.json"); err == nil {
 			var def bundleDef
 			if json.Unmarshal(b, &def) == nil {

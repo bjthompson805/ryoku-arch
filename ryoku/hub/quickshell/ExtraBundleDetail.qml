@@ -168,11 +168,26 @@ Item {
     }
 
     Text {
-        id: blurb
+        id: tagline
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: head.bottom
         anchors.topMargin: 2
+        visible: (detail.bundle.tagline || "") !== ""
+        text: detail.bundle.tagline || ""
+        color: Theme.cream
+        font.family: Theme.font
+        font.pixelSize: 13
+        font.weight: Font.Medium
+        elide: Text.ElideRight
+    }
+
+    Text {
+        id: blurb
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: tagline.visible ? tagline.bottom : head.bottom
+        anchors.topMargin: 8
         text: detail.bundle.description || ""
         color: Theme.dim
         font.family: Theme.font

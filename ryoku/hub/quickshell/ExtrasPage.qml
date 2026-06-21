@@ -73,8 +73,11 @@ Item {
             onStreamFinished: {
                 try {
                     var o = JSON.parse(this.text);
-                    page.bundles = o.bundles || [];
-                    page.loadFailed = page.bundles.length === 0;
+                    var bs = o.bundles || [];
+                    for (var i = 0; i < bs.length; i++)
+                        bs[i].ordinal = i + 1;
+                    page.bundles = bs;
+                    page.loadFailed = bs.length === 0;
                 } catch (e) {
                     page.bundles = [];
                     page.loadFailed = true;
@@ -199,6 +202,7 @@ Item {
                             required property var modelData
                             width: column.width
                             bundle: modelData
+                            ordinal: modelData.ordinal || 0
                             installedCount: page.installedCountFor(modelData.id)
                             onOpened: page.open(modelData.id)
                         }
