@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# Install AUR packages with the system's AUR helper (yay is bootstrapped at
+# install time; paru is accepted as a fallback). The extras actuator routes
+# packages not found in the official repos here.
+
+set -euo pipefail
+
+(($#)) || {
+  echo "ryoku-pkg-aur-add: no packages given" >&2
+  exit 2
+}
+
+helper=""
+for h in yay paru; do
+  if command -v "$h" >/dev/null 2>&1; then
+    helper=$h
+    break
+  fi
+done
+
+[[ -n $helper ]] || {
+  echo "ryoku-pkg-aur-add: no AUR helper found (expected yay or paru)" >&2
+  exit 1
+}
+
+exec "$helper" -S --needed --noconfirm "$@"

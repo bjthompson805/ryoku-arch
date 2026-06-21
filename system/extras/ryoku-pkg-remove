@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# Remove packages together with the dependencies nothing else needs (-Rs).
+# pacman refuses to remove a package another installed package still requires, so
+# uninstalling an extras bundle never breaks the rest of the system.
+
+set -euo pipefail
+
+(($#)) || {
+  echo "ryoku-pkg-remove: no packages given" >&2
+  exit 2
+}
+
+exec sudo pacman -Rs --noconfirm "$@"

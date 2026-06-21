@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Install official-repo packages with pacman. The extras actuator routes packages
+# that resolve in the official repos here and AUR packages to ryoku-pkg-aur-add,
+# so a bundle author only ever writes a package name. Needs a TTY for the sudo
+# password, which is why the Hub runs installs from a floating terminal.
+
+set -euo pipefail
+
+(($#)) || {
+  echo "ryoku-pkg-add: no packages given" >&2
+  exit 2
+}
+
+exec sudo pacman -S --needed --noconfirm "$@"

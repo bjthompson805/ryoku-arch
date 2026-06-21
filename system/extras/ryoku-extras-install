@@ -1,0 +1,363 @@
+#!/usr/bin/env bash
+
+# The extras actuator: it installs, removes, and reports the state of the bundles
+# defined in the ryoku-extras catalogue. The Hub's Extras section drives it; a
+# bundle is a list of items, each a `package` (auto-routed to the official repos
+# or the AUR), a `script` (a small installer from ryoku-extras/installers), or a
+# `plugin` (handled by the shell's plugin path, deferred here).
+#
+#   ryoku-extras-install status [bundle <id>]   print item state as JSON, no change
+#   ryoku-extras-install install bundle <id>    install every absent item
+#   ryoku-extras-install install item <id> <n>  install one item
+#   ryoku-extras-install remove bundle <id>     remove the bundle's package items
+#   ryoku-extras-install remove item <id> <n>   remove one package item
+#
+# ryoku-hub owns the network and the cache: this reads the catalogue it writes
+# under `ryoku-hub extras cache` and asks it for an installer path on demand, so
+# fetching lives in exactly one place. Package installs need a TTY for the sudo
+# password, so the Hub launches install/remove in a floating terminal; status is
+# a silent query the UI calls directly. Set RYOKU_EXTRAS_DRYRUN=1 to print the
+# planned actions without touching the system.
+
+set -uo pipefail
+
+DRYRUN=${RYOKU_EXTRAS_DRYRUN:-}
+
+# Script installers drop tools into ~/.local/bin (npm prefix, GOBIN, pipx). The
+# graphical session does not always carry that on PATH, so put it here before any
+# detection runs, or freshly installed script items would read as still missing.
+export PATH="$HOME/.local/bin:$PATH"
+
+die() {
+  echo "ryoku-extras-install: $1" >&2
+  exit 1
+}
+
+cache_dir() {
+  ryoku-hub extras cache 2>/dev/null
+}
+
+# Path to a bundle definition, fetching the catalogue once if it is not cached.
+bundle_file() {
+  local id=$1 cache f
+  cache=$(cache_dir) || die "could not resolve the extras cache (is ryoku-hub installed?)"
+  f="$cache/bundles/$id/bundle.json"
+  if [[ ! -f $f ]]; then
+    ryoku-hub extras catalog >/dev/null 2>&1 || true
+  fi
+  [[ -f $f ]] || die "unknown bundle '$id' (not in the catalogue)"
+  printf '%s\n' "$f"
+}
+
+registry_ids() {
+  local cache reg
+  cache=$(cache_dir) || return 1
+  reg="$cache/bundles/registry.json"
+  [[ -f $reg ]] || ryoku-hub extras catalog >/dev/null 2>&1 || true
+  [[ -f $reg ]] || return 1
+  jq -r '.bundles[].id' "$reg"
+}
+
+report_dir() {
+  printf '%s/ryoku-extras\n' "${XDG_RUNTIME_DIR:-/tmp}"
+}
+
+# --- detection (one implementation, used by status and the install path) ------
+
+pkg_installed() { pacman -Qq "$1" >/dev/null 2>&1; }
+pkg_official() { pacman -Si "$1" >/dev/null 2>&1; }
+cmd_present() { command -v "$1" >/dev/null 2>&1; }
+
+# Current state of one item, ignoring any in-flight operation.
+item_state() {
+  local type=$1 name=$2 detect=$3
+  case "$type" in
+    package) pkg_installed "$name" && echo present || echo absent ;;
+    script) cmd_present "$detect" && echo present || echo absent ;;
+    plugin) echo deferred ;;
+    *) echo absent ;;
+  esac
+}
+
+# --- report file (the Hub watches one JSON per bundle while work runs) ---------
+
+declare -A STATE REASON
+
+flush_report() {
+  local id=$1 phase=$2 dir items="{}" n tmp
+  dir=$(report_dir)
+  mkdir -p "$dir"
+  for n in "${!STATE[@]}"; do
+    items=$(jq --arg k "$n" --arg s "${STATE[$n]}" --arg r "${REASON[$n]:-}" \
+      '.[$k] = ({status: $s} + (if $r == "" then {} else {reason: $r} end))' <<<"$items")
+  done
+  tmp=$(mktemp "$dir/.$id.XXXXXX")
+  jq -n --arg id "$id" --arg phase "$phase" --argjson items "$items" \
+    '{id: $id, phase: $phase, items: $items}' >"$tmp" && mv -f "$tmp" "$dir/$id.json"
+}
+
+set_state() {
+  STATE[$1]=$2
+  REASON[$1]=${3:-}
+}
+
+# --- parsing ------------------------------------------------------------------
+
+# Emit "type<TAB>name<TAB>detect<TAB>summary" for the bundle's items, optionally
+# only the one named by $2.
+bundle_items() {
+  local file=$1 only=${2:-}
+  if [[ -n $only ]]; then
+    jq -r --arg n "$only" \
+      '.items[] | select(.name == $n) | [.type, .name, (.detect // .name), (.summary // "")] | @tsv' "$file"
+  else
+    jq -r '.items[] | [.type, .name, (.detect // .name), (.summary // "")] | @tsv' "$file"
+  fi
+}
+
+# --- status -------------------------------------------------------------------
+
+status_bundle_json() {
+  local id=$1 file type name detect summary out="[]"
+  file=$(bundle_file "$id") || return 1
+  while IFS=$'\t' read -r type name detect summary; do
+    [[ -n $name ]] || continue
+    out=$(jq --arg t "$type" --arg n "$name" --arg s "$(item_state "$type" "$name" "$detect")" \
+      --arg sum "$summary" '. + [{type: $t, name: $n, status: $s, summary: $sum}]' <<<"$out")
+  done < <(bundle_items "$file")
+  jq -n --arg id "$id" --argjson items "$out" '{id: $id, items: $items}'
+}
+
+cmd_status() {
+  if [[ ${1:-} == bundle ]]; then
+    [[ -n ${2:-} ]] || die "status bundle needs an id"
+    status_bundle_json "$2"
+    return
+  fi
+  local id out="[]"
+  while read -r id; do
+    [[ -n $id ]] || continue
+    out=$(jq --argjson b "$(status_bundle_json "$id")" '. + [$b]' <<<"$out")
+  done < <(registry_ids)
+  jq -n --argjson bundles "$out" '{bundles: $bundles}'
+}
+
+# --- install ------------------------------------------------------------------
+
+run_pkg() {
+  # $1 = backend helper, rest = package names
+  local helper=$1
+  shift
+  if [[ -n $DRYRUN ]]; then
+    echo "DRYRUN: $helper $*"
+    return 0
+  fi
+  "$helper" "$@"
+}
+
+run_script() {
+  local name=$1 path
+  if [[ -n $DRYRUN ]]; then
+    echo "DRYRUN: run installer $name"
+    return 0
+  fi
+  path=$(ryoku-hub extras installer "$name" 2>/dev/null) || return 1
+  [[ -f $path ]] || return 1
+  bash "$path"
+}
+
+# Satisfy a bundle's declared prerequisites before any package is routed, so a
+# package that lives only in an extra repo (Steam in multilib) classifies and
+# installs correctly.
+ensure_requires() {
+  local file=$1 req
+  while read -r req; do
+    [[ -n $req ]] || continue
+    case "$req" in
+      multilib)
+        if [[ -n $DRYRUN ]]; then
+          echo "DRYRUN: ensure the multilib repo is enabled"
+        else
+          echo "==> Ensuring the multilib repo is enabled"
+          ryoku-pkg-multilib || true
+        fi
+        ;;
+      *) echo "ryoku-extras-install: unknown requirement '$req', skipping" >&2 ;;
+    esac
+  done < <(jq -r '.requires[]? // empty' "$file")
+}
+
+install_set() {
+  local id=$1 only=${2:-} file type name detect summary
+  file=$(bundle_file "$id")
+  ensure_requires "$file"
+
+  local -a repo=() aur=() scripts=()
+  declare -A SCRIPT_DETECT=()
+
+  while IFS=$'\t' read -r type name detect summary; do
+    [[ -n $name ]] || continue
+    case "$type" in
+      package)
+        if pkg_installed "$name"; then
+          set_state "$name" present
+        elif pkg_official "$name"; then
+          repo+=("$name")
+        else
+          aur+=("$name")
+        fi
+        ;;
+      script)
+        if cmd_present "$detect"; then
+          set_state "$name" present
+        else
+          scripts+=("$name")
+          SCRIPT_DETECT[$name]=$detect
+        fi
+        ;;
+      plugin)
+        set_state "$name" deferred "install from Settings, Plugins"
+        ;;
+      *)
+        set_state "$name" failed "unknown item type '$type'"
+        ;;
+    esac
+  done < <(bundle_items "$file" "$only")
+
+  local n
+  for n in "${repo[@]}" "${aur[@]}" "${scripts[@]}"; do set_state "$n" installing; done
+  flush_report "$id" running
+
+  if ((${#repo[@]})); then
+    echo "==> Installing from the official repos: ${repo[*]}"
+    run_pkg ryoku-pkg-add "${repo[@]}" || true
+    for n in "${repo[@]}"; do
+      if [[ -n $DRYRUN ]] || pkg_installed "$n"; then
+        set_state "$n" installed
+      else
+        set_state "$n" failed "pacman did not install it"
+      fi
+    done
+    flush_report "$id" running
+  fi
+
+  if ((${#aur[@]})); then
+    echo "==> Installing from the AUR: ${aur[*]}"
+    run_pkg ryoku-pkg-aur-add "${aur[@]}" || true
+    for n in "${aur[@]}"; do
+      if [[ -n $DRYRUN ]] || pkg_installed "$n"; then
+        set_state "$n" installed
+      else
+        set_state "$n" failed "the AUR build did not complete"
+      fi
+    done
+    flush_report "$id" running
+  fi
+
+  for n in "${scripts[@]}"; do
+    echo "==> Running installer: $n"
+    if run_script "$n"; then
+      if [[ -n $DRYRUN ]] || cmd_present "${SCRIPT_DETECT[$n]}"; then
+        set_state "$n" installed
+      else
+        set_state "$n" failed "the installer ran but '${SCRIPT_DETECT[$n]}' is still missing"
+      fi
+    else
+      set_state "$n" failed "the installer exited with an error"
+    fi
+    flush_report "$id" running
+  done
+
+  flush_report "$id" done
+}
+
+# --- remove -------------------------------------------------------------------
+
+remove_set() {
+  local id=$1 only=${2:-} file type name detect summary
+  file=$(bundle_file "$id")
+
+  local -a pkgs=()
+  while IFS=$'\t' read -r type name detect summary; do
+    [[ -n $name ]] || continue
+    case "$type" in
+      package)
+        if pkg_installed "$name"; then
+          pkgs+=("$name")
+          set_state "$name" removing
+        else
+          set_state "$name" absent
+        fi
+        ;;
+      script)
+        set_state "$name" skipped "scripts are not auto-removed"
+        ;;
+      plugin)
+        set_state "$name" deferred "remove from Settings, Plugins"
+        ;;
+    esac
+  done < <(bundle_items "$file" "$only")
+
+  flush_report "$id" running
+
+  if ((${#pkgs[@]})); then
+    echo "==> Removing: ${pkgs[*]}"
+    run_pkg ryoku-pkg-remove "${pkgs[@]}" || true
+    local n
+    for n in "${pkgs[@]}"; do
+      if [[ -n $DRYRUN ]] || ! pkg_installed "$n"; then
+        set_state "$n" removed
+      else
+        set_state "$n" failed "pacman kept it (still required by another package?)"
+      fi
+    done
+  fi
+
+  flush_report "$id" done
+}
+
+summary_pause() {
+  local failed=0 n
+  for n in "${!STATE[@]}"; do
+    [[ ${STATE[$n]} == failed ]] && failed=1
+  done
+  if ((failed)) && [[ -t 0 && -z $DRYRUN ]]; then
+    echo ""
+    read -rp "Some items failed. Press Enter to close this window. " -t 60 _ || true
+  fi
+}
+
+# --- dispatch -----------------------------------------------------------------
+
+case "${1:-}" in
+  status)
+    cmd_status "${2:-}" "${3:-}"
+    ;;
+  install)
+    case "${2:-}" in
+      bundle) [[ -n ${3:-} ]] || die "install bundle needs an id"; install_set "$3" ;;
+      item) [[ -n ${4:-} ]] || die "install item needs <id> <name>"; install_set "$3" "$4" ;;
+      *) die "install needs 'bundle <id>' or 'item <id> <name>'" ;;
+    esac
+    summary_pause
+    ;;
+  remove)
+    case "${2:-}" in
+      bundle) [[ -n ${3:-} ]] || die "remove bundle needs an id"; remove_set "$3" ;;
+      item) [[ -n ${4:-} ]] || die "remove item needs <id> <name>"; remove_set "$3" "$4" ;;
+      *) die "remove needs 'bundle <id>' or 'item <id> <name>'" ;;
+    esac
+    summary_pause
+    ;;
+  *)
+    cat >&2 <<'USAGE'
+usage:
+  ryoku-extras-install status [bundle <id>]
+  ryoku-extras-install install bundle <id>
+  ryoku-extras-install install item <id> <name>
+  ryoku-extras-install remove bundle <id>
+  ryoku-extras-install remove item <id> <name>
+USAGE
+    exit 2
+    ;;
+esac
