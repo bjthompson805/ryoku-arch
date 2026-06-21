@@ -26,7 +26,7 @@ Rectangle {
     readonly property var pageMeta: ({
         "keybinds": { "title": "Keybinds", "subtitle": "Every shortcut in the Ryoku desktop, read live from your Hyprland config." },
         "updates":  { "title": "Updates", "subtitle": "Package updates pending for your Ryoku system." },
-        "extras":   { "title": "Extras", "subtitle": "Desktop goodies and quick tweaks." },
+        "extras":   { "title": "Extras", "subtitle": "Curated bundles of extra tools, installed and removed with one click." },
         "shell":    { "title": "Shell Settings", "subtitle": "Tune the Ryoku shell: the frame, the island, and the desktop visualiser." }
     })
 
@@ -179,11 +179,7 @@ Rectangle {
 
     Component {
         id: extrasComp
-        UnderConstruction {
-            title: "Extras"
-            icon: "sparkles"
-            blurb: "A home for desktop goodies and quick tweaks. This section is being built; its controls will likely use GTK4 and libadwaita through the Kirigami addons."
-        }
+        ExtrasPage {}
     }
 
     Component {
