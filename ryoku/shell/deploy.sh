@@ -77,6 +77,9 @@ install -m755 "$here/../../system/hardware/power/ryoku-idle" "$bindir/ryoku-idle
 install -m755 "$here/../../system/hardware/leds/ryoku-leds" "$bindir/ryoku-leds"
 install -m755 "$here/../../system/hardware/audio/ryoku-mic" "$bindir/ryoku-mic"
 install -m755 "$here/../../system/hardware/display/ryoku-monitor" "$bindir/ryoku-monitor"
+for s in "$here/../../system/extras"/ryoku-*; do
+  install -m755 "$s" "$bindir/${s##*/}"
+done
 say "installed Ryoku CLI and hardware helpers"
 
 # Record the checkout this deploy came from and the commit it laid down, so the
