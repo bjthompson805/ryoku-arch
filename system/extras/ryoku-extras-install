@@ -268,7 +268,7 @@ install_set() {
     flush_report "$id" running
   done
 
-  flush_report "$id" done
+  flush_report "$id" "done"
 }
 
 # --- remove -------------------------------------------------------------------
@@ -313,7 +313,7 @@ remove_set() {
     done
   fi
 
-  flush_report "$id" done
+  flush_report "$id" "done"
 }
 
 summary_pause() {
