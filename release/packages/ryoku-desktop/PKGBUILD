@@ -133,6 +133,9 @@ package() {
   for s in "$_repo"/system/hardware/*/ryoku-*; do
     install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
   done
+  for s in "$_repo"/system/extras/ryoku-*; do
+    install -Dm755 "$s" "$pkgdir/usr/bin/${s##*/}"
+  done
   install -Dm755 "$_repo/ryoku/apps/fastfetch/ryoku-fastfetch" \
     "$pkgdir/usr/bin/ryoku-fastfetch"
 
