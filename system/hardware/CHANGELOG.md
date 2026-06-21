@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `display/ryoku-monitor`: honours a hand-written `~/.config/hypr/monitors_user.lua`.
+  Any output pinned there is left out of the generated `monitors.lua` and skipped
+  by `autoscale` (scale and position), so a manually forced panel (a wrong/fake
+  EDID that needs a custom mode or modeline) is never fought by auto-detection.
 - `display/ryoku-monitor`: a GUI/profile surface for Ryoku Settings. `list` prints
   the connected monitors (identity, modes, layout) as JSON; `apply JSON` applies an
   explicit layout live and persists it with the chosen modes (not highrr); `save

@@ -91,4 +91,13 @@ field4() { awk -F'|' -v n="$1" '$1==n {print $4}' <<<"$specout"; }
 # Low-DPI 1080p stays 1x.
 [[ "$(field4 DP-4)" == "1" ]] || fail "low-DPI 1080p must stay 1x, got $(field4 DP-4)"
 
+# --- manual override: autoscale leaves a pinned output out of the generated conf
+# (the user manages it in monitors.user.lua) and still writes the others.
+userlua="$tmp/monitors.user.lua"
+echo 'hl.monitor({ output = "DP-1", mode = "highrr", position = "0x0", scale = 1 })' >"$userlua"
+RYOKU_MONITOR_JSON="$tmp/two.json" RYOKU_MONITORS_CONF="$conf" RYOKU_MONITORS_DIR="$tmp/none" \
+  RYOKU_MONITORS_USER="$userlua" "$mon" autoscale >/dev/null
+grep -qF 'output = "DP-1"' "$conf" && fail "autoscale wrote a rule for pinned DP-1 (should defer to monitors.user.lua)"
+has "$conf" 'output = "DP-2"' "autoscale dropped the non-pinned DP-2"
+
 echo "monitor-profiles: all checks passed"

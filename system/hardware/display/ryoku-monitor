@@ -26,6 +26,20 @@ monitors_conf="${RYOKU_MONITORS_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/mon
 # connector name, so a layout follows the physical displays across reshuffles.
 monitors_dir="${RYOKU_MONITORS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/monitors}"
 
+# Manual monitor overrides. ~/.config/hypr/monitors_user.lua is hand-written and
+# required by hyprland.lua after the generated monitors.lua, so anything set there
+# wins. autoscale leaves any output named in it untouched, so auto-detection never
+# fights a panel you have pinned (a fake or generic EDID that needs a forced mode
+# or modeline, or a layout you want kept).
+monitors_user="${RYOKU_MONITORS_USER:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitors_user.lua}"
+
+# Output names the user pinned in monitors_user.lua, one per line (empty if none).
+pinned_outputs() {
+  [[ -f $monitors_user ]] || return 0
+  grep -oE 'output[[:space:]]*=[[:space:]]*"[^"]+"' "$monitors_user" 2>/dev/null \
+    | sed -E 's/.*"([^"]*)".*/\1/' | grep -v '^$' || true
+}
+
 require_hyprctl() {
   # Fixture mode (tests) never touches the live compositor.
   [[ -n ${RYOKU_MONITOR_JSON:-} ]] && return 0
@@ -114,6 +128,8 @@ sync_gdk_scale() {
 # per output, the GDK_SCALE env, and a hotplug-friendly catch-all last.
 write_monitors_conf() {
   local gdk="$1"
+  local pinned_json
+  pinned_json="$(pinned_outputs | jq -R . | jq -s .)"
   mkdir -p "$(dirname "$monitors_conf")"
   {
     printf '%s\n' "-- Managed by ryoku-monitor. Scale and position are captured from the live"
@@ -121,8 +137,8 @@ write_monitors_conf() {
     printf '%s\n' "-- slow-training link cannot pin a low rate. Edits may be overwritten;"
     printf '%s\n' "-- re-run ryoku-monitor autoscale to regenerate."
     printf '\n'
-    monitors_json | jq -r '
-      .[] |
+    monitors_json | jq -r --argjson pinned "$pinned_json" '
+      .[] | select(.name as $n | ($pinned | index($n)) == null) |
       if .disabled then
         "hl.monitor({ output = \"\(.name)\", disabled = true })"
       else
@@ -186,6 +202,8 @@ cmd_autoscale() {
       return
     fi
   fi
+  local pinned
+  pinned="$(pinned_outputs)"
   # Two passes, so the layout matches reality. First apply each monitor's DPI
   # scale: Hyprland snaps a requested scale to the nearest one that yields whole
   # logical pixels (e.g. 1.5 on a 2560 panel becomes 1.6), so the accepted scale
@@ -193,6 +211,7 @@ cmd_autoscale() {
   local name mode wanted current
   while IFS='|' read -r name mode _ wanted current; do
     [[ -n $name ]] || continue
+    grep -qxF "$name" <<<"$pinned" && continue
     if awk -v a="$current" -v b="$wanted" 'BEGIN { exit (a == b) ? 1 : 0 }'; then
       apply_monitor "output = \"$name\", mode = \"$mode\", scale = $wanted"
       echo "ryoku-monitor: $name -> scale $wanted"
@@ -207,6 +226,7 @@ cmd_autoscale() {
   local w scale curx cury newpos x=0
   while IFS='|' read -r name w scale curx cury; do
     [[ -n $name ]] || continue
+    grep -qxF "$name" <<<"$pinned" && continue
     newpos="${x}x0"
     [[ $newpos != "${curx}x${cury}" ]] && apply_monitor "output = \"$name\", position = \"$newpos\""
     x=$(awk -v X="$x" -v W="$w" -v S="$scale" 'BEGIN { printf "%d", X + int(W / S + 0.5) }')
