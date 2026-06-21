@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- `materialize` no longer resets a user's display or GPU configuration on update.
+  The package ships seeds for `hypr/monitors.lua` (written by `ryoku-monitor`) and
+  `hypr/gpu.lua` (written by `ryoku-gpu`); materialize now seeds them only when
+  absent and never clobbers or prunes them. `ryoku update` refreshes shipped
+  config while leaving every per-machine and user file (settings.lua, theme.lua,
+  user.lua, monitors_user.lua, monitors.lua, gpu.lua) exactly as it found it.
 - `doctor` backlight remedy no longer recommends `supergfxctl -m Hybrid` when
   that tool is not installed (it is ASUS-specific and absent on most machines, so
   users hit "Unknown command"). The fix now leads with the universal BIOS GPU/MUX

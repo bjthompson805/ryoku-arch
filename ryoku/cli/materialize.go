@@ -9,11 +9,24 @@ import (
 	"strings"
 )
 
+// generatedSeed names base files the runtime regenerates per machine, so the
+// package ships only a seed for a fresh boot. materialize copies them when absent
+// and never clobbers or prunes them, so `ryoku update` never resets a user's
+// display (ryoku-monitor writes monitors.lua) or GPU pin (ryoku-gpu writes
+// gpu.lua). Paths are slash-separated, relative to the config base.
+var generatedSeed = map[string]bool{
+	"hypr/monitors.lua": true,
+	"hypr/gpu.lua":      true,
+}
+
 // Materialize lays the Ryoku-owned base configs into the user's ~/.config,
 // declaratively: every file the package ships under baseConfigDir() is copied
 // over (clobbering the previous Ryoku copy), files that were shipped before but
 // no longer are get removed, and anything the package never shipped (the user's
-// own files, e.g. hypr/user.lua, kitty/user.conf) is left untouched.
+// own files, e.g. hypr/user.lua, kitty/user.conf) is left untouched. Per-machine
+// generated seeds (generatedSeed, e.g. hypr/monitors.lua) are an exception: they
+// are seeded only when absent and never clobbered, so an update keeps the user's
+// runtime-written display and GPU config.
 //
 // This is the production replacement for deploy.sh's per-user config copy. The
 // base lives at /usr/share/ryoku/config on an installed system; on a dev
@@ -36,12 +49,25 @@ func materialize() error {
 		return fmt.Errorf("scan %s: %w", base, err)
 	}
 
+	// Lay down every shipped file, except the per-machine generated seeds: those
+	// are copied only on a fresh install (absent) and never overwritten, so an
+	// update leaves the user's display and GPU config untouched. Only clobbered
+	// files enter the manifest, so a later prune can never remove a seed either.
+	managed := make([]string, 0, len(current))
 	for _, rel := range current {
-		src := filepath.Join(base, rel)
 		dst := filepath.Join(dest, rel)
-		if err := copyFile(src, dst); err != nil {
+		if generatedSeed[rel] {
+			if !exists(dst) {
+				if err := copyFile(filepath.Join(base, rel), dst); err != nil {
+					return fmt.Errorf("seed %s: %w", rel, err)
+				}
+			}
+			continue
+		}
+		if err := copyFile(filepath.Join(base, rel), dst); err != nil {
 			return fmt.Errorf("copy %s: %w", rel, err)
 		}
+		managed = append(managed, rel)
 	}
 
 	// Prune files this release no longer ships (present in the previous manifest,
@@ -59,10 +85,10 @@ func materialize() error {
 		pruneEmptyParents(dest, filepath.Dir(rel))
 	}
 
-	if err := writeManifest(state, current); err != nil {
+	if err := writeManifest(state, managed); err != nil {
 		return fmt.Errorf("record manifest: %w", err)
 	}
-	fmt.Printf("materialized %d files -> %s\n", len(current), dest)
+	fmt.Printf("materialized %d files -> %s\n", len(managed), dest)
 	return nil
 }
 
