@@ -94,6 +94,11 @@ previous Ryoku copy), prunes files a past release shipped but this one dropped
 files the package never shipped your own overrides like `hypr/user.lua`,
 `hypr/monitors_user.lua`, `kitty/user.conf`, `fish/user.fish` are left alone.
 
+Per-machine generated drop-ins (`hypr/monitors.lua` written by `ryoku-monitor`,
+`hypr/gpu.lua` by `ryoku-gpu`) are seeded only when absent and never clobbered or
+pruned, so an update refreshes the shipped config without ever resetting your
+display layout, GPU pin, or any setting.
+
 The base dir is `/usr/share/ryoku/config`, shipped by the `ryoku-desktop`
 package. This command is the packaged-install replacement for `deploy.sh`'s
 config copy: it is run for you by `ryoku update` and by the installer's deploy
