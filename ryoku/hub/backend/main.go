@@ -34,6 +34,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
 			os.Exit(1)
 		}
+	case "extras":
+		if err := runExtras(args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "ryoku-hub:", err)
+			os.Exit(1)
+		}
 	default:
 		usage()
 		os.Exit(2)
@@ -70,4 +75,6 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-hub keybinds")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub config get <key>")
 	fmt.Fprintln(os.Stderr, "  ryoku-hub config set <key> <value>")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub extras catalog|cache")
+	fmt.Fprintln(os.Stderr, "  ryoku-hub extras installer <name>")
 }
