@@ -31,6 +31,10 @@ each their own directory under `quickshell/`, each component its own `.qml`:
   same in all.
 - `sidebar` the slide-in panel.
 - `ryoshot` screenshot capture and annotation.
+- the keyring island the GNOME keyring password prompt (unlocking a keyring, or
+  choosing a new keyring password), grown from the pill centre rather than gcr's
+  centred dialog. The `ryoku-shell` daemon acts as the keyring system prompter
+  and drives it; `KeyringSurface.qml` renders it.
 
 ## Motion
 

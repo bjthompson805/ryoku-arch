@@ -40,7 +40,9 @@ truth for the live desktop.
   the wallpaper), `kde/` (`kdeglobals`),
   `systemd/` (the user session target), `ipc/` (`ryoku-shell`, the Go shell
   daemon that supervises the Quickshell components, owns wallpaper/clipboard/
-  lock, and serves the control socket). `deploy.sh` and `dev-*.sh` are the live
+  lock and the GNOME keyring password prompt (it registers as the keyring system
+  prompter; see `ipc/prompter.go` and `ipc/secretexchange.go`), and serves the
+  control socket). `deploy.sh` and `dev-*.sh` are the live
   dev-loop tools.
 - `cli/` the user-facing control CLI, one Go program (`ryoku`): `update`,
   `rollback`, `snapshots`, `status`, `materialize` (lay the base configs into
