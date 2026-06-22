@@ -62,8 +62,10 @@ autostart, environment, the shell's look, and the update channel.
   launchers, notification daemons) matched by namespace.
 - **Autostart** commands run at login, after the base Ryoku autostart.
 - **Environment** environment variables for the Hyprland session.
-- **Shell** the live editor for the screen frame, the top island, and the desktop
-  visualiser (writes `~/.config/ryoku/shell.json` and `visualizer.json`).
+- **Shell** the live editor for the screen frame, the top island (its style: the
+  classic fused island, a floating pill, or none, each with an optional
+  reveal-on-hover), and the desktop visualiser (writes `~/.config/ryoku/shell.json`
+  and `visualizer.json`).
 - **Updates** the commits the checkout is behind on its channel, with an
   auto-check cadence.
 

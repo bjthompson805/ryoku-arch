@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- Shell Settings, Island tab: an **Appearance** group to choose the island style
+  (Island, Floating, None) plus a **Reveal on hover** toggle that hides the island
+  at rest and shows it on a top-centre hover. Writes `islandStyle` / `islandAutohide`
+  to `shell.json` live, like the other shell knobs, with the frame left untouched.
 - A **Themes** tab in Appearance: full-system "rices" as a bento grid in the
   Extras style. Each theme is a folder under `hyprland/themes/<slug>/` with a look
   (`theme.json`) and real Hyprland Lua (`init.lua`: motion design and decoration

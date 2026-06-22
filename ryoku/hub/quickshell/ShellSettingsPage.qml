@@ -19,7 +19,7 @@ Item {
         "frameRadius", "frameBorder", "frameSmoothing", "frameOpacity",
         "shadowStrength", "shadowSize", "surfaceColor",
         "islandWidth", "islandHeight", "islandRestCorner", "islandOpenCorner",
-        "islandGap", "islandSmoothing", "islandOpacity"
+        "islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide"
     ]
     readonly property var vizKeys: [
         "enabled", "bars", "height", "thickness", "bloom", "reflection", "idleWave",
@@ -34,6 +34,7 @@ Item {
         "shadowStrength": 0.5, "shadowSize": 26, "surfaceColor": "#1a1b26",
         "islandWidth": 108, "islandHeight": 38, "islandRestCorner": 18, "islandOpenCorner": 22,
         "islandGap": 8, "islandSmoothing": 24, "islandOpacity": 1,
+        "islandStyle": "island", "islandAutohide": false,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
         "style": "bars", "shape": "rounded", "position": "bottom", "mirror": false
@@ -63,6 +64,8 @@ Item {
         property real islandGap: 8
         property real islandSmoothing: 24
         property real islandOpacity: 1
+        property string islandStyle: "island"
+        property bool islandAutohide: false
         property bool enabled: true
         property int bars: 64
         property real height: 0.42
@@ -192,6 +195,8 @@ Item {
             property real islandGap: 8
             property real islandSmoothing: 24
             property real islandOpacity: 1
+            property string islandStyle: "island"
+            property bool islandAutohide: false
         }
     }
 
@@ -381,6 +386,23 @@ Item {
             Column {
                 width: islandRow.colW
                 spacing: 30
+
+                SettingSection {
+                    width: parent.width
+                    title: "APPEARANCE"
+                    ChoiceRow {
+                        width: parent.width; label: "Style"
+                        options: [{ "key": "island", "label": "Island" }, { "key": "floating", "label": "Floating" }, { "key": "none", "label": "None" }]
+                        current: draft.islandStyle
+                        onChosen: (k) => page.edit("islandStyle", k)
+                    }
+                    ToggleRow {
+                        visible: draft.islandStyle !== "none"
+                        width: parent.width; label: "Reveal on hover"
+                        checked: draft.islandAutohide
+                        onToggled: (v) => page.edit("islandAutohide", v)
+                    }
+                }
 
                 SettingSection {
                     width: parent.width
