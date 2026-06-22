@@ -23,6 +23,18 @@ func colorWanted() bool {
 	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
 
+// stdinIsTTY reports whether standard input is a real terminal: a TCGETS ioctl
+// succeeds only on a tty. Unlike an os.ModeCharDevice check it is not fooled by
+// /dev/null (also a character device), so a GUI poller that wires stdin to
+// /dev/null or a pipe is correctly seen as non-interactive. It is the gate that
+// keeps `ryoku status` from escalating to sudo when no human is present.
+func stdinIsTTY() bool {
+	var t syscall.Termios
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, os.Stdin.Fd(),
+		uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&t)))
+	return errno == 0
+}
+
 func paint(code, s string) string {
 	if !useColor || s == "" {
 		return s

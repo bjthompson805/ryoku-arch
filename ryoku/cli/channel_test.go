@@ -302,3 +302,23 @@ func TestRyokuChannelDefaultAndOverride(t *testing.T) {
 		t.Errorf("override channel = %q, want unstable-dev", got)
 	}
 }
+
+// shortCommit pulls the gNNNN commit token out of the repo-built package version
+// (the form that lets the Hub and `ryoku status` show the exact commit), and
+// leaves a version without that token (a hand-pinned 0.1.0-3, a bare hash) alone.
+func TestShortCommit(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"0.1.0.r241.g07bf14d-1", "07bf14d"},
+		{"0.1.0.r241.g07bf14d", "07bf14d"},
+		{"1.2.3.r5.gabcdef0", "abcdef0"},
+		{"0.1.0-3", "0.1.0-3"},
+		{"0.1.0", "0.1.0"},
+		{"07bf14d", "07bf14d"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := shortCommit(c.in); got != c.want {
+			t.Errorf("shortCommit(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

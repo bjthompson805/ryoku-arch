@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Fixed
+- `status` no longer escalates to `sudo` unless a real terminal is driving it. The
+  Hub and the update island poll `ryoku status --json` on a timer with no
+  controlling terminal, but the snapshot count shelled out to interactive
+  `sudo snapper list`; with no tty the PAM conversation failed, and `pam_faillock`
+  counted every failure until the account was locked out of `sudo` even with the
+  right password ("it is not taking my sudo password"). The count now runs only
+  from a tty, and even then via `sudo -n` (a cached credential, never a prompt), so
+  a background poll can never lock the user out. This also unblocks the Hub Updates
+  panel, which sat blank on "checked not yet" while the hung `sudo` kept the status
+  query from ever returning.
 - `materialize` no longer resets a user's display or GPU configuration on update.
   The package ships seeds for `hypr/monitors.lua` (written by `ryoku-monitor`) and
   `hypr/gpu.lua` (written by `ryoku-gpu`); materialize now seeds them only when
@@ -41,6 +51,12 @@
   `pendingUpdates` counts the channel's commits. New `channel.go`;
   `ryoku/shell/deploy.sh` records the checkout and the deployed commit;
   `RYOKU_CHANNEL` overrides the branch.
+- On a packaged install `status` now reports the running **commit**. The `[ryoku]`
+  packages are versioned `<core>.r<count>.g<sha>` (see release/), so `status` reads
+  the `g<sha>` out of the installed and available package versions and shows it as
+  the version, with the channel, matching the git-checkout view. The Hub and the
+  island then show the commit a machine is on instead of a blank or a static
+  `0.1.0-3`.
 
 ### Added
 - `doctor`: a "Hyprland config integrity" reconciler. It validates that the

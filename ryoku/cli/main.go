@@ -188,9 +188,10 @@ func cmdStatus(args []string) error {
 			fmt.Println("behind:        up to date")
 		}
 	} else {
-		fmt.Printf("ryoku-desktop: %s\n", orDash(r.Installed))
-		if r.Latest != "" && r.Latest != r.Installed {
-			fmt.Printf("available:     %s\n", r.Latest)
+		fmt.Printf("channel:       %s\n", orDash(r.Channel))
+		fmt.Printf("installed:     %s\n", orDash(r.Installed))
+		if r.Available {
+			fmt.Printf("available:     %s\n", orDash(r.Latest))
 		}
 		if has("checkupdates") {
 			fmt.Printf("pending:       %d package update(s)\n", r.Behind)
@@ -232,13 +233,36 @@ func buildStatus() statusReport {
 		}
 	}
 	return statusReport{
-		Installed: installed,
-		Latest:    latest,
+		Installed: shortCommit(installed),
+		Latest:    shortCommit(latest),
 		Available: len(ups) > 0,
 		Behind:    len(ups),
 		Updates:   ups,
+		Channel:   ryokuChannel(),
 		Snapshots: snapshotCount(),
 	}
+}
+
+// shortCommit extracts the abbreviated commit hash from a packaged version of the
+// form <core>.r<count>.g<sha>(-pkgrel) that the repo build embeds, so the Hub and
+// the CLI can show the exact commit a packaged machine runs. A version without
+// that gNNNN token (a hand-pinned 0.1.0-3, say) is returned unchanged.
+func shortCommit(ver string) string {
+	for _, tok := range strings.FieldsFunc(ver, func(r rune) bool { return r == '.' || r == '-' }) {
+		if len(tok) >= 8 && tok[0] == 'g' && isHex(tok[1:]) {
+			return tok[1:]
+		}
+	}
+	return ver
+}
+
+func isHex(s string) bool {
+	for _, c := range s {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return false
+		}
+	}
+	return s != ""
 }
 
 // latestAvailable returns the version of pkg in the [ryoku] repo, or "" when the
@@ -295,7 +319,17 @@ func snapshotCount() int {
 	if !has("snapper") {
 		return 0
 	}
-	out, err := runOut("sudo", "snapper", "-c", snapperConfig, "list")
+	// `ryoku status` is polled from the GUI (Hub + pill) on a timer with no
+	// controlling terminal. snapper needs root, but an interactive sudo with no
+	// tty cannot read a password: the PAM conversation fails, and pam_faillock
+	// counts every failure until the account is locked out of sudo even with the
+	// correct password. A read-only status query must never escalate, so skip the
+	// count unless a real terminal drives us, and even then never prompt (sudo -n
+	// uses only an already-cached credential).
+	if !stdinIsTTY() {
+		return 0
+	}
+	out, err := runOut("sudo", "-n", "snapper", "-c", snapperConfig, "list")
 	if err != nil {
 		return 0
 	}
