@@ -22,7 +22,9 @@ _repo="$startdir/../../.."
 
 build() {
   cd "$_repo/ryoku/shell/ipc"
-  CGO_ENABLED=0 go build -trimpath -o "$srcdir/ryoku-shell" .
+  # -mod=vendor keeps the build hermetic: the godbus dependency is vendored, so
+  # the signed-repo CI builds with no network regardless of makepkg's GOFLAGS.
+  CGO_ENABLED=0 go build -trimpath -mod=vendor -o "$srcdir/ryoku-shell" .
 }
 
 package() {
