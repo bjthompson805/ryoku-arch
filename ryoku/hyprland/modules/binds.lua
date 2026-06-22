@@ -16,6 +16,7 @@ hl.bind(mod .. " + SHIFT + Left",  hl.dsp.window.move({ direction = "left" }))  
 hl.bind(mod .. " + SHIFT + Right", hl.dsp.window.move({ direction = "right" })) -- move window right
 hl.bind(mod .. " + SHIFT + Up",    hl.dsp.window.move({ direction = "up" }))    -- move window up
 hl.bind(mod .. " + SHIFT + Down",  hl.dsp.window.move({ direction = "down" }))  -- move window down
+hl.bind("ALT + Tab",               hl.dsp.exec_cmd("flock -n -o /tmp/ryoku-switcher.lock qs -c switcher")) -- window switcher (MRU; Tab/arrows cycle, Enter/release picks, Esc cancels)
 
 -- Apps
 hl.bind(mod .. " + Return",    hl.dsp.exec_cmd("kitty"))

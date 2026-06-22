@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `shell/quickshell/switcher` + `hyprland/binds`: an Alt-Tab window switcher. A
+  full-screen overlay (its own `qs -c switcher` instance, like ryoshot) lists the
+  open windows in most-recently-used order as app-icon + title cards, opens with
+  the previous window selected (hold Alt, tap Tab, release to switch back), and
+  Tab or the arrows cycle, Enter or a click activates, Escape cancels. Bound to
+  `Alt + Tab`; the frame and pill identity are untouched (separate overlay layer).
 - `hyprland/themes/{washi,soft_color,mountains,crt,drift}`: five more theme rices.
   `washi` (warm vermilion on dark paper, clinical motion), `soft_color` (dreamy
   peach pastel on slate-blue), `mountains` (desaturated earth tones) and `crt`
