@@ -53,6 +53,7 @@ Item {
     readonly property bool utilitiesOpen: surface === "utilities"
     readonly property bool voiceOpen: surface === "voice"
     readonly property bool workspacesOpen: surface === "workspaces"
+    readonly property bool keyringOpen: surface === "keyring"
     readonly property bool hasMedia: Mpris.players.values.length > 0
 
     readonly property var netDevices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
@@ -90,10 +91,12 @@ Item {
     readonly property real utilitiesW: 360 * s
     readonly property real voiceW: 320 * s
     readonly property real toastW: 342 * s
+    readonly property real keyringW: 380 * s
     readonly property real restCorner: Config.islandRestCorner * s
     readonly property real openCorner: Config.islandOpenCorner * s
 
-    readonly property string mode: calendarOpen ? "calendar"
+    readonly property string mode: keyringOpen ? "keyring" : baseMode
+    readonly property string baseMode: calendarOpen ? "calendar"
         : (launcherOpen ? "launcher"
         : (clipboardOpen ? "clipboard"
         : (wallpaperOpen ? "wallpaper"
@@ -183,6 +186,7 @@ Item {
         stash:     () => Qt.size(stashW, stash.implicitHeight + 28 * s),
         toolkit:   () => Qt.size(toolkitW, toolkit.implicitHeight + 28 * s),
         utilities: () => Qt.size(utilitiesW, utilities.implicitHeight + 30 * s),
+        keyring:   () => Qt.size(keyringW, keyring.implicitHeight + 32 * s),
         voice:     () => Qt.size(voiceW, voice.implicitHeight + 26 * s),
         workspaces: () => Qt.size(workspaces.desiredW, workspaces.implicitHeight + 32 * s),
         osd:       () => Qt.size(osd.desiredW, osd.desiredH),
@@ -884,6 +888,18 @@ Item {
         open: pill.voiceOpen
         morphCloseness: pill.morphCloseness
         shown: pill.displayedSurface === "voice"
+        openProgress: pill.openProgress
+        openW: pill.openW
+        openH: pill.openH
+        onRequestClose: pill.requestClose()
+    }
+
+    KeyringSurface {
+        id: keyring
+        s: pill.s
+        open: pill.keyringOpen
+        morphCloseness: pill.morphCloseness
+        shown: pill.displayedSurface === "keyring"
         openProgress: pill.openProgress
         openW: pill.openW
         openH: pill.openH

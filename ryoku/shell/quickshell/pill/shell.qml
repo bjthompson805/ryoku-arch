@@ -131,6 +131,11 @@ ShellRoot {
     }
 
     function close() {
+        // A user-driven dismissal of the keyring island (Escape, backdrop, Cancel)
+        // must tell the daemon to cancel the prompt; a daemon-driven hide clears
+        // Keyring first, so dismiss() is then a no-op.
+        if (root.openSurface === "keyring")
+            Keyring.dismiss();
         root.openMon = "";
         root.openSurface = "";
     }
@@ -183,6 +188,16 @@ ShellRoot {
         function toolkit(mon: string): void { root.toggleSurface(mon, "toolkit"); }
         function utilities(mon: string): void { root.toggleSurface(mon, "utilities"); }
         function workspaces(mon: string): void { root.toggleSurface(mon, "workspaces"); }
+        function keyringPrompt(payload: string): void {
+            Keyring.apply(payload);
+            var m = Keyring.mon !== "" ? Keyring.mon
+                : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
+            root.show(m, "keyring");
+        }
+        function keyringHide(): void {
+            Keyring.clear();
+            if (root.openSurface === "keyring") { root.openMon = ""; root.openSurface = ""; }
+        }
         function voiceShow(mon: string): void { root.show(mon, "voice"); }
         function voiceHide(): void { if (root.openSurface === "voice") root.close(); }
         function peek(mon: string): void { root.peek(mon); }

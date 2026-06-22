@@ -62,6 +62,7 @@ type daemon struct {
 	ln             net.Listener
 	voiceMu        sync.Mutex // serializes voice (Super+`) toggles
 	voiceOn        bool       // dictation active; guarded by voiceMu
+	prompter       *prompter  // GNOME keyring system prompter (nil when unavailable)
 }
 
 func runDaemon() error {
@@ -136,6 +137,7 @@ func setupQmlImportPath() {
 // components.
 func (d *daemon) bootstrap() {
 	startCliphist()
+	d.prompter = startKeyringPrompter()
 	go d.paintWorker()
 	go d.ledsWorker()
 	go func() {
@@ -237,11 +239,20 @@ func (d *daemon) shutdown() {
 func (d *daemon) handle(conn net.Conn) {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
-	line, err := bufio.NewReader(conn).ReadString('\n')
+	r := bufio.NewReader(conn)
+	line, err := r.ReadString('\n')
 	if err != nil && line == "" {
 		return
 	}
-	fmt.Fprintln(conn, d.dispatch(strings.TrimSpace(line)))
+	cmd := strings.TrimSpace(line)
+	// The keyring island returns the typed secret on a second line so it never
+	// reaches a command line (and thus world-readable /proc/<pid>/cmdline).
+	if strings.HasPrefix(cmd, "keyring-respond") {
+		secret, _ := r.ReadString('\n')
+		fmt.Fprintln(conn, d.keyringRespond(cmd, strings.TrimRight(secret, "\r\n")))
+		return
+	}
+	fmt.Fprintln(conn, d.dispatch(cmd))
 }
 
 // route resolves an IPC-style command to the Quickshell config, IpcHandler target,
