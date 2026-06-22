@@ -3,6 +3,8 @@ name: Docs
 # This repo's docs are plain Markdown under docs/ plus the top-level READMEs and
 # governance files. This validates that every relative link between them resolves,
 # replacing the Mintlify site validation the sibling repo used.
+# Vendored dependency trees are excluded: they carry upstream docs whose relative
+# links point at files we do not vendor (matches .githooks and the lint gates).
 
 on:
   pull_request:
@@ -53,7 +55,7 @@ jobs:
                 status=1
               fi
             done < <(grep -oE '\]\([^)]+\)' "$md" | sed -E 's/^\]\(//; s/\)$//')
-          done < <(git ls-files -z '*.md')
+          done < <(git ls-files -z '*.md' ':(glob,exclude)**/vendor/**')
 
           if (( status == 0 )); then
             echo "All Markdown relative links resolve."
