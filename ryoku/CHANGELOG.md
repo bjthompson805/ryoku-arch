@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `hyprland/themes/compact` and `hyprland/themes/glass`: two look-only rices
+  (colours still follow the wallpaper). `compact` is dense and tight (small gaps,
+  light rounding, no shadow, a soft pop); `glass` is heavy frosted blur with
+  translucent windows and a gentle springy pop. Both opt-in from Ryoku Settings and
+  keep the frame and island identity.
 - `hyprland/themes/cassette`: a new flat, sharp, sepia theme rice (no blur or
   shadow, `rounding 0`, tight gaps) in a muted YoRHa/NieR palette, filling the gap
   left by the rounded, glassy default set. Opt-in from Ryoku Settings; the frame
