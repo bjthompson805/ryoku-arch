@@ -88,28 +88,35 @@ ShellRoot {
             required property var modelData
             readonly property real s: modelData ? Math.max(0.85, modelData.height / 1080) : 1
             readonly property real barH: 34 * s
+            readonly property real frameTop: 22 * s
             readonly property real sideGap: 26 * s
             readonly property real topGap: 6 * s
 
             visible: root.barEnabled
             screen: modelData
             color: "transparent"
-            exclusiveZone: win.barH
+            exclusiveZone: win.barH + win.frameTop
             WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.namespace: "ryoku-topbar"
             anchors { top: true; left: true; right: true }
             margins { top: 0 }
-            implicitHeight: win.barH
+            implicitHeight: win.barH + win.frameTop
 
-            // The bar surface: a flat warm fill, the same colour as the frame, with
-            // rounded top corners matching the screen's. Flush to the very top and
-            // full width, so it reads as the frame's top edge thickened into a bar
-            // rather than a panel laid over it.
+            // The bar reads as the frame's own top thickened into a bar. A dark
+            // fill in the frame's colour extends up behind the frame's top border
+            // so the border sits flush on it with no gap, and the bar content sits
+            // below that border like the island does, so frame and bar are one piece.
             Rectangle {
-                id: surface
                 anchors.fill: parent
                 color: root.cardTop
                 radius: 16 * win.s
+                clip: true
+            }
+            Rectangle {
+                id: surface
+                anchors.fill: parent
+                anchors.topMargin: win.frameTop
+                color: "transparent"
                 clip: true
 
                 // ── Left: brand + workspaces ──────────────────────────────────
