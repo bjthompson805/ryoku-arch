@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scan added comment lines for low-value filler (chat residue, self-narration),
 # the same rule the pre-commit hook enforces. Comment markers checked: # -- // *.
-# Vendored upstream (ryoku/lockscreen/qylock) is exempt.
+# Vendored content (ryoku/lockscreen/qylock and any vendor/ directory) is exempt.
 #
 #   ryoku-dev-scan-slop --range <base> <head>   scan added lines in base..head
 #   ryoku-dev-scan-slop --staged                scan staged additions
@@ -18,10 +18,10 @@ case "$mode" in
     base=${2:-}
     head=${3:?usage: ryoku-dev-scan-slop --range <base> <head>}
     [[ -n $base ]] || base=$empty_tree
-    diff=$(git diff --diff-filter=ACM -U0 "$base" "$head" -- . ':(exclude)ryoku/lockscreen/qylock')
+    diff=$(git diff --diff-filter=ACM -U0 "$base" "$head" -- . ':(exclude)ryoku/lockscreen/qylock' ':(glob,exclude)**/vendor/**')
     ;;
   --staged)
-    diff=$(git diff --cached --diff-filter=ACM -U0 -- . ':(exclude)ryoku/lockscreen/qylock')
+    diff=$(git diff --cached --diff-filter=ACM -U0 -- . ':(exclude)ryoku/lockscreen/qylock' ':(glob,exclude)**/vendor/**')
     ;;
   *)
     echo "usage: ryoku-dev-scan-slop --range <base> <head> | --staged" >&2

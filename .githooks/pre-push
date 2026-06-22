@@ -4,7 +4,7 @@
 # Safety net for pushes to origin.
 #   1. Blocks force-push to main (rewriting history that users pull from).
 #   2. Refuses pushes of upstream-tracking branches that carry pushRemote=no_push.
-#   3. Runs CI-equivalent ShellCheck on shell files included in the push.
+#   3. Runs CI-equivalent ShellCheck on non-vendored shell files in the push.
 # Bypass with --no-verify or set RYOKU_ALLOW_FORCE_MAIN=1 to override intentionally.
 
 set -euo pipefail
@@ -65,7 +65,7 @@ if command -v shellcheck >/dev/null 2>&1; then
 				*.sh | *.bash) files+=("$f") ;;
 				*) [[ $(head -n1 "$f") == '#!'*bash* ]] && files+=("$f") ;;
 			esac
-		done < <(git diff --name-only --diff-filter=ACM "$base" "$local_sha")
+		done < <(git diff --name-only --diff-filter=ACM "$base" "$local_sha" -- . ':(glob,exclude)**/vendor/**')
 	done <"$push_updates"
 	if ((${#files[@]} > 0)); then
 		printf '%s\n' "${files[@]}" | sort -u | xargs -r shellcheck -x || fail "ShellCheck failed on pushed shell files."
