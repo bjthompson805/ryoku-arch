@@ -11,8 +11,15 @@ ryoku_luks() {
     log "encryption: off (root on $ROOT_DEV)"
     return 0
   fi
-
   [[ -n ${RYOKU_LUKS_PASSPHRASE:-} ]] || die "RYOKU_ENCRYPT=1 but RYOKU_LUKS_PASSPHRASE is unset"
+
+  # Hard safety: LUKS must only ever format ROOT_PART. If ROOT_PART is unset,
+  # equals the whole disk, or matches the reused ESP, the partition step set
+  # something dangerous and we refuse to luksFormat. Better to abort than to
+  # luksFormat a Windows partition or the ESP.
+  [[ -n ${ROOT_PART:-} ]] || die "LUKS: ROOT_PART is unset; refusing to format."
+  [[ $ROOT_PART != "${RYOKU_DISK:-}" ]] || die "LUKS: refusing to format whole disk ($ROOT_PART); ROOT_PART must be a partition."
+  [[ $ROOT_PART != "${ESP_DEV:-}" ]] || die "LUKS: refusing to format ESP ($ROOT_PART); ROOT_PART must be the new root partition."
 
   LUKS_PART=$ROOT_PART
   log "encryption: LUKS2 on $LUKS_PART -> /dev/mapper/root"

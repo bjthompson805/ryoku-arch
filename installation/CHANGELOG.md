@@ -34,6 +34,16 @@
   free space, matching the backend floor.
 
 ### Fixed
+- Disk strategy is now fail closed: a missing or empty selection never defaults to
+  a full-disk wipe. The TUI emits the chosen strategy verbatim (it used to fall
+  back to `whole`, so any path that left the pick uncommitted silently wiped the
+  disk, deleting an existing Windows install), the strategy picker now defaults its
+  highlight to the non-destructive "alongside", and the Review step cannot advance
+  to a whole-disk install without a committed strategy.
+- Whole-disk installs onto a populated disk now require an explicit acknowledgement:
+  the Review step shows the strategy in bold red with the partitions it will erase,
+  and proceeds only after the user types ERASE (emitting `RYOKU_WIPE_CONFIRMED=1`).
+  A blank disk installs without the extra confirmation.
 - The live ISO now autostarts the installer instead of the stock Arch first-boot
   prompt, pacstrap has working mirrors and a populated keyring, and the boot
   console is quiet. See the `iso/` and `backend/` changelogs for detail.

@@ -529,7 +529,10 @@ func (m model) installEnv() []string {
 	}
 	env := []string{
 		"RYOKU_DISK=" + m.diskDev,
-		"RYOKU_DISK_STRATEGY=" + def(m.picks["disk"], "whole"),
+		// No default for the disk strategy: an empty value MUST reach the backend so
+		// it can fail closed. Defaulting to "whole" here was a silent wipe path
+		// (a missing/cleared pick would auto-erase the disk).
+		"RYOKU_DISK_STRATEGY=" + m.picks["disk"],
 		"RYOKU_HOSTNAME=" + def(m.picks["hostname"], "ryoku"),
 		"RYOKU_USERNAME=" + def(m.picks["username"], "ryoku"),
 		"RYOKU_PASSWORD_HASH=" + m.pwHash,
@@ -548,6 +551,12 @@ func (m model) installEnv() []string {
 	}
 	if m.picks["encryption"] == "LUKS" {
 		env = append(env, "RYOKU_ENCRYPT=1", "RYOKU_LUKS_PASSPHRASE="+m.luksPass)
+	}
+	// Emit RYOKU_WIPE_CONFIRMED only after the typed "ERASE" acknowledgement
+	// (wipeStage == 2). The backend's ryoku_partition_whole requires this token
+	// when the disk already holds partitions; absence aborts the wipe.
+	if m.wipeStage == 2 {
+		env = append(env, "RYOKU_WIPE_CONFIRMED=1")
 	}
 	return env
 }

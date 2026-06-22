@@ -55,7 +55,9 @@ source "$LIB_DIR/snapshots.sh"
 : "${RYOKU_LOCALE:=en_US.UTF-8}"
 : "${RYOKU_TIMEZONE:=UTC}"
 : "${RYOKU_PROFILE:=vm}"
-: "${RYOKU_DISK_STRATEGY:=whole}"
+# Disk strategy is required: never default it. Defaulting to whole used to be a
+# silent wipe path when the TUI dropped the pick. Validation lives below.
+: "${RYOKU_DISK_STRATEGY:=}"
 : "${RYOKU_ESP_GIB:=1}"
 : "${RYOKU_SWAP_GIB:=0}"
 : "${RYOKU_SUBVOL_SNAPSHOTS:=1}"
@@ -75,6 +77,11 @@ source "$LIB_DIR/snapshots.sh"
 # Required answers.
 [[ -n $RYOKU_DISK ]] || die "RYOKU_DISK is required"
 [[ -n $RYOKU_PASSWORD_HASH ]] || die "RYOKU_PASSWORD_HASH is required"
+case $RYOKU_DISK_STRATEGY in
+  whole|alongside) ;;
+  '') die "RYOKU_DISK_STRATEGY is required (use 'whole' or 'alongside'); refusing to wipe disk on empty strategy." ;;
+  *)  die "RYOKU_DISK_STRATEGY='$RYOKU_DISK_STRATEGY' not supported (use 'whole' or 'alongside')." ;;
+esac
 
 main() {
   [[ -n $RYOKU_DRYRUN ]] && log "DRY RUN: no disk is touched; commands are printed only"

@@ -557,9 +557,14 @@ func profiles() []item {
 	return promote(all, []string{ensureHW().profile})
 }
 func diskStrategies() []item {
+	// Alongside is listed first so the picker's default highlighted item is the
+	// safer (non-destructive) option. A quick Enter then commits alongside; if
+	// the disk cannot host an alongside install (no ESP / no free space) the
+	// partition step's partReady gate blocks Tab and the user backs up to pick
+	// whole deliberately. Putting whole first turned a quick Enter into a wipe.
 	return []item{
-		{"whole", "Erase whole disk", "wipe & auto-layout"},
 		{"alongside", "Install alongside Windows", "keep Windows · use free space"},
+		{"whole", "Erase whole disk", "wipe & auto-layout"},
 	}
 }
 
@@ -722,7 +727,12 @@ type model struct {
 	installLog         []string // granular, scrolling command output
 
 	// guided partition layout
-	diskG                       int
+	diskG int
+	// existing is the disk's actual current partition table, loaded when the
+	// partition step runs regardless of strategy. Review's wipe gate uses
+	// len(existing) > 0 to decide whether to require the typed "ERASE"
+	// acknowledgement before launching a whole-disk install.
+	existing                    []part
 	kept                        []part // existing partitions kept on an alongside install
 	freeG                       int    // largest contiguous free region (GiB) for alongside
 	espG, swapG                 int
@@ -730,6 +740,11 @@ type model struct {
 	lsel                        int
 	sAnim, sVel                 float64
 	sSpr                        harmonica.Spring
+	// wipeStage gates the Review->install transition for a whole-disk wipe on a
+	// populated disk: 0 = idle, 1 = user typing "ERASE", 2 = confirmed. installEnv
+	// emits RYOKU_WIPE_CONFIRMED=1 only when wipeStage == 2.
+	wipeStage  int
+	eraseInput string
 }
 
 var spinFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -777,8 +792,9 @@ func (m *model) loadStep() {
 		m.espG, m.swapG = 1, 16
 		m.snapshots, m.sepHome, m.backups = true, true, false
 		m.lsel, m.sAnim = 0, 0
+		dl := sysDiskLayout(m.diskDev) // real partitions, used by alongside layout AND the wipe gate
+		m.existing = dl.parts
 		if m.picks["disk"] == "alongside" {
-			dl := sysDiskLayout(m.diskDev) // real existing partitions + free space
 			m.kept, m.freeG = dl.parts, dl.freeG
 		} else {
 			m.kept, m.freeG = nil, 0
@@ -795,6 +811,7 @@ func (m *model) loadStep() {
 	default:
 		m.input, m.yes = "", false
 		m.inputErr, m.encStage, m.pass1, m.encErr = "", 0, "", ""
+		m.wipeStage, m.eraseInput = 0, ""
 	}
 }
 
@@ -973,6 +990,7 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 	s := m.cur()
 	typing := s.kind == kInput || (s.kind == kSelect && m.pick.searching) ||
 		(s.kind == kConfirm && s.key == "encryption" && m.encStage > 0) ||
+		(s.kind == kConfirm && s.key == "review" && m.wipeStage > 0) ||
 		s.kind == kPass || (s.kind == kNet && m.netStage == 1)
 	if k == "?" && !typing {
 		m.help = true
@@ -1095,6 +1113,34 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+
+		// Review wipe-confirm sub-stage: when whole is picked on a populated
+		// disk, m.yes + Enter transitions to a typed "ERASE" prompt instead of
+		// starting the install. Each keystroke builds m.eraseInput; Enter when
+		// eraseInput == "ERASE" sets wipeStage = 2 and launches the backend
+		// (installEnv then emits RYOKU_WIPE_CONFIRMED=1). Esc cancels the prompt.
+		if s.key == "review" && m.wipeStage == 1 {
+			switch k {
+			case "esc":
+				m.wipeStage, m.eraseInput = 0, ""
+			case "backspace":
+				if n := len(m.eraseInput); n > 0 {
+					m.eraseInput = m.eraseInput[:n-1]
+				}
+			case "enter":
+				if strings.EqualFold(m.eraseInput, "ERASE") {
+					m.wipeStage = 2
+					m.state, m.installAt, m.installLog = "install", 0, nil
+					m.progress, m.progVel = 0, 0
+					return m, tea.Batch(m.tickCmd(), m.startInstall())
+				}
+			default:
+				if r := []rune(k); len(r) == 1 && r[0] >= 0x20 {
+					m.eraseInput += k
+				}
+			}
+			return m, nil
+		}
 		switch k {
 		case "left", "right", "h", "l", "tab":
 			m.yes = !m.yes
@@ -1111,6 +1157,21 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 					m.advance()
 				}
 			} else if m.yes {
+				// Defense in depth: never start the install without a committed
+				// disk strategy. partReady gates Tab past partitions, so this
+				// should be unreachable; if it ever is, refuse to launch rather
+				// than ship an empty RYOKU_DISK_STRATEGY (backend fails closed).
+				strat := m.picks["disk"]
+				if strat != "whole" && strat != "alongside" {
+					return m, nil
+				}
+				// Whole-disk on a populated disk requires the typed "ERASE"
+				// acknowledgement before any backend command runs. Enter from
+				// the Yes button enters that sub-stage instead of launching.
+				if strat == "whole" && m.diskPopulated() {
+					m.wipeStage, m.eraseInput = 1, ""
+					return m, nil
+				}
 				m.state, m.installAt, m.installLog = "install", 0, nil
 				m.progress, m.progVel = 0, 0
 				return m, tea.Batch(m.tickCmd(), m.startInstall())
@@ -1229,6 +1290,12 @@ func (m model) hasKeptESP() bool {
 	return false
 }
 func (m model) needNewESP() bool { return !m.hasKeptESP() }
+
+// diskPopulated reports whether the target disk currently holds any partition.
+// The wipe-confirm gate uses this to decide whether the user must type "ERASE"
+// on Review before a whole-disk install starts. Populated is read once into
+// m.existing when the partition step loads, so this is a cheap field check.
+func (m model) diskPopulated() bool { return len(m.existing) > 0 }
 
 // availRoot is the size of the root partition: the disk minus kept partitions and
 // the ESP. The swapfile is carved out of this, so usable root is availRoot - swap.
@@ -1376,16 +1443,20 @@ func (m *model) partKey(k string) {
 }
 
 // partReady reports whether the chosen layout can be installed: the disk meets
-// the floor, and an alongside install has a reused ESP plus enough free space for
-// the root (kept in step with disk.sh's ryoku_min_root_gib in the backend).
+// the floor, and the disk strategy is one we know how to drive. An empty
+// strategy used to slip through here and reach the backend as a silent wipe.
 func (m model) partReady() bool {
 	if m.diskG < minDiskGiB {
 		return false
 	}
-	if m.picks["disk"] == "alongside" {
+	switch m.picks["disk"] {
+	case "whole":
+		return true
+	case "alongside":
 		return m.hasKeptESP() && m.freeG >= alongsideMinRootGiB
+	default:
+		return false
 	}
-	return true
 }
 
 func (m model) layoutSummary() string {
@@ -2075,12 +2146,28 @@ func (m model) reviewBody(w int) string {
 	if m.hasKeptESP() {
 		esp = "reuse"
 	}
+	// strategy: render in red+bold for "whole" so the wipe is undeniable on
+	// Review before the user moves to Yes. Alongside renders green to mark it
+	// as the non-destructive path. Anything else (should never reach Review
+	// thanks to partReady) is shown bold-red so the user can spot it.
+	strat := m.picks["disk"]
+	var stratCell string
+	switch strat {
+	case "whole":
+		stratCell = bold(cRed, "ERASE whole disk")
+	case "alongside":
+		stratCell = fg(cGreen, "alongside (keep existing OS)")
+	default:
+		stratCell = bold(cRed, "unset (refused)")
+	}
 	lines := []string{
 		bold(cBrand, "Review, then confirm to install"), "",
 		fg(cRed, "⚠ this writes the layout below to "+m.diskDev), "",
 		row("keyboard", m.picks["keyboard"]), row("locale", m.picks["locale"]),
 		row("time zone", m.picks["timezone"]), row("profile", m.picks["profile"]),
-		row("disk", m.diskDev), row("hostname", m.picks["hostname"]),
+		row("disk", m.diskDev),
+		fg(cSub, fmt.Sprintf("%-11s", "strategy")) + stratCell,
+		row("hostname", m.picks["hostname"]),
 		row("user", m.picks["username"]), row("password", m.picks["password"]),
 		row("encryption", m.picks["encryption"]), "",
 		fg(cSub, "layout     ") + fg(cText, fmt.Sprintf("ESP %s · root %dG · swap %s", esp, m.availRoot()-m.swapG, swap)),
@@ -2088,6 +2175,31 @@ func (m model) reviewBody(w int) string {
 	}
 	if len(m.kept) > 0 {
 		lines = append(lines, fg(cSub, "kept       ")+fg(cYell, fmt.Sprintf("%d existing partition(s)", len(m.kept))))
+	}
+	// Wipe-confirm sub-stage: when whole is picked on a populated disk and the
+	// user has pressed Enter from the Yes button, a typed "ERASE" prompt blocks
+	// the install handoff. The block is intentionally loud (red banner + listing
+	// of partitions being wiped) so the user cannot mistake it for a casual step.
+	if strat == "whole" && m.diskPopulated() {
+		names := make([]string, 0, len(m.existing))
+		for _, p := range m.existing {
+			names = append(names, p.dev)
+		}
+		lines = append(lines,
+			"",
+			bold(cRed, fmt.Sprintf("⚠ ERASING %d existing partition(s): %s", len(m.existing), truncW(strings.Join(names, ", "), w-30))),
+		)
+		if m.wipeStage == 1 {
+			lines = append(lines,
+				"",
+				fg(cYell, "type ERASE then press enter to confirm  ·  esc cancels"),
+				inputBox(m.eraseInput, "ERASE", false),
+			)
+		} else {
+			lines = append(lines,
+				fg(cDim, "switch to Yes and press enter; you will be asked to type ERASE"),
+			)
+		}
 	}
 	return strings.Join(lines, "\n")
 }

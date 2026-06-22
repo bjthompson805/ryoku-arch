@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Fixed
+- The install now fails closed on disk destruction. `ryoku-install` and
+  `lib/disk.sh` reject an empty or unknown `RYOKU_DISK_STRATEGY` instead of
+  defaulting to `whole` (the old default silently wiped the disk when the TUI
+  dropped the pick, deleting a user's Windows). `ryoku_partition_whole` refuses to
+  zap a disk that already holds partitions unless `RYOKU_WIPE_CONFIRMED=1` is set;
+  a truly blank disk still installs without it.
+- `lib/disk.sh` `alongside` now proves it never touches an existing partition: it
+  snapshots the pre-existing partition set, requires the new root's number to be
+  strictly higher than every existing one, and asserts the created root is new and
+  is neither the disk nor the reused ESP (parent matching the target disk) before
+  any `wipefs`.
+- `lib/luks.sh` hard-asserts the root partition is set and is neither the whole
+  disk nor the ESP before `luksFormat`, so encryption can never reformat an
+  existing OS partition or the shared ESP.
 - `lib/deploy.sh`: chown the user's home before the qylock step (it ran after),
   so qylock's user-context writes no longer fail on root-seeded directories like
   `~/.local/share` (`cp: cannot create directory ...: Permission denied`, which

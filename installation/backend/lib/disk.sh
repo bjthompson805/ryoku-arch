@@ -13,16 +13,26 @@
 ryoku_min_root_gib() { echo $(( 15 + ${RYOKU_SWAP_GIB:-0} )); }
 
 ryoku_partition() {
-  case $RYOKU_DISK_STRATEGY in
+  case ${RYOKU_DISK_STRATEGY:-} in
     whole)     ryoku_partition_whole ;;
     alongside) ryoku_partition_alongside ;;
-    *) die "disk strategy '$RYOKU_DISK_STRATEGY' not supported (use 'whole' or 'alongside')" ;;
+    '')        die "RYOKU_DISK_STRATEGY is required (use 'whole' or 'alongside'); refusing to wipe disk on empty strategy." ;;
+    *)         die "disk strategy '$RYOKU_DISK_STRATEGY' not supported (use 'whole' or 'alongside')" ;;
   esac
 }
 
 ryoku_partition_whole() {
   local disk=$RYOKU_DISK
   local esp_end=$(( 1 + RYOKU_ESP_GIB ))   # MiB offset 1 -> end of ESP
+
+  # Destructive-wipe guard: refuse to zap a disk that already holds partitions
+  # (e.g. a Windows install) unless the caller has explicitly acknowledged the
+  # wipe. The TUI sets RYOKU_WIPE_CONFIRMED=1 only after the typed "ERASE"
+  # acknowledgement on the Review screen; a truly blank disk proceeds without
+  # the token so a fresh install is not gated on a second confirmation.
+  if [[ ${RYOKU_WIPE_CONFIRMED:-} != 1 ]] && ryoku_disk_populated "$disk"; then
+    die "refusing to wipe $disk: it already holds partitions and RYOKU_WIPE_CONFIRMED is not set. Pick 'alongside' to keep them, or set RYOKU_WIPE_CONFIRMED=1 to wipe explicitly."
+  fi
 
   log "partitioning $disk (whole disk, GPT: ${RYOKU_ESP_GIB}GiB ESP + root)"
 
@@ -89,17 +99,53 @@ ryoku_partition_alongside() {
   (( free_gib >= min_gib )) || die "not enough free space on $disk: ${free_gib}GiB contiguous free, need >= ${min_gib}GiB. Shrink the Windows partition first, then retry."
   log "largest free region: ${free_gib}GiB (need >= ${min_gib}GiB)"
 
+  # Snapshot the pre-existing partition set so we can prove (after sgdisk) that
+  # the new root landed in free space without overwriting any existing partition.
+  local -a pre_parts=()
+  local pre_max p
+  while IFS= read -r p; do
+    [[ -n $p ]] && pre_parts+=("$p")
+  done < <(ryoku_partitions "$disk")
+  pre_max=$(ryoku_max_partnum "$disk")
+  [[ $pre_max =~ ^[0-9]+$ ]] || die "alongside could not read existing partition numbers on $disk (sgdisk -p failed); refusing to proceed."
+
   # Create the root in the largest free block. sgdisk start/end of 0 default to
   # the start and end of the largest aligned free region, so only free space is
   # used; the existing partitions are never touched.
-  local newnum
-  newnum=$(( $(ryoku_max_partnum "$disk") + 1 ))
+  local newnum=$(( pre_max + 1 ))
+
+  # Guard: the next slot must be strictly higher than every existing partition
+  # number. A stale or empty sgdisk -p (pre_max=0) on a disk that actually holds
+  # a partition 1 would otherwise direct sgdisk -n 1:0:0 to overwrite it.
+  for p in "${pre_parts[@]}"; do
+    local pn
+    pn=$(part_num "$p")
+    (( pn < newnum )) || die "alongside refused to write partition $newnum: existing $p (number $pn) is in the way."
+  done
+
   run sgdisk -n "${newnum}:0:0" -t "${newnum}:8300" -c "${newnum}:ryoku" "$disk"
   run partprobe "$disk"
   run_sh 'udevadm settle || true'
 
   ROOT_PART=$(part_dev "$disk" "$newnum")
+
+  # Hard safety: ROOT_PART must be a NEW partition that did not exist before
+  # sgdisk, must not be the disk itself, and must not be the reused ESP. Any of
+  # these would mean we are about to wipefs an existing OS partition.
+  [[ $ROOT_PART != "$disk" ]]    || die "alongside ROOT_PART resolves to disk $disk; refusing wipefs."
+  [[ $ROOT_PART != "$ESP_DEV" ]] || die "alongside ROOT_PART matches reused ESP $ESP_DEV; refusing wipefs."
+  for p in "${pre_parts[@]}"; do
+    [[ $p != "$ROOT_PART" ]] || die "alongside ROOT_PART=$ROOT_PART existed before sgdisk; refusing wipefs of an existing partition."
+  done
   [[ -b $ROOT_PART ]] || die "alongside created partition $newnum but $ROOT_PART is not a block device"
+
+  # ROOT_PART's parent must be the target disk: lsblk -no PKNAME prints the kernel
+  # name of the parent disk (e.g. nvme0n1). A mismatch would mean part_dev built
+  # a path on a different device; abort rather than wipefs the wrong thing.
+  local parent disk_base
+  parent=$(lsblk -no PKNAME "$ROOT_PART" 2>/dev/null | head -n1)
+  disk_base=${disk##*/}
+  [[ $parent == "$disk_base" ]] || die "alongside ROOT_PART=$ROOT_PART parent='$parent' does not match disk '$disk_base'; refusing wipefs."
 
   # Clear any stale signature in the NEW partition only (never the disk or ESP),
   # so a leftover LUKS/btrfs header at this offset cannot fail the later mount.
@@ -122,6 +168,19 @@ ryoku_find_esp() {
 # ryoku_partitions lists the partition device paths on a disk, in table order.
 ryoku_partitions() {
   lsblk -lnpo NAME,TYPE "$1" 2>/dev/null | awk '$2=="part"{print $1}'
+}
+
+# ryoku_disk_populated returns 0 (true) when $1 has at least one partition we can
+# see, 1 only when the disk is visible AND has zero partitions. If the disk can
+# not be read (missing device, broken GPT, no lsblk) we return 0 so the wipe
+# guard fails closed under uncertainty: better to abort than wipe a disk we did
+# not fully introspect.
+ryoku_disk_populated() {
+  local disk=$1
+  lsblk -dno NAME "$disk" >/dev/null 2>&1 || return 0
+  local n
+  n=$(lsblk -lnpo NAME,TYPE "$disk" 2>/dev/null | awk '$2=="part"' | wc -l)
+  (( n > 0 ))
 }
 
 # ryoku_max_partnum prints the highest partition number on the disk (0 if none).
