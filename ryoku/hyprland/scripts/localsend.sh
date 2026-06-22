@@ -101,5 +101,121 @@ send-all)
   [ "$count" -gt 0 ] || { notify-send "LocalSend" "Stash is empty" -i dialog-error; exit 1; }
   notify-send "LocalSend" "Sent $ok of $count files" -i emblem-ok-symbolic
   ;;
-*) echo "usage: localsend.sh discover | send <file> <ip> | send-all <dir> <ip>" >&2; exit 2 ;;
+receive)
+  # Run a LocalSend v2 receiver: announce over multicast so other LocalSend apps
+  # list us, accept any incoming upload straight into the stash, and stream status
+  # lines the shell parses (READY/INCOMING/SAVED/ERROR, tab-separated, flushed).
+  ALIAS="${2:-Ryoku Stash}"
+  STASH="${STASH_DIR:-$HOME/Downloads/Stash}"
+  mkdir -p "$STASH"
+  CERT="$HOME/.cache/ryoku_localsend_cert.pem"; KEY="$HOME/.cache/ryoku_localsend_key.pem"
+  if [ ! -s "$CERT" ] || [ ! -s "$KEY" ]; then
+    openssl req -x509 -newkey rsa:2048 -keyout "$KEY" -out "$CERT" -days 3650 -nodes -subj "/CN=Ryoku Stash" >/dev/null 2>&1 \
+      || { echo -e "ERROR\tcould not create certificate"; exit 1; }
+  fi
+  FP_FILE="$HOME/.cache/ryoku_localsend_fp"; [ -f "$FP_FILE" ] || openssl rand -hex 16 > "$FP_FILE"
+  # exec so the receiver IS this process: when the shell stops it (SIGTERM), the
+  # signal reaches python directly and the port is released. Without exec, python
+  # is a bash child that gets orphaned on stop and keeps holding port 53317, so
+  # the next receive fails with "port busy".
+  exec env ALIAS="$ALIAS" STASH="$STASH" CERT="$CERT" KEY="$KEY" FINGERPRINT="$(cat "$FP_FILE")" python3 - <<'PYEOF'
+import os, ssl, json, socket, struct, threading, time, signal, http.server
+from urllib.parse import urlparse, parse_qs
+ALIAS=os.environ['ALIAS']; STASH=os.environ['STASH']; FP=os.environ['FINGERPRINT']
+CERT=os.environ['CERT']; KEY=os.environ['KEY']; PORT=53317; MCAST='224.0.0.167'
+INFO={"alias":ALIAS,"version":"2.1","deviceModel":"Ryoku","deviceType":"headless","fingerprint":FP,"download":False}
+sessions={}
+def out(tag,val): print(tag+"\t"+val, flush=True)
+def uniq(name):
+    base=os.path.basename(name) or "file"; path=os.path.join(STASH, base)
+    if not os.path.exists(path): return path
+    stem,ext=os.path.splitext(base); i=1
+    while True:
+        cand=os.path.join(STASH, "%s (%d)%s"%(stem,i,ext))
+        if not os.path.exists(cand): return cand
+        i+=1
+class H(http.server.BaseHTTPRequestHandler):
+    protocol_version='HTTP/1.1'
+    def log_message(self,*a): pass
+    def _send(self, code, body=b'', ctype='application/json'):
+        self.send_response(code); self.send_header('Content-Type',ctype)
+        self.send_header('Content-Length',str(len(body))); self.end_headers()
+        if body: self.wfile.write(body)
+    def _read(self):
+        n=int(self.headers.get('Content-Length',0) or 0)
+        return self.rfile.read(n) if n>0 else b''
+    def do_GET(self):
+        if urlparse(self.path).path.endswith('/api/localsend/v2/info'):
+            self._send(200, json.dumps(INFO).encode())
+        else: self._send(404)
+    def do_POST(self):
+        p=urlparse(self.path).path
+        if p.endswith('/register'):
+            self._read(); self._send(200, json.dumps(INFO).encode())
+        elif p.endswith('/prepare-upload'):
+            try: req=json.loads(self._read().decode() or '{}')
+            except Exception: req={}
+            sid=os.urandom(8).hex(); tok={}; reg={}
+            for fid,meta in (req.get('files',{}) or {}).items():
+                t=os.urandom(8).hex(); name=(meta or {}).get('fileName', fid)
+                tok[fid]=t; reg[fid]={'token':t,'fileName':name}; out("INCOMING", name)
+            sessions[sid]=reg
+            self._send(200, json.dumps({"sessionId":sid,"files":tok}).encode())
+        elif p.endswith('/upload'):
+            q=parse_qs(urlparse(self.path).query)
+            reg=sessions.get(q.get('sessionId',[''])[0],{}).get(q.get('fileId',[''])[0])
+            if not reg or reg['token']!=q.get('token',[''])[0]:
+                self._read(); self._send(403); return
+            dest=uniq(reg['fileName']); n=int(self.headers.get('Content-Length',0) or 0); got=0
+            with open(dest,'wb') as f:
+                while got<n:
+                    chunk=self.rfile.read(min(65536, n-got))
+                    if not chunk: break
+                    f.write(chunk); got+=len(chunk)
+            out("SAVED", os.path.basename(dest)); self._send(200)
+        elif p.endswith('/cancel'):
+            self._read(); self._send(200)
+        else:
+            self._read(); self._send(404)
+def announce():
+    try:
+        rx=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP)
+        rx.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        try: rx.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEPORT,1)
+        except OSError: pass
+        rx.bind(('',PORT))
+        rx.setsockopt(socket.IPPROTO_IP,socket.IP_ADD_MEMBERSHIP,struct.pack('4sL',socket.inet_aton(MCAST),socket.INADDR_ANY))
+        rx.settimeout(3.0)
+        tx=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP)
+        tx.setsockopt(socket.IPPROTO_IP,socket.IP_MULTICAST_TTL,4)
+        mine=lambda a: json.dumps({**INFO,"port":PORT,"protocol":"https","announce":a}).encode()
+        tx.sendto(mine(True),(MCAST,PORT)); last=time.time()
+        while True:
+            try:
+                data,_=rx.recvfrom(65536)
+                info=json.loads(data.decode())
+                if info.get('fingerprint')!=FP and info.get('announce'): tx.sendto(mine(False),(MCAST,PORT))
+            except socket.timeout: pass
+            except Exception: pass
+            if time.time()-last>3.0: tx.sendto(mine(True),(MCAST,PORT)); last=time.time()
+    except Exception: pass
+try:
+    ctx=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(CERT, KEY)
+    srv=http.server.ThreadingHTTPServer(('0.0.0.0',PORT), H)
+    srv.socket=ctx.wrap_socket(srv.socket, server_side=True)
+except OSError:
+    out("ERROR", "port %d is busy"%PORT)
+    try: __import__("subprocess").run(["notify-send","Stash","Receive needs port 53317, but it is already in use (another LocalSend running?).","-i","dialog-error"])
+    except Exception: pass
+    raise SystemExit(1)
+stop=threading.Event()
+signal.signal(signal.SIGTERM, lambda *a: stop.set())
+signal.signal(signal.SIGINT,  lambda *a: stop.set())
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+threading.Thread(target=announce, daemon=True).start()
+out("READY", ALIAS)
+stop.wait(); srv.shutdown()
+PYEOF
+  ;;
+*) echo "usage: localsend.sh discover | send <file> <ip> | send-all <dir> <ip> | receive [alias]" >&2; exit 2 ;;
 esac

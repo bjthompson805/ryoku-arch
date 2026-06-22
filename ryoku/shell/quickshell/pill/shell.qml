@@ -219,7 +219,7 @@ ShellRoot {
             // small even gap that matches the other three frame edges.
             readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide && !Config.barEnabled
             readonly property real evenTop: 22 * s
-            readonly property real zone: reservesIsland ? (restHeight + topGap) : evenTop
+            readonly property real zone: Config.barEnabled ? 0 : (reservesIsland ? (restHeight + topGap) : evenTop)
 
             screen: modelData
             color: "transparent"
@@ -587,18 +587,18 @@ ShellRoot {
                 }
 
                 Item {
-                    // Hover zone that opens the island: the whole blob -- the neck up
-                    // into the frame and a margin below the clock -- not just the clock.
-                    // Sits in front of the pill so its passive HoverHandler always
-                    // sees the pointer; the tray icons' own hoverEnabled MouseAreas
-                    // would otherwise swallow the hover and collapse the island when
-                    // crossed. Being handler-only it never blocks their clicks/hover.
+                    // The neck/reveal hover zone: it only covers the strip ABOVE the
+                    // pill body (the blob neck up into the frame) and, while the
+                    // island is auto-hidden, the thin reveal trigger. The body's own
+                    // hover is read by a HoverHandler on the pill itself, so this
+                    // zone must NOT overlap the body -- a covering sibling handler
+                    // would swallow hover from the surfaces and tray icons beneath.
                     enabled: !overlay.styleNone
                     x: pill.x
                     y: 0
                     width: pill.width
-                    height: overlay.islandShown ? (pill.y + pill.height + 6 * overlay.s) : overlay.revealTrigger
-                    HoverHandler { onHoveredChanged: pill.hovered = hovered }
+                    height: overlay.islandShown ? Math.max(0, pill.y) : overlay.revealTrigger
+                    HoverHandler { onHoveredChanged: pill.externalHover = hovered }
                 }
 
                 MusicIsland {
@@ -612,7 +612,7 @@ ShellRoot {
                         return start + (end - start) * reveal;
                     }
                     y: Math.max(pill.y + pill.height / 2 - height / 2, 22)
-                    onHoveredChanged: if (hovered) pill.hovered = false
+                    onHoveredChanged: pill.hoverSuppressed = hovered
                     onActivated: root.toggleSurface(overlay.modelData.name, "media")
                 }
 

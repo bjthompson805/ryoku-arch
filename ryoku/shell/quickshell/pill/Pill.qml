@@ -26,7 +26,15 @@ Item {
     property string surface: ""
     property string displayedSurface: ""
 
-    property bool hovered: false
+    // Island hover is the OR of two sources so it works everywhere without one
+    // swallowing the other: `bodyHover` is a passive HoverHandler on the pill
+    // (an ancestor of every surface and tray icon, so their own hoverEnabled
+    // MouseAreas still receive hover), and `externalHover` is set by the shell
+    // for the neck above the body and the auto-hide reveal strip, which sit
+    // outside the pill item. `hoverSuppressed` lets the music bud steal it.
+    property bool externalHover: false
+    property bool hoverSuppressed: false
+    readonly property bool hovered: !hoverSuppressed && (externalHover || bodyHover.hovered)
     property bool pinned: false
     property bool forcePinned: false
 
@@ -86,7 +94,7 @@ Item {
     readonly property real batteryW: 316 * s
     readonly property real inboxW: 340 * s
     readonly property real sysinfoW: 360 * s
-    readonly property real stashW: 420 * s
+    readonly property real stashW: 452 * s
     readonly property real toolkitW: 418 * s
     readonly property real utilitiesW: 360 * s
     readonly property real voiceW: 320 * s
@@ -380,6 +388,11 @@ Item {
         gesturePolicy: TapHandler.WithinBounds
         onTapped: pill.pinned = !pill.pinned
     }
+
+    // Passive hover over the whole island body. Being a handler on the pill (an
+    // ancestor of the surfaces and tray icons) it never blocks their own hover,
+    // unlike a covering sibling would.
+    HoverHandler { id: bodyHover }
 
     Item {
         id: rest

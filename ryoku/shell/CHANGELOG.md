@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `quickshell/pill` stash: LocalSend receive and send-a-note. The header's Receive
+  switch runs a LocalSend v2 server (`localsend.sh receive`, a self-signed HTTPS
+  endpoint that announces the machine on the LAN over multicast) which drops any
+  pushed file straight into the stash and shows a live tally; the Text action
+  sends a typed or pasted note (written to a temp file) to a picked device. The
+  `Stash` singleton drives both: the receiver streams `READY`/`INCOMING`/`SAVED`
+  lines parsed by a `SplitParser`, the rest reuses the existing send helpers.
 - `quickshell/pill`: weather now comes from Open-Meteo (no API key) instead of the
   rate-limited wttr.in scrape, with the resolved location cached at
   `~/.local/state/ryoku/weather-loc.json` so a restart skips the lookup. The
@@ -101,6 +108,16 @@
   palette stays static.
 
 ### Changed
+- `quickshell/pill` stash: the surface is rebuilt around a full-width file grid
+  with a toolkit-style action bar (Send all, Text, Download, Compress, Install) in
+  place of the cramped left rail, plus a header file count and Receive switch.
+  Sends raise a focused sheet (LAN scan, pick a device, then a confirmation naming
+  exactly what goes where), and every rail job now opens on a confirm step
+  (download shows the clipboard link it found) before it runs; removing a file
+  confirms inline on its tile rather than vanishing on a stray click. The look
+  follows the Hub's flat tiles, hairline rules, and type tags in the pill palette,
+  with a brand drop ring while a drag is over the surface. `StashRail.qml` is
+  retired; `StashActions`, `StashSendSheet`, and `StashReceive` are new.
 - `quickshell/pill` update island: surfaces the git update channel it was built
   for. Its count and target version read the commits the checkout is behind
   `origin/main` (from `ryoku status --json`) rather than pacman package counts.
@@ -109,6 +126,14 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `quickshell/pill`: hover works again across the whole island. The neck/reveal
+  hover zone sitting in front of the pill (added so crossing the tray icons would
+  not collapse the island) was a covering sibling holding a `HoverHandler`, which
+  swallowed hover from every surface beneath it, so stash tiles, action buttons,
+  device rows and the like never lit or revealed their hover actions. Island hover
+  is now read by a `HoverHandler` on the pill itself (an ancestor of the surfaces,
+  so it never blocks their own hover) OR'd with a neck-only zone that no longer
+  overlaps the body.
 - `deploy.sh` preserves the user's own and per-machine generated Hyprland files
   across a redeploy. The config swap still replaces the shipped base, but now
   restores `user.lua`, `monitors_user.lua`, `settings.lua`, `theme.lua`,

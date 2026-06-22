@@ -6,16 +6,20 @@ import Quickshell.Io
 
 /**
  * File stash bridge: a live snapshot of ~/Downloads/Stash and the back-end for
- * the stash surface's rail actions. The FolderListModel watches the directory
- * (created on first load) so the grid stays current without polling; openFile,
- * removeFile, clearAll and addUrl drive it through detached coreutils.
+ * the stash surface. The FolderListModel watches the directory (created on first
+ * load) so the grid stays current without polling; openFile, removeFile, clearAll
+ * and addUrl drive it through detached coreutils.
  *
- * Rail actions run helper scripts under ~/.config/hypr/scripts: LocalSend
- * (openSendPicker / openSendAll kick a ~2s LAN discovery, sendTo uploads the
- * pending file or the whole stash to the picked device), install (AppImage or
- * tarball -> app launcher), compress (ffmpeg) and download (yt-dlp). lsState
- * (idle|scanning|ready|sending) drives the device picker; task / taskState /
- * taskMsg drive the install/compress/download progress overlay.
+ * Three flows sit on top, all behind helper scripts under ~/.config/hypr/scripts:
+ *  - LocalSend send. openSendPicker / openSendAll / openSendText kick a ~2s LAN
+ *    discovery (lsState scanning|ready|sending); sendTo uploads the picked file,
+ *    the whole stash, or a typed note (written to a temp file) to the chosen IP.
+ *  - LocalSend receive. start/stopReceive run localsend.sh receive, a server that
+ *    announces us on the LAN and drops incoming files into the stash; it streams
+ *    READY/INCOMING/SAVED lines that drive recvState / recvAlias / recvCount.
+ *  - Rail jobs. requestInstall/Compress/Download raise a confirm (taskState
+ *    confirm); confirmTask runs the helper (running -> done|error). Download pulls
+ *    its link from the clipboard so it needs no in-surface keyboard grab.
  */
 Singleton {
     id: root
@@ -27,16 +31,25 @@ Singleton {
 
     readonly property alias files: files
     readonly property int count: files.count
-
     readonly property alias deviceModel: deviceModel
-    readonly property alias discoverProc: discoverProc
 
-    property string lsState: "idle"
+    // Send flow.
+    property string lsState: "idle"       // idle | scanning | ready | sending
+    property string sendKind: "file"      // file | all | text
     property string pendingFile: ""
-    property bool sendingAll: false
-    property string task: ""
-    property string taskState: "idle"
+    property string composeText: ""
+
+    // Receive flow.
+    property string recvState: "idle"     // idle | listening
+    property string recvAlias: ""
+    property int recvCount: 0
+    property string recvLast: ""
+
+    // Rail jobs.
+    property string task: ""              // "" | install | compress | download
+    property string taskState: "idle"     // idle | confirm | running | done | error
     property string taskMsg: ""
+    property string downloadUrl: ""
 
     function openFile(path) {
         Quickshell.execDetached(["xdg-open", path]);
@@ -55,34 +68,125 @@ Singleton {
         Quickshell.execDetached(["cp", "-n", p, root.dir]);
     }
 
-    function openSendPicker(file) {
-        root.sendingAll = false;
-        root.pendingFile = file;
+    // ── Send ────────────────────────────────────────────────────────────
+    function startScan() {
         deviceModel.clear();
         root.lsState = "scanning";
         discoverProc.running = true;
+    }
+
+    function openSendPicker(file) {
+        root.sendKind = "file";
+        root.pendingFile = file;
+        startScan();
     }
 
     function openSendAll() {
         if (root.count === 0)
             return;
-        root.sendingAll = true;
+        root.sendKind = "all";
         root.pendingFile = "";
-        deviceModel.clear();
-        root.lsState = "scanning";
-        discoverProc.running = true;
+        startScan();
+    }
+
+    function openSendText() {
+        root.sendKind = "text";
+        root.pendingFile = "";
+        root.composeText = "";
+        startScan();
+    }
+
+    function cancelSend() {
+        discoverProc.running = false;
+        root.lsState = "idle";
+        root.pendingFile = "";
+        root.composeText = "";
+    }
+
+    function pasteCompose() {
+        pasteProc.running = true;
     }
 
     function sendTo(ip) {
         root.lsState = "sending";
-        sendProc.command = root.sendingAll
-            ? ["bash", root.script, "send-all", root.dir, ip]
-            : ["bash", root.script, "send", root.pendingFile, ip];
+        if (root.sendKind === "all")
+            sendProc.command = ["bash", root.script, "send-all", root.dir, ip];
+        else if (root.sendKind === "text")
+            // Notes have no file: drop the text into a temp file named note.txt so
+            // the receiver shows a sensible name, send it, then clean up.
+            sendProc.command = ["bash", "-c",
+                "d=$(mktemp -d) && printf '%s' \"$1\" > \"$d/note.txt\" && bash \"$2\" send \"$d/note.txt\" \"$3\"; r=$?; rm -rf \"$d\"; exit $r",
+                "--", root.composeText, root.script, ip];
+        else
+            sendProc.command = ["bash", root.script, "send", root.pendingFile, ip];
         sendProc.running = true;
     }
 
-    // Rail actions run a helper over the stash and report through task/taskState;
-    // the surface shows a progress overlay keyed off them.
+    // ── Receive ─────────────────────────────────────────────────────────
+    function startReceive() {
+        root.recvCount = 0;
+        root.recvLast = "";
+        root.recvAlias = "Ryoku Stash";
+        root.recvState = "listening";
+        recvProc.running = true;
+    }
+
+    function stopReceive() {
+        recvProc.running = false;
+        root.recvState = "idle";
+    }
+
+    function onRecvLine(line) {
+        var t = ("" + line).split("\t");
+        if (t[0] === "READY") {
+            root.recvAlias = t[1] || "Ryoku Stash";
+            root.recvState = "listening";
+        } else if (t[0] === "INCOMING") {
+            root.recvLast = t[1] || "";
+        } else if (t[0] === "SAVED") {
+            root.recvCount += 1;
+            root.recvLast = t[1] || "";
+        } else if (t[0] === "ERROR") {
+            root.recvState = "idle";
+        }
+    }
+
+    // ── Rail jobs ───────────────────────────────────────────────────────
+    function requestInstall() {
+        if (root.count > 0) {
+            root.task = "install";
+            root.taskMsg = "";
+            root.taskState = "confirm";
+        }
+    }
+
+    function requestCompress() {
+        if (root.count > 0) {
+            root.task = "compress";
+            root.taskMsg = "";
+            root.taskState = "confirm";
+        }
+    }
+
+    // The clipboard read settles the confirm: a link enables it, anything else
+    // turns it straight into the "copy a link first" error.
+    function requestDownload() {
+        root.task = "download";
+        root.taskMsg = "";
+        root.downloadUrl = "";
+        root.taskState = "confirm";
+        clipProc.running = true;
+    }
+
+    function confirmTask() {
+        if (root.task === "install")
+            runTask("install", ["bash", root.scriptDir + "/stash-install.sh"]);
+        else if (root.task === "compress")
+            runTask("compress", ["bash", root.scriptDir + "/stash-compress.sh"]);
+        else if (root.task === "download" && root.downloadUrl.length > 0)
+            runTask("download", ["bash", root.scriptDir + "/stash-download.sh", root.downloadUrl]);
+    }
+
     function runTask(name, cmd) {
         root.task = name;
         root.taskMsg = "";
@@ -91,35 +195,11 @@ Singleton {
         taskProc.running = true;
     }
 
-    function installStash() {
-        if (root.count > 0)
-            runTask("install", ["bash", root.scriptDir + "/stash-install.sh"]);
-    }
-
-    function compressStash() {
-        if (root.count > 0)
-            runTask("compress", ["bash", root.scriptDir + "/stash-compress.sh"]);
-    }
-
-    function download(url) {
-        var u = ("" + url).trim();
-        if (u.length > 0)
-            runTask("download", ["bash", root.scriptDir + "/stash-download.sh", u]);
-    }
-
-    // The download tab pulls its link from the clipboard (copy a URL, tap
-    // download), so it needs no in-surface text field or keyboard grab.
-    function downloadFromClipboard() {
-        root.task = "download";
-        root.taskMsg = "";
-        root.taskState = "running";
-        clipProc.running = true;
-    }
-
     function dismissTask() {
         root.task = "";
         root.taskState = "idle";
         root.taskMsg = "";
+        root.downloadUrl = "";
     }
 
     FolderListModel {
@@ -160,8 +240,18 @@ Singleton {
         onExited: {
             root.lsState = "idle";
             root.pendingFile = "";
-            root.sendingAll = false;
+            root.composeText = "";
         }
+    }
+
+    Process {
+        id: recvProc
+        command: ["bash", root.script, "receive"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => root.onRecvLine(line)
+        }
+        onExited: if (root.recvState !== "idle") root.recvState = "idle"
     }
 
     Process {
@@ -180,13 +270,20 @@ Singleton {
     }
 
     Process {
+        id: pasteProc
+        command: ["wl-paste", "-n"]
+        stdout: StdioCollector { id: pasteOut }
+        onExited: root.composeText = ("" + pasteOut.text)
+    }
+
+    Process {
         id: clipProc
         command: ["wl-paste", "-n"]
         stdout: StdioCollector { id: clipOut }
         onExited: {
             var u = ("" + clipOut.text).trim();
             if (/^https?:\/\/\S+/.test(u))
-                root.download(u);
+                root.downloadUrl = u;
             else {
                 root.taskState = "error";
                 root.taskMsg = "Copy a link first, then tap download";

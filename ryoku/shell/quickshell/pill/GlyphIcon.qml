@@ -78,7 +78,12 @@ Item {
         "code": { d: "M9 8l-4 4 4 4 M15 8l4 4-4 4 M13 5l-2 14", fill: false },
         "film": { d: "M4.5 5h15A1.5 1.5 0 0 1 21 6.5v11A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5z M8 5v14 M16 5v14 M3 9h5 M16 9h5 M3 15h5 M16 15h5", fill: false },
         "qr": { d: "M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h2.5v2.5h-2.5z M17.5 17.5h2.5v2.5h-2.5z M14 18h2v2h-2z M18 14h2v2h-2z", fill: true },
-        "moon": { d: "M12 3a6.4 6.4 0 0 0 9 9 9 9 0 1 1-9-9z", fill: false }
+        "moon": { d: "M12 3a6.4 6.4 0 0 0 9 9 9 9 0 1 1-9-9z", fill: false },
+        "text": { d: "M4.5 6.5h15 M4.5 11h15 M4.5 15.5h9.5", fill: false },
+        "check": { d: "M5 12.8l4.2 4.2L19 7.2", fill: false },
+        "close": { d: "M6.5 6.5l11 11 M17.5 6.5l-11 11", fill: false },
+        "clipboard": { d: "M8.5 5H6.5A1.5 1.5 0 0 0 5 6.5V18.5A1.5 1.5 0 0 0 6.5 20H17.5A1.5 1.5 0 0 0 19 18.5V6.5A1.5 1.5 0 0 0 17.5 5H15.5 M9 4.2h6a0.9 0.9 0 0 1 0.9 0.9V6.4a0.9 0.9 0 0 1-0.9 0.9H9A0.9 0.9 0 0 1 8.1 6.4V5.1A0.9 0.9 0 0 1 9 4.2z", fill: false },
+        "tray-down": { d: "M4 14v3.5A1.5 1.5 0 0 0 5.5 19h13a1.5 1.5 0 0 0 1.5-1.5V14 M8 9.5l4 4 4-4 M12 13.5V4", fill: false }
     })
 
     readonly property var g: glyphs[name] !== undefined ? glyphs[name] : ({ d: "", fill: false })
