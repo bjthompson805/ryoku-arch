@@ -41,7 +41,11 @@ Singleton {
     readonly property bool hasMedia: {
         var n = files.count;
         for (var i = 0; i < n; i++) {
-            var e = ("" + files.get(i, "fileSuffix")).toLowerCase();
+            // FolderListModel.fileSuffix is the COMPLETE suffix (after the first
+            // dot), so a name like "clip.16.45.mp4" yields "16.45.mp4". Take the
+            // real extension from the last dot instead.
+            var nm = ("" + files.get(i, "fileName")).toLowerCase();
+            var e = nm.substring(nm.lastIndexOf(".") + 1);
             if (/^(mp4|mkv|webm|mov|avi|m4v|mp3|flac|wav|ogg|opus|m4a|aac|png|jpe?g|webp|gif|bmp|tif|tiff)$/.test(e))
                 return true;
         }

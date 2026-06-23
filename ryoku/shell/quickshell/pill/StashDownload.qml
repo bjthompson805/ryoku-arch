@@ -552,8 +552,11 @@ Rectangle {
                         id: mrow
                         required property string fileName
                         required property string filePath
-                        required property string fileSuffix
-                        readonly property bool isMedia: /^(mp4|mkv|webm|mov|avi|m4v|mp3|flac|wav|ogg|opus|m4a|aac|gif)$/i.test(fileSuffix)
+                        readonly property string ext: {
+                            var n = mrow.fileName.toLowerCase();
+                            return n.substring(n.lastIndexOf(".") + 1);
+                        }
+                        readonly property bool isMedia: /^(mp4|mkv|webm|mov|avi|m4v|mp3|flac|wav|ogg|opus|m4a|aac|gif)$/.test(mrow.ext)
                         width: mediaCol.width
                         height: isMedia ? 32 * root.s : 0
                         visible: isMedia
@@ -569,8 +572,8 @@ Rectangle {
                             anchors.leftMargin: 10 * root.s
                             anchors.verticalCenter: parent.verticalCenter
                             width: 14 * root.s; height: 14 * root.s
-                            name: /^(png|jpe?g|webp|gif|bmp)$/i.test(mrow.fileSuffix) ? "image"
-                                : /^(mp3|flac|wav|ogg|opus|m4a|aac)$/i.test(mrow.fileSuffix) ? "music" : "film"
+                            name: /^(png|jpe?g|webp|gif|bmp)$/.test(mrow.ext) ? "image"
+                                : /^(mp3|flac|wav|ogg|opus|m4a|aac)$/.test(mrow.ext) ? "music" : "film"
                             color: mrowArea.containsMouse ? Theme.cream : Theme.iconDim
                             stroke: 1.6
                         }
