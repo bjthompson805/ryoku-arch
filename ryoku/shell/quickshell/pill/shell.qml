@@ -477,7 +477,7 @@ ShellRoot {
                     bottomLeftRadius: pill.morphRadius
                     bottomRightRadius: pill.morphRadius
                     deformScale: 0
-                    opacity: Config.islandOpacity
+                    opacity: Config.islandOpacity * (Config.barEnabled ? Math.max(0, Math.min(1, (reveal - 0.35) / 0.4)) : 1)
                     states: State {
                         name: "shown"
                         when: pillBlob.present
