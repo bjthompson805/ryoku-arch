@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls as QQC
 import "Singletons"
 
 // The navigation rail: brand header, a global search field (it searches content
@@ -25,7 +26,7 @@ Rectangle {
     // Absolute y of a section's row, accounting for the group header drawn before
     // each new group. Drives the single sliding selector.
     function itemY(key) {
-        var y = rail.navTop;
+        var y = 0;
         var last = null;
         for (var i = 0; i < rail.sections.length; i++) {
             var s = rail.sections[i];
@@ -37,7 +38,7 @@ Rectangle {
                 return y;
             y += rail.navItemH;
         }
-        return rail.navTop;
+        return 0;
     }
 
     color: Theme.rail
@@ -47,33 +48,6 @@ Rectangle {
         width: 1
         height: parent.height
         color: Theme.line
-    }
-
-    // Sliding selection indicator (dimmed while a search is active, since the
-    // content then shows results rather than the highlighted section).
-    Rectangle {
-        id: selector
-        x: 12
-        width: rail.width - 24
-        height: 42
-        radius: 11
-        y: rail.itemY(rail.current) + (rail.navItemH - height) / 2
-        color: Theme.keyTop
-        border.width: 1
-        border.color: Theme.line
-        opacity: rail.query.length > 0 ? 0.4 : 1
-        Behavior on y { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
-        Behavior on opacity { NumberAnimation { duration: Theme.quick } }
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.margins: 1
-            height: 3
-            radius: 3
-            color: Theme.keyBot
-        }
     }
 
     // brand + search
@@ -145,57 +119,97 @@ Rectangle {
         }
     }
 
-    // grouped section list
-    Column {
+    // grouped section list, scrollable when it overflows the rail
+    Flickable {
+        id: navFlick
         anchors.left: parent.left
         anchors.right: parent.right
-        y: rail.navTop
-        spacing: 0
+        anchors.top: parent.top
+        anchors.topMargin: rail.navTop
+        anchors.bottom: footer.top
+        anchors.bottomMargin: 14
+        clip: true
+        contentHeight: listCol.height
+        boundsBehavior: Flickable.StopAtBounds
+        QQC.ScrollBar.vertical: QQC.ScrollBar { policy: QQC.ScrollBar.AsNeeded }
 
-        Repeater {
-            model: rail.sections
+        // Sliding selection indicator (scrolls with the list; dimmed during search).
+        Rectangle {
+            id: selector
+            x: 12
+            width: navFlick.width - 24
+            height: 42
+            radius: 11
+            y: rail.itemY(rail.current) + (rail.navItemH - height) / 2
+            color: Theme.keyTop
+            border.width: 1
+            border.color: Theme.line
+            opacity: rail.query.length > 0 ? 0.4 : 1
+            Behavior on y { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
+            Behavior on opacity { NumberAnimation { duration: Theme.quick } }
 
-            delegate: Column {
-                id: row
-                required property int index
-                required property var modelData
-                readonly property bool firstOfGroup: row.index === 0 || rail.sections[row.index - 1].group !== row.modelData.group
-                width: parent.width
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 1
+                height: 3
+                radius: 3
+                color: Theme.keyBot
+            }
+        }
 
-                Item {
+        Column {
+            id: listCol
+            width: navFlick.width
+            spacing: 0
+
+            Repeater {
+                model: rail.sections
+
+                delegate: Column {
+                    id: row
+                    required property int index
+                    required property var modelData
+                    readonly property bool firstOfGroup: row.index === 0 || rail.sections[row.index - 1].group !== row.modelData.group
                     width: parent.width
-                    height: row.firstOfGroup ? rail.groupHeaderH : 0
-                    visible: row.firstOfGroup
 
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: 28
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 6
-                        text: row.modelData.group
-                        color: Theme.faint
-                        font.family: Theme.mono
-                        font.pixelSize: 9
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 2
-                        font.capitalization: Font.AllUppercase
+                    Item {
+                        width: parent.width
+                        height: row.firstOfGroup ? rail.groupHeaderH : 0
+                        visible: row.firstOfGroup
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 28
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 6
+                            text: row.modelData.group
+                            color: Theme.faint
+                            font.family: Theme.mono
+                            font.pixelSize: 9
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 2
+                            font.capitalization: Font.AllUppercase
+                        }
                     }
-                }
 
-                NavButton {
-                    width: parent.width
-                    height: rail.navItemH
-                    icon: row.modelData.icon
-                    label: row.modelData.name
-                    badge: row.modelData.key === "updates" ? (Updates.available ? Updates.behind : 0) : 0
-                    selected: rail.current === row.modelData.key
-                    onClicked: rail.navigate(row.modelData.key)
+                    NavButton {
+                        width: parent.width
+                        height: rail.navItemH
+                        icon: row.modelData.icon
+                        label: row.modelData.name
+                        badge: row.modelData.key === "updates" ? (Updates.available ? Updates.behind : 0) : 0
+                        selected: rail.current === row.modelData.key
+                        onClicked: rail.navigate(row.modelData.key)
+                    }
                 }
             }
         }
     }
 
     Text {
+        id: footer
         anchors.left: parent.left
         anchors.leftMargin: 26
         anchors.bottom: parent.bottom

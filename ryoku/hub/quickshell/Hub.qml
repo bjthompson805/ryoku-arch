@@ -31,6 +31,7 @@ Rectangle {
         { "key": "autostart",   "name": "Autostart",    "icon": "rocket",   "group": "Session" },
         { "key": "environment", "name": "Environment",  "icon": "variable", "group": "Session" },
         { "key": "shell",       "name": "Shell",        "icon": "gear",     "group": "Desktop" },
+        { "key": "connections", "name": "Connections", "icon": "wifi",     "group": "Desktop" },
         { "key": "updates",     "name": "Updates",      "icon": "download", "group": "Desktop" },
         { "key": "extras",      "name": "Extras",       "icon": "sparkles", "group": "Desktop" }
     ]
@@ -48,6 +49,7 @@ Rectangle {
         "autostart":   { "title": "Autostart", "subtitle": "Commands that run when the session starts." },
         "environment": { "title": "Environment", "subtitle": "Environment variables for the Hyprland session." },
         "shell":       { "title": "Shell", "subtitle": "Tune the Ryoku shell: the frame, the island, the bar, and the desktop visualiser." },
+        "connections": { "title": "Connections", "subtitle": "Wi-Fi networks, Bluetooth devices, and your hotspot, all in one place." },
         "updates":     { "title": "Updates", "subtitle": "Updates pending for your Ryoku system." },
         "extras":      { "title": "Extras", "subtitle": "Curated bundles of extra tools, installed and removed with one click." }
     })
@@ -206,6 +208,7 @@ Rectangle {
         case "autostart": return autostartComp;
         case "environment": return environmentComp;
         case "updates": return updatesComp;
+        case "connections": return connectionsComp;
         case "extras": return extrasComp;
         default: return shellComp;
         }
@@ -226,6 +229,7 @@ Rectangle {
     Component { id: shellComp; ShellSettingsPage {} }
     Component { id: updatesComp; UpdatesPage {} }
     Component { id: extrasComp; ExtrasPage {} }
+    Component { id: connectionsComp; ConnectionsPage {} }
 
     Item {
         id: closeBtn

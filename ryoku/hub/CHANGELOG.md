@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- A **Connections** section: Wi-Fi, Bluetooth, and Hotspot, each a subtab
+  (`ConnectionsPage` + `WifiTab`/`BluetoothTab`/`HotspotTab`), ported from the shell's
+  Link surfaces into the hub palette. Wi-Fi lists live networks (Quickshell Networking)
+  with connect/disconnect, an inline password for secured unknowns (`nmcli --ask`, the
+  secret fed via stdin), and rescan; Bluetooth toggles the adapter, scans, and
+  connects/pairs (`bluetoothctl`); Hotspot toggles and edits the SSID/password for the
+  `RyokuHotspot` AP (`nmcli`). The nav rail now scrolls when its sections overflow,
+  keeping the 力 footer pinned.
 - A **Profile** section: a showcase screen built for sharable rice screenshots. The
   shell pill's SYSTEM specimen card, reproduced as a hub-palette twin (`ProfileCard`,
   fed by a hub `SysInfo` reading the shared `ryoku-sysinfo`), sits on the left as the
