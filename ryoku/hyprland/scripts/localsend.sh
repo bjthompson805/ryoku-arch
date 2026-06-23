@@ -178,26 +178,57 @@ class H(http.server.BaseHTTPRequestHandler):
         else:
             self._read(); self._send(404)
 def announce():
+    import re, subprocess, urllib.request
     try:
-        rx=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP)
-        rx.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        try: rx.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEPORT,1)
+        # Multicast must leave on the real LAN interface (exactly what discover
+        # does) or no other device ever sees us. Find the source IP the kernel
+        # would use to reach the group.
+        lan_ip = ''
+        try:
+            r = subprocess.check_output(["ip", "route", "get", MCAST], text=True)
+            m = re.search(r'src (\d+\.\d+\.\d+\.\d+)', r); lan_ip = m.group(1) if m else ''
+        except Exception: pass
+        rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try: rx.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         except OSError: pass
-        rx.bind(('',PORT))
-        rx.setsockopt(socket.IPPROTO_IP,socket.IP_ADD_MEMBERSHIP,struct.pack('4sL',socket.inet_aton(MCAST),socket.INADDR_ANY))
-        rx.settimeout(3.0)
-        tx=socket.socket(socket.AF_INET,socket.SOCK_DGRAM,socket.IPPROTO_UDP)
-        tx.setsockopt(socket.IPPROTO_IP,socket.IP_MULTICAST_TTL,4)
-        mine=lambda a: json.dumps({**INFO,"port":PORT,"protocol":"https","announce":a}).encode()
-        tx.sendto(mine(True),(MCAST,PORT)); last=time.time()
+        rx.bind(('', PORT))
+        mreq = (struct.pack('4s4s', socket.inet_aton(MCAST), socket.inet_aton(lan_ip)) if lan_ip
+                else struct.pack('4sL', socket.inet_aton(MCAST), socket.INADDR_ANY))
+        rx.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        rx.settimeout(2.5)
+        tx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        tx.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 4)
+        if lan_ip: tx.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(lan_ip))
+        ann = lambda a: json.dumps({**INFO, "port": PORT, "protocol": "https", "announce": a}).encode()
+        sslctx = ssl.create_default_context(); sslctx.check_hostname = False; sslctx.verify_mode = ssl.CERT_NONE
+        seen = set()
+        def register(ip):
+            # Tell the peer about us over HTTP too; this path does not depend on our
+            # multicast reaching them. Once per peer is enough, the periodic
+            # announce covers anyone who joins or restarts later.
+            if ip in seen: return
+            seen.add(ip)
+            try:
+                req = urllib.request.Request(
+                    "https://%s:%d/api/localsend/v2/register" % (ip, PORT),
+                    data=json.dumps({**INFO, "port": PORT, "protocol": "https"}).encode(),
+                    headers={"Content-Type": "application/json"}, method="POST")
+                urllib.request.urlopen(req, timeout=2, context=sslctx).read()
+            except Exception: pass
+        tx.sendto(ann(True), (MCAST, PORT)); last = time.time()
         while True:
             try:
-                data,_=rx.recvfrom(65536)
-                info=json.loads(data.decode())
-                if info.get('fingerprint')!=FP and info.get('announce'): tx.sendto(mine(False),(MCAST,PORT))
+                data, (sip, _) = rx.recvfrom(65536)
+                try: info = json.loads(data.decode())
+                except Exception: info = None
+                if info and info.get('fingerprint') != FP and info.get('announce'):
+                    tx.sendto(ann(False), (MCAST, PORT))
+                    threading.Thread(target=register, args=(sip,), daemon=True).start()
             except socket.timeout: pass
             except Exception: pass
-            if time.time()-last>3.0: tx.sendto(mine(True),(MCAST,PORT)); last=time.time()
+            if time.time() - last > 2.5:
+                tx.sendto(ann(True), (MCAST, PORT)); last = time.time()
     except Exception: pass
 try:
     ctx=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(CERT, KEY)
