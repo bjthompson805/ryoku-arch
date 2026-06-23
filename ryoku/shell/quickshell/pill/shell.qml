@@ -452,28 +452,32 @@ ShellRoot {
                     onPowerRequested: root.togglePopout(overlay.modelData.name, "power")
                 }
 
+                BlobGroup {
+                    // The bar-mode surface's own field, so the dropdown never fuses
+                    // the bar's border: it hangs as a separate panel below the bar
+                    // and rolls back up to close, leaving the bar's bottom edge
+                    // undeformed (a fused melt would swell it at the top centre).
+                    id: surfaceGroup
+                    color: Config.surfaceColor
+                    smoothing: Config.islandSmoothing
+                }
+
                 BlobRect {
-                    // The fused pill body, in the frame's field: it runs from the
-                    // screen top through the pill so its neck melts into the top
-                    // border. A blob leaves the SDF field only by collapsing to zero
-                    // size (the field ignores `visible`), so presence rides `height`:
-                    // `reveal` eases 0..1 to curtain it down out of the frame on show
-                    // and retract it on hide. Present only in the fused style.
                     id: pillBlob
-                    group: blobGroup
-                    // In bar mode the surface is a roller-blind: full open width,
-                    // fixed and centred, with only its height riding `reveal`. It
-                    // retracts straight up into the bar (never narrowing to a
-                    // centred tongue) and the shared blob field melts it into the
-                    // bar's bottom edge, the way edge popouts melt into a side.
+                    group: Config.barEnabled ? surfaceGroup : blobGroup
+                    // Island mode: a fused pill, its neck melted into the top frame,
+                    // spanning from the screen top. Bar mode: a non-fused dropdown in
+                    // its own field, hung flush below the bar (flat top, rounded
+                    // bottom) so the bar's edge never deforms; `reveal` rolls it down
+                    // to open and back up behind the bar to close.
                     readonly property real dropW: pill.openW
                     x: Config.barEnabled ? (overlay.width - pillBlob.dropW) / 2 : pill.x
-                    y: 0
+                    y: Config.barEnabled ? overlay.barVisibleH : 0
                     readonly property bool present: overlay.fused && overlay.islandShown
                     property real reveal: 0
                     visible: reveal > 0
                     width: Config.barEnabled ? pillBlob.dropW : pill.width
-                    height: (pill.y + (Config.barEnabled ? pill.openH : pill.height)) * reveal
+                    height: Config.barEnabled ? Math.max(0, pill.y + pill.openH - overlay.barVisibleH) * reveal : (pill.y + pill.height) * reveal
                     topLeftRadius: 0
                     topRightRadius: 0
                     bottomLeftRadius: pill.morphRadius
