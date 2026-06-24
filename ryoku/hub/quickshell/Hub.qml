@@ -31,6 +31,7 @@ Rectangle {
         { "key": "autostart",   "name": "Autostart",    "icon": "rocket",   "group": "Session" },
         { "key": "environment", "name": "Environment",  "icon": "variable", "group": "Session" },
         { "key": "shell",       "name": "Shell",        "icon": "gear",     "group": "Desktop" },
+        { "key": "widgets",     "name": "Desktop Widgets", "icon": "widgets",  "group": "Desktop" },
         { "key": "connections", "name": "Connections", "icon": "wifi",     "group": "Desktop" },
         { "key": "updates",     "name": "Updates",      "icon": "download", "group": "Desktop" },
         { "key": "extras",      "name": "Extras",       "icon": "sparkles", "group": "Desktop" }
@@ -49,6 +50,7 @@ Rectangle {
         "autostart":   { "title": "Autostart", "subtitle": "Commands that run when the session starts." },
         "environment": { "title": "Environment", "subtitle": "Environment variables for the Hyprland session." },
         "shell":       { "title": "Shell", "subtitle": "Tune the Ryoku shell: the frame, the island, the bar, and the desktop visualiser." },
+        "widgets":     { "title": "Desktop Widgets", "subtitle": "Clock and weather on the wallpaper: pick a design, size, shape, and placement, with a live preview that follows your palette." },
         "connections": { "title": "Connections", "subtitle": "Wi-Fi networks, Bluetooth devices, and your hotspot, all in one place." },
         "updates":     { "title": "Updates", "subtitle": "Updates pending for your Ryoku system." },
         "extras":      { "title": "Extras", "subtitle": "Curated bundles of extra tools, installed and removed with one click." }
@@ -207,6 +209,7 @@ Rectangle {
         case "layerrules": return layerRulesComp;
         case "autostart": return autostartComp;
         case "environment": return environmentComp;
+        case "widgets": return widgetsComp;
         case "updates": return updatesComp;
         case "connections": return connectionsComp;
         case "extras": return extrasComp;
@@ -227,6 +230,7 @@ Rectangle {
     Component { id: autostartComp; AutostartPage {} }
     Component { id: environmentComp; EnvironmentPage {} }
     Component { id: shellComp; ShellSettingsPage {} }
+    Component { id: widgetsComp; WidgetsPage {} }
     Component { id: updatesComp; UpdatesPage {} }
     Component { id: extrasComp; ExtrasPage {} }
     Component { id: connectionsComp; ConnectionsPage {} }

@@ -40,7 +40,8 @@ Item {
         "lock": "M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1H5a1 1 0 0 1 -1 -1v-8a1 1 0 0 1 1 -1z M8 11V7.5a4 4 0 0 1 8 0V11 M12 15v2.5",
         "play": "M8 5.4l11 6.6 -11 6.6z",
         "user": "M12 4.2a3.8 3.8 0 0 1 0 7.6a3.8 3.8 0 0 1 0 -7.6z M5 20a7 7 0 0 1 14 0",
-        "wifi": "M4 9.5a11 11 0 0 1 16 0 M7.5 13a6 6 0 0 1 9 0 M10.5 16.3a2 2 0 0 1 3 0 M12 19.2h.01"
+        "wifi": "M4 9.5a11 11 0 0 1 16 0 M7.5 13a6 6 0 0 1 9 0 M10.5 16.3a2 2 0 0 1 3 0 M12 19.2h.01",
+        "widgets": "M4 4h6v6h-6z M14 4h6v6h-6z M4 14h6v6h-6z M14 14h6v6h-6z"
     })
 
     readonly property string d: defs[name] !== undefined ? defs[name] : ""

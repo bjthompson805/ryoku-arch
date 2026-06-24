@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- A **Desktop Widgets** section: a live editor for the clock and weather widgets
+  on the wallpaper (`WidgetsPage`, with Clock and Weather tabs). Each tab pairs a
+  live preview that mirrors the running design (`ClockPreview`/`WeatherPreview`,
+  driven by the real wallust palette via a new hub `Wallust` singleton) with full
+  controls: face/design, 12/24h and seconds, the date design, the C/F unit and
+  today/week scope, the accent source, size, background (none/card/glass) and
+  radius, placement (a snap zone or a free X/Y) with a desktop lock, and opacity. Edits write
+  `~/.config/ryoku/widgets.json` throttled and atomically (the widgets host
+  watches it, so the desktop retunes live), with Save/Revert/Reset and a
+  leave-without-save restore, matching Shell Settings. Adds a `widgets` nav icon.
 - A **Connections** section: Wi-Fi, Bluetooth, and Hotspot, each a subtab
   (`ConnectionsPage` + `WifiTab`/`BluetoothTab`/`HotspotTab`), ported from the shell's
   Link surfaces into the hub palette. Wi-Fi lists live networks (Quickshell Networking)
