@@ -164,6 +164,10 @@ Item {
         readonly property var now: sysClock.date
         readonly property string hhmm: Qt.formatTime(now, "HH:mm")
         readonly property string date: loc.toString(now, "ddd d MMM")
+        readonly property string hh: Qt.formatTime(now, "HH")
+        readonly property string mm: Qt.formatTime(now, "mm")
+        readonly property string weekday: loc.toString(now, "ddd").toUpperCase()
+        readonly property string daymon: loc.toString(now, "d MMM").toUpperCase()
     }
 
     SystemClock {
@@ -301,7 +305,7 @@ Item {
     readonly property point wakePoint: {
         void pill.width;
         void pill.height;
-        return restKanji.mapToItem(pill, restKanji.width / 2, restKanji.height / 2);
+        return restClock.mapToItem(pill, restClock.width / 2, restClock.height / 2);
     }
 
     /**
@@ -401,39 +405,63 @@ Item {
             anchors.centerIn: parent
             anchors.verticalCenterOffset: -5 * pill.s
             spacing: 9 * pill.s
-            Item {
-                id: restKanji
+            // Clock: tabular HH:MM with a vermilion colon, the dossier accent.
+            Row {
+                id: restClock
                 anchors.verticalCenter: parent.verticalCenter
-                width: kanjiFill.implicitWidth
-                height: kanjiFill.implicitHeight
+                spacing: 0
 
                 Text {
-                    anchors.fill: parent
-                    text: kanjiFill.text
-                    color: "transparent"
-                    font: kanjiFill.font
-                    style: Text.Outline
-                    styleColor: Qt.alpha(Theme.brand,
-                        Math.min(1, (pill.mode === "rest" || !pill.hoverSoulGate ? 0.5 : 0) + pill.kanjiFlash))
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: clock.hh
+                    color: Theme.cream
+                    font.family: Theme.font
+                    font.pixelSize: 17 * pill.s
+                    font.weight: Font.DemiBold
+                    font.features: { "tnum": 1 }
                 }
-
                 Text {
-                    id: kanjiFill
-                    text: "力"
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: ":"
                     color: Theme.brand
-                    font.family: Theme.fontJp
-                    font.weight: Font.Medium
-                    font.pixelSize: 15 * pill.s
+                    font.family: Theme.font
+                    font.pixelSize: 17 * pill.s
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: clock.mm
+                    color: Theme.cream
+                    font.family: Theme.font
+                    font.pixelSize: 17 * pill.s
+                    font.weight: Font.DemiBold
+                    font.features: { "tnum": 1 }
                 }
             }
-            Text {
+
+            // Date: a stacked mono micro-label, in the deck's dossier idiom.
+            Column {
                 anchors.verticalCenter: parent.verticalCenter
-                text: clock.hhmm
-                color: Theme.cream
-                font.family: Theme.font
-                font.pixelSize: 16 * pill.s
-                font.weight: Font.DemiBold
-                font.features: { "tnum": 1 }
+                spacing: 1 * pill.s
+
+                Text {
+                    text: clock.weekday
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: 7.5 * pill.s
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.3 * pill.s
+                    font.capitalization: Font.AllUppercase
+                }
+                Text {
+                    text: clock.daymon
+                    color: Theme.faint
+                    font.family: Theme.mono
+                    font.pixelSize: 7.5 * pill.s
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.3 * pill.s
+                    font.capitalization: Font.AllUppercase
+                }
             }
         }
 

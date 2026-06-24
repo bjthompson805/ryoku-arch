@@ -175,6 +175,10 @@
   the Ryoku wave as the charge gauge, and a rate/time/capacity/health stat grid.
   The pill calendar's today cell is a warm brand marker (vermilion fill, ring,
   flame lap) instead of the cool frame.
+- `quickshell/pill`: the island's rest state (idle, collapsed) drops the 力 stamp
+  for a cleaner read. A tabular `HH:MM` clock with a vermilion colon leads a
+  stacked mono weekday/date, above the workspace wave; the Ame bead's rest anchor
+  moves from the stamp to the clock.
 - `quickshell/pill` stash: the action bar lights only what applies. It reads the
   live file types (`Stash.hasMedia` / `hasInstallable`), so Compress dims unless
   there is a video/image/audio file and Install dims unless there is an AppImage or
