@@ -14,7 +14,9 @@ package as the base config under `/usr/share/ryoku/config`, which
 - `quickshell/` The UI, hand-written Quickshell (QML): `pill` (the morphing top
   island; it also draws the screen frame and hosts the edge popouts under
   `pill/popouts/`, the mixer and power), `sidebar`, `ryoshot` (screenshot and
-  annotation), and `visualizer` (the wallust-tinted desktop audio spectrum).
+  annotation), `visualizer` (the wallust-tinted desktop audio spectrum), and
+  `widgets` (the desktop clock and weather on the wallpaper: drag to move,
+  right-click for the menu).
   These render the shell; they hold no daemon logic.
   The `pill/Singletons/Config` and `visualizer/Singletons/Config` singletons read
   the live appearance config from `~/.config/ryoku/shell.json` (frame and island
@@ -23,6 +25,9 @@ package as the base config under `/usr/share/ryoku/config`, which
   reflection, idle wave), watched so
   Ryoku Settings' Shell section retunes the look with no reload; their defaults are the
   shipped look and seed the files on first run.
+  The `widgets/Singletons/Config` singleton reads `~/.config/ryoku/widgets.json`
+  the same way for the desktop clock and weather (design, size, shape, placement,
+  unit, scope); Ryoku Settings' Desktop Widgets section edits it.
 - `plugin/` `Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders
   with: the border, the pill, and the popouts melt into one blob field. `build.sh`
   builds it with cmake onto a QML import path, and it ships prebuilt. See

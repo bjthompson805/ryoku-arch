@@ -35,6 +35,10 @@ each their own directory under `quickshell/`, each component its own `.qml`:
   choosing a new keyring password), grown from the pill centre rather than gcr's
   centred dialog. The `ryoku-shell` daemon acts as the keyring system prompter
   and drives it; `KeyringSurface.qml` renders it.
+- desktop widgets the clock and weather that sit on the wallpaper, a click-through
+  `WlrLayer.Bottom` surface configured in Ryoku Settings' Desktop Widgets section.
+  Their motion and palette follow the same rules as the chrome; the faces and
+  weather skies live under `ryoku/shell/quickshell/widgets`.
 
 ## Motion
 

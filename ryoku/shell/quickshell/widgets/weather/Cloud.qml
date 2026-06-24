@@ -1,0 +1,49 @@
+import QtQuick
+
+/**
+ * One soft cloud: a base bar with three puffs, built from rounded rectangles so it
+ * scales crisply at any widget size. Shared by every overcast sky (clouds, rain,
+ * snow, storm) so the cloud shape lives in one place. `tint` and `glow` colour the
+ * body and a faint top highlight.
+ */
+Item {
+    id: cloud
+
+    property color tint: "#e6ebff"
+    property real solid: 0.92
+
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: parent.width
+        height: parent.height * 0.46
+        radius: height / 2
+        color: Qt.rgba(cloud.tint.r, cloud.tint.g, cloud.tint.b, cloud.solid)
+    }
+    Rectangle {
+        x: parent.width * 0.08
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: parent.height * 0.18
+        width: parent.height * 0.62
+        height: width
+        radius: width / 2
+        color: Qt.rgba(cloud.tint.r, cloud.tint.g, cloud.tint.b, cloud.solid)
+    }
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        width: parent.height * 0.86
+        height: width
+        radius: width / 2
+        color: Qt.rgba(cloud.tint.r, cloud.tint.g, cloud.tint.b, cloud.solid)
+    }
+    Rectangle {
+        x: parent.width * 0.92 - width
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: parent.height * 0.16
+        width: parent.height * 0.66
+        height: width
+        radius: width / 2
+        color: Qt.rgba(cloud.tint.r, cloud.tint.g, cloud.tint.b, cloud.solid)
+    }
+}
