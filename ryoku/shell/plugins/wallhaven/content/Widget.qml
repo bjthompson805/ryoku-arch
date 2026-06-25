@@ -29,12 +29,14 @@ Item {
 
     readonly property var service: pluginApi ? pluginApi.mainInstance : null
 
-    // The one content width. Fixed per density; `full` may stretch to the host's
-    // budget. Everything sizes from this, so nothing depends on a parent width
-    // that has not resolved yet.
+    // The one content width. Fixed per density; `full` honors the host's
+    // budget (so the popout's 360-wide body actually constrains the layout to
+    // 360 — never overshoots and pushes the right-anchored pager off-screen).
+    // Everything sizes from this, so nothing depends on a parent width that has
+    // not resolved yet.
     readonly property real contentW: density === "glyph" ? 26 * s
         : density === "compact" ? 360 * s
-        : Math.max(560 * s, widthBudget)
+        : (widthBudget > 0 ? widthBudget : 560 * s)
 
     implicitWidth: contentW
     implicitHeight: density === "glyph" ? 26 * s
@@ -98,7 +100,7 @@ Item {
         WhChips { width: root.contentW; s: root.s; service: root.service }
         WhGrid {
             width: root.contentW; s: root.s; service: root.service
-            columns: 3; maxRows: 4
+            columns: 3; maxRows: 3
             onApply: (item) => root.service?.setAsWallpaper(item)
             onWeb: (item) => root.service?.openInWeb(item)
         }

@@ -85,12 +85,19 @@ Item {
             radius: root.radius
             smoothing: root.smoothing
             edge: (place.framePopout && ["left", "right", "top", "bottom"].indexOf(place.framePopout.edge) >= 0) ? place.framePopout.edge : "right"
-            align: (place.framePopout && place.framePopout.align) ? place.framePopout.align : "center"
+            align: (place.framePopout && place.framePopout.align) ? place.framePopout.align : "start"
             s: root.s
             active: root.active
             pinned: root.pinnedId === modelData.id
-            openW: 360 * root.s
-            openH: 460 * root.s
+            // Body fits the content vertically: openH derives from the loaded
+            // content's intrinsic height plus inner padding, so there is no
+            // deadspace. Width is fixed (the content lays out to contentW) and the
+            // content is inset by `pad` so nothing sits flush against the edges.
+            readonly property real pad: 16 * root.s
+            readonly property real contentW: 360 * root.s
+            readonly property real contentH: contentLoader.item ? contentLoader.item.implicitHeight : 420 * root.s
+            openW: contentW + pad * 2
+            openH: contentH + pad * 2
             hoverW: (place.framePopout && place.framePopout.hoverW) ? place.framePopout.hoverW * root.s : 0
             hoverH: (place.framePopout && place.framePopout.hoverH) ? place.framePopout.hoverH * root.s : 0
 
@@ -111,13 +118,14 @@ Item {
             Loader {
                 id: contentLoader
                 anchors.fill: parent
+                anchors.margins: pop.pad
                 source: "file://" + pop.modelData.dir + "/content/Widget.qml"
                 onLoaded: {
                     if (!item) return;
                     item.pluginApi = pop.api;
                     item.density = "full";
                     item.s = root.s;
-                    item.widthBudget = pop.openW;
+                    item.widthBudget = pop.contentW;
                     item.active = Qt.binding(() => pop.prog > 0.5);
                 }
             }
