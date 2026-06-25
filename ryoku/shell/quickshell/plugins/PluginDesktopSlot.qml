@@ -97,14 +97,10 @@ Item {
         border.color: slot.bg === "card" ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.16)
     }
 
-    Item {
-        id: holder
-        x: slot.pad
-        y: slot.pad
-        width: slot.cw
-        height: slot.ch
-    }
-
+    // Drag grip UNDER the content: a left-drag on empty card chrome (the header
+    // eyebrow, padding) moves the tile, while clicks on the plugin's own controls
+    // (chips, thumbnails, search) pass to the content on top. A grip above the
+    // content would swallow every click (the reported "unresponsive to clicks").
     MouseArea {
         id: grip
         anchors.fill: parent
@@ -139,5 +135,13 @@ Item {
             }
             grip.down = false;
         }
+    }
+
+    Item {
+        id: holder
+        x: slot.pad
+        y: slot.pad
+        width: slot.cw
+        height: slot.ch
     }
 }
