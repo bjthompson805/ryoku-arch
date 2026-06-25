@@ -373,24 +373,35 @@ Deferred to fast-follow (documented, not silently dropped):
 - Remote-catalogue browse/install of plugins inside the Hub page (the page
   manages installed plugins today; install is via the Extras bundle path).
 
-Known issue (root cause isolated):
+Fixes landed (widget now renders fully and search works end-to-end):
 
-- `Image`s do not composite inside the edge **`Popout` body** path
-  (`pill/popouts/Popout.qml`), so wallhaven's result thumbnails are blank when it
-  is a frame popout. Isolated by experiment: the `Image` reaches `Ready` with
-  correct geometry (300x200, visible, opacity 1, unoccluded), and a **local
-  file** image fails there too, so it is not remote/SSL/cache/async/size/clip.
-  `ClippingRectangle` (the shell's image clipper) and `layer.enabled` FBO on the
-  whole content both fail in this path. The same `Image` patterns render fine in
-  the pill's centre-island surfaces (Media album art), so it is specific to the
-  edge-popout body, which had never hosted an `Image` before (Mixer/Power are
-  vector-only). All other plugin content (text, chips, borders, search) renders
-  natively in the popout. Fix path: render frame-popout plugin content through
-  the proven centre/`PillSurface` texture path, or fix the `Popout` body's
-  scene-graph clip to composite `Image` nodes; needs Quickshell-level work. The
-  DesktopWidget host (independent layer, no popout clip) is unaffected.
-- The thumb tiles use `ClippingRectangle` (committed), the shell-native pattern,
-  so they render correctly in every host except the edge-popout body above.
+- Sizing model rebuilt: a single `contentW` is propagated to every child
+  explicitly (not `parent.width` through nested layouts), so the search box,
+  chips, and grid no longer collapse to zero height. The widget renders all of
+  WALLHAVEN eyebrow + styled search box (力 glyph + placeholder) + Latest/Top
+  week/Top month chips + the result grid. Verified live.
+- Search works: the service ran with an empty command path because (a) setting
+  `Process.environment` to a dict cleared PATH (curl/jq vanished) and (b) a
+  cached `commandPath` binding captured an empty `pluginDir` before the host
+  wired `pluginApi`. Fixed by injecting the API key via an `env KEY=val` prefix
+  (never replacing the environment) and computing the path fresh via `cmdPath()`
+  at call time, plus a service-side `onReadyChanged` initial search. Verified:
+  the search returns 24 results and the grid populates with 6 cells.
+- Content is loaded via `PluginContent` (Qt.createComponent + createObject)
+  rather than `Loader { source: url }`.
+
+Remaining defect (image-texture compositing):
+
+- Result-grid **thumbnail `Image`s do not paint** in either host (frame popout
+  OR desktop widget). Exhaustively isolated: the `Image` reaches `Ready` with
+  correct geometry, in an UNCLIPPED desktop layer, with a local file, with and
+  without `ClippingRectangle`, with/without `sourceSize`, async/sync, FBO layer,
+  and via Loader or createComponent. A single top-level `Image` renders; the
+  failing case is `Image` nodes inside `Grid > Repeater` delegates within
+  externally-loaded plugin content. This is a Quickshell scene-graph interaction
+  that needs platform-level investigation (e.g. a custom texture node, or the
+  Blobs plugin's texture path), not widget code. Everything else in the widget
+  renders and functions natively.
 
 ## Decisions taken (defaults; confirm or override on review)
 
