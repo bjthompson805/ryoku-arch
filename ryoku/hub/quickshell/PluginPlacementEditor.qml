@@ -64,9 +64,52 @@ Item {
             visible: ed.host === "framePopout"
 
             readonly property string edge: (ed.place && ed.place.framePopout && ed.place.framePopout.edge) ? ed.place.framePopout.edge : "right"
-            readonly property string align: (ed.place && ed.place.framePopout && ed.place.framePopout.align) ? ed.place.framePopout.align : "center"
+            readonly property string align: (ed.place && ed.place.framePopout && ed.place.framePopout.align) ? ed.place.framePopout.align : "start"
             readonly property bool vertical: edge === "left" || edge === "right"
             id: fp
+
+            // The shell pre-reserves the centre of every edge (top: island,
+            // left: mixer, right: power menu, bottom: kept clear for symmetry),
+            // so a plugin can't dock there. The band makes the reservation
+            // visible while dragging and the release snap collapses the middle
+            // third to start/end so `center` is never written.
+            Rectangle {
+                id: reservedBand
+                readonly property real m: 10
+                readonly property real bandThickness: fp.vertical ? 64 : 60
+                x: fp.edge === "left" ? m
+                 : fp.edge === "right" ? parent.width - bandThickness - m
+                 : parent.width / 3
+                y: fp.edge === "top" ? m
+                 : fp.edge === "bottom" ? parent.height - bandThickness - m
+                 : parent.height / 3
+                width: fp.vertical ? bandThickness : parent.width / 3
+                height: fp.vertical ? parent.height / 3 : bandThickness
+                radius: 8
+                color: Qt.rgba(1, 1, 1, 0.03)
+                Canvas {
+                    id: dashed
+                    anchors.fill: parent
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        ctx.reset();
+                        ctx.strokeStyle = Theme.dim.toString();
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([4, 3]);
+                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
+                    }
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
+                }
+                Text {
+                    anchors.centerIn: parent
+                    text: "reserved"
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: 9
+                    font.letterSpacing: 1.5
+                }
+            }
 
             // The popout body preview: a rounded chip docked to the chosen edge,
             // positioned by align. Drag it along the edge to change align.
@@ -111,7 +154,10 @@ Item {
                         if (fp.vertical) { pos = parent.y + parent.height / 2; span = parent.parent.height; }
                         else { pos = parent.x + parent.width / 2; span = parent.parent.width; }
                         var t = pos / span;
-                        var a = t < 0.34 ? "start" : t > 0.66 ? "end" : "center";
+                        // The centre third is reserved (island/mixer/power), so
+                        // we collapse the middle band onto whichever of start/end
+                        // is nearer; `center` is never written.
+                        var a = t < 0.5 ? "start" : "end";
                         ed.changed("framePopout", [fp.edge, a, fp.hoverW(), fp.hoverH()]);
                     }
                 }
@@ -173,7 +219,7 @@ Item {
                 }
                 TapHandler {
                     onTapped: {
-                        var a = (ed.place && ed.place.framePopout && ed.place.framePopout.align) ? ed.place.framePopout.align : "center";
+                        var a = (ed.place && ed.place.framePopout && ed.place.framePopout.align) ? ed.place.framePopout.align : "start";
                         var hw = (ed.place && ed.place.framePopout && ed.place.framePopout.hoverW) ? ed.place.framePopout.hoverW : 320;
                         var hh = (ed.place && ed.place.framePopout && ed.place.framePopout.hoverH) ? ed.place.framePopout.hoverH : 16;
                         ed.changed("framePopout", [edgeCell.modelData.k, a, hw, hh]);
