@@ -80,6 +80,7 @@ install -m755 "$here/../../system/hardware/display/ryoku-monitor" "$bindir/ryoku
 for s in "$here/../../system/extras"/ryoku-*; do
   install -m755 "$s" "$bindir/${s##*/}"
 done
+install -m755 "$here/quickshell/plugins/ryoku-plugins-place" "$bindir/ryoku-plugins-place"
 say "installed Ryoku CLI and hardware helpers"
 
 # Record the checkout this deploy came from and the commit it laid down, so the
@@ -106,6 +107,12 @@ if command -v cmake >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
 else
   say "skipping Ryoku.Blobs plugin (cmake/ninja not found)"
 fi
+
+# Install the Ryoku.PluginKit QML module (the signature kit a plugin imports for
+# its content) onto the same import path. Pure QML, so a plain copy, no toolchain.
+say "installing Ryoku.PluginKit module"
+"$here/quickshell/plugins/kit/install.sh" "$qmldir"
+say "installed Ryoku.PluginKit -> $qmldir/Ryoku/PluginKit"
 
 # Quickshell components: a deployed daemon runs `qs -c <name>`, reading
 # ~/.config/quickshell/<name>.

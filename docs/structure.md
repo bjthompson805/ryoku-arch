@@ -35,7 +35,11 @@ truth for the live desktop.
   morphing top island, which also draws the screen frame, hosts the edge popouts
   under `pill/popouts/`, and grows centre-island surfaces like the Super+D toolkit
   and the Super+U utilities), `sidebar`, `ryoshot`, and `widgets` (the desktop
-  clock and weather on the wallpaper)),
+  clock and weather on the wallpaper), and `plugins` (the third-party shell
+  plugin runtime: `discover.sh` merges the catalogue with the user's
+  `plugins.json`, `shell.qml` is the desktop-widget host layer, and `kit/` is the
+  `Ryoku.PluginKit` QML module a plugin imports for the signature look; see
+  `docs/plugins.md`)),
   `plugin/` (`Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders
   with; `build.sh` builds it, and it ships prebuilt), `wallust/` (palette from
   the wallpaper), `kde/` (`kdeglobals`),

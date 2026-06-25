@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- `ryoku-desktop` now ships the `Ryoku.PluginKit` QML module (to
+  `/usr/lib/qt6/qml/Ryoku/PluginKit`, beside `Ryoku.Blobs`) and the
+  `ryoku-plugins-place` helper on PATH, so shell plugins find the signature kit
+  and persist their placement on an installed system. The `plugins` Quickshell
+  config rides along in the packaged `quickshell/` tree.
+
 ### Changed
 - The desktop packages built from the monorepo (`ryoku-desktop`, `ryoku`,
   `ryoku-shell`, `ryoku-hub`, `ryoku-blobs`) are now versioned per build as

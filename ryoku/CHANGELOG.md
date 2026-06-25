@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `shell/quickshell/plugins` + `hub/quickshell/PluginsPage`: a shell plugin
+  system. A plugin ships a service + one adaptive `content/Widget.qml` (glyph /
+  compact / full); the shell owns each host's layer, shape, size, and motion, so
+  plugins read as native. v1 hosts: frame popout (fused into the frame blob in the
+  pill) and desktop widget (the wallpaper layer). Discovery is
+  `plugins/discover.sh` (catalogue + `~/.config/ryoku/plugins.json`), the
+  signature kit is the `Ryoku.PluginKit` QML module (`plugins/kit`), placement is
+  edited in Ryoku Settings -> Plugins and persisted by `ryoku-plugins-place`, and
+  `ryoku-shell plugin <id>` toggles a frame popout. The legacy `wallhaven` plugin
+  is reworked as the worked example. See `docs/plugins.md`.
 - `hyprland/binds` + `hyprland/resize`: working window resize. `Super + Ctrl +
   arrows` resize the active window directly (repeating); the `Super + R` resize
   mode also accepts `hjkl`, exits on `Super + R`, `Esc`, or `Return`, and shows a

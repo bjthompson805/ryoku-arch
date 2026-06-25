@@ -98,6 +98,14 @@ package() {
   install -d "$cfg/quickshell/hub"
   cp -a "$_repo/ryoku/hub/quickshell/." "$cfg/quickshell/hub/"
 
+  # Ryoku.PluginKit: the signature QML kit a shell plugin imports for its
+  # content. Pure QML, installed onto the system import path next to Ryoku.Blobs
+  # so plugins (loaded from outside the shell tree) can import it.
+  install -d "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit"
+  cp -a "$_repo/ryoku/shell/quickshell/plugins/kit/." "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit/"
+  rm -f "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit/install.sh"
+  chmod -R u=rwX,go=rX "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit"
+
   # Wallust palette generation (templates feed the kitty, Hyprland, and shell colors).
   install -d "$cfg/wallust"
   cp -a "$_repo/ryoku/shell/wallust/." "$cfg/wallust/"
@@ -140,6 +148,11 @@ package() {
   done
   install -Dm755 "$_repo/ryoku/apps/fastfetch/ryoku-fastfetch" \
     "$pkgdir/usr/bin/ryoku-fastfetch"
+
+  # Plugin placement helper: the desktop drag and Ryoku Settings call it to
+  # persist a plugin's host/position into ~/.config/ryoku/plugins.json.
+  install -Dm755 "$_repo/ryoku/shell/quickshell/plugins/ryoku-plugins-place" \
+    "$pkgdir/usr/bin/ryoku-plugins-place"
 
   # GPU primary-renderer udev rule: boot-stable /dev/dri/ryoku-gpu-* symlinks
   # that ryoku-gpu pins via AQ_DRM_DEVICES. Vendor location -> active on boot,
