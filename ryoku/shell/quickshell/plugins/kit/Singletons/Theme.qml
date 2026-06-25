@@ -7,9 +7,9 @@ Singleton {
     readonly property color verm:     brand
     readonly property color vermLit:  "#ff7a45"
     readonly property color vermDeep: "#c4411d"
-    readonly property color cream:    "#c0caf5"
-    readonly property color bright:   "#e0e6ff"
-    readonly property color dim:      "#7aa2f7"
+    readonly property color cream:    "#e8ebfa"
+    readonly property color bright:   "#f2f4ff"
+    readonly property color dim:      "#8fb0f5"
     readonly property color cardTop:  "#1a1b26"
     readonly property color cardBot:  "#16161e"
     readonly property color border:   "#2f3549"
