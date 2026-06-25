@@ -22,6 +22,14 @@ Singleton {
     readonly property color accent:  vivid(adapter.color4)
     readonly property color accent2: vivid(adapter.color5)
 
+    // Shell-wide "Match wallpaper" toggle (shell.json) and the surface ramp it
+    // drives: base is exactly the terminal background, the rest shift its value.
+    readonly property bool  matchWallpaper: shellCfg.matchWallpaper
+    readonly property color base:     background
+    readonly property color elevated: tone(background, 0.05)
+    readonly property color deep:     tone(background, -0.03)
+    readonly property color line:     tone(background, 0.14)
+
     readonly property var ramp: [
         vivid(adapter.color1),
         vivid(adapter.color3),
@@ -38,6 +46,12 @@ Singleton {
         var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
         var sat = c.hsvSaturation < 0.06 ? 0 : Math.min(1, c.hsvSaturation * 1.2 + 0.06);
         return Qt.hsva(hue, sat, Math.max(c.hsvValue, 0.74), 1);
+    }
+
+    // Shift a colour's HSV value by dv (hue and saturation kept), for the ramp.
+    function tone(c, dv) {
+        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
+        return Qt.hsva(hue, c.hsvSaturation, Math.max(0, Math.min(1, c.hsvValue + dv)), 1);
     }
 
     // Linear-interpolate the ramp at t in [0,1].
@@ -84,6 +98,18 @@ Singleton {
             property color color13: "#bb9af7"
             property color color14: "#7dcfff"
             property color color15: "#c0caf5"
+        }
+    }
+
+    FileView {
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        JsonAdapter {
+            id: shellCfg
+            property bool matchWallpaper: false
         }
     }
 }

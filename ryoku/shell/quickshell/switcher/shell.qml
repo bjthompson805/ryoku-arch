@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Widgets
+import Quickshell.Io
 
 /**
  * Window switcher: a full-screen Alt-Tab overlay launched as its own `qs -c
@@ -19,9 +20,36 @@ ShellRoot {
     id: root
 
     readonly property color dimBg:   Qt.rgba(0, 0, 0, 0.45)
-    readonly property color cardTop: "#1a1b26"
-    readonly property color cardBot: "#16161e"
-    readonly property color border:  "#2f3549"
+    readonly property bool matchWallpaper: switchCfg.matchWallpaper
+    readonly property color wallBase: switchPalette.background
+    readonly property color cardTop: matchWallpaper ? wallBase : "#1a1b26"
+    readonly property color cardBot: matchWallpaper ? tone(wallBase, -0.03) : "#16161e"
+    readonly property color border:  matchWallpaper ? tone(wallBase, 0.14) : "#2f3549"
+
+    // Shift a colour's HSV value by dv (hue and saturation kept), for the ramp.
+    function tone(c, dv) {
+        var hue = c.hsvHue < 0 ? 0 : c.hsvHue;
+        return Qt.hsva(hue, c.hsvSaturation, Math.max(0, Math.min(1, c.hsvValue + dv)), 1);
+    }
+
+    // The shell-wide Match wallpaper toggle (shell.json) and the live palette
+    // (colors.json), mirrored locally since the switcher is its own qs config.
+    FileView {
+        path: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/wallust/colors.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        JsonAdapter { id: switchPalette; property color background: "#1a1b26" }
+    }
+    FileView {
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        JsonAdapter { id: switchCfg; property bool matchWallpaper: false }
+    }
     readonly property color accent:  "#7aa2f7"
     readonly property color cream:   "#c0caf5"
     readonly property color dim:     "#7aa2f7"

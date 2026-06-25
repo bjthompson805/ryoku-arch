@@ -305,7 +305,7 @@ Item {
             id: chipText
             anchors.centerIn: parent
             text: chip.text
-            color: chip.on ? "#1a1b26" : Theme.subtle
+            color: chip.on ? (Wallust.matchWallpaper ? Wallust.base : "#1a1b26") : Theme.subtle
             font.family: Theme.font
             font.pixelSize: 12 * chip.s
             font.weight: Font.DemiBold

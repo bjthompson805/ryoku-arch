@@ -24,8 +24,8 @@ Singleton {
     // Carbon-dossier surface, for the desktop menu (chrome that should read as the
     // same shell as the pill): a cool near-black panel, a faint hairline for rules
     // and registration ticks, and a faint ink for eyebrow labels.
-    readonly property color cardTop: "#1a1b26"
-    readonly property color cardBot: "#13131b"
+    readonly property color cardTop: Wallust.matchWallpaper ? Wallust.base : "#1a1b26"
+    readonly property color cardBot: Wallust.matchWallpaper ? Wallust.deep : "#13131b"
     readonly property color hair:    Qt.rgba(245 / 255, 243 / 255, 255 / 255, 0.13)
     readonly property color faint:   Qt.rgba(245 / 255, 243 / 255, 255 / 255, 0.42)
 

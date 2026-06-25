@@ -60,9 +60,11 @@ Singleton {
     property alias fontFamily: adapter.fontFamily
     property alias fontScale:  adapter.fontScale
 
-    // Match wallpaper: when on, the pill's surface fill and accent follow the
-    // wallust palette (Wallust singleton) instead of surfaceColor / the brand
-    // orange, so the shell retunes to the wallpaper. Off by default.
+    // Match wallpaper: when on, every shell surface (the frame, island, popouts and
+    // all surfaces, plus the desktop widgets, plugin tiles and the window switcher)
+    // follows the live wallust palette instead of the static Tokyo Night tokens, so
+    // the shell's background matches the open terminal's. Each component reads this
+    // same shell.json flag. Off by default.
     property alias matchWallpaper: adapter.matchWallpaper
 
     FileView {
