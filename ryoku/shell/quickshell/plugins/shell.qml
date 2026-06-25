@@ -63,16 +63,13 @@ ShellRoot {
                         onLoaded: if (item) item.pluginApi = slot.api
                     }
 
-                    PluginContent {
-                        id: contentLoader
-                        url: "file://" + slot.modelData.dir + "/content/Widget.qml"
-                        configure: (it) => {
-                            it.pluginApi = slot.api;
-                            it.density = "compact";
-                            it.s = 1;
-                            it.widthBudget = 360;
-                            it.active = true;
-                        }
+                    contentUrl: "file://" + slot.modelData.dir + "/content/Widget.qml"
+                    configure: (it) => {
+                        it.pluginApi = slot.api;
+                        it.density = "compact";
+                        it.s = 1;
+                        it.widthBudget = 360;
+                        it.active = true;
                     }
                 }
             }

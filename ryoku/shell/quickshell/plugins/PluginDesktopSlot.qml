@@ -24,11 +24,33 @@ Item {
 
     signal moved(real x, real y)
 
-    default property alias content: holder.data
+    // Create the plugin widget directly as a child of `holder` (via
+    // createComponent, which renders Image correctly where Loader does not), so
+    // the slot measures the widget's own implicit size exactly like WidgetSlot
+    // hosts Clock directly. No wrapper Item between slot and widget.
+    property string contentUrl: ""
+    property var configure: null
+    property var item: null
+    onContentUrlChanged: _build()
+    Component.onCompleted: _build()
+    function _build() {
+        if (item) { item.destroy(); item = null; }
+        if (!contentUrl || contentUrl.length === 0) return;
+        var c = Qt.createComponent(contentUrl);
+        function make() {
+            if (c.status === Component.Ready) {
+                item = c.createObject(holder);
+                if (item && configure) configure(item);
+            } else if (c.status === Component.Error) {
+                console.warn("PluginDesktopSlot:", c.errorString());
+            }
+        }
+        if (c.status === Component.Loading) c.statusChanged.connect(make);
+        else make();
+    }
 
-    readonly property Item item: holder.children.length > 0 ? holder.children[0] : null
-    readonly property real cw: slot.item ? slot.item.implicitWidth : 100
-    readonly property real ch: slot.item ? slot.item.implicitHeight : 100
+    readonly property real cw: item ? item.implicitWidth : 100
+    readonly property real ch: item ? item.implicitHeight : 100
 
     property bool dragging: false
     property real dragX: 0
