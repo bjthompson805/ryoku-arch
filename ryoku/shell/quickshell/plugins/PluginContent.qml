@@ -38,7 +38,18 @@ Item {
             make();
     }
 
-    // Size to the created item so the host (desktop slot) can measure it.
-    implicitWidth: item ? item.implicitWidth : 0
-    implicitHeight: item ? item.implicitHeight : 0
+    // Forward the created item's intrinsic size reactively, so the host (the
+    // desktop slot's card) tracks the content as it grows (e.g. when the grid
+    // populates). Updated imperatively because `item` is created at runtime.
+    function _syncSize() {
+        implicitWidth = item ? item.implicitWidth : 0;
+        implicitHeight = item ? item.implicitHeight : 0;
+    }
+    onItemChanged: _syncSize()
+    Connections {
+        target: root.item
+        ignoreUnknownSignals: true
+        function onImplicitWidthChanged() { root._syncSize(); }
+        function onImplicitHeightChanged() { root._syncSize(); }
+    }
 }
