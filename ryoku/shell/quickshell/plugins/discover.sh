@@ -18,6 +18,11 @@ cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 user_json="$cfg_home/ryoku/plugins.json"
 
+# --all lists every installed plugin (for Settings); default lists only enabled
+# ones (for the shell runtime).
+all=0
+[ "${1:-}" = "--all" ] && all=1
+
 user='{}'
 [ -f "$user_json" ] && user="$(jq '. // {}' "$user_json" 2>/dev/null || echo '{}')"
 
@@ -39,9 +44,9 @@ for d in "${dirs[@]}"; do
 		[ -n "$id" ] || continue
 		[ -n "${seen[$id]:-}" ] && continue
 		seen[$id]=1
-		# Skip plugins the user has not enabled.
+		# In runtime mode, skip plugins the user has not enabled; --all keeps all.
 		enabled="$(jq -r --arg id "$id" '.[$id].enabled // false' <<<"$user")"
-		[ "$enabled" = "true" ] || continue
+		[ "$all" = "1" ] || [ "$enabled" = "true" ] || continue
 		entry="$(jq -n \
 			--arg id "$id" \
 			--arg dir "$pdir" \
