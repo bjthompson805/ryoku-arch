@@ -59,39 +59,42 @@ Item {
     }
 
     // ---- compact: search + a single thumbnail row + top chips ----------------
-    ColumnLayout {
+    Column {
         id: compactBody
         visible: root.density === "compact"
         width: parent.width
         spacing: 12 * root.s
 
-        WhHeader { s: root.s; service: root.service }
+        WhHeader { width: parent.width; s: root.s; service: root.service }
 
         SearchField {
             id: compactSearch
-            Layout.fillWidth: true
+            width: parent.width
             s: root.s
             text: root.service?.query ?? ""
             onAccepted: root.service?.searchLatest(text)
         }
 
-        RowLayout {
-            Layout.fillWidth: true
+        Row {
+            width: parent.width
             spacing: 8 * root.s
             WhChip { s: root.s; text: qsTr("Week"); on: root.service?.topRange === "1w"; onClicked: root.service?.searchTop("1w") }
             WhChip { s: root.s; text: qsTr("Month"); on: root.service?.topRange === "1M"; onClicked: root.service?.searchTop("1M") }
-            Item { Layout.fillWidth: true }
         }
 
-        Flow {
-            Layout.fillWidth: true
-            spacing: 6 * root.s
+        Grid {
+            id: compactGrid
+            width: parent.width
+            columns: 3
+            rowSpacing: 6 * root.s
+            columnSpacing: 6 * root.s
+            readonly property real cellW: (width - columnSpacing * (columns - 1)) / columns
             Repeater {
                 model: (root.service?.results ?? []).slice(0, 3)
                 delegate: WhThumb {
                     required property var modelData
                     s: root.s
-                    w: (compactBody.width - 12 * root.s) / 3
+                    w: compactGrid.cellW
                     data: modelData
                     onApply: root.service?.setAsWallpaper(modelData)
                 }
