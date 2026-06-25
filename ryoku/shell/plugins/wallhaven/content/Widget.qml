@@ -210,14 +210,46 @@ Item {
             columnSpacing: g.gap
             Repeater {
                 model: g.items
-                delegate: WhThumb {
+                delegate: Rectangle {
+                    id: cell
                     required property var modelData
-                    s: g.s
-                    w: g.cellW
-                    h: g.cellH
-                    data: modelData
-                    onApply: g.apply(modelData)
-                    onWeb: g.web(modelData)
+                    width: g.cellW
+                    height: g.cellH
+                    radius: Motion.rSmall * g.s
+                    color: Theme.tileBg
+                    border.width: 1
+                    border.color: cma.containsMouse ? Theme.brand : Theme.border
+                    clip: true
+                    Behavior on border.color { ColorAnimation { duration: Motion.fast } }
+                    Image {
+                        anchors.fill: parent
+                        anchors.margins: 1
+                        asynchronous: true
+                        cache: true
+                        fillMode: Image.PreserveAspectCrop
+                        sourceSize: Qt.size(Math.ceil(cell.width * 2), Math.ceil(cell.height * 2))
+                        source: cell.modelData && cell.modelData.thumb ? cell.modelData.thumb : ""
+                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: cma.containsMouse
+                        color: Qt.rgba(0, 0, 0, 0.35)
+                    }
+                    GlyphIcon {
+                        visible: cma.containsMouse
+                        anchors.centerIn: parent
+                        width: 18 * g.s; height: width
+                        name: "image"
+                        color: Theme.cream
+                    }
+                    MouseArea {
+                        id: cma
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (e) => { if (e.button === Qt.RightButton) g.web(cell.modelData); else g.apply(cell.modelData); }
+                    }
                 }
             }
         }
@@ -294,57 +326,5 @@ Item {
             color: ibMa.containsMouse ? Theme.cream : Theme.iconDim
         }
         MouseArea { id: ibMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ib.clicked() }
-    }
-
-    component WhThumb: Rectangle {
-        id: thumb
-        property real s: 1
-        property real w: 100
-        property real h: 60
-        property var data: null
-        signal apply()
-        signal web()
-        width: w
-        height: h
-        radius: Motion.rSmall * s
-        color: Theme.tileBg
-        border.width: 1
-        border.color: tma.containsMouse ? Theme.brand : Theme.border
-        Behavior on border.color { ColorAnimation { duration: Motion.fast } }
-        ClippingRectangle {
-            anchors.fill: parent
-            anchors.margins: 1
-            radius: thumb.radius
-            color: "transparent"
-            Image {
-                anchors.fill: parent
-                asynchronous: true
-                cache: true
-                fillMode: Image.PreserveAspectCrop
-                sourceSize: Qt.size(Math.ceil(thumb.w * 2), Math.ceil(thumb.h * 2))
-                source: thumb.data && thumb.data.thumb ? thumb.data.thumb : ""
-            }
-        }
-        Rectangle {
-            visible: tma.containsMouse
-            anchors.fill: parent
-            radius: thumb.radius
-            color: Qt.rgba(0, 0, 0, 0.35)
-        }
-        GlyphIcon {
-            visible: tma.containsMouse
-            anchors.centerIn: parent
-            width: 18 * thumb.s; height: width
-            name: "image"
-            color: Theme.cream
-        }
-        MouseArea {
-            id: tma
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            cursorShape: Qt.PointingHandCursor
-            onClicked: (e) => { if (e.button === Qt.RightButton) thumb.web(); else thumb.apply(); }
-        }
     }
 }
