@@ -21,6 +21,85 @@ ryoku_partition() {
   esac
 }
 
+# ryoku_release_disk frees the target disk so the wipe cannot fail with "Device
+# or resource busy". On the live medium the target is often held by something we
+# did not put there: a partition auto-mounted by udisks, a still-mounted /mnt or
+# an open LUKS/dm mapper left by a previous failed run, or auto-enabled swap. The
+# kernel refuses to re-read or wipe a disk while ANY child partition is held, so
+# tear it down from the leaves up: unmount every mountpoint, swapoff every swap,
+# close device-mapper/LUKS holders, deactivate LVM, stop md RAID, then settle.
+# Scoped to the disk's own tree (lsblk "$disk"), so it never touches the live
+# medium's mounts or mappers. Best-effort and idempotent: a clean disk is a no-op.
+ryoku_release_disk() {
+  local disk=$1
+  [[ -b $disk || -n ${RYOKU_DRYRUN:-} ]] || return 0
+  log "releasing $disk before wipe (unmount, swapoff, close holders)"
+
+  local name mp
+  # Unmount every mountpoint on the disk or its partitions, deepest first (a
+  # nested mount pins its parent); lazy-unmount as a fallback so a busy mount
+  # still releases the device.
+  while IFS= read -r mp; do
+    [[ -n $mp ]] || continue
+    run_sh "umount -R -- '$mp' 2>/dev/null || umount -l -- '$mp' 2>/dev/null || true"
+  done < <(lsblk -nrpo MOUNTPOINT "$disk" 2>/dev/null | awk 'NF' | sort -r)
+
+  # Disable any swap that lives on the disk.
+  while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    run_sh "swapoff -- '$name' 2>/dev/null || true"
+  done < <(lsblk -nrpo NAME,FSTYPE "$disk" 2>/dev/null | awk '$2=="swap"{print $1}')
+
+  # Close device-mapper holders on the disk (LUKS/crypt, LVM, plain dm), leaves
+  # first so a stacked setup unwinds. cryptsetup for crypt, dmsetup for the rest.
+  while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    run_sh "cryptsetup close -- '$name' 2>/dev/null || dmsetup remove --force -- '$name' 2>/dev/null || true"
+  done < <(lsblk -nrpo NAME,TYPE "$disk" 2>/dev/null | awk '$2=="crypt"||$2=="lvm"||$2=="dm"{print $1}' | tac)
+
+  # Deactivate any LVM volume group with a physical volume on the disk or one of
+  # its partitions. Feed pvs the exact devices from the disk's own tree, never a
+  # "${disk}*" glob: /dev/sda* would also match /dev/sdaa on a many-disk box and
+  # could deactivate a VG that lives only on another disk.
+  if command -v pvs >/dev/null 2>&1; then
+    local -a devs=()
+    while IFS= read -r name; do
+      [[ -n $name ]] && devs+=("$name")
+    done < <(lsblk -nrpo NAME "$disk" 2>/dev/null)
+    if (( ${#devs[@]} > 0 )); then
+      while IFS= read -r name; do
+        [[ -n $name ]] || continue
+        run_sh "vgchange -an -- '$name' 2>/dev/null || true"
+      done < <(pvs --noheadings -o vg_name "${devs[@]}" 2>/dev/null | awk 'NF' | sort -u)
+    fi
+  fi
+
+  # Stop any md RAID array with a member on the disk.
+  while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    run_sh "mdadm --stop -- '$name' 2>/dev/null || true"
+  done < <(lsblk -nrpo NAME,TYPE "$disk" 2>/dev/null | awk '$2 ~ /raid/{print $1}' | tac)
+
+  run_sh 'udevadm settle 2>/dev/null || true'
+}
+
+# ryoku_wipe_signatures clears the signatures from a device, retried: right after
+# sgdisk zaps the GPT the kernel can still briefly report the device busy while
+# it drops the stale table, even with no holders left. Settle and retry; the
+# final attempt runs through run() so a real failure still aborts the install
+# loudly (and is printed, not executed, under dry-run).
+ryoku_wipe_signatures() {
+  local target=$1
+  if [[ -z ${RYOKU_DRYRUN:-} ]]; then
+    for _ in 1 2; do
+      wipefs --all "$target" 2>/dev/null && return 0
+      udevadm settle 2>/dev/null || true
+      sleep 1
+    done
+  fi
+  run wipefs --all "$target"
+}
+
 ryoku_partition_whole() {
   local disk=$RYOKU_DISK
   local esp_end=$(( 1 + RYOKU_ESP_GIB ))   # MiB offset 1 -> end of ESP
@@ -36,9 +115,18 @@ ryoku_partition_whole() {
 
   log "partitioning $disk (whole disk, GPT: ${RYOKU_ESP_GIB}GiB ESP + root)"
 
-  # Wipe any existing partition tables and signatures.
+  # Free the disk before touching it: on the live medium the target may be held
+  # by an auto-mounted partition (udisks), leftover state from a previous run, or
+  # active swap. While a child holds the disk, sgdisk/wipefs fail "Device or
+  # resource busy".
+  ryoku_release_disk "$disk"
+
+  # Destroy the partition table, then re-read so the kernel drops the now-stale
+  # partitions before wipefs probes the bare disk.
   run sgdisk --zap-all "$disk"
-  run wipefs --all "$disk"
+  run partprobe "$disk"
+  run_sh 'udevadm settle 2>/dev/null || true'
+  ryoku_wipe_signatures "$disk"
 
   # Fresh GPT: partition 1 = ESP (EF00 == GPT 'esp' flag), partition 2 = root.
   run parted --script "$disk" mklabel gpt
