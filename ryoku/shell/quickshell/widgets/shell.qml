@@ -1,6 +1,9 @@
+//@ pragma UseQApplication
+
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Io
 import "Singletons"
 import "clock"
 import "weather"
@@ -39,9 +42,27 @@ ShellRoot {
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Bottom
             WlrLayershell.namespace: "ryoku-widgets"
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            // OnDemand so plugin desktop tiles (e.g. a search field) can take
+            // keyboard focus when clicked and the slot's drag/click handlers
+            // receive the pointer; None would leave plugin chrome inert. The
+            // shipped clock/weather don't need focus so this is harmless to them.
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
             anchors { top: true; left: true; right: true; bottom: true }
+
+            // The enabled desktopWidget-hosted plugins, filtered from the shared
+            // Registry. Drives the Repeater below so plugin tiles render in the
+            // SAME wallpaper layer as clock/weather — one layer, one input model,
+            // no second full-screen surface fighting for input.
+            readonly property var desktopPlugins: Registry.plugins.filter(p => p.placement && p.placement.host === "desktopWidget")
+
+            // Look up a plugin's currently-persisted desktopWidget block by id.
+            // Used by the menu handlers below to round-trip a partial change
+            // (lock/scale) without dropping the other coordinates.
+            function placementOf(id) {
+                const p = win.desktopPlugins.find(pp => pp.id === id);
+                return (p && p.placement && p.placement.desktopWidget) || {};
+            }
 
             // Right-click the bare desktop for the global menu. Sits behind the
             // widgets (which handle their own right-click) and takes only the right
@@ -93,7 +114,106 @@ ShellRoot {
                 Weather {}
             }
 
+            // Plugin desktop tiles: one draggable PluginDesktopSlot per enabled
+            // desktopWidget plugin. Dragging writes free position; resizing the
+            // bracket writes scale; right-click opens the per-tile menu. Each
+            // commit goes through a dedicated Process so a Lock right after a
+            // drag never clobbers an in-flight write on `persist`.
+            Repeater {
+                model: win.desktopPlugins
+                delegate: PluginDesktopSlot {
+                    id: slot
+                    required property var modelData
+                    readonly property var place: modelData.placement
+                    pluginId: modelData.id
+                    locked: (place.desktopWidget && place.desktopWidget.locked === true) || false
+                    scaleCfg: (place.desktopWidget && place.desktopWidget.scale) || 0.85
+                    freeX: (place.desktopWidget && place.desktopWidget.x !== undefined) ? place.desktopWidget.x : 80
+                    freeY: (place.desktopWidget && place.desktopWidget.y !== undefined) ? place.desktopWidget.y : 80
+                    bg: (place.desktopWidget && place.desktopWidget.bg) ? place.desktopWidget.bg : "card"
+                    radius: (place.desktopWidget && place.desktopWidget.radius) || 26
+
+                    // Drag commit: write the new free position; ryoku-plugins-place
+                    // merges into plugins.json and the Registry's file watch
+                    // retunes every surface.
+                    onMoved: (x, y) => {
+                        persist.command = ["ryoku-plugins-place", modelData.id, "desktopWidget", "" + x, "" + y];
+                        persist.running = true;
+                    }
+
+                    // Resize commit: scale + the pinned top-left + the current
+                    // locked flag, so a partial write never drops siblings.
+                    onResized: (sc) => {
+                        const dw = (slot.place && slot.place.desktopWidget) || {};
+                        const x = (dw.x !== undefined) ? dw.x : Math.round(slot.x);
+                        const y = (dw.y !== undefined) ? dw.y : Math.round(slot.y);
+                        const lk = (dw.locked === true);
+                        persist.command = ["ryoku-plugins-place", modelData.id, "desktopWidget",
+                            "" + x, "" + y, "" + sc, "" + lk];
+                        persist.running = true;
+                    }
+
+                    onMenuRequested: (mx, my, id) => {
+                        const dw = win.placementOf(id);
+                        pluginMenu.openFor(id, dw.locked === true, mx, my);
+                    }
+
+                    property var api: QtObject {
+                        property var mainInstance: svc.item
+                        property var pluginSettings: (slot.place && slot.place.settings) ? slot.place.settings : ({})
+                        property string pluginDir: slot.modelData.dir
+                        function saveSettings() {}
+                    }
+
+                    Loader {
+                        id: svc
+                        source: "file://" + modelData.dir + "/service/Main.qml"
+                        onLoaded: if (item) item.pluginApi = slot.api
+                    }
+
+                    contentUrl: "file://" + slot.modelData.dir + "/content/Widget.qml"
+                    configure: (it) => {
+                        it.pluginApi = slot.api;
+                        it.density = "compact";
+                        it.s = 1;
+                        it.widthBudget = 360;
+                        it.active = true;
+                    }
+                }
+            }
+
             WidgetMenu { id: menu }
+
+            // Right-click menu for plugin tiles. Lives at the PanelWindow level
+            // so its click-away catcher fills the whole desktop, and a tile that
+            // disappears (Hide) doesn't take the menu down with it.
+            PluginWidgetMenu {
+                id: pluginMenu
+                onHideRequested: (id) => {
+                    hide.command = ["ryoku-plugins-place", id, "enabled", "false"];
+                    hide.running = true;
+                    pluginMenu.close();
+                }
+                onLockToggled: (id) => {
+                    const dw = win.placementOf(id);
+                    const x = (dw.x !== undefined) ? dw.x : 80;
+                    const y = (dw.y !== undefined) ? dw.y : 80;
+                    const sc = (dw.scale !== undefined) ? dw.scale : 1;
+                    const lk = !(dw.locked === true);
+                    lockProc.command = ["ryoku-plugins-place", id, "desktopWidget",
+                        "" + x, "" + y, "" + sc, "" + lk];
+                    lockProc.running = true;
+                }
+            }
+
+            // Position/scale writeback for plugin tiles. ryoku-plugins-place
+            // merges the new free x/y (and optional scale/locked) into
+            // plugins.json; the Registry's file watch then retunes every surface.
+            Process { id: persist }
+            // Dedicated processes for menu actions so a fast Hide-then-Lock or
+            // resize-then-Lock doesn't clobber an in-flight command on `persist`.
+            Process { id: hide }
+            Process { id: lockProc }
         }
     }
 }
