@@ -26,6 +26,10 @@ Item {
     property real radius: 16
     property real smoothing: 30
     property string pinnedId: ""
+    // Fired when a keybind/IPC-pinned popout should dismiss because the pointer
+    // left it (so a pinned popout closes like a hover-opened one). The pill clears
+    // its popout pin in response.
+    signal unpinRequested()
 
     anchors.fill: parent
 
@@ -89,6 +93,27 @@ Item {
             s: root.s
             active: root.active
             pinned: root.pinnedId === modelData.id
+            // A keybind/IPC-pinned popout dismisses once the pointer leaves it, so
+            // it closes like a hover-opened popout instead of staying open until the
+            // keybind is pressed again. The pointer gets a grace window to travel to
+            // the freshly-opened popout; once it has arrived (`_touched`), leaving
+            // for `_graceMs` clears the pin. The timer also catches a hover-leave
+            // event that a masked layer surface can otherwise miss.
+            property bool _touched: false
+            readonly property int _graceMs: 2500
+            onHoveredChanged: {
+                if (pop.hovered) { pop._touched = true; graceTimer.stop(); }
+                else if (pop.pinned) graceTimer.restart();
+            }
+            onPinnedChanged: {
+                pop._touched = false;
+                if (pop.pinned) graceTimer.restart(); else graceTimer.stop();
+            }
+            Timer {
+                id: graceTimer
+                interval: pop._touched ? 220 : pop._graceMs
+                onTriggered: if (pop.pinned && !pop.hovered) root.unpinRequested();
+            }
             // Body fits the content vertically: openH derives from the loaded
             // content's intrinsic height plus inner padding, so there is no
             // deadspace. Width is fixed (the content lays out to contentW) and the

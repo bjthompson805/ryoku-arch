@@ -573,6 +573,10 @@ ShellRoot {
                     smoothing: Config.frameSmoothing
                     pinnedId: (root.popoutMon === overlay.modelData.name && root.popout.indexOf("plugin:") === 0)
                               ? root.popout.substring(7) : ""
+                    onUnpinRequested: {
+                        if (root.popout.indexOf("plugin:") === 0 && root.popoutMon === overlay.modelData.name)
+                            root.popout = "";
+                    }
                 }
 
                 // The music island buds off the centre island through its own blob
