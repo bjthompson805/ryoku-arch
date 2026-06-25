@@ -3,24 +3,33 @@ import QtQuick
 import "Singletons"
 
 /**
- * Interactive placement editor for one plugin, mirroring the Desktop Widgets and
- * Visualizer hub sections: a screen-proportioned preview where the user sets
- * where the plugin lives. For a frame popout, pick the edge and drag the position
- * along it, and size the hover band; for a desktop widget, drag the tile to a
- * free position. Edits write live to plugins.json via ryoku-plugins-place, so the
- * running shell retunes as you drag.
+ * Frame-popout placement editor for one plugin, mirroring the Visualizer hub
+ * section: a screen-proportioned preview where the user picks which edge the
+ * popout grows from and slides it along that edge (start/end; the centre of every
+ * edge is reserved for the island/mixer/power and is shown struck out). Edits
+ * write live to plugins.json via ryoku-plugins-place, so the running shell retunes
+ * as you drag.
  *
- *   PluginPlacementEditor { pluginId: "wallhaven"; host: "framePopout"; place: {...}
+ * Desktop-widget plugins are NOT placed here: like the clock and weather, a
+ * desktop widget is dragged directly on the wallpaper (left-drag to move,
+ * right-click for its menu). So this editor only renders for the framePopout host.
+ *
+ *   PluginPlacementEditor { pluginId: "wallhaven"; place: {...}
  *                           onChanged: (field, args) => page.place(pluginId, field, ...args) }
  */
 Item {
     id: ed
 
     property string pluginId: ""
-    property string host: "framePopout"
     property var place: ({})
     // Emitted on a settled edit: field is the ryoku-plugins-place verb, args its values.
     signal changed(string field, var args)
+
+    readonly property string edge: (place && place.framePopout && place.framePopout.edge) ? place.framePopout.edge : "right"
+    readonly property string align: (place && place.framePopout && place.framePopout.align) ? place.framePopout.align : "start"
+    readonly property bool vertical: edge === "left" || edge === "right"
+    function hoverW() { return (place && place.framePopout && place.framePopout.hoverW) ? place.framePopout.hoverW : 320; }
+    function hoverH() { return (place && place.framePopout && place.framePopout.hoverH) ? place.framePopout.hoverH : 16; }
 
     implicitHeight: 230
 
@@ -58,157 +67,104 @@ Item {
             font.letterSpacing: 2
         }
 
-        // ---- frame popout: an edge band + a draggable position marker --------
-        Item {
-            anchors.fill: parent
-            visible: ed.host === "framePopout"
-
-            readonly property string edge: (ed.place && ed.place.framePopout && ed.place.framePopout.edge) ? ed.place.framePopout.edge : "right"
-            readonly property string align: (ed.place && ed.place.framePopout && ed.place.framePopout.align) ? ed.place.framePopout.align : "start"
-            readonly property bool vertical: edge === "left" || edge === "right"
-            id: fp
-
-            // The shell pre-reserves the centre of every edge (top: island,
-            // left: mixer, right: power menu, bottom: kept clear for symmetry),
-            // so a plugin can't dock there. The band makes the reservation
-            // visible while dragging and the release snap collapses the middle
-            // third to start/end so `center` is never written.
-            Rectangle {
-                id: reservedBand
-                readonly property real m: 10
-                readonly property real bandThickness: fp.vertical ? 64 : 60
-                x: fp.edge === "left" ? m
-                 : fp.edge === "right" ? parent.width - bandThickness - m
-                 : parent.width / 3
-                y: fp.edge === "top" ? m
-                 : fp.edge === "bottom" ? parent.height - bandThickness - m
-                 : parent.height / 3
-                width: fp.vertical ? bandThickness : parent.width / 3
-                height: fp.vertical ? parent.height / 3 : bandThickness
-                radius: 8
-                color: Qt.rgba(1, 1, 1, 0.03)
-                Canvas {
-                    id: dashed
-                    anchors.fill: parent
-                    onPaint: {
-                        var ctx = getContext("2d");
-                        ctx.reset();
-                        ctx.strokeStyle = Theme.dim.toString();
-                        ctx.lineWidth = 1;
-                        ctx.setLineDash([4, 3]);
-                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-                    }
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
+        // The shell pre-reserves the centre of every edge (top: island, left:
+        // mixer, right: power menu, bottom: kept clear for symmetry), so a plugin
+        // can't dock there. The band makes the reservation visible while dragging
+        // and the release snap collapses the middle third to start/end.
+        Rectangle {
+            id: reservedBand
+            readonly property real m: 10
+            readonly property real bandThickness: ed.vertical ? 64 : 60
+            x: ed.edge === "left" ? m
+             : ed.edge === "right" ? parent.width - bandThickness - m
+             : parent.width / 3
+            y: ed.edge === "top" ? m
+             : ed.edge === "bottom" ? parent.height - bandThickness - m
+             : parent.height / 3
+            width: ed.vertical ? bandThickness : parent.width / 3
+            height: ed.vertical ? parent.height / 3 : bandThickness
+            radius: 8
+            color: Qt.rgba(1, 1, 1, 0.03)
+            Canvas {
+                anchors.fill: parent
+                onPaint: {
+                    var ctx = getContext("2d");
+                    ctx.reset();
+                    ctx.strokeStyle = Theme.dim.toString();
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 3]);
+                    ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
                 }
-                Text {
-                    anchors.centerIn: parent
-                    text: "reserved"
-                    color: Theme.dim
-                    font.family: Theme.mono
-                    font.pixelSize: 9
-                    font.letterSpacing: 1.5
-                }
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
             }
-
-            // The popout body preview: a rounded chip docked to the chosen edge,
-            // positioned by align. Drag it along the edge to change align.
-            Rectangle {
-                id: body
-                width: fp.vertical ? 64 : 96
-                height: fp.vertical ? 96 : 60
-                radius: 8
-                color: Qt.rgba(0, 0, 0, 0.5)
-                border.width: 1
-                border.color: Theme.ember
-
-                readonly property real m: 10
-                x: fp.edge === "left" ? m
-                 : fp.edge === "right" ? parent.width - width - m
-                 : alignPos(parent.width, width)
-                y: fp.edge === "top" ? m
-                 : fp.edge === "bottom" ? parent.height - height - m
-                 : alignPos(parent.height, height)
-
-                function alignPos(span, sz) {
-                    return fp.align === "start" ? m
-                         : fp.align === "end" ? span - sz - m
-                         : (span - sz) / 2;
-                }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "popout"
-                    color: Theme.ember
-                    font.family: Theme.mono; font.pixelSize: 10
-                }
-
-                // Drag along the edge to set align (start/center/end by thirds).
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    drag.target: parent
-                    drag.axis: fp.vertical ? Drag.YAxis : Drag.XAxis
-                    onReleased: {
-                        var pos, span;
-                        if (fp.vertical) { pos = parent.y + parent.height / 2; span = parent.parent.height; }
-                        else { pos = parent.x + parent.width / 2; span = parent.parent.width; }
-                        var t = pos / span;
-                        // The centre third is reserved (island/mixer/power), so
-                        // we collapse the middle band onto whichever of start/end
-                        // is nearer; `center` is never written.
-                        var a = t < 0.5 ? "start" : "end";
-                        ed.changed("framePopout", [fp.edge, a, fp.hoverW(), fp.hoverH()]);
-                    }
-                }
+            Text {
+                anchors.centerIn: parent
+                text: "reserved"
+                color: Theme.dim
+                font.family: Theme.mono; font.pixelSize: 9; font.letterSpacing: 1.5
             }
-
-            function hoverW() { return (ed.place && ed.place.framePopout && ed.place.framePopout.hoverW) ? ed.place.framePopout.hoverW : 320; }
-            function hoverH() { return (ed.place && ed.place.framePopout && ed.place.framePopout.hoverH) ? ed.place.framePopout.hoverH : 16; }
         }
 
-        // ---- desktop widget: a freely draggable tile ------------------------
+        // The popout body preview: a rounded chip docked to the chosen edge,
+        // positioned by align. Drag it along the edge to change align (start/end).
         Rectangle {
-            visible: ed.host === "desktopWidget"
-            id: dw
-            width: 96; height: 60; radius: 8
+            id: body
+            width: ed.vertical ? 64 : 96
+            height: ed.vertical ? 96 : 60
+            radius: 8
             color: Qt.rgba(0, 0, 0, 0.5)
             border.width: 1
             border.color: Theme.ember
-            readonly property real px: (ed.place && ed.place.desktopWidget && ed.place.desktopWidget.x !== undefined) ? ed.place.desktopWidget.x : 80
-            readonly property real py: (ed.place && ed.place.desktopWidget && ed.place.desktopWidget.y !== undefined) ? ed.place.desktopWidget.y : 80
-            // Map the real (1920x1080-ish) position into the stage proportionally.
-            x: Math.max(0, Math.min(parent.width - width, px / 1920 * parent.width))
-            y: Math.max(0, Math.min(parent.height - height, py / 1080 * parent.height))
-            Text { anchors.centerIn: parent; text: "widget"; color: Theme.ember; font.family: Theme.mono; font.pixelSize: 10 }
+
+            readonly property real m: 10
+            x: ed.edge === "left" ? m
+             : ed.edge === "right" ? parent.width - width - m
+             : alignPos(parent.width, width)
+            y: ed.edge === "top" ? m
+             : ed.edge === "bottom" ? parent.height - height - m
+             : alignPos(parent.height, height)
+
+            function alignPos(span, sz) {
+                return ed.align === "end" ? span - sz - m : m;  // start | end (never centre)
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: "popout"
+                color: Theme.ember
+                font.family: Theme.mono; font.pixelSize: 10
+            }
+
+            // Drag along the edge to set align; the middle (reserved) third
+            // collapses to whichever of start/end is nearer, so centre is never set.
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
                 drag.target: parent
-                drag.minimumX: 0; drag.maximumX: parent.parent.width - parent.width
-                drag.minimumY: 0; drag.maximumY: parent.parent.height - parent.height
+                drag.axis: ed.vertical ? Drag.YAxis : Drag.XAxis
                 onReleased: {
-                    var rx = Math.round(parent.x / parent.parent.width * 1920);
-                    var ry = Math.round(parent.y / parent.parent.height * 1080);
-                    ed.changed("desktopWidget", [rx, ry]);
+                    var pos, span;
+                    if (ed.vertical) { pos = parent.y + parent.height / 2; span = parent.parent.height; }
+                    else { pos = parent.x + parent.width / 2; span = parent.parent.width; }
+                    var a = (pos / span) < 0.5 ? "start" : "end";
+                    ed.changed("framePopout", [ed.edge, a, ed.hoverW(), ed.hoverH()]);
                 }
             }
         }
     }
 
-    // ---- frame popout: edge selector ----------------------------------------
+    // Edge selector.
     Row {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         spacing: 6
-        visible: ed.host === "framePopout"
         Repeater {
             model: [{ k: "top", l: "Top" }, { k: "right", l: "Right" }, { k: "bottom", l: "Bottom" }, { k: "left", l: "Left" }]
             delegate: Rectangle {
                 id: edgeCell
                 required property var modelData
-                readonly property string cur: (ed.place && ed.place.framePopout && ed.place.framePopout.edge) ? ed.place.framePopout.edge : "right"
-                readonly property bool active: cur === edgeCell.modelData.k
+                readonly property bool active: ed.edge === edgeCell.modelData.k
                 width: el.implicitWidth + 18; height: 24; radius: 7
                 color: active ? Theme.ember : Theme.surfaceLo
                 border.width: 1; border.color: active ? Theme.ember : Theme.line
@@ -218,12 +174,7 @@ Item {
                     font.family: Theme.font; font.pixelSize: 11; font.weight: edgeCell.active ? Font.DemiBold : Font.Medium
                 }
                 TapHandler {
-                    onTapped: {
-                        var a = (ed.place && ed.place.framePopout && ed.place.framePopout.align) ? ed.place.framePopout.align : "start";
-                        var hw = (ed.place && ed.place.framePopout && ed.place.framePopout.hoverW) ? ed.place.framePopout.hoverW : 320;
-                        var hh = (ed.place && ed.place.framePopout && ed.place.framePopout.hoverH) ? ed.place.framePopout.hoverH : 16;
-                        ed.changed("framePopout", [edgeCell.modelData.k, a, hw, hh]);
-                    }
+                    onTapped: ed.changed("framePopout", [edgeCell.modelData.k, ed.align, ed.hoverW(), ed.hoverH()])
                 }
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
             }

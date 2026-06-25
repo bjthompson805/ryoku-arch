@@ -189,15 +189,24 @@ Flickable {
                         }
                     }
 
-                    // Interactive placement editor (preview + drag-box), shown for
-                    // the active host when enabled.
+                    // Frame-popout placement editor (edge + align). Desktop widgets
+                    // are placed by dragging them on the wallpaper, not here.
                     PluginPlacementEditor {
                         width: parent.width
-                        visible: card.on && (card.host === "framePopout" || card.host === "desktopWidget")
+                        visible: card.on && card.host === "framePopout"
                         pluginId: card.modelData.id
-                        host: card.host
                         place: card.place
                         onChanged: (field, args) => page.place(card.modelData.id, field, args[0], args[1], args[2], args[3])
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: card.on && card.host === "desktopWidget"
+                        text: qsTr("Drag the widget on the desktop to place it; right-click it for its menu.")
+                        wrapMode: Text.WordWrap
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 12
                     }
                 }
             }

@@ -19,9 +19,13 @@ id="${1:?id required}"; field="${2:?field required}"; shift 2
 
 case "$field" in
 desktopWidget)
-	x="${1:?x}"; y="${2:?y}"
-	jq --arg id "$id" --argjson x "$x" --argjson y "$y" \
-		'.[$id] = ((.[$id] // {}) + { enabled: ((.[$id].enabled) // true), host: ((.[$id].host) // "desktopWidget"), desktopWidget: (((.[$id].desktopWidget) // {}) + { x: $x, y: $y }) })' \
+	x="${1:?x}"; y="${2:?y}"; scale="${3:-}"; locked="${4:-}"
+	extra='{ x: $x, y: $y }'
+	args=(--arg id "$id" --argjson x "$x" --argjson y "$y")
+	if [ -n "$scale" ]; then args+=(--argjson sc "$scale"); extra="$extra + { scale: \$sc }"; fi
+	if [ -n "$locked" ]; then args+=(--argjson lk "$locked"); extra="$extra + { locked: \$lk }"; fi
+	jq "${args[@]}" \
+		".[\$id] = ((.[\$id] // {}) + { enabled: ((.[\$id].enabled) // true), host: ((.[\$id].host) // \"desktopWidget\"), desktopWidget: (((.[\$id].desktopWidget) // {}) + ($extra)) })" \
 		"$f" >"$f.tmp" && mv "$f.tmp" "$f"
 	;;
 framePopout)
