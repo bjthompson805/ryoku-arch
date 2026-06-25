@@ -97,6 +97,7 @@ func reconcilers() []reconciler {
 		{"failed services", reconcileFailedUnits},
 		{"btrfs device health", reconcileBtrfsHealth},
 		{"display backlight", reconcileBacklight},
+		{"NVIDIA boot reliability", reconcileNvidiaModeset},
 		{"pending config (.pacnew)", reconcilePacnew},
 		{"orphaned packages", reconcileOrphans},
 	}
@@ -1316,4 +1317,91 @@ func isLaptop() bool {
 		}
 	}
 	return false
+}
+
+// ---- reconciler: NVIDIA boot reliability -------------------------------------
+
+// reconcileNvidiaModeset backports the installer's NVIDIA reliability config to a
+// machine that drives the card with the proprietary/open nvidia modules but was
+// installed (or last doctored) before the fix. Without it nouveau and nvidia race
+// for the card at boot, so the GPU "shows up only on some boots" -- the
+// intermittent-detection failure users hit. It mirrors
+// system/hardware/drivers/nvidia.sh: blacklist nouveau, force DRM modeset, load
+// the modules early, then rebuild the initramfs so it takes effect. It acts ONLY
+// when an nvidia kernel-module package is installed (or the module is loaded);
+// a machine on nouveau by choice has no such package and is left untouched, since
+// blacklisting nouveau there would break its display.
+
+// nvidiaModprobeConf mirrors system/hardware/drivers/nvidia.sh verbatim, so a
+// doctored machine matches a freshly installed one.
+const nvidiaModprobeConf = `options nvidia_drm modeset=1 fbdev=1
+options nvidia NVreg_PreserveVideoMemoryAllocations=1
+blacklist nouveau
+options nouveau modeset=0
+`
+
+const nvidiaMkinitcpioConf = "MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)\n"
+
+// nvidiaDriverActive reports whether this machine uses the proprietary/open
+// nvidia driver. The module being loaded is the clearest tell; but the bug we
+// repair is exactly that nouveau won the boot race, so the module may NOT be
+// loaded -- fall back to an nvidia kernel-module package being installed.
+// nvidia-utils (userspace) alone is excluded: with no module to load, writing
+// MODULES=(nvidia ...) would only break the initramfs.
+func nvidiaDriverActive() bool {
+	for _, m := range gpuDriversLoaded() {
+		if m == "nvidia" {
+			return true
+		}
+	}
+	return anyPkgInstalled("nvidia-open-dkms", "nvidia-dkms", "nvidia-open", "nvidia", "nvidia-lts", "nvidia-open-lts")
+}
+
+// nvidiaConfigOK reports whether the modprobe + mkinitcpio drop-ins already carry
+// the reliability essentials (nouveau blacklisted, DRM modeset on, nvidia modules
+// in the initramfs). Pure, so the idempotency that keeps doctor quiet on a healthy
+// machine -- and stops it rebuilding the initramfs every run -- is unit-tested.
+func nvidiaConfigOK(modprobe, mkinit string) bool {
+	return strings.Contains(modprobe, "blacklist nouveau") &&
+		strings.Contains(modprobe, "nvidia_drm modeset=1") &&
+		strings.Contains(mkinit, "nvidia_drm")
+}
+
+func reconcileNvidiaModeset(checkOnly bool) recResult {
+	if !nvidiaDriverActive() {
+		return okRes("no proprietary NVIDIA driver in use")
+	}
+	modprobe := readFileSafe("/etc/modprobe.d/nvidia.conf")
+	mkinit := readFileSafe("/etc/mkinitcpio.conf.d/nvidia.conf")
+	ok := nvidiaConfigOK(modprobe, mkinit)
+	if ok {
+		return okRes("NVIDIA modeset + nouveau blacklist in place")
+	}
+	if checkOnly {
+		return wouldRes("NVIDIA driver in use but nouveau is not blacklisted / DRM modeset not set; the GPU can fail to come up on some boots").
+			withFix("ryoku doctor  (writes /etc/modprobe.d/nvidia.conf and rebuilds the initramfs)")
+	}
+	if err := writeRootFile("/etc/modprobe.d/nvidia.conf", nvidiaModprobeConf, "0644"); err != nil {
+		return failRes("could not write /etc/modprobe.d/nvidia.conf: %v", err).
+			withFix("re-run with sudo access")
+	}
+	if err := writeRootFile("/etc/mkinitcpio.conf.d/nvidia.conf", nvidiaMkinitcpioConf, "0644"); err != nil {
+		return failRes("could not write /etc/mkinitcpio.conf.d/nvidia.conf: %v", err).
+			withFix("re-run with sudo access")
+	}
+	if err := rebuildInitramfs(); err != nil {
+		return warnRes("wrote the NVIDIA reliability config, but the initramfs rebuild failed: %v", err).
+			withFix("sudo limine-mkinitcpio  (or: sudo mkinitcpio -P)")
+	}
+	return fixedRes("blacklisted nouveau, enabled NVIDIA DRM modeset, and rebuilt the initramfs")
+}
+
+// rebuildInitramfs regenerates the boot image after a module/blacklist change,
+// through limine-mkinitcpio (the UKI path Ryoku uses) when present, else plain
+// mkinitcpio -P.
+func rebuildInitramfs() error {
+	if _, err := exec.LookPath("limine-mkinitcpio"); err == nil {
+		return run("sudo", "limine-mkinitcpio")
+	}
+	return run("sudo", "mkinitcpio", "-P")
 }
