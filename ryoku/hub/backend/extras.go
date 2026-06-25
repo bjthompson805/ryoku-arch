@@ -80,9 +80,47 @@ type catalogBundle struct {
 	Items       []bundleItem `json:"items"`
 }
 
+type pluginRegistryEntry struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Tagline     string   `json:"tagline,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Author      string   `json:"author,omitempty"`
+	Official    bool     `json:"official,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Icon        string   `json:"icon,omitempty"`
+	Screenshots []string `json:"screenshots,omitempty"`
+	Preview     string   `json:"preview,omitempty"`
+	Hosts       []string `json:"hosts,omitempty"`
+	Path        string   `json:"path,omitempty"`
+}
+
+type pluginRegistry struct {
+	Version int                   `json:"version"`
+	Plugins []pluginRegistryEntry `json:"plugins"`
+}
+
+// catalogPlugin is one plugin as the Hub renders it: the registry metadata
+// enriched from the plugin's manifest.json, with screenshot/preview asset paths
+// resolved to absolute URLs the Hub can fetch directly.
+type catalogPlugin struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Tagline     string   `json:"tagline,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Author      string   `json:"author,omitempty"`
+	Official    bool     `json:"official,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Icon        string   `json:"icon,omitempty"`
+	Screenshots []string `json:"screenshots,omitempty"`
+	Preview     string   `json:"preview,omitempty"`
+	Hosts       []string `json:"hosts,omitempty"`
+	Path        string   `json:"path"`
+}
+
 func runExtras(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("extras needs catalog|cache|installer")
+		return fmt.Errorf("extras needs catalog|cache|installer|plugin|plugincatalog")
 	}
 	switch args[0] {
 	case "catalog":
@@ -120,8 +158,20 @@ func runExtras(args []string) error {
 		}
 		fmt.Println(p)
 		return nil
+	case "plugincatalog":
+		cat, err := buildPluginCatalog()
+		if err != nil {
+			return err
+		}
+		b, err := json.Marshal(cat)
+		if err != nil {
+			return err
+		}
+		os.Stdout.Write(b)
+		fmt.Println()
+		return nil
 	default:
-		return fmt.Errorf("extras needs catalog|cache|installer|plugin")
+		return fmt.Errorf("extras needs catalog|cache|installer|plugin|plugincatalog")
 	}
 }
 
@@ -217,6 +267,85 @@ func buildCatalog() (map[string][]catalogBundle, error) {
 		out = append(out, cb)
 	}
 	return map[string][]catalogBundle{"bundles": out}, nil
+}
+
+func buildPluginCatalog() (map[string][]catalogPlugin, error) {
+	raw, err := fetchOrCache("plugins/registry.json")
+	if err != nil {
+		return nil, err
+	}
+	var reg pluginRegistry
+	if err := json.Unmarshal(raw, &reg); err != nil {
+		return nil, fmt.Errorf("plugins/registry.json: %w", err)
+	}
+
+	out := make([]catalogPlugin, 0, len(reg.Plugins))
+	for _, e := range reg.Plugins {
+		path := e.Path
+		if path == "" {
+			path = "plugins/" + e.ID
+		}
+		cp := catalogPlugin{
+			ID:          e.ID,
+			Name:        e.Name,
+			Tagline:     e.Tagline,
+			Description: e.Description,
+			Author:      e.Author,
+			Official:    e.Official,
+			Tags:        e.Tags,
+			Icon:        e.Icon,
+			Screenshots: e.Screenshots,
+			Preview:     e.Preview,
+			Hosts:       e.Hosts,
+			Path:        path,
+		}
+		// Best-effort manifest enrichment, mirroring how buildCatalog folds
+		// bundle.json into the registry entry: only fill what the registry
+		// omitted, so a curated registry always wins.
+		if b, err := fetchOrCache(path + "/manifest.json"); err == nil {
+			var man struct {
+				Name        string   `json:"name"`
+				Description string   `json:"description"`
+				Hosts       []string `json:"hosts"`
+				Tags        []string `json:"tags"`
+			}
+			if json.Unmarshal(b, &man) == nil {
+				if cp.Name == "" {
+					cp.Name = man.Name
+				}
+				if cp.Description == "" {
+					cp.Description = man.Description
+				}
+				if len(cp.Hosts) == 0 {
+					cp.Hosts = man.Hosts
+				}
+				if len(cp.Tags) == 0 {
+					cp.Tags = man.Tags
+				}
+			}
+		}
+		// Resolve relative asset paths under plugins/<id>/ to absolute URLs;
+		// anything already http(s):// passes through untouched.
+		resolve := func(p string) string {
+			if p == "" {
+				return ""
+			}
+			if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
+				return p
+			}
+			return extrasBase() + "/" + path + "/" + strings.TrimLeft(p, "/")
+		}
+		cp.Preview = resolve(cp.Preview)
+		if len(cp.Screenshots) > 0 {
+			shots := make([]string, len(cp.Screenshots))
+			for i, s := range cp.Screenshots {
+				shots[i] = resolve(s)
+			}
+			cp.Screenshots = shots
+		}
+		out = append(out, cp)
+	}
+	return map[string][]catalogPlugin{"plugins": out}, nil
 }
 
 // ensureInstaller fetches a fresh copy of installers/<name>.sh into the cache and
