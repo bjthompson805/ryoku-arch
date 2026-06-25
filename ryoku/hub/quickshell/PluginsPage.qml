@@ -52,9 +52,10 @@ Item {
     }
     function removePlugin(id) {
         page.busyId = id;
-        // ryoku-plugins-place enabled false + remove the data dir via the place helper's remove path
+        // Disable it, then remove the data-dir plugin via the symlink-safe backend
+        // (a dev plugin is a symlink into the checkout; rm -rf would gut the repo).
         place(id, "enabled", "false");
-        rmProc.command = ["rm", "-rf", (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/ryoku/plugins/" + id];
+        rmProc.command = ["ryoku-hub", "extras", "pluginremove", id];
         rmProc.running = true;
     }
 
@@ -75,10 +76,13 @@ Item {
             onStreamFinished: {
                 var list = [];
                 try { var o = JSON.parse(text || "{}"); list = o.plugins || []; } catch (e) { list = []; }
-                // Local fallback so the store is never empty in dev / offline: seed
-                // the official wallhaven entry from its in-repo preview assets.
-                if (list.length === 0 && page.shellDir && page.shellDir.length > 0) {
-                    var base = "file://" + page.shellDir + "/plugins/wallhaven/assets/";
+                // Fallback so the store is never empty while the remote catalogue is
+                // unpopulated/offline: seed the official wallhaven entry from its
+                // assets in the plugin data dir (which exists in dev and installed),
+                // independent of RYOKU_SHELL_DIR which the hub process may not have.
+                if (list.length === 0) {
+                    var dataHome = Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share");
+                    var base = "file://" + dataHome + "/ryoku/plugins/wallhaven/assets/";
                     list = [{
                         "id": "wallhaven", "name": "Wallhaven", "official": true,
                         "author": "Ryoku Team",

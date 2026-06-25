@@ -158,6 +158,11 @@ func runExtras(args []string) error {
 		}
 		fmt.Println(p)
 		return nil
+	case "pluginremove":
+		if len(args) < 2 {
+			return fmt.Errorf("extras pluginremove needs a name")
+		}
+		return removePlugin(args[1])
 	case "plugincatalog":
 		cat, err := buildPluginCatalog()
 		if err != nil {
@@ -371,6 +376,28 @@ func pluginDataDir(id string) string {
 		base = filepath.Join(os.Getenv("HOME"), ".local", "share")
 	}
 	return filepath.Join(base, "ryoku", "plugins", id)
+}
+
+// removePlugin deletes an installed plugin from the data dir. It is symlink-safe:
+// a dev plugin is often a symlink into a checkout, so the symlink itself is
+// removed (os.Remove) without ever recursing into - and deleting - the source
+// tree it points at. A real installed copy is removed with RemoveAll.
+func removePlugin(id string) error {
+	if id == "" {
+		return fmt.Errorf("plugin id required")
+	}
+	dir := pluginDataDir(id)
+	fi, err := os.Lstat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // already gone
+		}
+		return err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return os.Remove(dir) // unlink only; never touch the target
+	}
+	return os.RemoveAll(dir)
 }
 
 // ensurePlugin fetches a plugin's full source tree from the catalogue
