@@ -373,16 +373,24 @@ Deferred to fast-follow (documented, not silently dropped):
 - Remote-catalogue browse/install of plugins inside the Hub page (the page
   manages installed plugins today; install is via the Extras bundle path).
 
-Known issue:
+Known issue (root cause isolated):
 
-- Wallhaven result thumbnails (remote https images in the result grid) load and
-  paint in a standalone `qs -p pill` (verified: `Image` reaches `Ready`,
-  paintedWidth 300) but do not paint in the daemon-supervised pill, with
-  identical code and environment. Ruled out: async vs sync, image cache, SSL/TLS
-  backend, env vars, sourceSize, and reveal-state gating. The popout chrome,
-  layout, and styling are correct; only the in-grid remote-image paint in the
-  supervised process is affected. Needs dedicated debugging of the supervised
-  render context.
+- `Image`s do not composite inside the edge **`Popout` body** path
+  (`pill/popouts/Popout.qml`), so wallhaven's result thumbnails are blank when it
+  is a frame popout. Isolated by experiment: the `Image` reaches `Ready` with
+  correct geometry (300x200, visible, opacity 1, unoccluded), and a **local
+  file** image fails there too, so it is not remote/SSL/cache/async/size/clip.
+  `ClippingRectangle` (the shell's image clipper) and `layer.enabled` FBO on the
+  whole content both fail in this path. The same `Image` patterns render fine in
+  the pill's centre-island surfaces (Media album art), so it is specific to the
+  edge-popout body, which had never hosted an `Image` before (Mixer/Power are
+  vector-only). All other plugin content (text, chips, borders, search) renders
+  natively in the popout. Fix path: render frame-popout plugin content through
+  the proven centre/`PillSurface` texture path, or fix the `Popout` body's
+  scene-graph clip to composite `Image` nodes; needs Quickshell-level work. The
+  DesktopWidget host (independent layer, no popout clip) is unaffected.
+- The thumb tiles use `ClippingRectangle` (committed), the shell-native pattern,
+  so they render correctly in every host except the edge-popout body above.
 
 ## Decisions taken (defaults; confirm or override on review)
 
