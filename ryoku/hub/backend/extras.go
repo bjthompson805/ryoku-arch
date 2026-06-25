@@ -110,8 +110,18 @@ func runExtras(args []string) error {
 		}
 		fmt.Println(p)
 		return nil
+	case "plugin":
+		if len(args) < 2 {
+			return fmt.Errorf("extras plugin needs a name")
+		}
+		p, err := ensurePlugin(args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Println(p)
+		return nil
 	default:
-		return fmt.Errorf("extras needs catalog|cache|installer")
+		return fmt.Errorf("extras needs catalog|cache|installer|plugin")
 	}
 }
 
@@ -222,4 +232,70 @@ func ensureInstaller(name string) (string, error) {
 		return dst, nil
 	}
 	return "", fmt.Errorf("installer %q not found in the catalogue", name)
+}
+
+// pluginDataDir is where an installed plugin's source lives; the shell runtime
+// and Settings read it. Mirrors plugin_dir() in ryoku-extras-install.
+func pluginDataDir(id string) string {
+	base := os.Getenv("XDG_DATA_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".local", "share")
+	}
+	return filepath.Join(base, "ryoku", "plugins", id)
+}
+
+// ensurePlugin fetches a plugin's full source tree from the catalogue
+// (plugins/<id>/) into the data dir and returns that dir. It reads the manifest
+// to learn which files to pull (entryPoints + commands), so a plugin ships only
+// the files it declares. Best-effort per file; a missing optional file is fine.
+func ensurePlugin(id string) (string, error) {
+	rel := "plugins/" + id
+	manRaw, err := fetch(extrasBase() + "/" + rel + "/manifest.json")
+	if err != nil {
+		return "", fmt.Errorf("plugin %q not found in the catalogue: %w", id, err)
+	}
+	var man struct {
+		EntryPoints map[string]string `json:"entryPoints"`
+		Commands    []string          `json:"commands"`
+	}
+	if err := json.Unmarshal(manRaw, &man); err != nil {
+		return "", fmt.Errorf("plugin %q manifest: %w", id, err)
+	}
+
+	dst := pluginDataDir(id)
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return "", err
+	}
+	write := func(name string, data []byte, mode os.FileMode) error {
+		p := filepath.Join(dst, filepath.Clean(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(p, data, mode)
+	}
+	if err := write("manifest.json", manRaw, 0o644); err != nil {
+		return "", err
+	}
+
+	files := []string{"README.md", "assets/preview.gif"}
+	for _, f := range man.EntryPoints {
+		files = append(files, f)
+	}
+	for _, c := range man.Commands {
+		files = append(files, c)
+	}
+	for _, f := range files {
+		b, err := fetch(extrasBase() + "/" + rel + "/" + f)
+		if err != nil {
+			continue // optional or absent; skip
+		}
+		mode := os.FileMode(0o644)
+		if strings.HasPrefix(f, "bin/") {
+			mode = 0o755
+		}
+		if err := write(f, b, mode); err != nil {
+			return "", err
+		}
+	}
+	return dst, nil
 }

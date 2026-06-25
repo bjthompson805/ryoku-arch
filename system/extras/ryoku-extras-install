@@ -4,7 +4,8 @@
 # defined in the ryoku-extras catalogue. The Hub's Extras section drives it; a
 # bundle is a list of items, each a `package` (auto-routed to the official repos
 # or the AUR), a `script` (a small installer from ryoku-extras/installers), or a
-# `plugin` (handled by the shell's plugin path, deferred here).
+# `plugin` (a shell plugin fetched into ~/.local/share/ryoku/plugins; place it in
+# Settings, Plugins).
 #
 #   ryoku-extras-install status [bundle <id>]   print item state as JSON, no change
 #   ryoku-extras-install install bundle <id>    install every absent item
@@ -68,13 +69,18 @@ pkg_installed() { pacman -Qq "$1" >/dev/null 2>&1; }
 pkg_official() { pacman -Si "$1" >/dev/null 2>&1; }
 cmd_present() { command -v "$1" >/dev/null 2>&1; }
 
+# Where a shell plugin's source lives once installed (the runtime + Settings read
+# this path). The extras catalogue ships the source; install copies it here.
+plugin_dir() { printf '%s/ryoku/plugins/%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}" "$1"; }
+plugin_installed() { [[ -f "$(plugin_dir "$1")/manifest.json" ]]; }
+
 # Current state of one item, ignoring any in-flight operation.
 item_state() {
   local type=$1 name=$2 detect=$3
   case "$type" in
     package) pkg_installed "$name" && echo present || echo absent ;;
     script) cmd_present "$detect" && echo present || echo absent ;;
-    plugin) echo deferred ;;
+    plugin) plugin_installed "$name" && echo present || echo absent ;;
     *) echo absent ;;
   esac
 }
@@ -166,6 +172,29 @@ run_script() {
   bash "$path"
 }
 
+# Install a shell plugin's source tree via the backend fetch, into the data dir
+# the runtime and Settings read. ryoku-hub owns the network; we just trigger it.
+run_plugin_install() {
+  local name=$1
+  if [[ -n $DRYRUN ]]; then
+    echo "DRYRUN: install plugin $name"
+    return 0
+  fi
+  ryoku-hub extras plugin "$name" >/dev/null 2>&1
+}
+
+# Remove an installed plugin's source tree. The user's placement in plugins.json
+# is left untouched, so re-installing restores it where they had it.
+run_plugin_remove() {
+  local name=$1 dir
+  dir=$(plugin_dir "$name")
+  if [[ -n $DRYRUN ]]; then
+    echo "DRYRUN: remove plugin dir $dir"
+    return 0
+  fi
+  rm -rf "$dir"
+}
+
 # Satisfy a bundle's declared prerequisites before any package is routed, so a
 # package that lives only in an extra repo (Steam in multilib) classifies and
 # installs correctly.
@@ -192,7 +221,7 @@ install_set() {
   file=$(bundle_file "$id")
   ensure_requires "$file"
 
-  local -a repo=() aur=() scripts=()
+  local -a repo=() aur=() scripts=() plugins=()
   declare -A SCRIPT_DETECT=()
 
   while IFS=$'\t' read -r type name detect summary; do
@@ -216,7 +245,11 @@ install_set() {
         fi
         ;;
       plugin)
-        set_state "$name" deferred "install from Settings, Plugins"
+        if plugin_installed "$name"; then
+          set_state "$name" present
+        else
+          plugins+=("$name")
+        fi
         ;;
       *)
         set_state "$name" failed "unknown item type '$type'"
@@ -225,7 +258,7 @@ install_set() {
   done < <(bundle_items "$file" "$only")
 
   local n
-  for n in "${repo[@]}" "${aur[@]}" "${scripts[@]}"; do set_state "$n" installing; done
+  for n in "${repo[@]}" "${aur[@]}" "${scripts[@]}" "${plugins[@]}"; do set_state "$n" installing; done
   flush_report "$id" running
 
   if ((${#repo[@]})); then
@@ -268,6 +301,16 @@ install_set() {
     flush_report "$id" running
   done
 
+  for n in "${plugins[@]}"; do
+    echo "==> Installing plugin: $n"
+    if run_plugin_install "$n" && { [[ -n $DRYRUN ]] || plugin_installed "$n"; }; then
+      set_state "$n" installed "place it in Settings, Plugins"
+    else
+      set_state "$n" failed "could not fetch the plugin from the catalogue"
+    fi
+    flush_report "$id" running
+  done
+
   flush_report "$id" "done"
 }
 
@@ -293,7 +336,16 @@ remove_set() {
         set_state "$name" skipped "scripts are not auto-removed"
         ;;
       plugin)
-        set_state "$name" deferred "remove from Settings, Plugins"
+        if plugin_installed "$name"; then
+          run_plugin_remove "$name"
+          if [[ -n $DRYRUN ]] || ! plugin_installed "$name"; then
+            set_state "$name" removed
+          else
+            set_state "$name" failed "could not remove the plugin files"
+          fi
+        else
+          set_state "$name" absent
+        fi
         ;;
     esac
   done < <(bundle_items "$file" "$only")
