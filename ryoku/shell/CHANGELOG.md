@@ -3,16 +3,23 @@
 ## Unreleased
 
 ### Added
-- `quickshell/pill` stash install now handles Arch packages and stops offering
-  formats it cannot install. A dropped `.pkg.tar.zst` (recognised by its
-  `.PKGINFO`) is installed with `pacman -U` through pkexec instead of being
-  extracted into `~/.local` as if it were a self-contained app, which produced a
-  broken launcher entry because the binary lives under `/opt`; the package's own
-  desktop entry is then read natively. `Stash.qml` `hasInstallable` no longer
-  lights the Install action for `.deb/.rpm/.bin/.run/.flatpak`, which
-  `stash-install.sh` never supported and silently skipped. Fixes Warp terminal
-  (and any native package) not opening from the launcher after a stash install.
-  Covered by `tests/stash-install.sh`.
+- `quickshell/pill` stash install: drop a file, get a launcher entry. Beyond
+  AppImages and self-contained tarballs, the installer now handles native and
+  portable package formats so they open afterwards:
+  - Arch packages (`.pkg.tar.zst`, or any tar carrying a `.PKGINFO`) install with
+    `pacman -U` through pkexec (the polkit agent prompts); the package's own
+    desktop entry is read natively. Previously these were misread as plain
+    tarballs and extracted into `~/.local`, producing a broken entry (the binary
+    lives under `/opt`), which is why a Warp terminal install never opened.
+  - Flatpak bundles (`.flatpak`) install into the user installation with
+    `flatpak install --user` (the flathub remote is ensured first so the runtime
+    resolves), and flatpak exports the desktop entry. Adds `flatpak` to the base set.
+  - `.deb` and `.rpm` payloads are extracted with bsdtar and run through the same
+    app-discovery as tarballs (best-effort; an app that hardcodes system paths is
+    better served by its native package or flatpak).
+  `Stash.qml` `hasInstallable` offers exactly these; self-extracting `.bin`/`.run`
+  stay out (running an arbitrary installer blind is unsafe). Covered by
+  `tests/stash-install.sh`.
 - `quickshell/widgets`: desktop widgets on the wallpaper. A new `WlrLayer.Bottom`
   host (per monitor, below windows, namespace
   `ryoku-widgets`), supervised like the pill/visualiser via a `{"widgets", true}`

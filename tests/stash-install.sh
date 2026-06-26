@@ -28,6 +28,11 @@ cat >"$stub/pkexec" <<EOF
 printf '%s\n' "\$*" >>"$work/pkexec.log"
 exit 0
 EOF
+cat >"$stub/flatpak" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >>"$work/flatpak.log"
+exit 0
+EOF
 for t in pacman notify-send update-desktop-database; do printf '#!/bin/sh\nexit 0\n' >"$stub/$t"; done
 chmod +x "$stub"/*
 export PATH="$stub:$PATH"
@@ -79,6 +84,37 @@ STASH_DIR="$s3" run_stash
 check "$(cat "$work/pkexec.log")" "" "generic tarball never escalated to pacman"
 present "$work/home/.local/share/applications/plainapp.desktop" \
   "generic tarball still becomes a launcher entry"
+
+# Case 4: a flatpak bundle installs via flatpak install --user (flatpak stubbed).
+s4="$work/stash4"; mkdir -p "$s4"
+: >"$s4/app.flatpak"
+: >"$work/pkexec.log"; : >"$work/flatpak.log"
+STASH_DIR="$s4" run_stash
+if grep -qx "install --user --noninteractive $s4/app.flatpak" "$work/flatpak.log"; then
+  echo "  ok: flatpak bundle handed to flatpak install --user"
+else
+  echo "::error::FAIL: flatpak bundle not installed; log: $(cat "$work/flatpak.log")" >&2
+  fail=1
+fi
+check "$(cat "$work/pkexec.log")" "" "flatpak never escalated to pacman"
+
+# Case 5: a .deb payload is extracted into a launcher entry (best-effort). Needs ar
+# (to build the fixture) and bsdtar (libarchive); skipped where either is absent.
+if command -v ar >/dev/null 2>&1 && command -v bsdtar >/dev/null 2>&1; then
+  s5="$work/stash5"; mkdir -p "$s5"
+  dr="$work/debroot"; rm -rf "$dr"; mkdir -p "$dr/usr/bin" "$dr/usr/share/applications"
+  printf '#!/bin/sh\necho hi\n' >"$dr/usr/bin/debapp"; chmod +x "$dr/usr/bin/debapp"
+  printf '[Desktop Entry]\nType=Application\nName=DebApp\nExec=debapp\n' >"$dr/usr/share/applications/debapp.desktop"
+  ( cd "$dr" && tar -czf "$work/data.tar.gz" usr )
+  printf '2.0\n' >"$work/debian-binary"
+  ( cd "$work" && ar rc "$s5/debapp.deb" debian-binary data.tar.gz )
+  : >"$work/pkexec.log"; : >"$work/flatpak.log"
+  STASH_DIR="$s5" run_stash
+  check "$(cat "$work/pkexec.log")" "" "deb payload never escalated to pacman"
+  present "$work/home/.local/share/applications/debapp.desktop" "deb payload extracted into a launcher entry"
+else
+  echo "  skip: .deb extraction (ar or bsdtar absent)"
+fi
 
 if (( fail )); then echo "stash-install: FAILED" >&2; exit 1; fi
 echo "stash-install: all checks passed"

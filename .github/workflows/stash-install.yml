@@ -1,10 +1,10 @@
 name: Stash installer
 
-# The stash install action (hyprland/scripts/stash-install.sh) must hand an Arch
-# package (.pkg.tar.zst, by its .PKGINFO) to pacman -U, never extract it into
-# ~/.local where its /opt binary would not run, and must not escalate a generic
-# tarball to pacman. pkexec and pacman are stubbed in the test. See
-# tests/stash-install.sh.
+# The stash install action (hyprland/scripts/stash-install.sh) turns a dropped
+# file into a launcher entry: an Arch package (.pkg.tar.zst) goes to pacman -U, a
+# flatpak bundle to flatpak install, and .deb/.rpm payloads are extracted with
+# bsdtar. The test stubs pkexec/pacman/flatpak and asserts each dispatch (and that
+# a generic tarball is never escalated). See tests/stash-install.sh.
 
 on:
   pull_request:
@@ -24,11 +24,14 @@ permissions:
 
 jobs:
   stash-install:
-    name: Stash installs Arch packages via pacman
+    name: Stash turns dropped files into launcher entries
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install bsdtar (libarchive) for the .deb/.rpm payload cases
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
 
       - name: Stash installer dispatch
         shell: bash

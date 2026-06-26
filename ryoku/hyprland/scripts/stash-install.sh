@@ -24,6 +24,9 @@ classify() {
   case "$1" in
     *.AppImage|*.appimage) printf 'appimage'; return ;;
     *.pkg.tar.zst|*.pkg.tar.xz|*.pkg.tar.gz|*.pkg.tar) printf 'pacman'; return ;;
+    *.flatpak) printf 'flatpak'; return ;;
+    *.deb) printf 'deb'; return ;;
+    *.rpm) printf 'rpm'; return ;;
   esac
   case "$1" in
     *.tar|*.tar.gz|*.tgz|*.tar.xz|*.tar.zst|*.tar.bz2)
@@ -226,33 +229,24 @@ install_tar_desktop() {
   LAST_NAME="$appname"
 }
 
-# install_tarball SRC: extract and dispatch on contents. Sets LAST_NAME on success.
-install_tarball() {
-  local src base rawname name dst ai ed exe
-  src="$1"
-  base=$(basename "$src")
-  rawname=$(strip_tar_ext "$base")
-  name=$(slug "$rawname")
-  [ -n "$name" ] || name="app"
-  dst="$APPSTORE/$name"
-
-  rm -rf "$dst"; mkdir -p "$dst"
-  extract_tar "$src" "$dst" >/dev/null 2>&1 || return 1
-
-  # (1) bundled AppImage wins.
+# dispatch_extracted ROOT NAME FALLBACK: from an already-extracted app tree,
+# synthesize a launcher entry. Prefers a bundled AppImage, then a shipped desktop
+# file (Exec rewritten to the bundled binary), then a lone executable. Sets
+# LAST_NAME. Best-effort: an app that hardcodes /usr or /opt paths may still need
+# its native package, but a relocatable tree becomes launchable here.
+dispatch_extracted() {
+  local dst="$1" name="$2" rawname="$3" ai ed exe
   ai=$(find "$dst" -type f \( -iname '*.AppImage' -o -iname '*.appimage' \) 2>/dev/null | head -n1)
   if [ -n "$ai" ]; then
     chmod +x "$ai" 2>/dev/null
     install_appimage "$ai"
     return 0
   fi
-  # (2) shipped desktop file: reuse it, rewriting Exec to the bundled binary.
   ed=$(find "$dst" -type f -name '*.desktop' 2>/dev/null | head -n1)
   if [ -n "$ed" ]; then
     install_tar_desktop "$dst" "$ed" "$rawname"
     return 0
   fi
-  # (3) fall back to a bundled executable.
   exe=$(pick_executable "$dst" "$rawname")
   if [ -n "$exe" ]; then
     chmod +x "$exe" 2>/dev/null
@@ -261,6 +255,69 @@ install_tarball() {
     return 0
   fi
   return 1
+}
+
+# app_store_dir RAWNAME: a fresh per-app dir under the app store; echoes its path.
+app_store_dir() {
+  local name dst
+  name=$(slug "$1"); [ -n "$name" ] || name="app"
+  dst="$APPSTORE/$name"
+  rm -rf "$dst"; mkdir -p "$dst"
+  printf '%s' "$dst"
+}
+
+# install_tarball SRC: extract a self-contained app tarball and synthesize an entry.
+install_tarball() {
+  local src rawname name dst
+  src="$1"
+  rawname=$(strip_tar_ext "$(basename "$src")")
+  name=$(slug "$rawname"); [ -n "$name" ] || name="app"
+  dst=$(app_store_dir "$rawname")
+  extract_tar "$src" "$dst" >/dev/null 2>&1 || return 1
+  dispatch_extracted "$dst" "$name" "$rawname"
+}
+
+# install_deb SRC / install_rpm SRC: extract a foreign package's payload (its usr/
+# tree) and synthesize an entry from it. bsdtar (libarchive, always present via
+# pacman) reads both: a .deb nests its payload in data.tar.*, an .rpm exposes the
+# cpio tree directly. Best-effort, like the tarball path; a native pacman package
+# or flatpak is the better route for an app that hardcodes system paths.
+install_deb() {
+  local src rawname name dst tmp data
+  src="$1"
+  rawname=$(basename "$src" .deb)
+  name=$(slug "$rawname"); [ -n "$name" ] || name="app"
+  command -v bsdtar >/dev/null 2>&1 || return 1
+  dst=$(app_store_dir "$rawname")
+  tmp=$(mktemp -d) || return 1
+  bsdtar -xf "$src" -C "$tmp" >/dev/null 2>&1 || { rm -rf "$tmp"; return 1; }
+  data=$(find "$tmp" -maxdepth 1 -name 'data.tar*' 2>/dev/null | head -n1)
+  [ -n "$data" ] && bsdtar -xf "$data" -C "$dst" >/dev/null 2>&1
+  rm -rf "$tmp"
+  dispatch_extracted "$dst" "$name" "$rawname"
+}
+
+install_rpm() {
+  local src rawname name dst
+  src="$1"
+  rawname=$(basename "$src" .rpm)
+  name=$(slug "$rawname"); [ -n "$name" ] || name="app"
+  command -v bsdtar >/dev/null 2>&1 || return 1
+  dst=$(app_store_dir "$rawname")
+  bsdtar -xf "$src" -C "$dst" >/dev/null 2>&1 || return 1
+  dispatch_extracted "$dst" "$name" "$rawname"
+}
+
+# install_flatpak SRC: install a single-file Flatpak bundle into the user
+# installation. The flathub remote is ensured first so a bundle's runtime can
+# resolve; flatpak then exports the app's desktop entry under
+# ~/.local/share/flatpak/exports (on XDG_DATA_DIRS), which the launcher reads.
+install_flatpak() {
+  local src="$1"
+  command -v flatpak >/dev/null 2>&1 || return 1
+  flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+  flatpak install --user --noninteractive "$src" >/dev/null 2>&1 || return 1
+  LAST_NAME=$(slug "$(basename "$src" .flatpak)")
 }
 
 # install_pacman SRC: install an Arch package with `pacman -U`. The stash runs
@@ -303,6 +360,15 @@ install_one() {
     pacman)
       install_pacman "$f" || return 1
       ;;
+    flatpak)
+      install_flatpak "$f" || return 1
+      ;;
+    deb)
+      install_deb "$f" || return 1
+      ;;
+    rpm)
+      install_rpm "$f" || return 1
+      ;;
     *)
       return 2
       ;;
@@ -320,7 +386,7 @@ else
   shopt -s nullglob
   for f in "$STASH"/*; do
     [ -f "$f" ] || continue
-    case "$(classify "$f")" in appimage|tarball|pacman) targets+=("$f") ;; esac
+    case "$(classify "$f")" in appimage|tarball|pacman|flatpak|deb|rpm) targets+=("$f") ;; esac
   done
   shopt -u nullglob
 fi
