@@ -72,10 +72,13 @@ Singleton {
     property string composeText: ""
 
     // Receive flow.
-    property string recvState: "idle"     // idle | listening
+    property string recvState: "idle"     // idle | listening | prompt
     property string recvAlias: ""
     property int recvCount: 0
     property string recvLast: ""
+    property string offerAlias: ""        // device asking to send (recvState=prompt)
+    property int    offerCount: 0
+    property string offerSid: ""
 
     // Install / compress.
     property string task: ""              // "" | install | compress
@@ -181,6 +184,29 @@ Singleton {
     function stopReceive() {
         recvProc.running = false;
         root.recvState = "idle";
+        root.clearOffer();
+    }
+
+    function clearOffer() {
+        root.offerAlias = "";
+        root.offerCount = 0;
+        root.offerSid = "";
+        if (root.recvState === "prompt")
+            root.recvState = "listening";
+    }
+
+    // Answer the held OFFER over the receiver's stdin; the server only issues an
+    // upload token (so only lets bytes through) once it reads ACCEPT.
+    function acceptIncoming() {
+        if (root.recvState !== "prompt") return;
+        recvProc.write("ACCEPT\t" + root.offerSid + "\n");
+        root.clearOffer();
+    }
+
+    function declineIncoming() {
+        if (root.recvState !== "prompt") return;
+        recvProc.write("DECLINE\t" + root.offerSid + "\n");
+        root.clearOffer();
     }
 
     function onRecvLine(line) {
@@ -188,8 +214,13 @@ Singleton {
         if (t[0] === "READY") {
             root.recvAlias = t[1] || "Ryoku Stash";
             root.recvState = "listening";
-        } else if (t[0] === "INCOMING") {
-            root.recvLast = t[1] || "";
+        } else if (t[0] === "OFFER") {
+            root.offerAlias = t[1] || "A device";
+            root.offerCount = parseInt(t[2]) || 1;
+            root.offerSid = t[3] || "";
+            root.recvState = "prompt";
+        } else if (t[0] === "DECLINED") {
+            if (t[1] === root.offerSid) root.clearOffer();
         } else if (t[0] === "SAVED") {
             root.recvCount += 1;
             root.recvLast = t[1] || "";
@@ -366,6 +397,7 @@ Singleton {
     Process {
         id: recvProc
         command: ["bash", root.script, "receive"]
+        stdinEnabled: true
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: (line) => root.onRecvLine(line)

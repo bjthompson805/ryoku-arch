@@ -1,0 +1,35 @@
+name: LocalSend receive
+
+# The LocalSend receiver (hyprland/scripts/localsend.sh receive) holds every
+# incoming transfer at prepare-upload until the shell answers ACCEPT/DECLINE on
+# stdin: ACCEPT issues an upload token (200), DECLINE or silence returns 403 and
+# no bytes transfer. The test drives the server over HTTPS and feeds verdicts on
+# its stdin. See tests/localsend-receive.sh.
+
+on:
+  pull_request:
+    paths:
+      - 'ryoku/hyprland/scripts/localsend.sh'
+      - 'tests/localsend-receive.sh'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ryoku/hyprland/scripts/localsend.sh'
+      - 'tests/localsend-receive.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  localsend-receive:
+    name: Incoming transfers wait for accept/decline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: LocalSend receive consent gate
+        shell: bash
+        run: bash tests/localsend-receive.sh

@@ -230,6 +230,14 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `quickshell/pill` LocalSend receive: incoming transfers now require consent.
+  The receiver auto-accepted any device's `prepare-upload` and dropped the bytes
+  straight into the stash. It now holds each offer at `prepare-upload`, shows
+  "‹device› wants to send ‹N› file(s)" with Accept/Decline in the receive sheet,
+  and issues an upload token only once you Accept (Decline or 60s of silence
+  returns 403, so declined bytes never cross the wire). The shell answers over
+  the receiver's stdin; the Python program now loads from fd 3 to leave stdin
+  free for that channel. Covered by `tests/localsend-receive.sh`.
 - `quickshell/pill` stash install: the control deck now steps aside for the sudo
   prompt. Installing a pacman package shells out to `pkexec`, whose polkit window
   (`hyprpolkitagent`) landed behind the deck's overlay layer and could not take

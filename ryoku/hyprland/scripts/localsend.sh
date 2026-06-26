@@ -103,8 +103,11 @@ send-all)
   ;;
 receive)
   # Run a LocalSend v2 receiver: announce over multicast so other LocalSend apps
-  # list us, accept any incoming upload straight into the stash, and stream status
-  # lines the shell parses (READY/INCOMING/SAVED/ERROR, tab-separated, flushed).
+  # list us, then hold each incoming transfer at prepare-upload until the shell
+  # sends back a verdict on stdin (ACCEPT<tab>sid / DECLINE<tab>sid; auto-declines
+  # after RYOKU_LS_ACCEPT_TIMEOUT seconds, default 60). Accepted files save into
+  # the stash. Status lines the shell parses (READY/OFFER/SAVED/DECLINED/ERROR)
+  # stream out tab-separated and flushed.
   ALIAS="${2:-Ryoku Stash}"
   STASH="${STASH_DIR:-$HOME/Downloads/Stash}"
   mkdir -p "$STASH"
@@ -118,14 +121,29 @@ receive)
   # signal reaches python directly and the port is released. Without exec, python
   # is a bash child that gets orphaned on stop and keeps holding port 53317, so
   # the next receive fails with "port busy".
-  exec env ALIAS="$ALIAS" STASH="$STASH" CERT="$CERT" KEY="$KEY" FINGERPRINT="$(cat "$FP_FILE")" python3 - <<'PYEOF'
+  # python3 reads its program off fd 3 (the heredoc), leaving stdin free as the
+  # shell's verdict channel for the accept/decline handshake.
+  exec env ALIAS="$ALIAS" STASH="$STASH" CERT="$CERT" KEY="$KEY" FINGERPRINT="$(cat "$FP_FILE")" python3 /dev/fd/3 3<<'PYEOF'
 import os, ssl, json, socket, struct, threading, time, signal, http.server
 from urllib.parse import urlparse, parse_qs
 ALIAS=os.environ['ALIAS']; STASH=os.environ['STASH']; FP=os.environ['FINGERPRINT']
 CERT=os.environ['CERT']; KEY=os.environ['KEY']; PORT=53317; MCAST='224.0.0.167'
 INFO={"alias":ALIAS,"version":"2.1","deviceModel":"Ryoku","deviceType":"headless","fingerprint":FP,"download":False}
 sessions={}
+pending={}   # sid -> threading.Event, set when the shell's verdict arrives
+verdict={}   # sid -> True (accept) / False (decline)
 def out(tag,val): print(tag+"\t"+val, flush=True)
+def stdin_verdicts():
+    # The shell answers each OFFER on our stdin: "ACCEPT<tab>sid" / "DECLINE<tab>sid".
+    # readline (not "for line in stdin") so each verdict lands immediately instead
+    # of sitting in Python's iterator read-ahead buffer.
+    import sys
+    for line in iter(sys.stdin.readline, ""):
+        parts=line.rstrip("\n").split("\t")
+        if len(parts)>=2 and parts[0] in ("ACCEPT","DECLINE"):
+            sid=parts[1]; verdict[sid]=(parts[0]=="ACCEPT")
+            ev=pending.get(sid)
+            if ev: ev.set()
 def uniq(name):
     base=os.path.basename(name) or "file"; path=os.path.join(STASH, base)
     if not os.path.exists(path): return path
@@ -155,10 +173,24 @@ class H(http.server.BaseHTTPRequestHandler):
         elif p.endswith('/prepare-upload'):
             try: req=json.loads(self._read().decode() or '{}')
             except Exception: req={}
-            sid=os.urandom(8).hex(); tok={}; reg={}
-            for fid,meta in (req.get('files',{}) or {}).items():
+            files=req.get('files',{}) or {}
+            if not files: self._send(204); return
+            sid=os.urandom(8).hex()
+            alias=((req.get('info') or {}).get('alias') or 'A device')
+            alias=alias.replace("\t"," ").replace("\n"," ")[:64]
+            # Hold the offer: announce it and block until the shell's verdict lands
+            # on stdin. No token is issued unless accepted, and /upload rejects any
+            # fileId without a token, so declined bytes never cross the wire.
+            ev=threading.Event(); pending[sid]=ev; verdict[sid]=False
+            out("OFFER", "%s\t%d\t%s" % (alias, len(files), sid))
+            accepted = ev.wait(float(os.environ.get("RYOKU_LS_ACCEPT_TIMEOUT","60"))) and verdict.get(sid, False)
+            pending.pop(sid, None); verdict.pop(sid, None)
+            if not accepted:
+                out("DECLINED", sid); self._send(403); return
+            tok={}; reg={}
+            for fid,meta in files.items():
                 t=os.urandom(8).hex(); name=(meta or {}).get('fileName', fid)
-                tok[fid]=t; reg[fid]={'token':t,'fileName':name}; out("INCOMING", name)
+                tok[fid]=t; reg[fid]={'token':t,'fileName':name}
             sessions[sid]=reg
             self._send(200, json.dumps({"sessionId":sid,"files":tok}).encode())
         elif p.endswith('/upload'):
@@ -244,6 +276,7 @@ signal.signal(signal.SIGTERM, lambda *a: stop.set())
 signal.signal(signal.SIGINT,  lambda *a: stop.set())
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 threading.Thread(target=announce, daemon=True).start()
+threading.Thread(target=stdin_verdicts, daemon=True).start()
 out("READY", ALIAS)
 stop.wait(); srv.shutdown()
 PYEOF

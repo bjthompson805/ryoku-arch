@@ -24,6 +24,7 @@ Rectangle {
     MouseArea { anchors.fill: parent; hoverEnabled: true }
 
     Column {
+        visible: Stash.recvState !== "prompt"
         anchors.centerIn: parent
         anchors.verticalCenterOffset: -8 * root.s
         width: parent.width - 48 * root.s
@@ -156,6 +157,140 @@ Rectangle {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: Stash.stopReceive()
+            }
+        }
+    }
+
+    // Incoming-transfer consent: the sender's prepare-upload is held server-side
+    // until Accept/Decline answers here. Nothing has transferred yet.
+    Column {
+        anchors.centerIn: parent
+        anchors.verticalCenterOffset: -8 * root.s
+        width: parent.width - 48 * root.s
+        spacing: 16 * root.s
+        visible: Stash.recvState === "prompt"
+
+        Item {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 44 * root.s
+            height: 44 * root.s
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: Qt.alpha(Theme.flameGlow, 0.14)
+                border.width: 1
+                border.color: Qt.alpha(Theme.flameGlow, 0.5)
+            }
+            GlyphIcon {
+                anchors.centerIn: parent
+                width: 22 * root.s; height: 22 * root.s
+                name: "inbox"
+                color: Theme.flameGlow
+                stroke: 1.7
+            }
+        }
+
+        Column {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 3 * root.s
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: root.width - 56 * root.s
+                text: (Stash.offerAlias.length > 0 ? Stash.offerAlias : "A device") + " wants to send"
+                color: Theme.cream
+                font.family: Theme.font
+                font.pixelSize: 12 * root.s
+                font.weight: Font.DemiBold
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: Stash.offerCount + (Stash.offerCount === 1 ? " file" : " files")
+                color: Theme.flameGlow
+                font.family: Theme.font
+                font.pixelSize: 10 * root.s
+                font.weight: Font.Medium
+            }
+        }
+
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 10 * root.s
+
+            Rectangle {
+                width: declineRow.implicitWidth + 24 * root.s
+                height: 30 * root.s
+                radius: Motion.rSmall * root.s
+                color: declineArea.containsMouse ? Theme.frameBg : Theme.tileBg
+                border.width: 1
+                border.color: declineArea.containsMouse ? Theme.frameBorder : Theme.border
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
+                Row {
+                    id: declineRow
+                    anchors.centerIn: parent
+                    spacing: 6 * root.s
+                    GlyphIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 12 * root.s; height: 12 * root.s
+                        name: "close"
+                        color: declineArea.containsMouse ? Theme.cream : Theme.iconDim
+                        stroke: 1.7
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Decline"
+                        color: declineArea.containsMouse ? Theme.cream : Theme.subtle
+                        font.family: Theme.font
+                        font.pixelSize: 10.5 * root.s
+                        font.weight: Font.DemiBold
+                    }
+                }
+                MouseArea {
+                    id: declineArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Stash.declineIncoming()
+                }
+            }
+
+            Rectangle {
+                width: acceptRow.implicitWidth + 24 * root.s
+                height: 30 * root.s
+                radius: Motion.rSmall * root.s
+                color: acceptArea.containsMouse ? Qt.alpha(Theme.flameGlow, 0.3) : Qt.alpha(Theme.flameGlow, 0.16)
+                border.width: 1
+                border.color: Qt.alpha(Theme.flameGlow, 0.6)
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
+                Row {
+                    id: acceptRow
+                    anchors.centerIn: parent
+                    spacing: 6 * root.s
+                    GlyphIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 12 * root.s; height: 12 * root.s
+                        name: "check"
+                        color: Theme.flameGlow
+                        stroke: 1.9
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Accept"
+                        color: Theme.cream
+                        font.family: Theme.font
+                        font.pixelSize: 10.5 * root.s
+                        font.weight: Font.DemiBold
+                    }
+                }
+                MouseArea {
+                    id: acceptArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Stash.acceptIncoming()
+                }
             }
         }
     }
