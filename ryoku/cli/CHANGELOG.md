@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- `bin/ryoku-recovery` (the `curl | bash` panic button) now always restores the
+  stable `main` branch and repairs the broken checkout in place. A machine from
+  an old ISO could be stranded on `unstable-dev`: that ISO's `ryoku-update`
+  switched the checkout to a release branch, but the rewritten tree ships none of
+  its old helper commands (`ryoku-snapshot`, `ryoku-update-perform`), so the
+  update self-destructed and every `ryoku` command broke. Recovery could not dig
+  the box out because it honored a leaked `RYOKU_CHANNEL` and cloned a fresh
+  checkout beside the broken one, leaving it on `unstable-dev`. Recovery now
+  hardcodes `main`, force-resets whichever checkout the machine actually has (the
+  pre-rewrite one at the data root, or the current `repo/`) to `origin/main` and
+  cleans its stale `bin/` scripts, and drops the dangling pre-rewrite
+  `~/.local/lib/runtime-env.sh` PATH bridge. Covered by `tests/ryoku-recovery.sh`.
 - `doctor` now creates the snapper `root` config when it is missing instead of
   reporting "not configured" as healthy. The snapshot safety net behind every
   `ryoku update` (the pre/post snapshot pair and the Limine rollback entries) was

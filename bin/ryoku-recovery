@@ -6,8 +6,25 @@
 set -euo pipefail
 
 REPO_URL="${RYOKU_RECOVERY_URL:-https://github.com/neur0map/ryoku-arch.git}"
-CHANNEL="${RYOKU_CHANNEL:-main}"
-RECOVERY_DIR="${RYOKU_RECOVERY_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/ryoku/repo}"
+# Recovery always restores the stable channel. Every Ryoku machine runs main; a
+# leaked RYOKU_CHANNEL (an old ISO that switched to a release branch, or a
+# maintainer shell) must never redirect the rescue onto unstable-dev, or the
+# panic button re-breaks the very box it should save.
+CHANNEL="main"
+# Repair the checkout this machine actually has, in place. The pre-rewrite ISO
+# kept the checkout at the data root and ran its commands from $DATA_ROOT/bin on
+# PATH; the current layout keeps it in $DATA_ROOT/repo. Resetting whichever one
+# exists back to main converts a box the old updater stranded on unstable-dev
+# into a clean main checkout (its stale bin/ scripts dropped by the reset),
+# instead of leaving the broken checkout beside a fresh clone.
+DATA_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/ryoku"
+if [[ -n ${RYOKU_RECOVERY_DIR:-} ]]; then
+  RECOVERY_DIR="$RYOKU_RECOVERY_DIR"
+elif git -C "$DATA_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  RECOVERY_DIR="$DATA_ROOT"
+else
+  RECOVERY_DIR="$DATA_ROOT/repo"
+fi
 ASSUME_YES=0
 DO_PACKAGES=1
 
@@ -86,6 +103,17 @@ fi
 git -C "$RECOVERY_DIR" checkout -B "$CHANNEL" "origin/$CHANNEL"
 git -C "$RECOVERY_DIR" reset --hard "origin/$CHANNEL"
 git -C "$RECOVERY_DIR" clean -fdx
+
+# The pre-rewrite layout symlinked a runtime-env.sh into ~/.local/lib and put the
+# checkout's bin/ on PATH through it; the current tree ships neither, so the reset
+# above leaves that bridge dangling. Drop a broken bridge so a converted machine
+# never sources a vanished file (which would wedge shell startup and hide the
+# freshly deployed binaries).
+bridge="$HOME/.local/lib/runtime-env.sh"
+if [[ -L $bridge && ! -e $bridge ]]; then
+  say "removing the stale pre-rewrite runtime-env bridge ($bridge)"
+  rm -f "$bridge"
+fi
 
 commit="$(git -C "$RECOVERY_DIR" rev-parse --short=7 HEAD)"
 say "checkout is on $CHANNEL at $commit"
