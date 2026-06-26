@@ -3,14 +3,15 @@ import QtQuick
 import QtQuick.Controls as QQC
 import "Singletons"
 
-// The navigation rail: brand header, a global search field (it searches content
-// across every section), then the section list. Items flagged `pinned` (Profile,
-// the showcase) sit on their own at the top, never inside a group. The rest are
-// grouped into drawers that animate open and closed; group headers use the
-// Profile dossier idiom (brand dot, mono label, hairline rule between groups).
-// The group holding the current section is always open (its label brightens, no
-// chevron); an expand/collapse-all control in the header tucks or reveals the
-// rest. A single sliding selector marks the active row.
+// The navigation rail, in three bands: a fixed top (items flagged pinned "top" —
+// Profile, the showcase), a scrolling middle (the grouped sections), and a fixed
+// foot (items flagged pinned "bottom" — Updates, the maintenance entry, which
+// keeps its badge permanently in view). The middle groups are drawers that
+// animate open and closed; their headers use the Profile dossier idiom (brand
+// dot, mono label, hairline rule between groups). The group holding the current
+// section is always open (brighter label, no chevron); an expand/collapse-all
+// control in the header tucks or reveals the rest. A sliding selector marks the
+// active row in the middle band; the pinned bands draw their own selection.
 Rectangle {
     id: rail
 
@@ -25,16 +26,16 @@ Rectangle {
     readonly property int navTop: 96 + 54 + 8
     readonly property int navItemH: 44
     readonly property int groupHeaderH: 40
-    readonly property int pinnedGap: 18          // space + rule between pinned items and the groups
+    readonly property int pinnedGap: 18          // space + rule framing the scrolling band
 
     // Open state, derived (no init timing): a group is open iff it holds the
     // current section or the user expanded it. Default {} => only the current
-    // group is open, so the rail starts tucked. Reassign the map (never mutate)
-    // so bindings retrigger.
+    // group is open, so the rail starts tucked.
     property var userExpanded: ({})
 
-    readonly property var pinnedSections: rail.sections.filter(s => s.pinned === true)
-    readonly property var groupedSections: rail.sections.filter(s => s.pinned !== true)
+    readonly property var pinnedTop: rail.sections.filter(s => s.pinned === "top")
+    readonly property var pinnedBottom: rail.sections.filter(s => s.pinned === "bottom")
+    readonly property var groupedSections: rail.sections.filter(s => !s.pinned)
 
     readonly property var groups: {
         var seen = ({});
@@ -52,6 +53,12 @@ Rectangle {
                 return rail.sections[i].group || "";
         return "";
     }
+    function sectionPinned(key) {
+        for (var i = 0; i < rail.sections.length; i++)
+            if (rail.sections[i].key === key)
+                return rail.sections[i].pinned || "";
+        return "";
+    }
 
     function isExpanded(group) {
         return group === rail.groupOf(rail.current) || rail.userExpanded[group] === true;
@@ -62,16 +69,6 @@ Rectangle {
             if (!rail.isExpanded(rail.groups[i]))
                 return false;
         return true;
-    }
-
-    // The updates section is the only one that carries a badge; surface it on its
-    // group's header while that group is collapsed, so a pending update is never
-    // hidden by tucking System away.
-    function groupBadge(group) {
-        for (var i = 0; i < rail.sections.length; i++)
-            if (rail.sections[i].group === group && rail.sections[i].key === "updates")
-                return Updates.available ? Updates.behind : 0;
-        return 0;
     }
 
     function expandAll() {
@@ -90,21 +87,14 @@ Rectangle {
     }
     function toggleAll() { if (rail.allExpanded) rail.collapseAll(); else rail.expandAll(); }
 
-    // Absolute y of a section's row: pinned items first, then a gap, then the
-    // groups (a header per group, items only while the group is open) so the
-    // sliding selector lands on the visible row.
+    // Absolute y of a grouped section's row within the scrolling band: a header
+    // per group, items only while the group is open, so the sliding selector
+    // lands on the visible row.
     function itemY(key) {
         var y = 0;
-        for (var i = 0; i < rail.pinnedSections.length; i++) {
-            if (rail.pinnedSections[i].key === key)
-                return y;
-            y += rail.navItemH;
-        }
-        if (rail.pinnedSections.length > 0)
-            y += rail.pinnedGap;
         var last = null;
-        for (var j = 0; j < rail.groupedSections.length; j++) {
-            var s = rail.groupedSections[j];
+        for (var i = 0; i < rail.groupedSections.length; i++) {
+            var s = rail.groupedSections[i];
             if (s.group !== last) {
                 y += rail.groupHeaderH;
                 last = s.group;
@@ -124,6 +114,62 @@ Rectangle {
         width: 1
         height: parent.height
         color: Theme.line
+    }
+
+    // A pinned row (top or bottom band): a NavButton with its own selection pill,
+    // since the sliding selector only roams the scrolling middle band.
+    component PinnedRow: Item {
+        id: pin
+        property var section: ({})
+        width: parent ? parent.width : 0
+        height: rail.navItemH
+
+        Rectangle {
+            visible: rail.current === pin.section.key
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            anchors.topMargin: 1
+            anchors.bottomMargin: 1
+            radius: 11
+            color: Theme.keyTop
+            border.width: 1
+            border.color: Theme.line
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 1
+                height: 3
+                radius: 3
+                color: Theme.keyBot
+            }
+        }
+
+        NavButton {
+            anchors.fill: parent
+            icon: pin.section.icon
+            label: pin.section.name
+            badge: pin.section.key === "updates" ? (Updates.available ? Updates.behind : 0) : 0
+            selected: rail.current === pin.section.key
+            onClicked: rail.navigate(pin.section.key)
+        }
+    }
+
+    // A hairline that frames the scrolling band from the pinned bands.
+    component BandRule: Item {
+        width: parent ? parent.width : 0
+        height: rail.pinnedGap
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: 24
+            anchors.rightMargin: 18
+            height: 1
+            color: Theme.line
+        }
     }
 
     // brand + search
@@ -228,21 +274,59 @@ Rectangle {
         }
     }
 
-    // section list, scrollable when it overflows the rail
-    Flickable {
-        id: navFlick
+    // ── Fixed top band: pinned "top" items (Profile) ─────────────────────────
+    Column {
+        id: topBand
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.topMargin: rail.navTop
+        spacing: 0
+
+        Repeater {
+            model: rail.pinnedTop
+            delegate: PinnedRow {
+                required property var modelData
+                width: topBand.width
+                section: modelData
+            }
+        }
+        BandRule { visible: rail.pinnedTop.length > 0; height: rail.pinnedTop.length > 0 ? rail.pinnedGap : 0 }
+    }
+
+    // ── Fixed foot band: pinned "bottom" items (Updates) ─────────────────────
+    Column {
+        id: bottomBand
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.bottom: footer.top
-        anchors.bottomMargin: 14
+        anchors.bottomMargin: 8
+        spacing: 0
+
+        BandRule { visible: rail.pinnedBottom.length > 0; height: rail.pinnedBottom.length > 0 ? rail.pinnedGap : 0 }
+        Repeater {
+            model: rail.pinnedBottom
+            delegate: PinnedRow {
+                required property var modelData
+                width: bottomBand.width
+                section: modelData
+            }
+        }
+    }
+
+    // ── Scrolling middle band: the grouped drawers ───────────────────────────
+    Flickable {
+        id: navFlick
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: topBand.bottom
+        anchors.bottom: bottomBand.top
         clip: true
         contentHeight: listCol.height
         boundsBehavior: Flickable.StopAtBounds
         QQC.ScrollBar.vertical: QQC.ScrollBar { policy: QQC.ScrollBar.AsNeeded }
 
-        // Sliding selection indicator (scrolls with the list; dimmed during search).
+        // Sliding selection indicator (hidden when a pinned band item is current).
         Rectangle {
             id: selector
             x: 12
@@ -253,7 +337,7 @@ Rectangle {
             color: Theme.keyTop
             border.width: 1
             border.color: Theme.line
-            opacity: rail.query.length > 0 ? 0.4 : 1
+            opacity: rail.query.length > 0 ? 0.4 : (rail.sectionPinned(rail.current) !== "" ? 0 : 1)
             Behavior on y { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
             Behavior on opacity { NumberAnimation { duration: Theme.quick } }
 
@@ -273,38 +357,6 @@ Rectangle {
             width: navFlick.width
             spacing: 0
 
-            // Pinned items (Profile): standalone at the top, always shown.
-            Repeater {
-                model: rail.pinnedSections
-
-                delegate: NavButton {
-                    required property var modelData
-                    width: listCol.width
-                    height: rail.navItemH
-                    icon: modelData.icon
-                    label: modelData.name
-                    selected: rail.current === modelData.key
-                    onClicked: rail.navigate(modelData.key)
-                }
-            }
-
-            // Separator between the pinned items and the grouped drawers.
-            Item {
-                width: listCol.width
-                height: rail.pinnedSections.length > 0 ? rail.pinnedGap : 0
-                visible: rail.pinnedSections.length > 0
-
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.leftMargin: 24
-                    anchors.rightMargin: 18
-                    height: 1
-                    color: Theme.line
-                }
-            }
-
             Repeater {
                 model: rail.groupedSections
 
@@ -319,8 +371,7 @@ Rectangle {
 
                     // Group header: a hairline rule between groups, a brand accent
                     // dot, and a mono label. The current group brightens and drops
-                    // its chevron (it never collapses); a tucked group surfaces its
-                    // updates badge here.
+                    // its chevron (it never collapses).
                     Item {
                         width: parent.width
                         height: row.firstOfGroup ? rail.groupHeaderH : 0
@@ -380,28 +431,6 @@ Rectangle {
                             }
                         }
 
-                        Rectangle {
-                            visible: !row.groupOpen && rail.groupBadge(row.modelData.group) > 0
-                            anchors.right: parent.right
-                            anchors.rightMargin: 22
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 7
-                            width: Math.max(16, hdrBadge.implicitWidth + 10)
-                            height: 15
-                            radius: 7.5
-                            color: Theme.ember
-
-                            Text {
-                                id: hdrBadge
-                                anchors.centerIn: parent
-                                text: "" + rail.groupBadge(row.modelData.group)
-                                color: Theme.onAccent
-                                font.family: Theme.font
-                                font.pixelSize: 9
-                                font.weight: Font.Bold
-                            }
-                        }
-
                         HoverHandler { id: hdrHover; enabled: !row.currentGroup; cursorShape: Qt.PointingHandCursor }
                         TapHandler { enabled: !row.currentGroup; onTapped: rail.toggleGroup(row.modelData.group) }
                     }
@@ -419,7 +448,6 @@ Rectangle {
                             height: rail.navItemH
                             icon: row.modelData.icon
                             label: row.modelData.name
-                            badge: row.modelData.key === "updates" ? (Updates.available ? Updates.behind : 0) : 0
                             selected: rail.current === row.modelData.key
                             onClicked: rail.navigate(row.modelData.key)
                         }

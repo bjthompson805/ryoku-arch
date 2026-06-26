@@ -19,12 +19,12 @@ Rectangle {
     readonly property bool searching: navRail.query.length > 0
 
     readonly property var sectionDefs: [
-        { "key": "profile",     "name": "Profile",         "icon": "user",     "pinned": true },
+        { "key": "profile",     "name": "Profile",         "icon": "user",     "pinned": "top" },
         { "key": "displays",    "name": "Displays",        "icon": "display",  "group": "System" },
         { "key": "input",       "name": "Input",           "icon": "mouse",    "group": "System" },
         { "key": "keybinds",    "name": "Keybinds",        "icon": "keyboard", "group": "System" },
         { "key": "connections", "name": "Connections",     "icon": "wifi",     "group": "System" },
-        { "key": "updates",     "name": "Updates",         "icon": "download", "group": "System" },
+        { "key": "updates",     "name": "Updates",         "icon": "download", "pinned": "bottom" },
         { "key": "appearance",  "name": "Appearance",      "icon": "palette",  "group": "Desktop" },
         { "key": "animations",  "name": "Animations",      "icon": "motion",   "group": "Desktop" },
         { "key": "lockscreen",  "name": "Lockscreen",      "icon": "lock",     "group": "Desktop" },

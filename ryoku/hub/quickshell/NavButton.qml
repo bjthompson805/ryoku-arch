@@ -16,6 +16,21 @@ Item {
 
     implicitHeight: 44
 
+    // Hover highlight, aligned with the rail's selection pill; hidden on the
+    // selected row (the sliding selector already marks it). A faint preview of
+    // where a click lands.
+    Rectangle {
+        anchors.fill: parent
+        anchors.leftMargin: 12
+        anchors.rightMargin: 12
+        anchors.topMargin: 1
+        anchors.bottomMargin: 1
+        radius: 11
+        color: Theme.keyTop
+        opacity: (hover.hovered && !btn.selected) ? 0.45 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.quick } }
+    }
+
     Row {
         anchors.left: parent.left
         anchors.leftMargin: 28
