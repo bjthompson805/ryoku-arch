@@ -179,6 +179,8 @@ Rectangle {
         anchors.top: parent.top
         spacing: 0
 
+        // Brand: a 力 seal (the live brand kanji set in a carbon hanko, not a flat
+        // image) beside the RYOKU ARCH wordmark and its subtitle.
         Item {
             width: parent.width
             height: 96
@@ -187,49 +189,76 @@ Rectangle {
                 anchors.left: parent.left
                 anchors.leftMargin: 22
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 14
+                spacing: 13
 
-                Image {
+                Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 44
-                    height: 44
-                    source: Qt.resolvedUrl("brand-icon.png")
-                    sourceSize.width: 96
-                    sourceSize.height: 96
-                    smooth: true
-                    fillMode: Image.PreserveAspectFit
+                    width: 42
+                    height: 42
+                    radius: 11
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Theme.cardTop }
+                        GradientStop { position: 1.0; color: Theme.cardBot }
+                    }
+                    border.width: 1
+                    border.color: Qt.alpha(Theme.ember, 0.5)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "\u529b"
+                        color: Theme.ember
+                        font.family: Theme.font
+                        font.pixelSize: 24
+                        font.weight: Font.Black
+                    }
                 }
 
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 2
+                    spacing: 3
 
-                    Text {
-                        text: "Ryoku Settings"
-                        color: Theme.bright
-                        font.family: Theme.font
-                        font.pixelSize: 17
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 0.2
+                    Row {
+                        spacing: 6
+                        Text {
+                            text: "RYOKU"
+                            color: Theme.bright
+                            font.family: Theme.font
+                            font.pixelSize: 15
+                            font.weight: Font.Black
+                            font.letterSpacing: 3
+                        }
+                        Text {
+                            text: "ARCH"
+                            color: Theme.ember
+                            font.family: Theme.font
+                            font.pixelSize: 15
+                            font.weight: Font.Black
+                            font.letterSpacing: 3
+                        }
                     }
 
                     Text {
-                        text: "System & shell"
+                        text: "system and shell settings"
                         color: Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: 11
+                        font.family: Theme.mono
+                        font.pixelSize: 9
                         font.weight: Font.Medium
+                        font.letterSpacing: 0.5
                     }
                 }
             }
+        }
 
-            // Expand-all / collapse-all: tucks every group away (bar the current
-            // one) or reveals them all. Sits above the list per the sidebar header
-            // convention.
+        // Search, with the expand/collapse-all control for the group drawers tucked
+        // at its right so the brand owns the full row above.
+        Item {
+            width: parent.width
+            height: 54
+
             Item {
                 id: expandAllBtn
                 anchors.right: parent.right
-                anchors.rightMargin: 16
+                anchors.rightMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
                 width: 28
                 height: 28
@@ -255,20 +284,15 @@ Rectangle {
                 HoverHandler { id: expandHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: rail.toggleAll() }
             }
-        }
-
-        Item {
-            width: parent.width
-            height: 54
 
             SearchField {
                 id: search
                 anchors.left: parent.left
-                anchors.right: parent.right
+                anchors.right: expandAllBtn.left
                 anchors.leftMargin: 16
-                anchors.rightMargin: 16
+                anchors.rightMargin: 10
                 anchors.verticalCenter: parent.verticalCenter
-                placeholder: "Search everything\u2026"
+                placeholder: "Search\u2026"
                 onEscaped: rail.escaped()
             }
         }
