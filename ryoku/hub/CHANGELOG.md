@@ -146,6 +146,16 @@
   shell's morph motion (a single sliding selection indicator in the rail).
 
 ### Changed
+- The sidebar is reorganised into collapsible groups with a pinned Profile.
+  Profile now stands on its own at the top (no more single-item "You" drawer);
+  the rest live in **System** (Displays, Input, Keybinds, Connections, Updates),
+  **Desktop** (the visual sections), **Add-ons** (Plugins, Extras), and
+  **Advanced** (Window/Layer Rules, Autostart, Environment) at the foot. Each
+  group is a drawer that animates open and closed; only the group holding the
+  current section starts open, and an expand/collapse-all control in the header
+  reveals or tucks the rest. Group headers adopt the Profile dossier idiom (a
+  brand accent dot, a larger mono label, hairline rules between groups); a
+  collapsed group surfaces its pending-updates badge.
 - Renamed the product to **Ryoku Settings** (window title, sidebar, the `Super +
   ,` legend, and the float/centre window rule), keeping the internal `ryoku-hub`
   binary, `quickshell/hub` config, and `qs -c hub` invocation. The sidebar is now

@@ -19,23 +19,23 @@ Rectangle {
     readonly property bool searching: navRail.query.length > 0
 
     readonly property var sectionDefs: [
-        { "key": "profile",     "name": "Profile",      "icon": "user",     "group": "You" },
-        { "key": "displays",    "name": "Displays",     "icon": "display",  "group": "Displays & look" },
-        { "key": "appearance",  "name": "Appearance",   "icon": "palette",  "group": "Displays & look" },
-        { "key": "lockscreen",  "name": "Lockscreen",   "icon": "lock",     "group": "Displays & look" },
-        { "key": "animations", "name": "Animations",   "icon": "motion",   "group": "Displays & look" },
-        { "key": "input",       "name": "Input",        "icon": "mouse",    "group": "Input & shortcuts" },
-        { "key": "keybinds",    "name": "Keybinds",     "icon": "keyboard", "group": "Input & shortcuts" },
-        { "key": "windowrules", "name": "Window Rules", "icon": "window",   "group": "Session" },
-        { "key": "layerrules",  "name": "Layer Rules", "icon": "window",   "group": "Session" },
-        { "key": "autostart",   "name": "Autostart",    "icon": "rocket",   "group": "Session" },
-        { "key": "environment", "name": "Environment",  "icon": "variable", "group": "Session" },
-        { "key": "shell",       "name": "Shell",        "icon": "gear",     "group": "Desktop" },
+        { "key": "profile",     "name": "Profile",         "icon": "user",     "pinned": true },
+        { "key": "displays",    "name": "Displays",        "icon": "display",  "group": "System" },
+        { "key": "input",       "name": "Input",           "icon": "mouse",    "group": "System" },
+        { "key": "keybinds",    "name": "Keybinds",        "icon": "keyboard", "group": "System" },
+        { "key": "connections", "name": "Connections",     "icon": "wifi",     "group": "System" },
+        { "key": "updates",     "name": "Updates",         "icon": "download", "group": "System" },
+        { "key": "appearance",  "name": "Appearance",      "icon": "palette",  "group": "Desktop" },
+        { "key": "animations",  "name": "Animations",      "icon": "motion",   "group": "Desktop" },
+        { "key": "lockscreen",  "name": "Lockscreen",      "icon": "lock",     "group": "Desktop" },
         { "key": "widgets",     "name": "Desktop Widgets", "icon": "widgets",  "group": "Desktop" },
-        { "key": "connections", "name": "Connections", "icon": "wifi",     "group": "Desktop" },
-        { "key": "updates",     "name": "Updates",      "icon": "download", "group": "Desktop" },
-        { "key": "extras",      "name": "Extras",       "icon": "sparkles", "group": "Desktop" },
-        { "key": "plugins",     "name": "Plugins",      "icon": "widgets",  "group": "Desktop" }
+        { "key": "shell",       "name": "Shell",           "icon": "gear",     "group": "Desktop" },
+        { "key": "plugins",     "name": "Plugins",         "icon": "widgets",  "group": "Add-ons" },
+        { "key": "extras",      "name": "Extras",          "icon": "sparkles", "group": "Add-ons" },
+        { "key": "windowrules", "name": "Window Rules",    "icon": "window",   "group": "Advanced" },
+        { "key": "layerrules",  "name": "Layer Rules",     "icon": "window",   "group": "Advanced" },
+        { "key": "autostart",   "name": "Autostart",       "icon": "rocket",   "group": "Advanced" },
+        { "key": "environment", "name": "Environment",     "icon": "variable", "group": "Advanced" }
     ]
 
     readonly property var pageMeta: ({
