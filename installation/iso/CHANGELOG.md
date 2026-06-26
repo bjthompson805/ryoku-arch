@@ -30,8 +30,11 @@
 - Suppress `systemd-firstboot`: ship `/etc/locale.conf`, `hostname`, `localtime`,
   and `vconsole.conf` and mask the service, so the image autostarts the installer
   instead of the stock Arch "Initial Setup" prompt.
-- Ship a working `/etc/pacman.d/mirrorlist` (worldwide geo mirror plus global
-  backups); the default all-commented list left pacstrap with no servers.
+- Ship a working `/etc/pacman.d/mirrorlist`: the Fastly CDN mirror
+  (`fastly.mirror.pkgbuild.com`) leads, then the routed `geo.mirror.pkgbuild.com`
+  and global backups. The default all-commented list left pacstrap with no
+  servers; Fastly's edge POPs (incl. South America) keep downloads fast where the
+  geo mirror has no nearby origin (it otherwise routes Brazil to Los Angeles).
 - Initialize the live pacman keyring: ship and enable `pacman-init.service` plus
   the gnupg tmpfs mount (as releng does), so pacstrap can verify packages.
 - Force a truecolor TUI and quiet the boot: the session exports
