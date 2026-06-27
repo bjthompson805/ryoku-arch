@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 
-# ryoku-mic normalizes the default microphone so speech-to-text (Handy) and the
-# pill voice visualizer get clean input. Some laptop codecs let the capture gain
-# run far above the hardware's 0 dB point: WirePlumber maps a 100% source to the
-# codec's maximum analog gain (e.g. +30 dB), which clips every word into broken,
-# distorted audio. This caps the default source at its Base Volume, the level the
-# device reports as 0 dB hardware gain (no amplification), so an over-amplified
-# mic drops to unity while a mic already at or below unity is left alone. The
-# level is read from the device, so nothing machine-specific is baked in.
+# cap the default mic at Base Volume (0 dB hardware gain) so Handy STT and
+# the pill voice viz get clean input. some laptop codecs let capture run way
+# past 0 dB: WirePlumber maps a 100% source to the codec's max analog gain
+# (often +30 dB), which clips every word into garbage. pull an over-amped
+# mic back to unity, leave a quiet one alone. base level is read off the
+# device, so nothing host-specific is baked in.
 
 set -euo pipefail
 
-# levels SOURCE prints "<current> <base>" raw volumes for the named source, or
-# nothing when either cannot be read.
+# "<current> <base>" raw volumes for one source. empty if either's missing.
 levels() {
   local src=$1
   LC_ALL=C pactl list sources 2>/dev/null | awk -v n="$src" '
@@ -39,7 +36,7 @@ apply() {
   read -r cur base < <(levels "$src") || return 0
   [[ -n ${cur:-} && -n ${base:-} ]] || return 0
 
-  # Only pull an over-amplified mic down to unity; never raise a quiet one.
+  # only pull a hot mic down to unity. never raise a quiet one.
   (( cur > base )) || return 0
 
   if [[ ${RYOKU_DRYRUN:-0} == 1 ]]; then

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# True when a command is on PATH. The single presence test shared by the extras
-# actuator and the installer scripts in ryoku-extras, so "is this tool here?" is
-# answered one way everywhere.
+# is this command on $PATH. one helper, shared between the extras actuator
+# and the ryoku-extras installers, so "is X here?" has one answer.
 
 command -v "${1:?usage: ryoku-cmd-present <command>}" >/dev/null 2>&1

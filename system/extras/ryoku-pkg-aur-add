@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# Install AUR packages with the system's AUR helper (yay is bootstrapped at
-# install time; paru is accepted as a fallback). The extras actuator routes
-# packages not found in the official repos here.
+# AUR install via the system helper. yay = bootstrapped at install time,
+# paru = accepted fallback. extras actuator routes anything not in the
+# official repos through here.
 
 set -euo pipefail
 

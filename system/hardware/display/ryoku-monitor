@@ -1,46 +1,42 @@
 #!/usr/bin/env bash
 #
-# ryoku-monitor: DPI-derived display scaling for Hyprland.
+# ryoku-monitor: per-display scale from DPI, for Hyprland.
 #
-# Scale is never hardcoded. `autoscale` derives a per-output scale from each
-# monitor's real pixel density (resolution / physical size in mm) so high-DPI
-# panels are zoomed and low-DPI external monitors are left at 1x. It applies the
-# scale live through `hyprctl keyword monitor` and writes the result to the
-# monitors drop-in that the Lua hyprland.lua require()s, so the layout survives a
-# reload or relogin. `persist` captures the current live layout without
-# recomputing the scale.
+# `autoscale` = scale per output from real px density (px / physical mm), so a
+# high-DPI panel zooms and a low-DPI external sits at 1x. applied live via
+# `hyprctl keyword monitor` and written to the drop-in hyprland.lua require()s,
+# so the layout outlives a reload / relogin. `persist` snapshots the live
+# layout, no rescale.
 #
-# GDK_SCALE is kept in step so GTK and XWayland apps stay crisp: it follows the
-# shared integer scale when every active monitor agrees on one (>=2x), otherwise
-# 1 (Wayland handles fractional scaling for native apps).
+# GDK_SCALE rides along for GTK / XWayland: shared integer scale only when every
+# active monitor agrees (>=2x), else 1. (Wayland does fractional itself.)
 #
-# A catch-all monitor rule is written last so a freshly plugged display still
-# comes up sensibly at scale 1 until the next autoscale.
+# Catch-all monitor rule goes last so a freshly plugged display still comes up
+# at 1x until the next autoscale.
 
 set -euo pipefail
 
-# Drop-in Hyprland require()s; overwritten in full on every run (never skip-if-exists).
+# the drop-in hyprland.lua require()s. always rewritten in full, never skip-if-exists.
 monitors_conf="${RYOKU_MONITORS_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitors.lua}"
 
-# Named monitor profiles (Ryoku Settings). Keyed by hardware identity, not the
-# connector name, so a layout follows the physical displays across reshuffles.
+# Named monitor profiles (Ryoku Settings). keyed by hardware identity, not the
+# connector, so the layout follows the physical displays across reshuffles.
 monitors_dir="${RYOKU_MONITORS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/monitors}"
 
-# Manual monitor overrides. ~/.config/hypr/monitors_user.lua is hand-written and
-# required by hyprland.lua after the generated monitors.lua, so anything set there
-# wins. autoscale leaves any output named in it untouched, so auto-detection never
-# fights a panel you have pinned (a fake or generic EDID that needs a forced mode
-# or modeline, or a layout you want kept).
+# manual overrides. ~/.config/hypr/monitors_user.lua is hand-written and
+# require()d after the generated monitors.lua, so anything in there wins.
+# autoscale skips any output named there: a fake / generic EDID that needs a
+# forced mode or modeline, or a layout you want kept, never fights detection.
 monitors_user="${RYOKU_MONITORS_USER:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitors_user.lua}"
 
-# Last layout applied from Ryoku Settings (Apply, not a named profile). autoscale
-# recalls it for the connected display set so an explicit choice -- a hand-set
-# scale above all -- survives a relogin instead of being recomputed from DPI.
-# Keyed by hardware identity like a profile, but implicit and singular (the most
-# recent Apply); a forced DPI pass clears it.
+# last layout from Ryoku Settings (Apply, not a named profile). autoscale
+# recalls it for the connected display set so an explicit choice (hand-set
+# scale above all) survives a relogin instead of being recomputed from DPI.
+# hardware-keyed like a profile but implicit + singular (latest Apply); a
+# forced DPI pass wipes it.
 applied_layout="${RYOKU_MONITORS_APPLIED:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/monitors-applied.json}"
 
-# Output names the user pinned in monitors_user.lua, one per line (empty if none).
+# names pinned in monitors_user.lua, one per line. empty if none.
 pinned_outputs() {
   [[ -f $monitors_user ]] || return 0
   grep -oE 'output[[:space:]]*=[[:space:]]*"[^"]+"' "$monitors_user" 2>/dev/null \
@@ -48,7 +44,7 @@ pinned_outputs() {
 }
 
 require_hyprctl() {
-  # Fixture mode (tests) never touches the live compositor.
+  # fixtures (tests) skip the live compositor.
   [[ -n ${RYOKU_MONITOR_JSON:-} ]] && return 0
   command -v hyprctl >/dev/null 2>&1 || {
     echo "ryoku-monitor: hyprctl not found" >&2
@@ -63,8 +59,8 @@ require_jq() {
   }
 }
 
-# Live monitor state as JSON. RYOKU_MONITOR_JSON points at a fixture file for
-# tests (and suppresses the live hyprctl side effects below).
+# live monitor state as JSON. RYOKU_MONITOR_JSON points at a fixture file for
+# tests (and skips the live hyprctl side effects below).
 monitors_json() {
   if [[ -n ${RYOKU_MONITOR_JSON:-} ]]; then
     cat "$RYOKU_MONITOR_JSON"
@@ -73,13 +69,12 @@ monitors_json() {
   fi
 }
 
-# Emit "name|WxH@rate|XxY|wanted_scale|current_scale" for each enabled monitor,
-# where wanted_scale is the DPI bucket (px * 25.4 / physical-mm) snapped to the
-# nearest Hyprland-valid scale for the panel: a 1/120 multiple whose logical
-# width AND height are both whole pixels. Hyprland rejects anything else (1.5 on
-# a 2560 panel is 1706.67px wide, an "Invalid scale" error overlay), so the raw
-# bucket cannot be applied as-is. Missing or implausible physical size (EDID
-# lies, virtual outputs) falls back to 1x.
+# emits "name|WxH@rate|XxY|wanted_scale|current_scale" per enabled monitor.
+# wanted_scale = DPI bucket (px * 25.4 / physical-mm) snapped to a 1/120 scale
+# whose logical W *and* H land on whole pixels -- Hyprland rejects anything else
+# (1.5 on a 2560 panel = 1706.67px wide -> "Invalid scale" overlay), so the raw
+# bucket can't be applied straight. missing / lying EDID (virtual outputs etc.)
+# falls back to 1x.
 dpi_specs() {
   jq -r '
     def abs: if . < 0 then - . else . end;
@@ -108,8 +103,8 @@ dpi_specs() {
   '
 }
 
-# Integer GDK_SCALE when every active monitor shares one whole-number scale >=2,
-# else 1. Reads monitor JSON on stdin.
+# integer GDK_SCALE when every active monitor shares one whole scale >=2, else 1.
+# monitor JSON on stdin.
 gdk_scale_value() {
   jq -r '
     [ .[] | select(.disabled | not) | .scale ] as $s |
@@ -119,8 +114,8 @@ gdk_scale_value() {
   '
 }
 
-# Compute GDK_SCALE from the live layout, apply it live (skipped in fixture mode),
-# and echo the chosen value.
+# GDK_SCALE from the live layout, applied live (skipped in fixture mode); echoes
+# the chosen value.
 sync_gdk_scale() {
   local gdk
   gdk="$(monitors_json | gdk_scale_value 2>/dev/null)"
@@ -131,8 +126,8 @@ sync_gdk_scale() {
   printf '%s\n' "$gdk"
 }
 
-# Write the monitors drop-in (Lua, hl API) from the live layout: one hl.monitor
-# per output, the GDK_SCALE env, and a hotplug-friendly catch-all last.
+# write the drop-in (Lua, hl API) from the live layout: one hl.monitor per output,
+# the GDK_SCALE env, then the hotplug catch-all.
 write_monitors_conf() {
   local gdk="$1"
   local pinned_json
@@ -166,17 +161,17 @@ write_monitors_conf() {
   } >"$monitors_conf"
 }
 
-# Apply a monitor rule live. The Lua config manager rejects `hyprctl keyword`,
-# so live changes go through `hyprctl eval` running the hl.monitor API.
+# apply one rule live. the Lua config manager rejects `hyprctl keyword`, so live
+# changes go via `hyprctl eval` against the hl.monitor API.
 apply_monitor() {
   [[ -n ${RYOKU_MONITOR_JSON:-} ]] && return 0
   hyprctl eval "hl.monitor({ $1 })" >/dev/null 2>&1
 }
 
-# Per-output intended mode from the generated monitors.lua, as a JSON object
-# { "DP-1": "highrr", "": "highrr", ... }. The catch-all output ("") is the
-# default for any connector not named; a missing file means every output defaults
-# to highrr. Disabled entries carry no mode and are skipped.
+# per-output intended mode from the generated monitors.lua as a JSON object
+# { "DP-1": "highrr", "": "highrr", ... }. the "" key is the catch-all default
+# for any connector not named; missing file => everything defaults to highrr.
+# disabled entries have no mode, skipped.
 intended_modes_json() {
   [[ -f $monitors_conf ]] || { printf '{}'; return; }
   local obj
@@ -191,13 +186,12 @@ intended_modes_json() {
   printf '%s' "$obj"
 }
 
-# Outputs whose live mode sits below what their intended config allows, emitted as
-# "name<TAB>mode" (mode = the intended mode to re-assert). A highrr/preferred output
-# is below when the panel advertises a larger resolution (or a higher refresh at
-# that top resolution) than the live mode; an explicit Ryoku Settings mode is below
-# only while the panel still advertises it and the live mode differs. Skips
-# disabled, mirrored, and monitors_user-pinned outputs. $1 = intent JSON object,
-# $2 = pinned-name JSON array; monitor JSON on stdin.
+# outputs whose live mode sits below intent, as "name<TAB>mode" (mode = the
+# intended one to re-assert). highrr/preferred is "below" when the panel
+# advertises a bigger res (or higher refresh at top res) than is live; an
+# explicit Ryoku Settings mode is "below" only while the panel still advertises
+# it and the live mode differs. disabled / mirrored / monitors_user-pinned
+# outputs skipped. $1 = intent obj, $2 = pinned-name array; monitor JSON on stdin.
 drift_specs() {
   jq -r --argjson intent "$1" --argjson pinned "$2" '
     .[]
@@ -224,21 +218,21 @@ drift_specs() {
       end'
 }
 
-# Re-assert each output's intended mode until the live layout matches it, bounded.
-# A cold-boot or post-upgrade link can advertise only a fallback mode (e.g. 800x600)
-# or a low refresh; Hyprland resolves highrr/preferred against that degraded list
-# and never re-picks once the link trains, so the display is stuck low until a
-# relogin. This re-asserts the intent (highrr re-resolves to the now-available top
-# mode; an explicit pick is restored), recovering it in place. Respects an explicit
-# mode and any monitors_user.lua pin. With --check it reports drift (exit 1) and
-# changes nothing -- the read-only signal `ryoku doctor` uses.
+# re-assert each output's intended mode until live matches, bounded. cold boot /
+# post-upgrade link sometimes advertises only a fallback (e.g. 800x600) or a low
+# refresh; Hyprland resolves highrr/preferred against that degraded list and
+# never re-picks once the link trains, so the display stays stuck until a
+# relogin. re-asserting (highrr re-resolves to the now-available top mode; an
+# explicit pick is restored) recovers it in place. respects explicit modes and
+# any monitors_user.lua pin. --check reports drift (exit 1) and changes nothing;
+# that's the read-only signal `ryoku doctor` consumes.
 settle_modes() {
   local check_only=0
   [[ "${1:-}" == "--check" ]] && check_only=1
   local intent pinned_json drift name mode tries=0 max_tries=6
   intent="$(intended_modes_json)"
   pinned_json="$(pinned_outputs | jq -R . | jq -s .)"
-  # A fixture never changes between reads and never applies, so a single pass.
+  # a fixture never changes between reads and never applies, so single pass.
   [[ -n ${RYOKU_MONITOR_JSON:-} ]] && max_tries=1
   while ((tries < max_tries)); do
     drift="$(monitors_json | drift_specs "$intent" "$pinned_json" 2>/dev/null || true)"
@@ -259,13 +253,13 @@ cmd_autoscale() {
   require_hyprctl
   require_jq
   if [[ "${1:-}" == "--no-profile" ]]; then
-    # A forced DPI pass (Extend, or the hub's DPI button) also forgets the last
-    # applied override, so the DPI result is what survives the next login.
+    # forced DPI pass (Extend, or the hub's DPI button) also wipes the last
+    # applied override, so DPI wins on the next login.
     rm -f "$applied_layout"
   else
-    # Login/hotplug: an explicit choice for this display set wins over DPI -- a
-    # named profile first, then the last layout applied from Ryoku Settings -- so a
-    # hand-set scale is not reset on the next login.
+    # login/hotplug: an explicit choice for this display set wins over DPI
+    # (named profile first, then last Ryoku Settings Apply), so a hand-set
+    # scale isn't reset on relogin.
     local prof
     if prof="$(matching_profile)" && [[ -n $prof ]]; then
       cmd_load "$prof"
@@ -279,10 +273,10 @@ cmd_autoscale() {
   fi
   local pinned
   pinned="$(pinned_outputs)"
-  # Two passes, so the layout matches reality. First apply each monitor's DPI
-  # scale: Hyprland snaps a requested scale to the nearest one that yields whole
-  # logical pixels (e.g. 1.5 on a 2560 panel becomes 1.6), so the accepted scale
-  # is only known after it is applied.
+  # two passes. first, apply each monitor's DPI scale: Hyprland snaps a
+  # requested scale to the nearest one that yields whole logical pixels (e.g.
+  # 1.5 on a 2560 panel -> 1.6), so the accepted scale is only known once
+  # it's applied.
   local name mode wanted current
   while IFS='|' read -r name mode _ wanted current; do
     [[ -n $name ]] || continue
@@ -293,11 +287,12 @@ cmd_autoscale() {
     fi
   done < <(monitors_json | dpi_specs)
 
-  # Then lay the displays in one non-overlapping row, left to right by current x,
-  # advancing by each monitor's real logical width (pixels / accepted scale). A
-  # stale or "auto" x can collide once scales differ, and computing from the
-  # requested scale would leave a gap where Hyprland snapped it; reading the live
-  # scale here keeps the seam exact, so a freshly plugged display sits flush.
+  # then lay the displays in one non-overlapping row, left-to-right by current
+  # x, advancing by each monitor's real logical width (pixels / accepted scale).
+  # a stale / "auto" x can collide once scales differ, and computing off the
+  # requested scale leaves a gap wherever Hyprland snapped it. reading the
+  # *live* scale here keeps the seam tight, so a freshly plugged display sits
+  # flush.
   local w scale curx cury newpos x=0
   while IFS='|' read -r name w scale curx cury; do
     [[ -n $name ]] || continue
@@ -322,17 +317,17 @@ cmd_persist() {
   echo "ryoku-monitor: wrote $monitors_conf (GDK_SCALE=$gdk)"
 }
 
-# settle: re-assert each output's intended mode so a display that came up at a
-# fallback resolution recovers without a relogin. Run at the end of an update and
-# by `ryoku doctor`; with --check it reports drift (exit 1) and changes nothing.
+# re-assert each output's intended mode so a display that came up at a fallback
+# resolution recovers without a relogin. run at the end of an update and by
+# `ryoku doctor`. --check = report drift (exit 1), no change.
 cmd_settle() {
   require_hyprctl
   require_jq
   settle_modes "${1:-}"
 }
 
-# Mirror every other enabled monitor onto SRC (default: the focused one) so all
-# displays show the same image, then persist so it survives a relogin.
+# mirror every other enabled monitor onto SRC (default: the focused one), then
+# persist so it survives a relogin.
 cmd_mirror() {
   require_hyprctl
   require_jq
@@ -351,7 +346,7 @@ cmd_mirror() {
   if (( n > 0 )); then cmd_persist >/dev/null; else echo "ryoku-monitor: only one display; nothing to mirror"; fi
 }
 
-# Clear mirroring and lay the displays side by side again, DPI-scaled.
+# clear mirroring, lay them side by side again, DPI-scaled.
 cmd_extend() {
   require_hyprctl
   require_jq
@@ -363,7 +358,7 @@ cmd_extend() {
   cmd_autoscale --no-profile
 }
 
-# Toggle mirror <-> extend (the Super+P display switch).
+# mirror <-> extend (the Super+P switch).
 cmd_toggle() {
   require_hyprctl
   require_jq
@@ -374,15 +369,15 @@ cmd_toggle() {
   fi
 }
 
-# --- GUI and profile support (Ryoku Settings) ----------------------------
+# --- GUI / profile support (Ryoku Settings) ---
 #
-# The hub reads the live layout with `list`, applies a user-chosen layout with
-# `apply` (live only) or `save NAME` (live + a named profile), and recalls one
-# with `load NAME`. Profiles match on monitor hardware identity, so they survive
-# connector renames; `autoscale` applies a matching profile at login/hotplug.
+# the hub reads the live layout with `list`, applies a user-chosen one with
+# `apply` (live only) or `save NAME` (live + named profile), recalls one with
+# `load NAME`. profiles match on monitor hardware identity, so they survive
+# connector renames; `autoscale` re-applies a matching profile at login/hotplug.
 
-# Emit the connected monitors as GUI-ready JSON: identity, current mode, layout,
-# and the available modes for the resolution picker.
+# connected monitors as GUI-ready JSON: identity, current mode, layout, and the
+# available modes for the resolution picker.
 cmd_list() {
   require_hyprctl
   require_jq
@@ -396,7 +391,7 @@ cmd_list() {
   } ]'
 }
 
-# Apply an explicit layout (JSON array of monitor specs on stdin) live, one
+# apply an explicit layout (JSON array of monitor specs on stdin) live, one
 # hl.monitor per entry.
 apply_specs() {
   local args
@@ -413,9 +408,9 @@ apply_specs() {
     end')
 }
 
-# Write monitors.lua from an explicit layout (JSON array on stdin), preserving the
-# chosen modes (unlike persist, which captures highrr). Keeps GDK_SCALE in step
-# and appends the hotplug catch-all.
+# write monitors.lua from an explicit layout (JSON array on stdin), keeping the
+# chosen modes (unlike persist, which captures highrr). syncs GDK_SCALE, appends
+# the hotplug catch-all.
 write_monitors_explicit() {
   local specs gdk
   specs="$(cat)"
@@ -454,9 +449,9 @@ write_monitors_explicit() {
   } >"$monitors_conf"
 }
 
-# Apply a layout live and remember it as the implicit applied layout, so the
-# choice (a hand-set scale above all) survives a relogin: autoscale recalls it for
-# this display set instead of recomputing from DPI. JSON array as $1 or on stdin.
+# apply a layout live and remember it as the implicit applied layout, so the
+# choice (hand-set scale above all) survives a relogin: autoscale recalls it
+# for this display set instead of recomputing from DPI. JSON as $1 or on stdin.
 cmd_apply() {
   require_hyprctl
   require_jq
@@ -469,8 +464,8 @@ cmd_apply() {
   echo "ryoku-monitor: applied layout -> $monitors_conf"
 }
 
-# Save the layout as a named, hardware-keyed profile and apply it now. JSON array
-# as $2 or on stdin.
+# save the layout as a named, hardware-keyed profile and apply it now. JSON as
+# $2 or on stdin.
 cmd_save() {
   require_hyprctl
   require_jq
@@ -484,14 +479,14 @@ cmd_save() {
   echo "ryoku-monitor: saved profile $name"
 }
 
-# Hardware identities of the connected monitors, sorted and de-duplicated. The
+# hardware identities of the connected monitors, sorted + de-duped. the
 # profile-match key.
 connected_ids() {
   monitors_json | jq -r '[ .[] | ((.make // "") + "|" + (.model // "") + "|" + (.serial // "")) ] | sort | unique | .[]'
 }
 
-# Name of the first saved profile whose monitor set matches the connected one (by
-# hardware identity), or nothing.
+# name of the first saved profile whose monitor set matches the connected one
+# (by hardware identity), or nothing.
 matching_profile() {
   [[ -d $monitors_dir ]] || return 1
   local conn f pids
@@ -507,9 +502,9 @@ matching_profile() {
   return 1
 }
 
-# Apply a saved layout file ({monitors:[...]}), mapping each saved monitor to the
-# connector that now carries its hardware identity, so DP-1/DP-2 swaps do not
-# matter. Shared by named-profile load and the implicit applied-layout recall.
+# apply a saved layout file ({monitors:[...]}), mapping each saved monitor to
+# the connector now carrying its hardware identity, so DP-1/DP-2 swaps don't
+# matter. shared by named-profile load and the implicit applied-layout recall.
 load_layout_file() {
   local file="$1" resolved
   resolved="$(jq -n --argjson live "$(monitors_json)" --slurpfile prof "$file" '
@@ -522,7 +517,7 @@ load_layout_file() {
   printf '%s' "$resolved" | write_monitors_explicit
 }
 
-# Apply a saved, named profile by hardware identity.
+# load a saved profile by name.
 cmd_load() {
   require_hyprctl
   require_jq
@@ -533,7 +528,7 @@ cmd_load() {
   echo "ryoku-monitor: loaded profile $name"
 }
 
-# True when the implicit applied layout exists and matches the connected set.
+# true when the implicit applied layout exists and matches the connected set.
 applied_matches() {
   [[ -f $applied_layout ]] || return 1
   local conn pids
@@ -542,8 +537,7 @@ applied_matches() {
   [[ -n $pids && "$pids" == "$conn" ]]
 }
 
-# List saved profiles as JSON, each tagged with whether it matches the connected
-# monitor set.
+# saved profiles as JSON, each tagged with whether it matches the connected set.
 cmd_profiles() {
   require_jq
   local conn arr f name pids match
@@ -616,7 +610,7 @@ main() {
   esac
 }
 
-# Run only when executed; sourcing (tests) just loads the functions.
+# run only when executed; sourcing (tests) just loads the functions.
 if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
   main "$@"
 fi

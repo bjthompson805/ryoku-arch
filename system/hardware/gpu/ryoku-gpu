@@ -2,27 +2,24 @@
 #
 # ryoku-gpu: pin the strongest GPU as Hyprland's primary render device.
 #
-# On a multi-GPU machine (a discrete Radeon or GeForce next to the CPU's
-# integrated GPU) Hyprland renders on whichever GPU drives the connected display.
-# When that is the weak iGPU, the whole desktop renders there while the dGPU idles
-# and a high-resolution, high-refresh desktop feels sluggish. This makes the
-# strongest GPU Hyprland's primary renderer through AQ_DRM_DEVICES.
+# multi-GPU box (dGPU Radeon / GeForce + the CPU's iGPU): Hyprland renders on
+# whichever GPU drives the connected display. if that's the weak iGPU the
+# desktop renders there while the dGPU idles -- high-res / high-refresh feels
+# sluggish. fix = pin the strong one as primary via AQ_DRM_DEVICES.
 #
-# The leftmost device in AQ_DRM_DEVICES is the primary renderer; every GPU stays
-# in the list so a monitor wired to another one keeps working through
-# render-offload (reverse PRIME). Mesa clients follow the compositor's primary
-# device, so the apps render on the strong GPU too.
+# leftmost in AQ_DRM_DEVICES = primary renderer; every GPU stays in the list so
+# monitors wired to another keep working through render-offload (reverse PRIME).
+# Mesa clients follow the compositor's primary, so apps render on the strong GPU
+# too.
 #
-# Policy: pin the strongest GPU on desktops, and pin an external GPU anywhere
-# (it was hot-plugged on purpose for power). Laptops keep the iGPU primary for
-# battery, matching Hyprland's own recommendation; force the dGPU there with
-# RYOKU_GPU_FORCE=1.
+# policy: pin the strong GPU on desktops, pin an eGPU anywhere (you plugged it
+# in on purpose, for power). laptops stay iGPU-first for battery, per Hyprland's
+# own recommendation; force the dGPU there with RYOKU_GPU_FORCE=1.
 #
-# Stable device names: AQ_DRM_DEVICES uses ':' as its separator, so the
-# colon-laden by-path names cannot be used and bare /dev/dri/cardN can be
-# reordered across boots. The 90-ryoku-gpu.rules udev rule symlinks each GPU by
-# its PCI slot to a colon-free, boot-stable /dev/dri/ryoku-gpu-<slot> name. Until
-# that rule is installed we fall back to the current cardN nodes.
+# stable device names: AQ_DRM_DEVICES uses ':' as separator, so the colon-laden
+# by-path names are out, and bare /dev/dri/cardN can shuffle across boots.
+# 90-ryoku-gpu.rules symlinks each GPU by PCI slot to a colon-free, boot-stable
+# /dev/dri/ryoku-gpu-<slot>. without that rule we fall back to current cardN.
 
 set -euo pipefail
 
@@ -31,16 +28,16 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=ryoku-gpu-detect
 source "$SCRIPT_DIR/ryoku-gpu-detect"
 
-# Hyprland drop-in the pin is written to (require()d by the Lua hyprland.lua).
+# the Hyprland drop-in we write to (require()d by hyprland.lua).
 GPU_CONF_DEFAULT="${RYOKU_GPU_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/gpu.lua}"
-# udev rule destination and its source (the rule shipped next to this script).
+# udev rule destination and its source (rule shipped next to this script).
 UDEV_RULE="${RYOKU_GPU_UDEV_RULE:-/etc/udev/rules.d/90-ryoku-gpu.rules}"
 RULE_SRC="${RYOKU_GPU_RULE_SRC:-$SCRIPT_DIR/90-ryoku-gpu.rules}"
 
 # ── AQ_DRM_DEVICES value assembly ─────────────────────────────────────────────
 
 aq_value_symlinks() {
-  # Boot-stable names, primary (strongest) first. _slots is strength-sorted.
+  # boot-stable names, primary (strongest) first. _slots is strength-sorted.
   local out="" slot
   for slot in "${_slots[@]}"; do
     out+="${out:+:}$(symlink_path "$slot")"
@@ -49,7 +46,7 @@ aq_value_symlinks() {
 }
 
 aq_value_cardn() {
-  # Fallback to the current cardN nodes when the stable symlinks are absent.
+  # fallback to the current cardN nodes when the stable symlinks aren't there.
   local out="" slot node
   for slot in "${_slots[@]}"; do
     node="$(card_node_for_slot "$slot")" || return 1
@@ -67,13 +64,13 @@ symlinks_present() {
 }
 
 aq_value_effective() {
-  # The value to write right now: stable symlinks if installed, else cardN nodes.
+  # value to write right now: stable symlinks if installed, else cardN nodes.
   if symlinks_present; then aq_value_symlinks; else aq_value_cardn; fi
 }
 
 aq_value_for() {
-  # AQ_DRM_DEVICES value for an explicit, ordered slot list (boot-stable symlink
-  # when present, else the current cardN node).
+  # AQ_DRM_DEVICES value for an explicit, ordered slot list (boot-stable
+  # symlink when present, else the current cardN node).
   local out="" slot node
   for slot in "$@"; do
     if [[ -e "$(symlink_path "$slot")" ]]; then
@@ -221,7 +218,7 @@ cmd_install_udev() {
     sudo install -Dm0644 "$RULE_SRC" "$UDEV_RULE"
   fi
 
-  # Reload the rules so they apply on the next boot regardless (best-effort).
+  # reload the rules so they apply on the next boot regardless (best-effort).
   if [[ ${RYOKU_GPU_SKIP_UDEVADM:-0} != "1" ]] && command -v udevadm >/dev/null 2>&1; then
     if [[ $EUID -eq 0 ]]; then
       udevadm control --reload-rules || true
@@ -230,9 +227,9 @@ cmd_install_udev() {
     fi
   fi
 
-  # Materialise the symlinks for the current session by hand rather than with
-  # `udevadm trigger`: triggering re-emits DRM hotplug events and could perturb a
-  # live Hyprland session. udev recreates these identically on the next boot.
+  # materialise the symlinks for the current session by hand instead of via
+  # `udevadm trigger`: triggering re-emits DRM hotplug events and can perturb
+  # a live Hyprland session. udev recreates these identically on next boot.
   local slot node base tok
   for slot in "${_slots[@]}"; do
     node="$(card_node_for_slot "$slot")" || continue
@@ -275,9 +272,9 @@ cmd_disable() {
 }
 
 cmd_persist_solo() {
-  # Pin one GPU as the sole render device. Used for passthrough mode: Ryoku renders
-  # on the iGPU and the dGPU is left out of AQ_DRM_DEVICES so it is free to bind to
-  # vfio-pci for a VM.
+  # pin one GPU as the sole render device. used by passthrough mode: Ryoku
+  # renders on the iGPU, the dGPU is dropped from AQ_DRM_DEVICES so it can
+  # bind vfio-pci for a VM.
   local slot="$1" dest="${2:-$GPU_CONF_DEFAULT}" value
   value="$(aq_value_for "$slot")" || {
     echo "ryoku-gpu: could not resolve a device node for $slot" >&2
@@ -289,10 +286,10 @@ cmd_persist_solo() {
 }
 
 cmd_mode() {
-  # Set the host graphics mode (which GPU Ryoku renders on):
-  #   hybrid       no pin; Hyprland's iGPU-first default (battery)
-  #   performance  pin the strongest GPU (the dGPU) as primary
-  #   passthrough  pin the integrated GPU alone, freeing the dGPU for a VM
+  # host graphics mode (which GPU Ryoku renders on):
+  #   hybrid       = no pin; Hyprland's iGPU-first default (battery)
+  #   performance  = pin the strongest GPU (the dGPU) as primary
+  #   passthrough  = pin the iGPU alone, freeing the dGPU for a VM
   local mode="${1:-}" dest="${2:-$GPU_CONF_DEFAULT}" i igpu=""
   analyze
   case "$mode" in

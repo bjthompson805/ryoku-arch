@@ -2,13 +2,12 @@
 #
 # vulkan.sh: install the Vulkan ICD loader.
 #
-# vulkan-icd-loader is the vendor-neutral loader every Vulkan app talks to; it
-# dispatches to whichever ICD the vendor driver installed (vulkan-radeon,
-# vulkan-intel, or nvidia-utils). It is always wanted on a machine with a GPU, so
-# the vendor driver scripts (amd.sh / intel.sh / nvidia.sh) handle the ICDs and
-# this one guarantees the loader is present.
+# vulkan-icd-loader = the vendor-neutral loader every Vulkan app links to.
+# dispatches to whichever ICD the vendor driver dropped in (vulkan-radeon,
+# vulkan-intel, nvidia-utils). amd/intel/nvidia.sh handle the ICDs; this
+# script only guarantees the loader is around.
 #
-# Idempotent, gated on at least one GPU being present, dry-run aware via RYOKU_DRYRUN.
+# idempotent, gated on >=1 GPU, dry-run via RYOKU_DRYRUN.
 
 set -euo pipefail
 

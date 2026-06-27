@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# Privileged WiFi power-save control for Game Mode. Disabling 802.11 power-save
-# keeps the radio fully awake, which removes the periodic micro-sleeps that spike
-# latency on an otherwise idle link. It is a pure latency change: no reconnect, no
-# throughput cap, the connection is never dropped. iw talks to nl80211, which
-# needs CAP_NET_ADMIN, so this runs as root via pkexec; the polkit rule
-# 49-ryoku-wifi-powersave.rules authorizes exactly this program for the wheel
-# group without a password, keeping Game Mode one click. The prior per-device
-# state is saved on `off` and restored on `on`, so it is non-destructive.
+# Game Mode WiFi PS toggle (privileged). 802.11 PS off = the radio stays
+# fully awake, killing the periodic micro-sleeps that spike latency on an
+# idle link. pure latency change: no reconnect, no throughput cap, link is
+# never dropped. iw talks to nl80211 (CAP_NET_ADMIN) so we go through pkexec
+# as root. 49-ryoku-wifi-powersave.rules permits this exact binary for
+# wheel with no password, so Game Mode stays one click. per-device state is
+# stashed on `off` and put back on `on`, non-destructive.
 #
-#   off       save each WiFi device's power-save state, then disable it
-#   on        restore the saved state (default: enabled, the driver default)
-#   status    print each WiFi device and its current power-save state
+#   off     = save each device's PS state, then disable it
+#   on      = restore the saved state (default: enabled, the driver default)
+#   status  = print each WiFi device and its current PS state
 set -u
 
 state="${RYOKU_WIFI_PS_STATE:-/run/ryoku/wifi-powersave.prev}"
@@ -25,7 +24,7 @@ wifi_devs() {
   done
 }
 
-# "on" or "off" for a device's current 802.11 power-save.
+# current 802.11 PS state of one device: "on" / "off".
 ps_state() {
   iw dev "$1" get power_save 2>/dev/null | grep -qi 'power save: on' && echo on || echo off
 }

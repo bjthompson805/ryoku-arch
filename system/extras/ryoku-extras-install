@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# The extras actuator: it installs, removes, and reports the state of the bundles
-# defined in the ryoku-extras catalogue. The Hub's Extras section drives it; a
-# bundle is a list of items, each a `package` (auto-routed to the official repos
-# or the AUR), a `script` (a small installer from ryoku-extras/installers), or a
-# `plugin` (a shell plugin fetched into ~/.local/share/ryoku/plugins; place it in
-# Settings, Plugins).
+# Extras actuator: installs, removes, and reports state for bundles in the
+# ryoku-extras catalogue. The Hub's Extras section drives it; a bundle is a
+# list of items, each a `package` (auto-routed to official repos or AUR), a
+# `script` (small installer from ryoku-extras/installers), or a `plugin`
+# (shell plugin fetched to ~/.local/share/ryoku/plugins; place via Settings,
+# Plugins).
 #
 #   ryoku-extras-install status [bundle <id>]   print item state as JSON, no change
 #   ryoku-extras-install install bundle <id>    install every absent item
@@ -13,20 +13,20 @@
 #   ryoku-extras-install remove bundle <id>     remove the bundle's package items
 #   ryoku-extras-install remove item <id> <n>   remove one package item
 #
-# ryoku-hub owns the network and the cache: this reads the catalogue it writes
-# under `ryoku-hub extras cache` and asks it for an installer path on demand, so
-# fetching lives in exactly one place. Package installs need a TTY for the sudo
-# password, so the Hub launches install/remove in a floating terminal; status is
-# a silent query the UI calls directly. Set RYOKU_EXTRAS_DRYRUN=1 to print the
-# planned actions without touching the system.
+# ryoku-hub owns the network and the cache; this just reads the catalogue
+# under `ryoku-hub extras cache` and asks for an installer path on demand, so
+# fetching lives in one place. Package installs need a TTY for the sudo
+# prompt, so the Hub launches install/remove in a floating terminal; status is
+# a silent query the UI calls inline. RYOKU_EXTRAS_DRYRUN=1 prints the planned
+# actions without touching the system.
 
 set -uo pipefail
 
 DRYRUN=${RYOKU_EXTRAS_DRYRUN:-}
 
-# Script installers drop tools into ~/.local/bin (npm prefix, GOBIN, pipx). The
-# graphical session does not always carry that on PATH, so put it here before any
-# detection runs, or freshly installed script items would read as still missing.
+# Script installers drop tools into ~/.local/bin (npm prefix, GOBIN, pipx).
+# The graphical session doesn't always carry that on PATH, so prepend it
+# before any detection runs or fresh script items will read as still missing.
 export PATH="$HOME/.local/bin:$PATH"
 
 die() {
@@ -38,7 +38,7 @@ cache_dir() {
   ryoku-hub extras cache 2>/dev/null
 }
 
-# Path to a bundle definition, fetching the catalogue once if it is not cached.
+# Path to a bundle's definition, fetching the catalogue once if not cached.
 bundle_file() {
   local id=$1 cache f
   cache=$(cache_dir) || die "could not resolve the extras cache (is ryoku-hub installed?)"
@@ -69,8 +69,8 @@ pkg_installed() { pacman -Qq "$1" >/dev/null 2>&1; }
 pkg_official() { pacman -Si "$1" >/dev/null 2>&1; }
 cmd_present() { command -v "$1" >/dev/null 2>&1; }
 
-# Where a shell plugin's source lives once installed (the runtime + Settings read
-# this path). The extras catalogue ships the source; install copies it here.
+# Where an installed plugin's source lives (read by the runtime + Settings).
+# The catalogue ships the source; install copies it here.
 plugin_dir() { printf '%s/ryoku/plugins/%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}" "$1"; }
 plugin_installed() { [[ -f "$(plugin_dir "$1")/manifest.json" ]]; }
 
@@ -172,8 +172,8 @@ run_script() {
   bash "$path"
 }
 
-# Install a shell plugin's source tree via the backend fetch, into the data dir
-# the runtime and Settings read. ryoku-hub owns the network; we just trigger it.
+# Drop the plugin's source tree into the data dir the runtime + Settings
+# read. ryoku-hub owns the network, we just trigger it.
 run_plugin_install() {
   local name=$1
   if [[ -n $DRYRUN ]]; then
@@ -183,8 +183,8 @@ run_plugin_install() {
   ryoku-hub extras plugin "$name" >/dev/null 2>&1
 }
 
-# Remove an installed plugin's source tree. The user's placement in plugins.json
-# is left untouched, so re-installing restores it where they had it.
+# Remove the plugin's source tree. The placement in plugins.json is left
+# alone, so re-installing drops it back where the user had it.
 run_plugin_remove() {
   local name=$1 dir
   dir=$(plugin_dir "$name")
@@ -195,9 +195,9 @@ run_plugin_remove() {
   rm -rf "$dir"
 }
 
-# Satisfy a bundle's declared prerequisites before any package is routed, so a
-# package that lives only in an extra repo (Steam in multilib) classifies and
-# installs correctly.
+# Run a bundle's declared prerequisites before any package is routed, so a
+# package that only lives in an extra repo (Steam in multilib) classifies
+# and installs correctly.
 ensure_requires() {
   local file=$1 req
   while read -r req; do

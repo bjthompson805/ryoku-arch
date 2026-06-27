@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# amd.sh: install AMD graphics drivers when an AMD GPU is present.
+# amd.sh: AMD graphics drivers if an AMD GPU is present.
 #
-# AMD runs on the open Mesa stack: mesa for OpenGL and the amdgpu kernel driver's
-# userspace, vulkan-radeon (RADV) for Vulkan. No proprietary blob is needed.
+# pure open Mesa stack: mesa (OpenGL + amdgpu userspace), vulkan-radeon
+# (RADV). no proprietary blob.
 #
-# Idempotent, gated on an AMD GPU being detected, dry-run aware via RYOKU_DRYRUN.
+# idempotent, gated on the GPU, dry-run via RYOKU_DRYRUN.
 
 set -euo pipefail
 

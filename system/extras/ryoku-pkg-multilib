@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# Enable the [multilib] pacman repository, idempotently. Some bundles (Gaming)
-# need 32-bit packages (Steam, the lib32 overlay libraries) that live only in
-# multilib, so a bundle that declares `"requires": ["multilib"]` runs this before
-# its packages are routed. Needs a TTY for the sudo password.
+# enable [multilib] in pacman.conf, idempotent. some bundles (Gaming) need
+# 32-bit pkgs (Steam, the lib32 overlay libs) which only live in multilib,
+# so any bundle with `"requires": ["multilib"]` shells out here before its
+# packages route. needs a TTY for sudo.
 
 set -euo pipefail
 
@@ -14,8 +14,8 @@ if grep -qE '^\[multilib\]' "$conf"; then
   exit 0
 fi
 
-# Uncomment the commented multilib block (the [multilib] header and its Include
-# line) shipped in the stock pacman.conf, then refresh that database.
+# uncomment the stock commented multilib block (header + Include) shipped
+# in pacman.conf, then -Sy that db.
 sudo sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' "$conf"
 grep -qE '^\[multilib\]' "$conf" || {
   echo "ryoku-pkg-multilib: could not enable multilib in $conf" >&2

@@ -2,37 +2,39 @@
 #
 # ryoku-gpu-detect: DRM GPU detection helpers, sourced by ryoku-gpu.
 #
-# This file defines functions only. It does nothing on its own; ryoku-gpu sources
-# it and drives the subcommands. It is kept separate so the detection logic can be
-# reused (and unit tested against a fake /sys tree) without the config writers.
+# Functions only; sourced and driven by ryoku-gpu. Split out so the detector
+# can run against a fake /sys tree (the tests) without dragging in the config
+# writers.
 #
-# What "detection" means here:
+# What detection covers:
 #   gpu_records   one strength-sorted TSV row per real DRM GPU
-#   classify      label a GPU egpu | discrete | integrated and give it a weight
-#   analyze       turn gpu_records into ordered slot/class arrays plus counts
-#   is_desktop    decide desktop vs laptop (delegates to ryoku-hw-laptop)
+#   classify      label a GPU egpu | discrete | integrated, assign a weight
+#   analyze       roll gpu_records into ordered slot/class arrays + counts
+#   is_desktop    desktop vs laptop (delegates to ryoku-hw-laptop)
 #
-# Optional host tools: lspci (model names), nvidia-smi (NVIDIA VRAM size). Both
-# only improve display; ranking works without them because NVIDIA is always
-# treated as discrete and the discrete bias dominates reported VRAM.
+# Optional host tools: lspci (model names), nvidia-smi (NVIDIA VRAM size).
+# Both only sharpen the display; ranking works without them since NVIDIA is
+# always discrete and the discrete bias dominates reported VRAM.
 
-# Override seams: every device path can be redirected so the detector runs against
-# a synthesized DRM tree with no real hardware (used by the tests).
+# Override seams: every device path can be redirected so the detector runs
+# against a fake DRM tree (used by the tests).
 DRM_ROOT="${RYOKU_GPU_DRM_ROOT:-/sys/class/drm}"
 DRI_DIR="${RYOKU_GPU_DRI_DIR:-/dev/dri}"
 SYMLINK_PREFIX="ryoku-gpu-"
 
-# A discrete card with no UMA tell needs at least this much VRAM to outrank an
-# integrated one. Used only as a fallback when the UMA test below is unavailable.
+# Fallback VRAM threshold for a discrete card to outrank an integrated one,
+# used only when the UMA tell below isn't available.
 DISCRETE_VRAM_MIN=$((2 * 1024 * 1024 * 1024))
-# An AMD/Intel APU carves its "VRAM" out of system RAM, so the whole carveout is
-# CPU-visible (vis_vram == vram) and capped by the BIOS. Treat a fully visible
-# carveout at or below this as integrated even when it tops DISCRETE_VRAM_MIN, so a
-# 4 GiB UMA Radeon 780M never outranks a real dGPU. Real dGPUs report 8 GiB or more.
+# An AMD/Intel APU carves its VRAM out of system RAM, so the whole carveout
+# is CPU-visible (vis_vram == vram) and capped by the BIOS. A fully-visible
+# carveout at or below this counts as integrated even when it tops
+# DISCRETE_VRAM_MIN, so a 4 GiB UMA Radeon 780M never outranks a real dGPU
+# (real dGPUs report 8 GiB+).
 APU_UMA_CEIL=$((8 * 1024 * 1024 * 1024))
-# Bias so any discrete GPU outranks any integrated one regardless of reported VRAM
-# (an NVIDIA card with no sysfs VRAM file still beats a 4 GiB UMA APU), and an
-# external GPU outranks an internal discrete one (it was hot-plugged for power).
+# Bias so any discrete GPU outranks any integrated one regardless of reported
+# VRAM (an NVIDIA card with no sysfs VRAM file still beats a 4 GiB UMA APU),
+# and an eGPU outranks an internal discrete one (it was hot-plugged on
+# purpose for power).
 DISCRETE_BIAS=$((1 << 60))
 EGPU_BIAS=$((1 << 61))
 
@@ -42,7 +44,7 @@ gpu_field() {
 }
 
 hw_probe_ok() {
-  # Only probe real host tools (lspci, nvidia-smi) against the real DRM tree; the
+  # Only probe real host tools (lspci, nvidia-smi) against the real DRM tree;
   # tests redirect DRM_ROOT to a fake tree and must stay hermetic.
   [[ $DRM_ROOT == "/sys/class/drm" ]]
 }
@@ -60,7 +62,7 @@ gpu_removable() {
 }
 
 nvidia_vram_bytes() {
-  # NVIDIA cards expose no mem_info_vram_total (that is an amdgpu node), so sysfs
+  # NVIDIA exposes no mem_info_vram_total (that's an amdgpu node), so sysfs
   # reports 0. Recover the real size from nvidia-smi, keyed by PCI slot.
   hw_probe_ok || { printf '0'; return; }
   command -v nvidia-smi >/dev/null 2>&1 || { printf '0'; return; }
@@ -164,9 +166,9 @@ json_escape() {
 }
 
 gpu_records_json() {
-  # gpu_records rendered as a JSON array, strongest first. Carries the same fields
-  # as the table; the Hub capability engine reads the rest of the virtualization
-  # picture (IOMMU groups, isolation) from sysfs itself, keyed by slot.
+  # gpu_records as a JSON array, strongest first. Same fields as the table;
+  # the Hub capability engine reads the rest of the virt picture (IOMMU
+  # groups, isolation) from sysfs directly, keyed by slot.
   local class slot card driver vram connected model first=1
   printf '['
   while IFS=$'\t' read -r _ class slot card driver vram connected model; do
@@ -202,8 +204,8 @@ analyze() {
 }
 
 is_laptop() {
-  # Prefer the shared hardware helper when it is installed; keep the inline path
-  # for tests and partial checkouts where only the GPU detector is present.
+  # Prefer the shared hardware helper when installed; keep the inline path
+  # for tests and partial checkouts that only have the GPU detector.
   if command -v ryoku-hw-laptop >/dev/null 2>&1; then
     ryoku-hw-laptop is-laptop && return 0
     return 1
@@ -243,8 +245,9 @@ is_laptop() {
 
 is_desktop() {
   # Pin the strongest GPU only on desktops: on laptops Hyprland recommends
-  # iGPU-first for battery, so forcing the dGPU there would hurt. RYOKU_GPU_FORCE=1
-  # treats the machine as a desktop (Settings > Display equivalent on plain Hyprland).
+  # iGPU-first for battery, so forcing the dGPU there would hurt.
+  # RYOKU_GPU_FORCE=1 treats the box as a desktop (Settings > Display
+  # equivalent on plain Hyprland).
   case "${RYOKU_GPU_ASSUME_DESKTOP:-}" in
     1) return 0 ;;
     0) return 1 ;;
@@ -266,7 +269,7 @@ beneficial() {
 
 card_node_for_slot() {
   # Resolve a PCI slot to its current /dev/dri/cardN node (fallback when the
-  # boot-stable symlinks are not installed yet).
+  # boot-stable symlinks aren't installed yet).
   local want="$1" path base
   for path in "$DRM_ROOT"/card[0-9]*; do
     [[ -d $path ]] || continue

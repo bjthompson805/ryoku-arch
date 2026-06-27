@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# intel.sh: install Intel graphics drivers when an Intel GPU is present.
+# intel.sh: Intel graphics drivers if an Intel GPU is present.
 #
-# intel-media-driver is the modern VA-API driver (iHD, Gen8/Broadwell and newer),
-# vpl-gpu-rt is the oneVPL runtime for hardware video encode/decode, and
-# vulkan-intel (ANV) is the Vulkan driver. Mesa provides the OpenGL bits and is
-# part of the base desktop set.
+# intel-media-driver = modern VA-API driver (iHD, Broadwell/Gen8+).
+# vpl-gpu-rt        = oneVPL runtime for hw video enc/dec.
+# vulkan-intel      = ANV, the Vulkan driver.
+# Mesa (OpenGL) rides in from the base desktop set.
 #
-# Idempotent, gated on an Intel GPU being detected, dry-run aware via RYOKU_DRYRUN.
+# idempotent, gated on the GPU, dry-run via RYOKU_DRYRUN.
 
 set -euo pipefail
 

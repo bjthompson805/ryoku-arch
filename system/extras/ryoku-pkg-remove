@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# Remove packages together with the dependencies nothing else needs (-Rs).
-# pacman refuses to remove a package another installed package still requires, so
-# uninstalling an extras bundle never breaks the rest of the system.
+# -Rs: drop the package plus deps nothing else needs. pacman won't remove a
+# package another installed one still requires, so uninstalling an extras
+# bundle won't break the rest of the system.
 
 set -euo pipefail
 
