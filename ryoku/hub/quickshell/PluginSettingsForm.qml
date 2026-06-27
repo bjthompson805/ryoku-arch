@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Dialogs
 import "Singletons"
 
 /**
@@ -94,7 +95,8 @@ Column {
                     case "choice": return cChoice;
                     case "toggle": return cToggle;
                     case "slider": return cSlider;
-                    default: return cText;   // text, image, anything unknown
+                    case "image": return cImage;
+                    default: return cText;   // text, anything unknown
                     }
                 }
                 onLoaded: item.field = fieldWrap.modelData
@@ -190,6 +192,70 @@ Column {
                         elide: Text.ElideRight
                     }
                 }
+            }
+        }
+    }
+
+    // image -> a labelled field that opens the system file chooser (portal).
+    Component {
+        id: cImage
+        Item {
+            id: imgRow
+            property var field: ({})
+            implicitHeight: 38
+            readonly property string cur: String(form._val(imgRow.field) || "")
+            Text {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - pickBox.width - 14
+                elide: Text.ElideRight
+                text: imgRow.field.label || imgRow.field.key
+                color: Theme.cream
+                font.family: Theme.font
+                font.pixelSize: 14
+                font.weight: Font.Medium
+            }
+            Rectangle {
+                id: pickBox
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 220
+                height: 30
+                radius: 9
+                color: pickHover.hovered ? Theme.surface : Theme.surfaceLo
+                border.width: 1
+                border.color: pickHover.hovered ? Theme.ember : Theme.line
+                Behavior on color { ColorAnimation { duration: Theme.quick } }
+                Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 12
+                    anchors.right: pIcon.left
+                    anchors.rightMargin: 6
+                    anchors.verticalCenter: parent.verticalCenter
+                    elide: Text.ElideLeft
+                    text: imgRow.cur.length === 0 ? "Choose image\u2026" : imgRow.cur.replace(/^.*\//, "")
+                    color: imgRow.cur.length === 0 ? Theme.faint : Theme.bright
+                    font.family: Theme.font
+                    font.pixelSize: 13
+                }
+                Icon {
+                    id: pIcon
+                    anchors.right: parent.right
+                    anchors.rightMargin: 9
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "image"
+                    size: 14
+                    tint: pickHover.hovered ? Theme.cream : Theme.dim
+                }
+                HoverHandler { id: pickHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: imgDlg.open() }
+            }
+            FileDialog {
+                id: imgDlg
+                title: "Choose an image"
+                nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp)", "All files (*)"]
+                onAccepted: form._set(imgRow.field.key, "" + imgDlg.selectedFile)
             }
         }
     }

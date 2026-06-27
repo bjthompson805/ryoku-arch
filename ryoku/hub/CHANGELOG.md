@@ -175,6 +175,8 @@
   shell's morph motion (a single sliding selection indicator in the rail).
 
 ### Changed
+- Add-ons: a plugin's `image` setting opens the system file chooser (via the
+  desktop portal) on click, instead of a raw text field.
 - Store: the catalogue refresh moved to a single control to the left of the
   Plugins / Bundles switch, refreshing whichever catalogue is shown; the embedded
   pages no longer show their own refresh inside the store.
