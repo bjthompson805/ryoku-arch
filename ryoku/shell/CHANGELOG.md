@@ -236,6 +236,12 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `quickshell/plugins`: a desktop plugin's `plugins.json` could be blanked to an
+  empty file when two writers landed at once (a drag committing while Settings
+  toggled), because every write shared one `$f.tmp`. Each write now uses a unique
+  temp and an atomic rename, and both `ryoku-plugins-place` and `discover.sh`
+  treat a missing, empty, or corrupt file as `{}` and self-heal it - so one bad
+  write no longer blanks the installed list and breaks the plugin store.
 - `hyprland/scripts/stash-install.sh`: a `.deb`/`.rpm` whose desktop `Exec` is an
   absolute path (every native package ships one, e.g. `/opt/Termius/termius-app`)
   now resolves onto the extracted tree at that exact path. It used to rewrite the

@@ -18,7 +18,20 @@ cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 f="$cfg_home/ryoku/plugins.json"
 mkdir -p "$(dirname "$f")"
-[ -f "$f" ] || echo '{}' >"$f"
+
+# Self-heal: a missing, empty, or corrupt file (a stale partial write, an external
+# reset) becomes a fresh {} so every write below has valid input and the readers
+# (discover.sh) never choke on it.
+if [ ! -s "$f" ] || ! jq -e . "$f" >/dev/null 2>&1; then
+	echo '{}' >"$f"
+fi
+
+# Every write goes through a unique temp on the same filesystem, then an atomic
+# rename. A unique name (not a shared "$f.tmp") means two writers landing at once
+# - a desktop drag committing while Settings toggles enabled, say - can at worst
+# lose one update, never truncate the file to nothing.
+tmp="$(mktemp "$f.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
 
 id="${1:?id required}"; field="${2:?field required}"; shift 2
 
@@ -48,7 +61,7 @@ seed_entry() {
 			enabled: ((.[$id].enabled) // false),
 			host: ((.[$id].host) // $host),
 			settings: ($defs + ((.[$id].settings) // {}))
-		})' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+		})' "$f" >"$tmp" && mv "$tmp" "$f"
 }
 
 case "$field" in
@@ -64,22 +77,21 @@ desktopWidget)
 			desktopWidget: (((.[$id].desktopWidget) // {}) + { x: $x, y: $y }
 				+ (if $scale == "" then {} else { scale: ($scale | tonumber) } end)
 				+ (if $locked == "" then {} else { locked: ($locked == "true") } end))
-		})' \
-		"$f" >"$f.tmp" && mv "$f.tmp" "$f"
+		})' "$f" >"$tmp" && mv "$tmp" "$f"
 	;;
 framePopout)
 	edge="${1:?edge}"; align="${2:-start}"; hoverW="${3:-320}"; hoverH="${4:-16}"
 	jq --arg id "$id" --arg e "$edge" --arg a "$align" --argjson hw "$hoverW" --argjson hh "$hoverH" \
 		'.[$id] = ((.[$id] // {}) + { enabled: ((.[$id].enabled) // true), host: ((.[$id].host) // "framePopout"), framePopout: (((.[$id].framePopout) // {}) + { edge: $e, align: $a, hoverW: $hw, hoverH: $hh }) })' \
-		"$f" >"$f.tmp" && mv "$f.tmp" "$f"
+		"$f" >"$tmp" && mv "$tmp" "$f"
 	;;
 host)
 	host="${1:?host}"
-	jq --arg id "$id" --arg h "$host" '.[$id] = ((.[$id] // {}) + { enabled: ((.[$id].enabled) // true), host: $h })' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+	jq --arg id "$id" --arg h "$host" '.[$id] = ((.[$id] // {}) + { enabled: ((.[$id].enabled) // true), host: $h })' "$f" >"$tmp" && mv "$tmp" "$f"
 	;;
 enabled)
 	en="${1:?enabled}"
-	jq --arg id "$id" --argjson e "$en" '.[$id] = ((.[$id] // {}) + { enabled: $e })' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+	jq --arg id "$id" --argjson e "$en" '.[$id] = ((.[$id] // {}) + { enabled: $e })' "$f" >"$tmp" && mv "$tmp" "$f"
 	# Enabling injects the preset block, so a plugin's settings exist in the right
 	# place the moment it goes live (a fresh enable needs no hand edit).
 	if [ "$en" = "true" ]; then seed_entry "$id"; fi
@@ -88,13 +100,13 @@ settings)
 	json="${1:?settings json}"
 	jq --arg id "$id" --argjson s "$json" \
 		'.[$id] = ((.[$id] // {}) + { settings: (((.[$id].settings) // {}) + $s) })' \
-		"$f" >"$f.tmp" && mv "$f.tmp" "$f"
+		"$f" >"$tmp" && mv "$tmp" "$f"
 	;;
 seed)
 	seed_entry "$id"
 	;;
 forget)
-	jq --arg id "$id" 'del(.[$id])' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+	jq --arg id "$id" 'del(.[$id])' "$f" >"$tmp" && mv "$tmp" "$f"
 	;;
 *)
 	echo "usage: ryoku-plugins-place <id> desktopWidget <x> <y> | framePopout <edge> <align> <hoverW> <hoverH> | host <name> | enabled <bool> | settings <json> | seed | forget" >&2

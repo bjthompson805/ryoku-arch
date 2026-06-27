@@ -24,7 +24,12 @@ all=0
 [ "${1:-}" = "--all" ] && all=1
 
 user='{}'
-[ -f "$user_json" ] && user="$(jq '. // {}' "$user_json" 2>/dev/null || echo '{}')"
+# Tolerate a missing, empty, or corrupt plugins.json: treat any of them as {} so
+# a single bad write never blanks the whole installed/enabled listing.
+if [ -s "$user_json" ]; then
+	parsed="$(jq -c '.' "$user_json" 2>/dev/null || true)"
+	[ -n "$parsed" ] && [ "$parsed" != "null" ] && user="$parsed"
+fi
 
 dirs=()
 if [ -n "${RYOKU_PLUGINS_DIR:-}" ]; then
