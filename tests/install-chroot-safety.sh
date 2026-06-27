@@ -12,6 +12,8 @@ phases="$ROOT/installation/backend/lib"
 fail=0
 while IFS= read -r -d '' f; do
   lineno=0
+  # $f is only read below; the echo/printf both write to stderr, not to $f.
+  # shellcheck disable=SC2094
   while IFS= read -r line; do
     lineno=$((lineno + 1))
     [[ $line =~ ^[[:space:]]*# ]] && continue
