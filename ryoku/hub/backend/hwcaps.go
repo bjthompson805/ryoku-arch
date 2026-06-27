@@ -237,10 +237,13 @@ func buildChecks(in capInputs, host, pass *GPU) (checks []Check, hardFail bool) 
 		add(Check{ID: "ram", Level: "warn", Label: "Memory", Value: itoa(in.ramFreeMB) + " MB free", Hint: "A VM wants 8 GB+; close apps or lower the VM's RAM."})
 	}
 
-	if missing := toolingMissing(in.tooling); len(missing) == 0 {
+	switch miss := toolingMissing(in.tooling); {
+	case len(miss) == 0:
 		add(Check{ID: "tooling", Level: "ok", Label: "Virtualization stack", Value: "installed"})
-	} else {
-		add(Check{ID: "tooling", Level: "warn", Label: "Virtualization stack", Value: "missing: " + strings.Join(missing, ", "), Hint: "Enable passthrough installs the core stack (qemu, libvirt, OVMF, swtpm); Looking Glass + kvmfr are AUR: yay -S looking-glass looking-glass-module-dkms."})
+	case !in.tooling.qemu:
+		add(Check{ID: "tooling", Level: "warn", Label: "Virtualization stack", Value: "QEMU not installed", Hint: "A plain VM needs QEMU: pacman -S qemu-desktop."})
+	default:
+		add(Check{ID: "tooling", Level: "warn", Label: "Passthrough stack", Value: "missing: " + strings.Join(miss, ", ") + " (passthrough only)", Hint: "Only for the GPU-passthrough VM; plain VMs need none of it. Looking Glass + kvmfr are AUR: yay -S looking-glass looking-glass-module-dkms."})
 	}
 	if in.tooling.libvirt {
 		if in.inLibvirtGroup {

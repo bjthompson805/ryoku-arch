@@ -55,7 +55,7 @@ Rectangle {
         "shell":       { "title": "Shell", "subtitle": "Tune the Ryoku shell: the frame, the island, the bar, and the desktop visualiser." },
         "widgets":     { "title": "Desktop Widgets", "subtitle": "Clock and weather on the wallpaper: pick a design, size, shape, and placement, with a live preview that follows your palette." },
         "connections": { "title": "Connections", "subtitle": "Wi-Fi networks, Bluetooth devices, and your hotspot, all in one place." },
-        "gpu":         { "title": "GPU", "subtitle": "Graphics mode (Hybrid, Performance, Passthrough) and a Looking-Glass Windows VM that owns the discrete GPU." },
+        "gpu":         { "title": "GPU", "subtitle": "Graphics mode, plus an optional GPU-passthrough VM (Looking Glass). Plain VMs run from the Machine tab with just QEMU." },
         "updates":     { "title": "Updates", "subtitle": "Updates pending for your Ryoku system." },
         "store":       { "title": "Store", "subtitle": "Browse and install shell plugins and extras bundles for the Ryoku desktop." },
         "addons":      { "title": "Add-ons", "subtitle": "Your installed plugins. Open one to change its settings, enable it, or remove it." }

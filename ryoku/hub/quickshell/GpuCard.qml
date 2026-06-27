@@ -18,7 +18,7 @@ Item {
         "ready":         { "label": "PASSTHROUGH READY", "color": Theme.ok },
         "needs-relogin": { "label": "RELOGIN TO ENABLE",  "color": Theme.ember },
         "needs-reboot":  { "label": "REBOOT TO ENABLE",   "color": Theme.ember },
-        "needs-setup":   { "label": "SETUP NEEDED",       "color": Theme.ember },
+        "needs-setup":   { "label": "PASSTHROUGH OFF",    "color": Theme.subtle },
         "incapable":     { "label": "NOT CAPABLE",        "color": Theme.bad }
     })
     readonly property var verdict: root.verdictMeta[root.caps.verdict] || ({ "label": "DETECTING", "color": Theme.dim })
