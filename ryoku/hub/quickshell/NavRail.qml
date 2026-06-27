@@ -179,72 +179,91 @@ Rectangle {
         anchors.top: parent.top
         spacing: 0
 
-        // Brand: a 力 seal (the live brand kanji set in a carbon hanko, not a flat
-        // image) beside the RYOKU ARCH wordmark and its subtitle.
+        // Brand masthead: the RYOKU ARCH wordmark centred over a dimmed 力 backdrop
+        // (a soft warm glow and a faint grid, echoing the Profile portrait window).
         Item {
+            id: masthead
             width: parent.width
             height: 96
+            clip: true
 
-            Row {
-                anchors.left: parent.left
-                anchors.leftMargin: 22
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 13
-
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 42
-                    height: 42
-                    radius: 11
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Theme.cardTop }
-                        GradientStop { position: 1.0; color: Theme.cardBot }
+            Canvas {
+                id: backdrop
+                anchors.fill: parent
+                property color em: Theme.ember
+                property color cr: Theme.cream
+                onEmChanged: requestPaint()
+                onCrChanged: requestPaint()
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+                onPaint: {
+                    var ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    function rgba(c, a) {
+                        return "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + "," + Math.round(c.b * 255) + "," + a + ")";
                     }
-                    border.width: 1
-                    border.color: Qt.alpha(Theme.ember, 0.5)
+                    var g = ctx.createRadialGradient(width * 0.5, height * 0.44, 0, width * 0.5, height * 0.44, width * 0.6);
+                    g.addColorStop(0, rgba(backdrop.em, 0.10));
+                    g.addColorStop(1, rgba(backdrop.em, 0));
+                    ctx.fillStyle = g;
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.strokeStyle = rgba(backdrop.cr, 0.03);
+                    ctx.lineWidth = 1;
+                    var step = 22;
+                    for (var x = step; x < width; x += step) {
+                        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+                    }
+                    for (var y = step; y < height; y += step) {
+                        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+                    }
+                }
+            }
 
+            // Dimmed 力, dropped behind the wordmark.
+            Text {
+                anchors.centerIn: parent
+                text: "\u529b"
+                color: Theme.ember
+                opacity: 0.15
+                font.family: Theme.font
+                font.pixelSize: 84
+                font.weight: Font.Black
+            }
+
+            // Centred wordmark + subtitle.
+            Column {
+                anchors.centerIn: parent
+                spacing: 3
+
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 6
                     Text {
-                        anchors.centerIn: parent
-                        text: "\u529b"
+                        text: "RYOKU"
+                        color: Theme.bright
+                        font.family: Theme.font
+                        font.pixelSize: 16
+                        font.weight: Font.Black
+                        font.letterSpacing: 3
+                    }
+                    Text {
+                        text: "ARCH"
                         color: Theme.ember
                         font.family: Theme.font
-                        font.pixelSize: 24
+                        font.pixelSize: 16
                         font.weight: Font.Black
+                        font.letterSpacing: 3
                     }
                 }
 
-                Column {
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 3
-
-                    Row {
-                        spacing: 6
-                        Text {
-                            text: "RYOKU"
-                            color: Theme.bright
-                            font.family: Theme.font
-                            font.pixelSize: 15
-                            font.weight: Font.Black
-                            font.letterSpacing: 3
-                        }
-                        Text {
-                            text: "ARCH"
-                            color: Theme.ember
-                            font.family: Theme.font
-                            font.pixelSize: 15
-                            font.weight: Font.Black
-                            font.letterSpacing: 3
-                        }
-                    }
-
-                    Text {
-                        text: "system and shell settings"
-                        color: Theme.dim
-                        font.family: Theme.mono
-                        font.pixelSize: 9
-                        font.weight: Font.Medium
-                        font.letterSpacing: 0.5
-                    }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "system and shell settings"
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: 9
+                    font.weight: Font.Medium
+                    font.letterSpacing: 0.5
                 }
             }
         }

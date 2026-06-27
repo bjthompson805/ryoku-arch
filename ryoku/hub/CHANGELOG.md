@@ -146,10 +146,11 @@
   shell's morph motion (a single sliding selection indicator in the rail).
 
 ### Changed
-- The sidebar brand drops the flat logo image for a 力 "seal" (the live brand
-  kanji set in a carbon hanko) beside a wide-tracked **RYOKU ARCH** wordmark and a
-  "system and shell settings" subtitle; the expand/collapse-all control moves
-  beside the search so the brand owns its row. `brand-icon.png` is gone.
+- The sidebar brand is a centred masthead: the wide-tracked **RYOKU ARCH**
+  wordmark and a "system and shell settings" subtitle sit over a dimmed 力
+  backdrop (a soft warm glow and a faint grid, echoing the Profile portrait
+  window). The old flat logo image is gone (`brand-icon.png` deleted) and the
+  expand/collapse-all control moves beside the search so the masthead owns its row.
 - `HubButton` (the Save/Revert/Reset bar on every settings page) is restyled to
   the Profile dossier idiom: a small-radius carbon chip with a mono uppercase
   label and a hairline border that warms to ember on hover, rather than a generic
