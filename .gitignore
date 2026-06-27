@@ -31,3 +31,7 @@
 .luarc.json
 .luarc.jsonc
 .prowl/
+
+# Local development plans and specs: kept local (or under ~/Work), never committed.
+/docs/superpowers/plans/
+/docs/superpowers/specs/
