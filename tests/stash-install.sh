@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Hermetic test for ryoku/hyprland/scripts/stash-install.sh. The stash makes
-# dropped files launchable: AppImages and self-contained tarballs get a
-# synthesized desktop entry, while an Arch package (.pkg.tar.zst, recognised by
-# its .PKGINFO member) must be handed to `pacman -U` via pkexec, never extracted
-# into ~/.local where its /opt-based binary would not work. pkexec and pacman are
-# stubbed, so this asserts the dispatch without touching the real system.
+# hermetic test for ryoku/hyprland/scripts/stash-install.sh. stash makes dropped
+# files launchable: AppImages + self-contained tarballs get a synth desktop
+# entry; an Arch package (.pkg.tar.zst, recognised by its .PKGINFO member) must
+# go through `pacman -U` via pkexec, never extracted into ~/.local where its
+# /opt binary would not work. pkexec + pacman stubbed; this asserts the dispatch
+# without touching the real system.
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -18,9 +18,8 @@ check() { if [[ $1 == "$2" ]]; then echo "  ok: $3"; else echo "::error::FAIL: $
 present() { if [[ -e $1 ]]; then echo "  ok: $2"; else echo "::error::FAIL: $2 (missing $1)" >&2; fail=1; fi; }
 absent()  { if [[ ! -e $1 ]]; then echo "  ok: $2"; else echo "::error::FAIL: $2 ($1 exists)" >&2; fail=1; fi; }
 
-# Stubs: pkexec records its args so we can assert the escalation; pacman,
-# notify-send and update-desktop-database only need to exist for the script's
-# presence checks.
+# stubs. pkexec records args (escalation assertion); pacman, notify-send,
+# update-desktop-database just need to exist for the script's presence checks.
 stub="$work/bin"
 mkdir -p "$stub"
 cat >"$stub/pkexec" <<EOF
@@ -37,8 +36,8 @@ for t in pacman notify-send update-desktop-database; do printf '#!/bin/sh\nexit 
 chmod +x "$stub"/*
 export PATH="$stub:$PATH"
 
-# A fake Arch package: a tar carrying a top-level .PKGINFO (pkgname=$2). gz so the
-# test needs no zstd; classify keys on the .pkg.tar. infix or the .PKGINFO member.
+# fake Arch package: a tar with a top-level .PKGINFO (pkgname=$2). gz so no zstd
+# needed; classify keys on the .pkg.tar. infix or the .PKGINFO member.
 mkpkg() {
   local out="$1" name="$2" d="$work/pkgsrc"
   rm -rf "$d"; mkdir -p "$d"
@@ -51,7 +50,7 @@ run_stash() {
   HOME="$work/home" bash "$SCRIPT" >"$work/out" 2>&1
 }
 
-# Case 1: a .pkg.tar.* package is installed via pkexec pacman -U, not extracted.
+# case 1: .pkg.tar.* installs via pkexec pacman -U, not extracted.
 s1="$work/stash1"; mkdir -p "$s1"
 mkpkg "$s1/foo.pkg.tar.gz" foo
 : >"$work/pkexec.log"
@@ -72,7 +71,7 @@ else
   echo "::error::FAIL: pacman install did not emit @AUTH" >&2; fail=1
 fi
 
-# Case 2: a renamed package (.tar.gz with .PKGINFO) is still detected as pacman.
+# case 2: renamed package (.tar.gz with .PKGINFO) still detected as pacman.
 s2="$work/stash2"; mkdir -p "$s2"
 mkpkg "$s2/bar.tar.gz" bar
 : >"$work/pkexec.log"
@@ -80,7 +79,7 @@ STASH_DIR="$s2" run_stash
 check "$(cat "$work/pkexec.log")" "pacman -U --noconfirm $s2/bar.tar.gz" \
   "renamed Arch package detected by .PKGINFO and sent to pacman"
 
-# Case 3: a generic tarball (no .PKGINFO) stays the extract path, never pacman.
+# case 3: generic tarball (no .PKGINFO) stays the extract path, never pacman.
 s3="$work/stash3"; mkdir -p "$s3"
 g="$work/gen"; rm -rf "$g"; mkdir -p "$g"
 printf '#!/bin/sh\necho hi\n' >"$g/plainbin"; chmod +x "$g/plainbin"
@@ -96,7 +95,7 @@ else
   echo "  ok: non-privileged install does not signal the deck"
 fi
 
-# Case 4: a flatpak bundle installs via flatpak install --user (flatpak stubbed).
+# case 4: flatpak bundle -> flatpak install --user (flatpak stubbed).
 s4="$work/stash4"; mkdir -p "$s4"
 : >"$s4/app.flatpak"
 : >"$work/pkexec.log"; : >"$work/flatpak.log"
@@ -109,8 +108,8 @@ else
 fi
 check "$(cat "$work/pkexec.log")" "" "flatpak never escalated to pacman"
 
-# Case 5: a .deb payload is extracted into a launcher entry (best-effort). Needs ar
-# (to build the fixture) and bsdtar (libarchive); skipped where either is absent.
+# case 5: .deb payload extracted into a launcher entry (best-effort). needs ar
+# (to build the fixture) + bsdtar (libarchive); skipped if either missing.
 if command -v ar >/dev/null 2>&1 && command -v bsdtar >/dev/null 2>&1; then
   s5="$work/stash5"; mkdir -p "$s5"
   dr="$work/debroot"; rm -rf "$dr"; mkdir -p "$dr/usr/bin" "$dr/usr/share/applications"
@@ -124,10 +123,10 @@ if command -v ar >/dev/null 2>&1 && command -v bsdtar >/dev/null 2>&1; then
   check "$(cat "$work/pkexec.log")" "" "deb payload never escalated to pacman"
   present "$work/home/.local/share/applications/debapp.desktop" "deb payload extracted into a launcher entry"
 
-  # Case 5b: a .deb whose desktop Exec is an absolute /opt path must resolve to
-  # that exact binary, never a same-named decoy elsewhere in the payload. Termius
-  # ships an etc/cron.daily/termius-app cron script that sorts before opt/, so a
-  # tree-wide basename search picked the cron job and the app never launched.
+  # case 5b: a .deb whose desktop Exec is an absolute /opt path must resolve to
+  # that exact binary, never a same-named decoy elsewhere in the payload.
+  # Termius ships etc/cron.daily/termius-app -- sorts before opt/, so the old
+  # tree-wide basename search grabbed the cron job and the app never launched.
   s5b="$work/stash5b"; mkdir -p "$s5b"
   dr2="$work/debroot2"; rm -rf "$dr2"
   mkdir -p "$dr2/opt/realapp" "$dr2/etc/cron.daily" "$dr2/usr/share/applications"
@@ -150,13 +149,13 @@ else
   echo "  skip: .deb extraction (ar or bsdtar absent)"
 fi
 
-# Case 6: RYOKU_STASH_KEEP=1 keeps the source after a successful install.
+# case 6: RYOKU_STASH_KEEP=1 keeps the source after a successful install.
 s6="$work/stash6"; mkdir -p "$s6"
 mkpkg "$s6/keep.pkg.tar.gz" keep
 RYOKU_STASH_KEEP=1 STASH_DIR="$s6" run_stash
 present "$s6/keep.pkg.tar.gz" "RYOKU_STASH_KEEP=1 keeps the source in the stash"
 
-# Case 7: a failed install leaves the source in place (no cleanup on failure).
+# case 7: a failed install leaves the source in place (no cleanup on failure).
 s7="$work/stash7"; mkdir -p "$s7"
 printf 'not a real package\n' >"$s7/broken.deb"
 STASH_DIR="$s7" run_stash || true

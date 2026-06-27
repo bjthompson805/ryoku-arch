@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Prevent the "fresh install halts in the chroot" class: a bare
-# `systemctl --user enable|start|...` run inside a chroot install phase fails (no
-# user bus) and, under `set -e`, halts the whole install before the desktop is
-# deployed. Every such call in a chroot-run phase must be guarded (|| true, or a
-# 2>/dev/null fallthrough).
+# stops the "fresh install halts inside the chroot" footgun: a bare
+# `systemctl --user enable|start|...` from a chroot install phase fails (no
+# user bus); under `set -e` that halts the whole install before the desktop
+# is deployed. every such call in a chroot-run phase needs a guard
+# (|| true, or 2>/dev/null fallthrough).
 set -euo pipefail
 
 ROOT=${RYOKU_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}

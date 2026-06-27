@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Run the shell's pure-JS unit tests: the *.test.mjs files that exercise the
-# logic helpers behind the Quickshell surfaces (the launcher fuzzy ranker and the
-# ryoshot coordinate/keymap/annotation libs). These have no Quickshell or display
-# dependency, so they run anywhere node is present, and unlike the advisory
-# qmllint job this is a real gate. Nothing to maintain here: the runner discovers
-# every ryoku/shell/**/*.test.mjs automatically, so a new test file is picked up
-# the moment it lands next to the code it covers.
+# run the shell's pure-JS unit tests. the *.test.mjs files that exercise the
+# logic helpers behind the Quickshell surfaces (launcher fuzzy ranker,
+# ryoshot coordinate/keymap/annotation libs). no Quickshell or display dep,
+# so they run anywhere node is around, and unlike the advisory qmllint job
+# this one is a real gate. nothing to maintain: the runner finds every
+# ryoku/shell/**/*.test.mjs, so a new file is picked up the moment it lands
+# next to what it covers.
 set -euo pipefail
 
 ROOT=${RYOKU_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
