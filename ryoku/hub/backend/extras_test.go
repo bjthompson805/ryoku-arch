@@ -5,7 +5,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 // extrasServer serves a tiny catalogue (registry + one bundle + one installer)
@@ -97,5 +99,38 @@ func TestEnsureInstaller(t *testing.T) {
 	// Offline and never cached: a clear error.
 	if _, err := ensureInstaller("missing"); err == nil {
 		t.Fatal("expected an error for an uncached, unreachable installer")
+	}
+}
+
+// fetch must defeat the GitHub raw CDN cache so a catalogue refresh always sees
+// the latest push; otherwise a freshly added addon stays invisible for minutes.
+func TestFetchBustsCDNCache(t *testing.T) {
+	got := make(chan string, 2)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if cc := r.Header.Get("Cache-Control"); cc != "no-cache" {
+			t.Errorf("missing no-cache header, got %q", cc)
+		}
+		got <- r.URL.RawQuery
+		w.Write([]byte("ok"))
+	}))
+	t.Cleanup(srv.Close)
+
+	if _, err := fetch(srv.URL + "/plugins/registry.json"); err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	time.Sleep(time.Millisecond)
+	if _, err := fetch(srv.URL + "/plugins/registry.json?keep=1"); err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+
+	q1, q2 := <-got, <-got
+	if q1 == "" {
+		t.Fatalf("first fetch sent no cache-busting query")
+	}
+	if q1 == q2 {
+		t.Fatalf("two fetches reused query %q; a CDN could serve a stale hit", q1)
+	}
+	if !strings.Contains(q2, "keep=1") {
+		t.Fatalf("an existing query was dropped: %q", q2)
 	}
 }

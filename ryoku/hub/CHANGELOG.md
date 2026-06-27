@@ -181,6 +181,10 @@
   field `ryoku status --json` now publishes. "Up to date" shows when current.
 
 ### Fixed
+- Plugins / Extras: a catalogue refresh now reflects a just-pushed change at
+  once. `ryoku-hub extras` fetches bypass the GitHub raw CDN cache (a unique
+  query param plus a `no-cache` header), which had served a stale `registry.json`
+  for minutes, so a newly published addon stayed invisible until the CDN expired.
 - Ryoku Hub: `Super + ,` no longer goes dead after the hub is dismissed with the
   compositor's close (`Super + Q`). The keybind guards against a second instance
   with `flock` held for the life of the `qs -c hub` process; an external close

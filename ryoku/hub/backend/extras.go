@@ -183,7 +183,21 @@ func runExtras(args []string) error {
 var extrasClient = &http.Client{Timeout: 12 * time.Second}
 
 func fetch(url string) ([]byte, error) {
-	resp, err := extrasClient.Get(url)
+	// Bust the GitHub raw (Fastly) CDN cache. The plain URL can keep serving a
+	// pre-push copy of the catalogue for minutes, so a Hub refresh looks broken:
+	// it re-fetches but keeps getting the stale registry.json. A unique query
+	// param is the only reliable buster (raw ignores it for content but keys its
+	// cache on it); the no-cache header is belt and braces.
+	sep := "?"
+	if strings.Contains(url, "?") {
+		sep = "&"
+	}
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s%s_=%d", url, sep, time.Now().UnixNano()), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Cache-Control", "no-cache")
+	resp, err := extrasClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
