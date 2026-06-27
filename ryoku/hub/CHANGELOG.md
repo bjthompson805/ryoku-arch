@@ -166,18 +166,22 @@
 
 ### Changed
 - Plugins store: the Install / Installed / Remove actions match the update consent
-  prompt - flat ember "stamp" buttons (radius 3, mono bold uppercase, no icon) for
-  the live action and hairline ghost stamps for the rest - replacing the generic
-  bright full-pill.
+  prompt - outlined ember "stamp" buttons (a thin ember border + mono uppercase
+  label, no fill) for the live action and hairline ghost stamps for the rest,
+  replacing the generic bright full-pill.
 - The sidebar brand is a centred masthead: the wide-tracked **RYOKU ARCH**
   wordmark and a "system and shell settings" subtitle sit over a dimmed 力
   backdrop (a soft warm glow and a faint grid, echoing the Profile portrait
   window). The old flat logo image is gone (`brand-icon.png` deleted) and the
   expand/collapse-all control moves beside the search so the masthead owns its row.
-- `HubButton` (the Save/Revert/Reset bar on every settings page) is restyled to
-  the Profile dossier idiom: a small-radius carbon chip with a mono uppercase
-  label and a hairline border that warms to ember on hover, rather than a generic
-  rounded pill. Save keeps the ember fill.
+- The Profile showcase frame (soft glow, faint grid, vignette, corner ticks) is
+  extracted to a shared `ShowcaseBackdrop` and now sits behind the **Store** and
+  **Add-ons** pages too, so the three screens read as one family; the Add-ons
+  bento cards gain a lifted drop shadow.
+- `HubButton` (the Save/Revert/Reset bar on every settings page) and every primary
+  action across the hub (Store Install, the update consent Install) are outlined
+  ember stamps in the Profile dossier idiom: a small-radius carbon chip with a mono
+  uppercase label and ember as a thin accent (border + label), never a fill.
 - The sidebar is rebuilt as three bands: **Profile** pinned at the top on its own
   (no more single-item "You" drawer), the functional groups scrolling in the
   middle, and **Updates** pinned at the foot so its pending-update badge stays in

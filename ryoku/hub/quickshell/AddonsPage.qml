@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import "Singletons"
@@ -72,6 +73,8 @@ Item {
     Process { id: settingsProc; onExited: page.refresh() }
     Process { id: rmProc; onExited: { page.busyId = ""; page.view = "grid"; page.refresh(); } }
 
+    ShowcaseBackdrop { anchors.fill: parent }
+
     // ── Grid: installed plugins as bento cards ──────────────────────────────
     Flickable {
         anchors.fill: parent
@@ -107,6 +110,15 @@ Item {
                     Behavior on border.color { ColorAnimation { duration: Theme.quick } }
                     scale: cardHov.hovered ? 1.012 : 1
                     Behavior on scale { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } }
+
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: Qt.rgba(0, 0, 0, 0.45)
+                        shadowBlur: 0.9
+                        shadowVerticalOffset: 8
+                        autoPaddingEnabled: true
+                    }
 
                     // Preview window.
                     Rectangle {

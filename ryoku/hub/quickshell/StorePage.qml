@@ -12,6 +12,8 @@ Item {
 
     property string tab: "plugins"
 
+    ShowcaseBackdrop { anchors.fill: parent }
+
     Segmented {
         id: seg
         anchors.top: parent.top

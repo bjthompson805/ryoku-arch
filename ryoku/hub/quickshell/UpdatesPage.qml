@@ -363,18 +363,18 @@ Item {
                             height: 32
                             width: optLabel.implicitWidth + (index === 0 ? 30 : 22)
                             radius: 3
-                            color: index === 0
-                                ? (optMa.containsMouse ? Qt.lighter(Theme.ember, 1.08) : Theme.ember)
+                            color: optMa.containsMouse
+                                ? (index === 0 ? Theme.frameBg : Theme.keyTop)
                                 : "transparent"
-                            border.width: index === 0 ? 0 : 1
-                            border.color: optMa.containsMouse ? Theme.ember : Theme.line
+                            border.width: 1
+                            border.color: index === 0 ? Theme.ember : (optMa.containsMouse ? Theme.ember : Theme.line)
 
                             Text {
                                 id: optLabel
                                 anchors.centerIn: parent
                                 text: ("" + modelData).toUpperCase()
                                 color: index === 0
-                                    ? Theme.onAccent
+                                    ? (optMa.containsMouse ? Qt.lighter(Theme.ember, 1.25) : Theme.ember)
                                     : (optMa.containsMouse ? Theme.cream : Theme.dim)
                                 font.family: Theme.mono
                                 font.pixelSize: 12

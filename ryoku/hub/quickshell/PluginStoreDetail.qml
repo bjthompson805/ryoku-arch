@@ -313,11 +313,11 @@ Item {
                     height: 32
                     width: actLabel.implicitWidth + 30
                     radius: 3
-                    color: actionBtn.isInstalled
-                        ? (actMa.containsMouse ? Theme.keyTop : "transparent")
-                        : (actMa.containsMouse ? Qt.lighter(Theme.ember, 1.08) : Theme.ember)
-                    border.width: actionBtn.isInstalled ? 1 : 0
-                    border.color: actMa.containsMouse ? Theme.ember : Theme.line
+                    color: actMa.containsMouse
+                        ? (actionBtn.isInstalled ? Theme.keyTop : Theme.frameBg)
+                        : "transparent"
+                    border.width: 1
+                    border.color: actionBtn.actionable ? Theme.ember : (actMa.containsMouse ? Theme.ember : Theme.line)
                     opacity: detail.busy ? 0.7 : 1
                     Behavior on color { ColorAnimation { duration: Theme.quick } }
                     Behavior on border.color { ColorAnimation { duration: Theme.quick } }
@@ -325,7 +325,7 @@ Item {
                         id: actLabel
                         anchors.centerIn: parent
                         text: detail.busy ? "WORKING" : (actionBtn.isInstalled ? "INSTALLED" : "INSTALL")
-                        color: actionBtn.isInstalled ? Theme.dim : Theme.onAccent
+                        color: actionBtn.actionable ? (actMa.containsMouse ? Qt.lighter(Theme.ember, 1.25) : Theme.ember) : Theme.dim
                         font.family: Theme.mono
                         font.pixelSize: 12
                         font.weight: actionBtn.isInstalled ? Font.DemiBold : Font.Bold
