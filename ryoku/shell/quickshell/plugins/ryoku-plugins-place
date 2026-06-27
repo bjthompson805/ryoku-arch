@@ -54,7 +54,9 @@ manifest_for() {
 seed_entry() {
 	local pid="$1" man defs host
 	man="$(manifest_for "$pid")" || return 0
-	defs="$(jq -c '.metadata.defaultSettings // {}' "$man")"
+	# Defaults come from the settings schema (metadata.settings[].default); a plugin
+	# with the older flat metadata.defaultSettings still works.
+	defs="$(jq -c 'if (.metadata.settings | type) == "array" then (.metadata.settings | map({(.key): .default}) | add // {}) else (.metadata.defaultSettings // {}) end' "$man")"
 	host="$(jq -r '.defaults.host // "desktopWidget"' "$man")"
 	jq --arg id "$pid" --argjson defs "$defs" --arg host "$host" \
 		'.[$id] = ((.[$id] // {}) + {

@@ -161,9 +161,9 @@ Use `Theme` colors and `Motion` curves - mono eyebrows, hairline dividers, the
 brand accent, the project's morph timing. **Don't hardcode colors**; read them
 from `Theme`. The brand orange is the one fixed accent - use it sparingly.
 
-Your **settings page** is different: it loads *inside* Ryoku Settings, so it uses
-the **hub** dialect (the hub's `Theme` and section/row components), not the deck
-kit.
+Your **settings are not QML** - you declare them as a `metadata.settings` schema
+in the manifest (below) and Ryoku renders native controls for them, both in
+Ryoku Settings and in the desktop widget's right-click menu.
 
 ---
 
@@ -171,8 +171,10 @@ kit.
 
 A non-visual `QtObject`/`Item` that holds state and does the work (HTTP, running
 your `bin/` scripts, parsing results). Ryoku keeps one instance alive and hands
-it to your content as `pluginApi.mainInstance`. Persist user options with
-`pluginApi.saveSettings()`; they're seeded from `manifest.metadata.defaultSettings`.
+it to your content as `pluginApi.mainInstance`.
+Declare user options as a `metadata.settings` schema in your manifest (below).
+Ryoku renders the controls, seeds your defaults on install, and persists changes
+to `plugins.json`; read the live values from `pluginApi.pluginSettings`.
 
 ---
 
@@ -204,7 +206,15 @@ it to your content as `pluginApi.mainInstance`. Persist user options with
   },
   "commands": ["bin/your-tool"],
   "dependencies": { "commands": ["curl", "jq"] },
-  "metadata": { "defaultSettings": { } }
+  "metadata": {
+    "settings": [
+      { "key": "imagePath", "type": "image",  "label": "Image", "group": "Photo", "default": "" },
+      { "key": "style", "type": "choice", "label": "Style", "group": "Photo", "default": "rounded",
+        "options": [ { "value": "rounded", "label": "Rounded" }, { "value": "polaroid", "label": "Polaroid" } ] },
+      { "key": "shadowEnabled", "type": "toggle", "label": "Drop shadow", "group": "Shadow", "default": true },
+      { "key": "shadowBlur", "type": "slider", "label": "Blur", "group": "Shadow", "default": 0.5, "min": 0, "max": 1, "step": 0.01 }
+    ]
+  }
 }
 ```
 
