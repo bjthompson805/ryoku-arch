@@ -1,8 +1,8 @@
 .pragma library
 
-// A small subsequence fuzzy scorer: every query character must appear in order.
-// Consecutive matches, word starts, and the very first character score higher so
-// "clw" ranks "Close window" above an incidental scatter. Returns -1 for no match.
+// tiny subsequence fuzzy scorer. every query char must show up in order.
+// consecutive matches, word starts and the very first char score higher so
+// "clw" ranks "Close window" above an incidental scatter. -1 = no match.
 function score(query, text) {
     if (!query)
         return 0;
@@ -31,8 +31,8 @@ function score(query, text) {
     return qi === query.length ? total : -1;
 }
 
-// rank flattens every bind across categories, scores it against the query (over
-// its description and its keys), keeps the matches and returns them best-first,
+// rank flattens every bind across categories, scores it against the query
+// (over its desc + its keys), keeps the matches, returns them best-first
 // each tagged with its source category.
 function rank(query, cats) {
     var out = [];

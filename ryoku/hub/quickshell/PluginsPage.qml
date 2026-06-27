@@ -4,32 +4,28 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-/**
- * Plugins: a storefront first, a manager second. The page opens on Discover - a
- * gallery of downloadable plugins, each a card with a live preview that opens a
- * featured detail page (the Profile-style showcase) with an Install action. A
- * segmented switch flips to Installed, where each installed plugin is enabled and
- * placed (host + the frame-popout editor); the running shell retunes live because
- * the plugin runtime watches plugins.json.
- *
- * Catalogue comes from `ryoku-hub extras plugincatalog` (the ryoku-extras repo,
- * cached for offline). Installs go through `ryoku-hub extras plugin <id>`; enable
- * and placement through `ryoku-plugins-place`; the installed list from
- * `discover.sh --all`.
- */
+// plugins page: store first, manager second. opens on Discover, a grid of cards
+// with live previews; clicking one opens a featured detail (Profile-style
+// showcase) with an Install. segmented switch flips to Installed, where each
+// installed plugin gets enabled/placed (host + frame-popout editor); the running
+// shell retunes live since the plugin runtime watches plugins.json.
+//
+// catalogue = `ryoku-hub extras plugincatalog` (ryoku-extras repo, cached for
+// offline). installs = `ryoku-hub extras plugin <id>`. enable + placement via
+// `ryoku-plugins-place`. installed list = `discover.sh --all`.
 Item {
     id: page
 
-    // Three views: "discover" (store grid), "detail" (one plugin), "installed".
+    // three views: "discover" (store grid), "detail" (one plugin), "installed".
     property string view: "discover"
     property var detailPlugin: ({})
 
-    property var catalog: []      // downloadable plugins (from plugincatalog)
-    property var plugins: []      // installed plugins (from discover.sh --all)
+    property var catalog: []      // downloadable (from plugincatalog)
+    property var plugins: []      // installed (from discover.sh --all)
     property string busyId: ""    // id currently installing/removing
     property bool refreshing: false
-    // Discover-only when embedded in the unified Store: the Installed tab moves to
-    // the Add-ons page, so the store just browses and installs.
+    // discover-only when embedded in the unified Store: Installed tab moves to
+    // the Add-ons page, so the store just browses + installs.
     property bool storeMode: false
 
     readonly property string shellDir: Quickshell.env("RYOKU_SHELL_DIR")
@@ -56,8 +52,8 @@ Item {
     }
     function removePlugin(id) {
         page.busyId = id;
-        // Disable it, then remove the data-dir plugin via the symlink-safe backend
-        // (a dev plugin is a symlink into the checkout; rm -rf would gut the repo).
+        // disable, then remove the data-dir plugin via the symlink-safe backend.
+        // (a dev plugin is a symlink into the checkout; rm -rf would gut the repo.)
         place(id, "enabled", "false");
         rmProc.command = ["ryoku-hub", "extras", "pluginremove", id];
         rmProc.running = true;
@@ -80,10 +76,10 @@ Item {
             onStreamFinished: {
                 var list = [];
                 try { var o = JSON.parse(text || "{}"); list = o.plugins || []; } catch (e) { list = []; }
-                // Fallback so the store is never empty while the remote catalogue is
-                // unpopulated/offline: seed the official wallhaven entry from its
-                // assets in the plugin data dir (which exists in dev and installed),
-                // independent of RYOKU_SHELL_DIR which the hub process may not have.
+                // fallback so the store is never empty while the remote catalogue
+                // is offline/unpopulated: seed the official wallhaven entry from
+                // its assets in the plugin data dir (exists in dev + installed),
+                // independent of RYOKU_SHELL_DIR which the hub process may lack.
                 if (list.length === 0) {
                     var dataHome = Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share");
                     var base = "file://" + dataHome + "/ryoku/plugins/wallhaven/assets/";
@@ -110,9 +106,9 @@ Item {
     }
     Process { id: rmProc; onExited: { page.busyId = ""; page.refresh(); } }
 
-    // Refresh: re-pull the catalogue (so plugins newly added to ryoku-extras show
-    // up) and re-scan installed plugins, without leaving the page. Mirrors the
-    // lockscreen refresh. Spins while a fetch is in flight.
+    // refresh: re-pull the catalogue (newly-added plugins show up) and re-scan
+    // installed plugins, without leaving the page. mirrors the lockscreen refresh.
+    // spins while a fetch is in flight.
     Rectangle {
         id: refreshBtn
         visible: page.view !== "detail" && !page.storeMode
@@ -138,7 +134,7 @@ Item {
         TapHandler { onTapped: { page.refreshing = true; page.loadCatalog(); page.refresh(); } }
     }
 
-    // ── Segmented switch: Discover | Installed (hidden on the detail view) ───
+    // ── segmented switch: Discover | Installed (hidden on detail view) ──────
     Row {
         id: tabs
         visible: page.view !== "detail" && !page.storeMode
@@ -209,7 +205,7 @@ Item {
             }
         }
 
-        // Empty state.
+        // empty state.
         Column {
             visible: page.catalog.length === 0
             anchors.centerIn: parent

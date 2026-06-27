@@ -2,9 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// The GPU specimen card: the machine's two GPUs and the passthrough verdict, in the
-// Profile idiom (warm carbon gradient, hairline border). Read-only; driven by the
-// `caps` object from `ryoku-hub gpu caps`.
+// GPU specimen card: the two GPUs and the passthrough verdict, in the Profile
+// idiom (warm carbon gradient, hairline border). read-only; fed by the `caps`
+// object from `ryoku-hub gpu caps`.
 Item {
     id: root
 

@@ -1,9 +1,9 @@
 import QtQuick
 import "Singletons"
 
-// A horizontal slider with an ember-filled track and a round knob. Reports the
-// value live (press and drag) via moved(value); the owner holds the value so the
-// preview and the dirty state retune as the knob travels. Snaps to step when set.
+// horizontal slider, ember-filled track + round knob. value reported live (press
+// + drag) via moved(value); owner holds the value so the preview + dirty state
+// retune as the knob travels. snaps to step when set.
 Item {
     id: slider
 

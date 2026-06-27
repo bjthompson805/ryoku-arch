@@ -1,9 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// A boolean setting: a label and a sliding switch that takes effect at once.
-// Used for on/off knobs (the visualiser itself, the idle wave) per the toggle
-// convention. Reports toggled(checked).
+// label + sliding switch, applied live. on/off knobs (visualiser, idle wave).
+// emits toggled(checked).
 Item {
     id: row
 

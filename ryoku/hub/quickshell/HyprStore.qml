@@ -2,22 +2,22 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 
-// The shared engine behind every Lua-editing settings page. It loads the full
-// override document from the `ryoku-hub hypr` backend, holds an editable draft as
-// plain reactive properties, previews scalar edits live (flash-free, via the
-// backend's `hyprctl eval`), and persists on save (which regenerates settings.lua
-// and reloads, locking in list changes too). Pages bind their controls to these
-// properties and call edit()/editList()/save()/revert()/reset(); the action bar
-// reads `dirty` and `ready`. Leaving a page with unsaved edits drops the preview.
+// shared engine behind every Lua-editing settings page. loads the full override
+// document from the `ryoku-hub hypr` backend, holds an editable draft as plain
+// reactive properties, previews scalar edits live (flash-free, via the backend's
+// `hyprctl eval`), persists on save (which regenerates settings.lua and reloads,
+// locking in list changes too). pages bind controls to these properties and call
+// edit() / editList() / save() / revert() / reset(); the action bar reads `dirty`
+// and `ready`. leaving a page with unsaved edits drops the preview.
 Item {
     id: store
 
     property bool ready: false
-    // The last-saved document and the shipped defaults, as plain JS objects.
+    // last-saved doc + shipped defaults, as plain JS objects.
     property var committed: ({})
     property var defaults: ({})
 
-    // --- draft: appearance ---
+    // draft: appearance.
     property int gapsIn: 8
     property int gapsOut: 26
     property int borderSize: 3
@@ -35,7 +35,7 @@ Item {
     property string activeBorder: "#e0563b"
     property string inactiveBorder: "#313a4d"
 
-    // --- draft: input ---
+    // draft: input.
     property string kbLayout: "us"
     property string kbVariant: ""
     property string kbOptions: ""
@@ -50,24 +50,24 @@ Item {
     property bool workspaceSwipe: false
     property int swipeFingers: 3
 
-    // --- draft: cursor ---
+    // draft: cursor.
     property string cursorTheme: "Bibata-Modern-Ice"
     property int cursorSize: 24
 
-    // --- draft: lists ---
+    // draft: lists.
     property var env: []
     property var windowRules: []
     property var layerRules: []
     property var autostart: []
     property var keybinds: []
 
-    // Animations: per-leaf overrides and user bezier curves. Unlike the other
-    // lists, these preview live (curves and animations apply via hyprctl eval).
+    // animations = per-leaf overrides + user bezier curves. unlike the other
+    // lists, these DO preview live (curves + animations apply via hyprctl eval).
     property var animItems: []
     property var animCurves: []
 
-    // Bump on every draft change so `dirty` re-evaluates (JS arrays reassigned in
-    // editList already trigger, but scalar edits go through this too).
+    // bump on every draft change so `dirty` re-evals. (editList already reassigns
+    // the JS array which triggers, but scalar edits route through this too.)
     property int rev: 0
 
     function snapshot() {
@@ -126,28 +126,28 @@ Item {
         return store.ready && JSON.stringify(store.snapshot()) !== JSON.stringify(store.committed);
     }
 
-    // Scalar edit: apply to the draft and preview it live (throttled).
+    // scalar edit: apply to draft, preview it live (throttled).
     function edit(key, value) {
         store[key] = value;
         store.rev++;
         store.queuePreview();
     }
 
-    // List edit: replace a whole list. Lists are not previewed; they take effect
-    // on Save (which reloads).
+    // list edit: replace a whole list. lists are NOT previewed, they land on Save
+    // (which reloads).
     function editList(key, arr) {
         store[key] = arr;
         store.rev++;
     }
 
-    // Animation list edit: like editList, but previews live.
+    // animation list edit: same as editList, but previews live.
     function editAnim(key, arr) {
         store[key] = arr;
         store.rev++;
         store.queuePreview();
     }
 
-    // --- live preview throttle (mirrors ShellSettingsPage) ---
+    // live preview throttle (mirrors ShellSettingsPage).
     property bool previewPending: false
     Timer {
         id: throttle
@@ -185,14 +185,15 @@ Item {
         throttle.stop();
         store.previewPending = false;
         store.adopt(store.committed);
-        // Reload to reset the live session to the saved state exactly (eval cannot
-        // push some keywords back to a default, and cannot re-derive wallpaper
-        // border colours). The page is alive here, so the process runs.
+        // reload to reset the live session to the saved state exactly. eval
+        // can't push some keywords back to a default and can't re-derive wallpaper
+        // border colours, so we need the regen path. page is alive here, so the
+        // process runs.
         restoreProc.command = ["ryoku-hub", "hypr", "restore"];
         restoreProc.running = true;
     }
-    // Reset is per-domain so a page never clobbers another's settings (the store
-    // holds the whole document; an Appearance reset must leave user env/rules alone).
+    // reset is per-domain so a page never clobbers another's settings. the store
+    // holds the whole doc; an Appearance reset must leave user env/rules alone.
     function resetAppearance() {
         var a = store.defaults.appearance || {}, c = store.defaults.cursor || {};
         store.gapsIn = a.gapsIn; store.gapsOut = a.gapsOut; store.borderSize = a.borderSize;

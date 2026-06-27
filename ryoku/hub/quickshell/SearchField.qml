@@ -1,8 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// The fuzzy-finder input: a magnifier, the text, a clear glyph, and a plain
-// Ctrl K hint while idle. Flat; focus is signalled by an ember edge, not a glow.
+// fuzzy-finder input: magnifier, text, clear glyph, plain Ctrl K hint while
+// idle. flat; focus = ember edge, no glow.
 Rectangle {
     id: field
 

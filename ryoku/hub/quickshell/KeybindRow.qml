@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import "Singletons"
 
-// One legend line: the action on the left, an optional category tag (plain dim
-// mono, no chip), and the key combo as keycaps joined by a faint plus.
+// one legend line: action on the left, optional category tag (dim mono, no
+// chip), keycaps joined by a faint plus on the right.
 RowLayout {
     id: row
 

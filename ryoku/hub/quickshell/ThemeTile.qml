@@ -2,10 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// One theme tile, in the Extras catalogue style: a big monospace ordinal, an
-// active mark, the theme's tags, its name, the one-line summary of what it changes,
-// a blurb, and a palette swatch strip, over a flat warm surface with a hairline
-// that warms to ember on hover. No gradient. Clicking applies the theme.
+// one theme tile, Extras-catalogue style: big mono ordinal, active mark, theme
+// tags, name, one-line summary of what it changes, blurb, palette swatch strip.
+// flat warm surface, hairline warms to ember on hover. no gradient. tap = apply.
 Rectangle {
     id: tile
 

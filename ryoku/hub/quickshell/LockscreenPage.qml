@@ -5,16 +5,15 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-// The Lockscreen section: the full qylock theme catalogue as a bento grid, fetched
-// live from upstream (ryoku-hub lock catalog) so new and fixed skins appear without
-// a Ryoku release. Each tile previews the real lockscreen; the two vendored skins
-// (clockwork) are the offline baseline and the rest stream their preview gif from
-// the repo. Selecting a skin makes it both the in-session lock (ryoku-hub lock set,
-// writing ~/.config/qylock/theme) and the SDDM greeter; the greeter lives on a
-// system path so that step asks for the password via pkexec. Selecting one not yet
-// installed downloads it first (ryoku-hub lock install) then activates both. The
-// login/auth flow itself is untouched. Styled to match the Appearance themes and
-// Extras catalogues.
+// lockscreen page = bento grid over the qylock catalog. catalog pulled live
+// from ryoku-hub so new skins show up without a Ryoku release. tiles preview
+// the real lock; two vendored (clockwork) skins = offline baseline, rest
+// stream a preview gif from the repo.
+//
+// pick a skin -> `ryoku-hub lock set` (writes ~/.config/qylock/theme) and
+// flips the SDDM greeter. greeter lives on a system path, so that step
+// pkexecs. not installed yet -> `lock install` first, then activate.
+// login/auth flow itself untouched. styled to match Appearance + Extras.
 Item {
     id: page
 
@@ -52,8 +51,8 @@ Item {
         Quickshell.execDetached([page.lockSh, slug]);
     }
 
-    // Greedy masonry like the Extras grid: each tile into the shortest column,
-    // estimated from the gif hero plus the blurb length so columns stay balanced.
+    // greedy masonry like the Extras grid: each tile into the shortest column,
+    // estimated from gif hero + blurb length so columns stay balanced.
     function buildColumns(list, n) {
         var c = [], h = [], i;
         for (i = 0; i < n; i++) { c.push([]); h.push(0); }
@@ -104,7 +103,7 @@ Item {
         }
     }
 
-    // --- loading / empty states ---
+    // ── loading / empty ─────────────────────────────────────────────────────
     Column {
         anchors.centerIn: parent
         visible: page.loading || page.loadFailed
@@ -141,7 +140,7 @@ Item {
         }
     }
 
-    // --- header: explainer + refresh ---
+    // ── header: explainer + refresh ─────────────────────────────────────────
     Item {
         id: bar
         anchors.left: parent.left
@@ -188,7 +187,7 @@ Item {
         }
     }
 
-    // --- bento grid ---
+    // ── bento grid ──────────────────────────────────────────────────────────
     Flickable {
         id: flick
         anchors.left: parent.left

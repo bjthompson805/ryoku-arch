@@ -4,13 +4,13 @@ import QtQuick
 import QtQuick.Effects
 import "Singletons"
 
-// The storefront detail for one plugin, built like the Profile showcase: an
-// ambient backdrop (warm glow blooms, a faint spec grid, an edge vignette, corner
-// ticks) frames a big hero preview on the left and a dossier on the right - name,
-// author, description, the hosts it supports, dependencies - with a single ember
-// Install action. A screenshot strip under the hero swaps the main preview. This
-// is the first thing a user sees when they open a plugin, so it is meant to read
-// as a featured app-store page, not a form.
+// storefront detail for one plugin, built like the Profile showcase. ambient
+// backdrop (warm glow blooms, a faint spec grid, edge vignette, corner ticks)
+// frames a big hero preview on the left and a dossier on the right (name,
+// author, description, supported hosts, deps) with a single ember Install
+// action. screenshot strip under the hero swaps the main preview. first thing
+// a user sees on opening a plugin, so it reads like a featured app-store
+// page, not a form.
 Item {
     id: detail
 
@@ -36,7 +36,7 @@ Item {
         return "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + "," + Math.round(c.b * 255) + "," + a + ")";
     }
 
-    // ── Ambient glow blooms ─────────────────────────────────────────────────
+    // ── ambient glow blooms ─────────────────────────────────────────────────
     Canvas {
         anchors.fill: parent
         property string warm: detail.rgba(Theme.brand, 0.11)
@@ -61,7 +61,7 @@ Item {
         }
     }
 
-    // ── Faint spec grid ─────────────────────────────────────────────────────
+    // ── faint spec grid ─────────────────────────────────────────────────────
     Canvas {
         anchors.fill: parent
         property string tint: detail.rgba(Theme.cream, 0.02)
@@ -78,7 +78,7 @@ Item {
         }
     }
 
-    // ── Vignette ────────────────────────────────────────────────────────────
+    // ── vignette ────────────────────────────────────────────────────────────
     Canvas {
         anchors.fill: parent
         onWidthChanged: requestPaint()
@@ -95,7 +95,7 @@ Item {
         }
     }
 
-    // ── Corner ticks ────────────────────────────────────────────────────────
+    // ── corner ticks ────────────────────────────────────────────────────────
     Repeater {
         model: 4
         Item {
@@ -127,7 +127,7 @@ Item {
         }
     }
 
-    // ── Back, top-left ──────────────────────────────────────────────────────
+    // ── back, top-left ──────────────────────────────────────────────────────
     Rectangle {
         id: backBtn
         anchors.top: parent.top
@@ -151,7 +151,7 @@ Item {
         TapHandler { onTapped: detail.back() }
     }
 
-    // ── Content: hero left, dossier right ───────────────────────────────────
+    // ── content: hero left, dossier right ───────────────────────────────────
     Item {
         anchors.fill: parent
         anchors.topMargin: 72
@@ -161,7 +161,7 @@ Item {
 
         readonly property real heroW: Math.round(Math.min(width * 0.56, 620))
 
-        // Hero preview + screenshot strip.
+        // hero preview + screenshot strip.
         Column {
             id: heroCol
             anchors.left: parent.left
@@ -209,7 +209,7 @@ Item {
                 }
             }
 
-            // Screenshot strip (only when there's more than one).
+            // screenshot strip (only when there's >1).
             Row {
                 visible: detail.shots.length > 1
                 spacing: 10
@@ -240,7 +240,7 @@ Item {
             }
         }
 
-        // Dossier.
+        // dossier.
         Column {
             anchors.left: heroCol.right
             anchors.leftMargin: 40
@@ -248,7 +248,7 @@ Item {
             anchors.top: parent.top
             spacing: 0
 
-            // Brand mark + official badge.
+            // brand mark + official badge.
             Row {
                 spacing: 10
                 Text { text: "\u529b"; color: Theme.brand; font.family: Theme.fontJp; font.pixelSize: 22 }
@@ -299,13 +299,13 @@ Item {
                 font.pixelSize: 12
             }
 
-            // Install / installed action.
+            // install / installed action.
             Item { width: 1; height: 22 }
             Row {
                 spacing: 14
-                // Dossier-stamp actions, matching the update consent prompt: a flat
-                // ember stamp for the live action, hairline ghost stamps for the
-                // rest. Mono, uppercase, letterspaced; no icons.
+                // dossier-stamp actions, mirroring the update consent prompt:
+                // flat ember stamp for the live action, hairline ghost stamps
+                // for the rest. mono, uppercase, letterspaced, no icons.
                 Rectangle {
                     id: actionBtn
                     readonly property bool isInstalled: detail.installed
@@ -340,8 +340,8 @@ Item {
                         onClicked: detail.install(detail.plugin.id)
                     }
                 }
-                // Remove, only when installed: a ghost stamp whose hairline warms to
-                // the fault red on hover.
+                // remove. only shown when installed. ghost stamp whose hairline
+                // warms to fault red on hover.
                 Rectangle {
                     visible: detail.installed && !detail.busy
                     height: 32
@@ -377,7 +377,7 @@ Item {
             Rectangle { width: parent.width; height: 1; color: Theme.hair }
             Item { width: 1; height: 20 }
 
-            // Description.
+            // description.
             Text {
                 width: parent.width
                 text: detail.plugin.description || detail.plugin.tagline || ""
@@ -388,7 +388,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            // Hosts it supports.
+            // supported hosts.
             Item { width: 1; height: 22 }
             Text { text: "PLACES WHERE IT LIVES"; color: Theme.faint; font.family: Theme.mono; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 1.6 }
             Item { width: 1; height: 10 }

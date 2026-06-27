@@ -5,10 +5,11 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-// The Extras section: the ryoku-extras bundles as a bento grid of tiles. ryoku-hub
-// fetches the catalogue; opening a tile shows its detail, where ryoku-extras-install
-// installs or removes items in a floating terminal and publishes a per-bundle
-// report the detail watches. This page owns the data and routes the buttons.
+// Extras section = the ryoku-extras bundles as a bento grid of tiles. ryoku-hub
+// fetches the catalogue; opening a tile shows its detail, where
+// ryoku-extras-install installs or removes items in a floating terminal and
+// publishes a per-bundle report the detail watches. this page owns the data and
+// routes the buttons.
 Item {
     id: page
 
@@ -48,8 +49,8 @@ Item {
         return n;
     }
 
-    // Greedy masonry: place each tile in the currently shortest column, using an
-    // estimated height from the blurb length so the columns end up balanced.
+    // greedy masonry. drop each tile in the currently shortest column, height
+    // estimated from blurb length so columns end up roughly balanced.
     function buildColumns(list, n) {
         var cols = [], heights = [], i;
         for (i = 0; i < n; i++) { cols.push([]); heights.push(0); }
@@ -120,7 +121,7 @@ Item {
     function open(id) { page.selectedId = id; }
     function closeDetail() { page.selectedId = ""; statusProc.running = true; }
 
-    // --- loading / empty states --------------------------------------------
+    // loading / empty states.
     Column {
         anchors.centerIn: parent
         visible: page.loading || page.loadFailed
@@ -157,8 +158,8 @@ Item {
         }
     }
 
-    // Refresh: re-pull the bundle catalogue so newly published extras appear,
-    // without leaving the page. Spins while the fetch is in flight.
+    // refresh = re-pull the bundle catalogue so newly published extras appear
+    // without leaving the page. spins while the fetch is in flight.
     Rectangle {
         id: extrasRefresh
         visible: !page.loading && !page.loadFailed && page.selectedId === "" && !page.storeMode
@@ -183,7 +184,7 @@ Item {
         TapHandler { onTapped: page.reload() }
     }
 
-    // --- bento grid ---------------------------------------------------------
+    // bento grid.
     Flickable {
         id: flick
         anchors.fill: parent
@@ -239,7 +240,7 @@ Item {
         }
     }
 
-    // --- bundle detail ------------------------------------------------------
+    // bundle detail.
     Loader {
         anchors.fill: parent
         active: page.selectedId !== "" && page.selectedBundle !== null

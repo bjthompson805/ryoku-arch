@@ -11,21 +11,21 @@ import (
 	"strings"
 )
 
-// ryoku-hub lock exposes the qylock lock skins to Ryoku Settings. Selecting a
-// skin swaps the whole lockscreen: the user-level in-session lock preference at
-// ~/.config/qylock/theme (which lock.sh reads) and the SDDM greeter theme under
-// /usr/share/sddm/themes. The greeter lives on a system path, so that half runs
-// privileged via pkexec (apply-greeter); the login/auth flow itself is untouched.
+// ryoku-hub lock = the qylock skin picker behind Ryoku Settings. picking a skin
+// swaps the whole lockscreen: the in-session lock pref at ~/.config/qylock/theme
+// (lock.sh reads it) plus the SDDM greeter theme under /usr/share/sddm/themes.
+// the greeter sits on a system path so that half goes through pkexec
+// (apply-greeter); auth itself stays untouched.
 //
-//	ryoku-hub lock list           print the installed skins + the active one as JSON
-//	ryoku-hub lock set <slug>     make a skin the lock + greeter (pkexec for the greeter)
-//	ryoku-hub lock apply-greeter  install <slug> as the SDDM greeter (privileged; pkexec runs this)
+//	ryoku-hub lock list           installed skins + active one, as JSON
+//	ryoku-hub lock set <slug>     make a skin the lock + greeter (pkexec for greeter)
+//	ryoku-hub lock apply-greeter  install <slug> as SDDM greeter (privileged; pkexec runs this)
 //
-// A skin is any folder under the qylock themes dir that holds a Main.qml; its
-// slug is that folder's path under the themes dir (e.g. "clockwork/orbital"),
-// exactly the value lock.sh resolves against themes_link.
+// a skin = any folder under the themes dir with a Main.qml. slug = its path
+// under that dir (e.g. "clockwork/orbital"), exactly what lock.sh resolves
+// against themes_link.
 
-// LockSkin is one selectable lock skin as the Hub renders it.
+// LockSkin = one selectable skin as the Hub draws it.
 type LockSkin struct {
 	Slug      string   `json:"slug"`    // path under the themes dir, e.g. "clockwork/orbital"
 	Name      string   `json:"name"`    // "Orbital"
@@ -33,23 +33,23 @@ type LockSkin struct {
 	Summary   string   `json:"summary"` // one line
 	Blurb     string   `json:"blurb"`   // a sentence
 	Tags      []string `json:"tags"`
-	Preview   string   `json:"preview"`   // gif source URI: file://... local, https://... upstream, "" none
-	Installed bool     `json:"installed"` // present under the qylock themes dir
+	Preview   string   `json:"preview"`   // gif: file://... local, https://... upstream, "" none
+	Installed bool     `json:"installed"` // present under qylock themes dir
 	Active    bool     `json:"active"`
-	SizeKB    int      `json:"sizeKB"` // upstream install weight; 0 when unknown
+	SizeKB    int      `json:"sizeKB"` // upstream install weight, 0 when unknown
 }
 
-// LockResponse is `ryoku-hub lock catalog` (and `list`): the active skin, the
-// skins, and whether the listing reached the upstream qylock repo.
+// LockResponse = the `ryoku-hub lock catalog` / `list` payload: active slug,
+// the skins, plus whether the upstream qylock repo was reachable.
 type LockResponse struct {
 	Active string     `json:"active"`
 	Online bool       `json:"online"`
 	Skins  []LockSkin `json:"skins"`
 }
 
-// lockCurated carries the copy for the skins Ryoku ships. Any skin not listed
-// falls back to metadata derived from its folder and metadata.desktop, so a
-// hand-dropped qylock theme still appears with a sensible name.
+// lockCurated: hand-written copy for the skins Ryoku ships. anything not in
+// here falls back to folder name + metadata.desktop so a stray hand-dropped
+// qylock theme still shows up with something readable.
 var lockCurated = map[string]LockSkin{
 	"clockwork/orbital": {
 		Name: "Orbital", Theme: "Clockwork", Tags: []string{"Clockwork"},
@@ -78,7 +78,7 @@ func qylockThemePref() string {
 	return filepath.Join(xdgHome("XDG_CONFIG_HOME", ".config"), "qylock", "theme")
 }
 
-// runLock dispatches `ryoku-hub lock <sub> [arg]`.
+// runLock = `ryoku-hub lock <sub> [arg]` dispatch.
 func runLock(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("lock needs catalog|list|set|install")
@@ -112,7 +112,7 @@ func listLockSkins() LockResponse {
 	return listLockSkinsIn(qylockThemesDir(), readLockPref(qylockThemePref()))
 }
 
-// readLockPref returns the active slug (trimmed); a missing file yields "".
+// readLockPref: active slug (trimmed). missing file -> "".
 func readLockPref(path string) string {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -121,8 +121,8 @@ func readLockPref(path string) string {
 	return strings.TrimSpace(string(b))
 }
 
-// listLockSkinsIn scans dir for skins and flags the one matching active. Split
-// from listLockSkins so it is testable against a temp tree.
+// listLockSkinsIn: scan dir, mark whichever slug matches active. split out
+// from listLockSkins so a temp tree can drive it from tests.
 func listLockSkinsIn(dir, active string) LockResponse {
 	skins := []LockSkin{}
 	for _, slug := range scanLockSlugs(dir) {
@@ -139,8 +139,8 @@ func listLockSkinsIn(dir, active string) LockResponse {
 	return LockResponse{Active: active, Skins: skins}
 }
 
-// scanLockSlugs walks at most two levels (theme, then theme/variant) for folders
-// holding a Main.qml, returning each one's slug (path under dir).
+// scanLockSlugs walks two levels deep (theme, theme/variant) for any folder
+// that has a Main.qml, returning the slug (path under dir).
 func scanLockSlugs(dir string) []string {
 	var slugs []string
 	tops, _ := os.ReadDir(dir)
@@ -171,9 +171,9 @@ func lockSkinFor(dir, slug string) LockSkin {
 	return s
 }
 
-// lockSkinMeta fills a skin's display copy from the curated map, falling back to
-// a name and tag derived from the slug and, for an installed skin, the summary
-// from its metadata.desktop. It sets neither Preview, Installed, nor Active.
+// lockSkinMeta fills the display copy: curated map first, else a name+tag
+// guess from the slug plus, for an installed skin, the summary from
+// metadata.desktop. doesn't touch Preview / Installed / Active.
 func lockSkinMeta(dir, slug string) LockSkin {
 	if c, ok := lockCurated[slug]; ok {
 		return LockSkin{Slug: slug, Name: c.Name, Theme: c.Theme, Summary: c.Summary, Blurb: c.Blurb, Tags: c.Tags}
@@ -186,8 +186,8 @@ func lockSkinMeta(dir, slug string) LockSkin {
 	return s
 }
 
-// lockSkinName turns a slug into a display name: the leaf segment with separators
-// spaced out and each word capitalised ("pixel-coffee" -> "Pixel Coffee").
+// lockSkinName: slug -> display name. take the leaf, swap separators for
+// spaces, capitalise each word ("pixel-coffee" -> "Pixel Coffee").
 func lockSkinName(slug string) string {
 	leaf := slug
 	if i := strings.LastIndex(slug, "/"); i >= 0 {
@@ -200,7 +200,7 @@ func lockSkinName(slug string) string {
 	return strings.Join(words, " ")
 }
 
-// lockSkinTags groups the obvious qylock families so kindred skins share a label.
+// lockSkinTags groups the obvious qylock families so siblings share a label.
 func lockSkinTags(slug string) []string {
 	switch {
 	case strings.HasPrefix(slug, "clockwork"):
@@ -224,8 +224,8 @@ func setLockSkin(slug string) error {
 	return setLockSkinIn(dir, qylockThemePref(), slug)
 }
 
-// setLockSkinIn writes slug as the active lock preference, rejecting a slug that
-// does not name an installed skin so a typo never disables the lock.
+// setLockSkinIn writes slug to the active-lock pref file. an unknown slug is
+// rejected here so a typo can't quietly disable the lock.
 func setLockSkinIn(dir, pref, slug string) error {
 	if !fileExists(filepath.Join(dir, slug, "Main.qml")) {
 		return fmt.Errorf("unknown lock skin: %s", slug)
@@ -252,7 +252,7 @@ func sddmConfPath() string {
 	return "/etc/sddm.conf.d/99-ryoku.conf"
 }
 
-// validSlug rejects empty, absolute, or traversing slugs before they reach a
+// validSlug: kill empty / absolute / traversing slugs before they hit a
 // filesystem path or a privileged copy.
 func validSlug(slug string) error {
 	if slug == "" || strings.HasPrefix(slug, "/") || strings.Contains(slug, "..") {
@@ -261,9 +261,9 @@ func validSlug(slug string) error {
 	return nil
 }
 
-// escalateGreeter re-runs this binary under pkexec to install the skin as the
-// SDDM greeter, since /usr/share/sddm and /etc need root. pkexec drives the
-// graphical polkit prompt; a declined prompt surfaces as an error.
+// escalateGreeter re-execs this binary under pkexec to install the skin as the
+// SDDM greeter (it has to write /usr/share/sddm + /etc). pkexec pops the
+// graphical polkit prompt; cancel -> error.
 func escalateGreeter(slug string) error {
 	self, err := os.Executable()
 	if err != nil {
@@ -279,9 +279,9 @@ func escalateGreeter(slug string) error {
 	return nil
 }
 
-// applyGreeter is the privileged half (run as root by pkexec): it installs the
-// skin the invoking user picked as the SDDM greeter. The source is resolved from
-// the invoking user's home, never a caller-supplied path.
+// applyGreeter = the privileged half, run as root by pkexec. installs the
+// skin the invoking user picked as the greeter. source resolves from the
+// invoking user's home, never from a caller-supplied path. don't change that.
 func applyGreeter(slug string) error {
 	src := os.Getenv("RYOKU_QYLOCK_THEMES")
 	if src == "" {
@@ -290,8 +290,8 @@ func applyGreeter(slug string) error {
 	return installGreeter(src, sddmThemesDir(), sddmConfPath(), slug)
 }
 
-// invokingUserThemes resolves the qylock themes dir of the user who called
-// pkexec (PKEXEC_UID) or sudo (SUDO_UID), so root reads the right home.
+// invokingUserThemes: qylock themes dir of whoever invoked us via pkexec
+// (PKEXEC_UID) or sudo (SUDO_UID), so root reads the right home.
 func invokingUserThemes() string {
 	uid := os.Getenv("PKEXEC_UID")
 	if uid == "" {
@@ -305,9 +305,9 @@ func invokingUserThemes() string {
 	return qylockThemesDir()
 }
 
-// installGreeter copies the skin at srcThemes/slug into the SDDM themes dir under
-// a fixed name and points the greeter config at it, so the login screen wears the
-// same skin as the in-session lock. Privileged; isolated for testing.
+// installGreeter copies srcThemes/slug into themesDir under a fixed name and
+// points the greeter config at it, so the login screen wears the same skin as
+// the in-session lock. privileged; broken out for tests.
 func installGreeter(srcThemes, themesDir, confPath, slug string) error {
 	if err := validSlug(slug); err != nil {
 		return err
@@ -337,7 +337,7 @@ func fileExists(p string) bool {
 	return err == nil
 }
 
-// titleWord upper-cases the first rune so "orbital" reads "Orbital".
+// titleWord: upper-case the first rune. "orbital" -> "Orbital".
 func titleWord(s string) string {
 	if s == "" {
 		return s
@@ -345,8 +345,8 @@ func titleWord(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// lockDesktopDescription pulls Description= from a freedesktop-style file, best
-// effort: any error yields "".
+// lockDesktopDescription: pull Description= from a freedesktop-style file.
+// best effort, any error -> "".
 func lockDesktopDescription(path string) string {
 	f, err := os.Open(path)
 	if err != nil {

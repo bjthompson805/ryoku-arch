@@ -8,10 +8,10 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Config is the Hub's persisted state, stored as TOML at
-// ~/.config/ryoku/hub.toml. Sections add their own typed tables here as they
-// graduate from "under construction"; for now the UI table just remembers the
-// last open section so the Hub reopens where you left it.
+// Config = Hub's persisted state. TOML at ~/.config/ryoku/hub.toml. sections
+// add their own typed tables here as they graduate from "under construction";
+// for now the UI table just remembers the last open section so the Hub
+// reopens where you left it.
 type Config struct {
 	UI UIConfig `toml:"ui"`
 }
@@ -41,8 +41,8 @@ func loadConfig() Config {
 	return c
 }
 
-// saveConfig writes the config atomically (temp file + rename) so a crash mid
-// write never leaves a truncated TOML the next load would silently reset.
+// saveConfig writes atomically (temp file + rename) so a crash mid-write can't
+// leave a half TOML the next load would silently reset.
 func saveConfig(c Config) error {
 	p := configPath()
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {

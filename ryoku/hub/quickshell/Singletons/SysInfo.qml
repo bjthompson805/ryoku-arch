@@ -3,14 +3,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * SYSTEM info for the Profile section. Base fields (operator, host, CPU/GPU, RAM,
- * disk, ...) are the hub-side twin of the shell's SysInfo, read from the shared
- * ryoku-sysinfo helper. Extended fields for the dossier (load, temperature,
- * processes, swap, battery, network, packages, cursor, the wallust palette) come
- * from ryoku-profile-stats. Both are one field per line, re-polled every 30 s, each
- * falling back to a placeholder when its source is absent.
- */
+// SYSTEM info for the Profile section. base fields (operator, host, CPU/GPU,
+// RAM, disk, ...) = the hub-side twin of the shell's SysInfo, read from the
+// shared ryoku-sysinfo helper. extended fields for the dossier (load, temp,
+// processes, swap, battery, network, packages, cursor, wallust palette) come
+// from ryoku-profile-stats. both = one field per line, re-polled every 30 s,
+// each falls back to a placeholder when its source is absent.
 Singleton {
     id: root
 
@@ -38,7 +36,7 @@ Singleton {
     property string sysRefresh: ""
     property string codename: "OPERATOR"
 
-    // Extended read-out for the dossier panel (ryoku-profile-stats).
+    // extended read-out for the dossier panel (ryoku-profile-stats).
     property string sysLoad: "-"
     property string sysTemp: "-"
     property string sysProcs: "-"

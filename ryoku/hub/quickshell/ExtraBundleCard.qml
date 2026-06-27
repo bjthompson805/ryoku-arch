@@ -1,11 +1,10 @@
 import QtQuick
 import "Singletons"
 
-// One bento tile, laid out like the Ryoku extras catalogue entry it stands for: a
-// big monospace catalogue number, the package sources, the name, its keyword
-// tagline, and a blurb, over a flat warm surface with a hairline that warms to
-// ember on hover. No gradient, no glassy badge. The tile sizes to its content so
-// the page can pack tiles into a ragged bento mosaic. Clicking opens the detail.
+// one bento tile, laid out like the Ryoku extras catalogue entry it stands for:
+// big mono catalogue number, sources, name, keyword tagline, blurb. flat warm
+// surface, hairline warms to ember on hover. no gradient, no glassy badge. sizes
+// to content so the page packs a ragged bento mosaic. click opens the detail.
 Rectangle {
     id: tile
 

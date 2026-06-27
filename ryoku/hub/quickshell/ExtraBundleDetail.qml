@@ -4,11 +4,11 @@ import QtQuick.Controls
 import Quickshell.Io
 import "Singletons"
 
-// The detail view for one bundle, opened from its bento tile: the whole tool list
-// with per-item install and remove, plus install-all and uninstall-all. Steady
-// state comes from `statuses` (the page's status query); while an install or
-// remove started here is running, the live report file overrides it until the
-// page hands back a fresh status.
+// detail view for one bundle, opened from its bento tile. the whole tool list
+// with per-item install/remove plus install-all + uninstall-all. steady-state
+// comes from `statuses` (the page's status query); while an install or remove
+// started here is running, the live report file wins until the page hands
+// back a fresh status.
 Item {
     id: detail
 

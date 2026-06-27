@@ -3,9 +3,9 @@ import QtQuick.Controls
 import "Singletons"
 import "fuzzy.js" as Fuzzy
 
-// Global results, shown whenever the sidebar search has a query. It looks across
-// every section: matching section names (navigable) and fuzzy-ranked keybinds
-// (tagged with their category). `sections` is [{ key, name, icon }].
+// global results, shown whenever the sidebar search has a query. spans every
+// section: matching section names (navigable) + fuzzy-ranked keybinds (tagged
+// with their category). sections = [{ key, name, icon }].
 Flickable {
     id: page
 

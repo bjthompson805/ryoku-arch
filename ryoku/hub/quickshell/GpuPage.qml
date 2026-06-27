@@ -3,10 +3,10 @@ import QtQuick
 import Quickshell.Io
 import "Singletons"
 
-// System -> GPU: choose how the machine's GPUs are used (Hybrid / Performance /
-// Passthrough) and configure + launch the Looking-Glass passthrough VM. Built in the
-// Profile idiom (showcase backdrop + a specimen card + a dossier). Everything
-// dangerous is gated on the capability verdict from `ryoku-hub gpu caps`.
+// System -> GPU. pick how the machine's GPUs are used (Hybrid / Performance /
+// Passthrough) and configure + launch the Looking-Glass passthrough VM. built
+// in the Profile idiom (showcase backdrop + specimen card + dossier).
+// everything dangerous is gated on the verdict from `ryoku-hub gpu caps`.
 Item {
     id: page
     readonly property bool previewDirty: false
@@ -163,7 +163,7 @@ Item {
             }
         }
     }
-    // While the Machine tab is open, keep the Launch/Stop toggle in step with the VM.
+    // while the Machine tab is open, keep Launch/Stop in step with the VM.
     Timer {
         interval: 5000
         repeat: true
@@ -171,7 +171,7 @@ Item {
         onTriggered: statusProc.running = true
     }
 
-    // A dossier row: status dot, label, and the detected value, coloured by level.
+    // dossier row: status dot, label, detected value, coloured by level.
     component CheckRow: Item {
         id: cr
         property var check: null
@@ -536,7 +536,7 @@ Item {
                     }
                 }
 
-                // Gate message when the stack is not ready to configure a VM.
+                // gate message when the stack isn't ready to configure a VM.
                 Text {
                     anchors.centerIn: parent
                     visible: !vmv.usable
@@ -552,7 +552,7 @@ Item {
                 }
             }
 
-            // Action error banner: a refused mode switch, a failed launch, etc.
+            // action error banner: refused mode switch, failed launch, etc.
             Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right

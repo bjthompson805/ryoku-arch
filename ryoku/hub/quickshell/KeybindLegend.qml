@@ -2,11 +2,11 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-// The read-live shortcut legend: each category is an ember header with a trailing
-// hairline rule, then its binds as rows split by faint dividers. Searching is
-// global (the sidebar, handled by SearchResults), so this view only renders the
-// full grouped legend. `categories` is the JSON from the ryoku-hub backend, parsed
-// from the live binds.lua so it never drifts from what is actually bound.
+// shortcut legend, read live. each category = ember header + hairline rule,
+// then binds separated by faint dividers. search is global (sidebar, via
+// SearchResults), so this view only renders the full grouped legend.
+// categories = JSON from the ryoku-hub backend (parsed from the live binds.lua,
+// so it never drifts from what's actually bound).
 Flickable {
     id: page
 

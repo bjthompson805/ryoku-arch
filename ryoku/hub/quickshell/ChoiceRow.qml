@@ -2,9 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// A small set of mutually exclusive options as a labelled segmented control. Used
-// for enum knobs (visualiser style, shape, position) per the segmented convention,
-// the right control when there are a few named choices. Reports chosen(key).
+// labelled segmented control for a few mutually-exclusive options (visualiser
+// style, shape, position). right control when there are a few named choices.
+// reports chosen(key).
 Item {
     id: row
 

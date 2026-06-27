@@ -1,10 +1,10 @@
 import QtQuick
 import "Singletons"
 
-// An action button in the Profile dossier idiom: a small-radius carbon chip with a
-// mono uppercase label, not a generic pill. `primary` is an outlined ember stamp -
-// ember as a thin accent (border + label), never a fill; `secondary` is a hairline
-// ghost whose border warms to ember on hover. Hover brightens, press dips.
+// Profile dossier action button: small-radius carbon chip with a mono caps label,
+// not a generic pill. primary = outlined ember stamp (ember as accent on border +
+// label, never a fill); secondary = hairline ghost, border warms to ember on
+// hover. hover brightens, press dips.
 Item {
     id: btn
 
@@ -22,7 +22,7 @@ Item {
     scale: tap.pressed && btn.enabled ? 0.97 : 1
     Behavior on scale { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } }
 
-    // Primary face: an outlined ember stamp - ember is the accent, never a fill.
+    // primary face. outlined ember stamp, ember is the accent, never a fill.
     Rectangle {
         anchors.fill: parent
         visible: btn.primary
@@ -33,7 +33,7 @@ Item {
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }
 
-    // Ghost (secondary) face: a carbon tag, hairline border warming to ember.
+    // ghost (secondary). carbon tag, hairline border warming to ember.
     Rectangle {
         anchors.fill: parent
         visible: !btn.primary

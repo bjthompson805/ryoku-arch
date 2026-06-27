@@ -7,12 +7,11 @@ import Quickshell.Io
 import Quickshell.Bluetooth
 import "Singletons"
 
-// Bluetooth subtab of the Connections section: adapter toggle, scan with 25 s
-// auto-stop, and the live device list. Known devices use Quickshell's connect/
-// disconnect calls; unpaired ones run the bluetoothctl pair-trust-connect flow
-// with an inline ember while running and a transient failure line. Ported from
-// the shell's narrow LinkBt drill-in to a full-width hub page with the warm
-// Theme palette.
+// Bluetooth subtab of Connections: adapter toggle, scan with 25 s auto-stop,
+// live device list. known devices use Quickshell's connect/disconnect; unpaired
+// ones run bluetoothctl pair-trust-connect with an inline ember while running
+// and a transient failure line. ported from the shell's narrow LinkBt drill-in
+// to a full-width hub page on the warm Theme palette.
 Item {
     id: page
 
@@ -28,9 +27,9 @@ Item {
         return n;
     }
 
-    // BlueZ hands the cache out in arbitrary order; sort connected first, then
-    // paired, then named devices, nameless MACs last so a scan doesn't churn
-    // the useful rows around.
+    // BlueZ hands the cache out in arbitrary order. sort connected first, then
+    // paired, then named devices, nameless MACs last. a scan shouldn't churn the
+    // useful rows around.
     readonly property var devicesSorted: devices.slice().sort(function(a, b) {
         function rank(d) {
             if (!d) return 3;
@@ -67,8 +66,8 @@ Item {
         return Math.round(b);
     }
 
-    // Click dispatch for a device row: disconnect when connected, connect when
-    // paired, otherwise run the bluetoothctl pair-trust-connect flow.
+    // row click: disconnect if connected, connect if paired, else run the
+    // bluetoothctl pair-trust-connect flow.
     function activateDevice(d) {
         if (!d)
             return;
@@ -96,8 +95,8 @@ Item {
         pairProc.running = true;
     }
 
-    // Leaving the subtab (or closing the hub) mid-scan stops the discovery so
-    // BlueZ isn't left chewing the radio in the background.
+    // leaving the subtab (or closing the hub) mid-scan stops discovery so BlueZ
+    // isn't left chewing the radio in the background.
     Component.onDestruction: {
         scanTimer.stop();
         if (page.adapter && page.adapter.discovering)
@@ -132,7 +131,7 @@ Item {
         }
     }
 
-    // ---------- Header band ---------------------------------------------------
+    // ---------- header band ------------------------------------------------
     Item {
         id: header
         anchors.top: parent.top
@@ -145,7 +144,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 12
 
-            // Bluetooth rune badge.
+            // BT rune.
             Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 24
@@ -201,8 +200,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 14
 
-            // Scan toggle: appears only when the adapter is on, mirroring the
-            // shell. Tap flips adapter.discovering and (re)arms the 25 s timer
+            // scan toggle (only visible while adapter is on, mirroring the
+            // shell). tap flips adapter.discovering and (re)arms the 25 s timer
             // so a forgotten scan doesn't keep the radio busy forever.
             Item {
                 anchors.verticalCenter: parent.verticalCenter
@@ -249,7 +248,7 @@ Item {
                 }
             }
 
-            // The single primary toggle for the whole adapter.
+            // one primary toggle for the whole adapter.
             ToggleRow {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 56
@@ -270,7 +269,7 @@ Item {
         color: Theme.lineSoft
     }
 
-    // ---------- Body ---------------------------------------------------------
+    // ---------- body -------------------------------------------------------
     Item {
         id: body
         anchors.top: rule.bottom
@@ -279,7 +278,7 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
 
-        // Off / empty placeholder, centred so the page never looks broken.
+        // off / empty placeholder, centred so the page never looks broken.
         Column {
             anchors.centerIn: parent
             visible: !page.adapterOn || page.devices.length === 0
@@ -371,7 +370,7 @@ Item {
                             HoverHandler { id: rowHov; cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: page.activateDevice(dev.modelData) }
 
-                            // BT rune in a small tile.
+                            // BT rune tile.
                             Rectangle {
                                 id: iconTile
                                 anchors.left: parent.left
@@ -442,7 +441,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 10
 
-                                // Pairing pulse.
+                                // pairing pulse.
                                 Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     visible: dev.pairing
@@ -459,7 +458,7 @@ Item {
                                     }
                                 }
 
-                                // Battery pill (connected devices with a level).
+                                // battery pill (connected + has a level).
                                 Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     visible: dev.isConnected && dev.battery >= 0
@@ -481,7 +480,7 @@ Item {
                                     }
                                 }
 
-                                // Pair pill (unpaired, not currently pairing).
+                                // pair pill (unpaired, not currently pairing).
                                 Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     visible: !dev.isPaired && !dev.pairing
@@ -503,7 +502,7 @@ Item {
                                     }
                                 }
 
-                                // Disconnect hint (connected devices).
+                                // disconnect hint.
                                 Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     visible: dev.isConnected

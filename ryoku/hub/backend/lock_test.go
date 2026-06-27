@@ -36,7 +36,7 @@ func TestListLockSkinsIn(t *testing.T) {
 	dir := t.TempDir()
 	mkSkin(t, dir, "clockwork/orbital", true)
 	mkSkin(t, dir, "clockwork/tape", false)
-	// A folder with no Main.qml is not a skin and must be skipped.
+	// folder without Main.qml: not a skin, must be skipped.
 	if err := os.MkdirAll(filepath.Join(dir, "clockwork", "notes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +74,8 @@ func TestListLockSkinsIn(t *testing.T) {
 
 func TestListLockSkinsInDerivesUncurated(t *testing.T) {
 	dir := t.TempDir()
-	// A single-level theme that isn't in the curated map: name derives from the
-	// folder, summary from metadata.desktop.
+	// single-level theme, not in the curated map: name comes from the folder,
+	// summary from metadata.desktop.
 	mkSkin(t, dir, "nier-automata", false)
 	desk := "[SddmGreeterTheme]\nName=nier\nDescription=A lonely android keeps the time\n"
 	if err := os.WriteFile(filepath.Join(dir, "nier-automata", "metadata.desktop"), []byte(desk), 0o644); err != nil {
@@ -107,7 +107,7 @@ func TestSetLockSkinIn(t *testing.T) {
 		t.Fatalf("pref = %q, want clockwork/orbital", got)
 	}
 
-	// An unknown slug must be rejected so a bad value never lands in the pref.
+	// unknown slug -> reject. a bad value must never land in the pref.
 	if err := setLockSkinIn(dir, pref, "ghost/none"); err == nil {
 		t.Fatalf("setting an unknown skin should error")
 	}
@@ -136,7 +136,7 @@ func TestInstallGreeter(t *testing.T) {
 		t.Fatalf("conf does not select the greeter theme: %q", b)
 	}
 
-	// A second skin overwrites the same fixed greeter dir, so nothing orphans.
+	// second skin overwrites the same fixed greeter dir; nothing orphans.
 	mkSkin(t, src, "clockwork/orbital", false)
 	if err := installGreeter(src, themes, conf, "clockwork/orbital"); err != nil {
 		t.Fatalf("reinstall greeter: %v", err)
@@ -145,7 +145,7 @@ func TestInstallGreeter(t *testing.T) {
 		t.Fatalf("greeter theme missing after switch")
 	}
 
-	// An unknown skin must error before touching anything privileged.
+	// unknown skin -> error before touching anything privileged.
 	if err := installGreeter(src, themes, conf, "ghost/none"); err == nil {
 		t.Fatalf("installing an unknown skin should error")
 	}

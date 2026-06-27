@@ -1,9 +1,9 @@
 import QtQuick
 import "Singletons"
 
-// A titled group of binds: an ember section header with a trailing hairline rule,
-// then the binds as rows split by faint dividers. Shared by the grouped legend
-// and the search results (which set `tagged` to show each row's origin).
+// titled group of binds. ember header + trailing rule, rows split by faint
+// dividers. used by the grouped legend and search results (search sets `tagged`
+// so each row shows its origin).
 Column {
     id: group
 

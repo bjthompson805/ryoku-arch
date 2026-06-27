@@ -3,14 +3,14 @@ import QtQuick
 import Quickshell.Io
 import "Singletons"
 
-// Themes: full-system "rices" as a bento grid, in the Extras catalogue style.
-// Picking one swaps the look and real Hyprland Lua (motion, finish) via
-// `ryoku-hub hypr theme <slug>`. Colours are a separate axis: the toggle decides
-// whether they track the wallpaper or use each theme's own palette, so switching
-// themes never silently changes your colours. The frame and island stay Ryoku.
+// themes: full-system "rices" as a bento grid, Extras-catalogue style. picking
+// one swaps the look + real Hyprland Lua (motion, finish) via `ryoku-hub hypr
+// theme <slug>`. colours = a separate axis: toggle decides whether they track
+// the wallpaper or use each theme's own palette, so switching themes never
+// silently changes your colours. frame + island stay Ryoku.
 //
-// Embedded as an Appearance tab: no Flickable of its own; it grows by
-// implicitHeight so the tab's outer Flickable scrolls it.
+// embedded as an Appearance tab: no Flickable of its own; grows by implicitHeight
+// so the tab's outer Flickable scrolls it.
 Item {
     id: page
 
@@ -37,8 +37,8 @@ Item {
         colorProc.running = true;
     }
 
-    // Greedy masonry: place each tile in the shortest column (estimated by blurb
-    // length) so the columns stay balanced, like the Extras grid.
+    // greedy masonry: each tile into the shortest column (estimated by blurb
+    // length) so columns stay balanced. same trick as the Extras grid.
     function buildColumns(list, n) {
         var c = [], h = [], i;
         for (i = 0; i < n; i++) { c.push([]); h.push(0); }

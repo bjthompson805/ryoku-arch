@@ -1,8 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// A compact ghost pill for inline row actions (Install, Remove), smaller than the
-// page-level HubButton. `danger` tints the hover toward the fault red.
+// compact ghost pill for inline row actions (Install, Remove), smaller than the
+// page-level HubButton. `danger` tints the hover toward fault red.
 Item {
     id: pill
 

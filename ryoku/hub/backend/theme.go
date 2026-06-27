@@ -10,24 +10,26 @@ import (
 	"strings"
 )
 
-// Themes are full-system "rices", each its own folder under ~/.config/hypr/themes/
-// <slug>/:
-//   - theme.json   metadata + the look (the appearance store values).
-//   - init.lua     real Hyprland Lua loaded as the active theme: the motion design
-//                  (bezier curves, per-leaf animation feel) and the decoration
-//                  nuances the store cannot express (rounding power, blur vibrancy,
-//                  shadow). This is the "actual system change", not just colours.
-//   - colors.json  the 16-colour palette, used only when colours do not follow the
-//                  wallpaper.
+// themes = full-system "rices", one folder each under
+// ~/.config/hypr/themes/<slug>/:
+//   theme.json    metadata + the look (appearance store values).
+//   init.lua      real Hyprland Lua loaded as the active theme. motion design
+//                 (bezier curves, per-leaf animation feel) + the decoration
+//                 nuances the store can't express (rounding power, blur
+//                 vibrancy, shadow). the "actual system change", not only
+//                 colours.
+//   colors.json   the 16-colour palette, used only when colours don't follow
+//                 the wallpaper.
 //
-// Applying a theme: the look folds onto the appearance store (so the Look/Borders
-// tabs reflect it), init.lua is copied to ~/.config/hypr/theme.lua (loaded by
-// hyprland.lua after the base modules and before settings.lua, so a user knob still
-// wins), and the palette is set per the colour-source toggle. The toggle is global
-// and independent of the theme: colours either track the wallpaper (wallust) or use
-// the theme's fixed palette. The shell frame and island keep the Ryoku identity.
+// applying a theme: the look folds into the appearance store (so the Look /
+// Borders tabs reflect it), init.lua is copied to ~/.config/hypr/theme.lua
+// (loaded by hyprland.lua after the base modules and before settings.lua, so a
+// user knob still wins), palette goes per the colour-source toggle. that
+// toggle is global, independent of the theme: colours either track the
+// wallpaper (wallust) or use the theme's fixed palette. the shell frame +
+// island keep the Ryoku look.
 
-// ThemeFile is themes/<slug>/theme.json.
+// ThemeFile = themes/<slug>/theme.json.
 type ThemeFile struct {
 	Name       string          `json:"name"`
 	Blurb      string          `json:"blurb"`
@@ -39,7 +41,7 @@ type ThemeFile struct {
 	Look       json.RawMessage `json:"look"`
 }
 
-// ThemeListItem is the GUI-facing summary (no look payload).
+// ThemeListItem: GUI-facing summary (no look payload).
 type ThemeListItem struct {
 	Slug    string   `json:"slug"`
 	Name    string   `json:"name"`
@@ -51,7 +53,7 @@ type ThemeListItem struct {
 	Active  bool     `json:"active"`
 }
 
-// ThemesResponse is `ryoku-hub hypr themes`: the colour-source toggle plus the list.
+// ThemesResponse = `ryoku-hub hypr themes`: colour-source toggle + the list.
 type ThemesResponse struct {
 	FollowWallpaper bool            `json:"followWallpaper"`
 	Themes          []ThemeListItem `json:"themes"`
@@ -97,7 +99,7 @@ func wallpaperStatePath() string {
 	return filepath.Join(base, "ryoku-wallpaper")
 }
 
-// loadThemeState defaults FollowWallpaper to true on a missing/blank file (the
+// loadThemeState defaults FollowWallpaper=true on a missing/blank file (the
 // shipped behaviour: colours track the wallpaper).
 func loadThemeState() themeState {
 	s := themeState{FollowWallpaper: true}
@@ -144,8 +146,8 @@ func listThemes() ThemesResponse {
 	return ThemesResponse{FollowWallpaper: st.FollowWallpaper, Themes: items}
 }
 
-// applyTheme sets the look store, installs the theme's init.lua, applies the
-// palette per the current colour-source toggle, and reloads.
+// applyTheme: set the look store, install the theme's init.lua, apply the
+// palette per the current colour-source toggle, reload.
 func applyTheme(slug string) error {
 	dir := filepath.Join(themesDir(), slug)
 	tf, err := loadThemeFile(slug)
@@ -169,7 +171,7 @@ func applyTheme(slug string) error {
 		return err
 	}
 
-	// The real-Lua layer: motion + decoration nuances.
+	// real-Lua layer: motion + decoration nuances.
 	if init, err := os.ReadFile(filepath.Join(dir, "init.lua")); err == nil {
 		_ = atomicWrite(activeThemeLuaPath(), init, 0o644)
 	} else {
@@ -186,7 +188,7 @@ func applyTheme(slug string) error {
 	return nil
 }
 
-// setFollowWallpaper flips the colour source and re-applies the palette for the
+// setFollowWallpaper flips the colour source and reapplies the palette for the
 // active theme.
 func setFollowWallpaper(follow bool) error {
 	st := loadThemeState()
@@ -206,9 +208,9 @@ func setFollowWallpaper(follow bool) error {
 	return nil
 }
 
-// applyPalette writes the wallust dsts every consumer reads. Following the
-// wallpaper (or a theme with no palette) re-derives them with wallust; otherwise
-// the theme's fixed palette is written and the wallpaper lock keeps it.
+// applyPalette writes the wallust dsts every consumer reads. follow-wallpaper
+// (or a theme with no palette) re-derives them via wallust; otherwise the
+// theme's fixed palette is written and the wallpaper lock keeps it.
 func applyPalette(dir string, follow, hasPalette bool) {
 	if follow || !hasPalette || dir == "" {
 		if pic := currentWallpaper(); pic != "" {
@@ -227,7 +229,7 @@ func applyPalette(dir string, follow, hasPalette bool) {
 	_ = atomicWrite(kittyThemePath(), []byte(renderKitty(pal)), 0o644)
 }
 
-// paletteAccent is the active-border colour: color4 by wallust convention.
+// paletteAccent = the active-border colour: color4 by wallust convention.
 func paletteAccent(p map[string]string) string {
 	if c := p["color4"]; c != "" {
 		return c
@@ -247,8 +249,8 @@ func loadPalette(path string) (map[string]string, error) {
 	return m, nil
 }
 
-// renderKitty fills kitty's current-theme.conf from the palette (cursor follows
-// the foreground), matching the wallust kitty template.
+// renderKitty fills kitty's current-theme.conf from the palette (cursor =
+// foreground), matches the wallust kitty template.
 func renderKitty(p map[string]string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "background %s\n", p["background"])

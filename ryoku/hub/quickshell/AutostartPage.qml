@@ -3,10 +3,10 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-// Autostart: the commands Hyprland runs once at login, layered over the fixed
-// Ryoku autostart. Edits stage in the draft and are written to settings.lua on
-// Save; the list is not previewed live. Rows commit on edit-finish, because
-// replacing the list rebuilds the Repeater's delegates mid-type otherwise.
+// autostart: the commands Hyprland runs once at login, layered over the fixed
+// Ryoku autostart. edits stage in the draft, written to settings.lua on Save;
+// list isn't previewed live. rows commit on edit-finish, since replacing the
+// list rebuilds the Repeater's delegates mid-type otherwise.
 Item {
     id: page
 
@@ -163,7 +163,7 @@ Item {
         }
     }
 
-    // --- action bar (mirrors Shell Settings) --------------------------------
+    // ── action bar (mirrors Shell Settings) ─────────────────────────────────
     Rectangle {
         id: bar
         anchors.left: parent.left

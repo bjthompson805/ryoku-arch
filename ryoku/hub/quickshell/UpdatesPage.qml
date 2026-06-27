@@ -5,11 +5,11 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-// The Updates section, wired to `ryoku status --json` via the Updates singleton.
-// Idle shows the live status and the real list of incoming commits;
-// "Update now" runs the real `ryoku update` in a terminal and this page mirrors
-// its progress from the run-state file the CLI publishes. When the system is
-// current there are no rows and the top-right island stays hidden.
+// Updates section, wired to `ryoku status --json` via the Updates singleton.
+// idle = live status + the real list of incoming commits. "Update now" runs
+// the real `ryoku update` in a terminal; this page mirrors progress from the
+// run-state file the CLI publishes. when the system is current there are no
+// rows and the top-right island stays hidden.
 Item {
     id: page
 
@@ -55,7 +55,7 @@ Item {
 
     Process { id: saveInterval }
 
-    // Re-check on the configured cadence.
+    // re-check on the configured cadence.
     readonly property int intervalMs: {
         switch (page.interval) {
         case "hourly": return 3600 * 1000;
@@ -107,13 +107,13 @@ Item {
             page.phase = "idle";
             page.progress = 0;
         }
-        // An update settled back to idle (finished): refresh so the list clears.
+        // settled back to idle = finished. refresh so the list clears.
         if (prev !== "idle" && page.phase === "idle")
             Updates.check();
     }
 
-    // Answer a prompt phase: write the choice to the back-channel `ryoku update`
-    // is polling, and optimistically resume the running view so the buttons clear.
+    // answer a prompt phase. write the choice to the back-channel `ryoku
+    // update` is polling, optimistically resume the running view so buttons clear.
     function answer(choice) {
         Quickshell.execDetached(["sh", "-c", "printf '%s' '" + choice + "' > '" + page.answerPath + "'"]);
         page.phase = "running";
@@ -123,7 +123,7 @@ Item {
         Quickshell.execDetached(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
     }
 
-    // --- idle content: status + pending updates -----------------------------
+    // --- idle: status + pending updates -------------------------------------
     Flickable {
         id: flick
         visible: page.phase === "idle"
@@ -301,9 +301,9 @@ Item {
         }
     }
 
-    // --- consent prompt: an editorial question `ryoku update` waits on, in the
-    // UpdateStatus idiom (ember rule + headline + detail) with dossier-stamp
-    // actions rather than a centred two-pill modal.
+    // --- consent prompt: editorial question `ryoku update` is waiting on, in
+    // the UpdateStatus idiom (ember rule + headline + detail) with dossier-
+    // stamp actions instead of a centred two-pill modal.
     Item {
         visible: page.phase === "prompt"
         anchors.left: parent.left

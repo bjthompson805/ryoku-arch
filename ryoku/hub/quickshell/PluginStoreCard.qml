@@ -2,11 +2,11 @@ import QtQuick
 import QtQuick.Effects
 import "Singletons"
 
-// A storefront tile for one downloadable plugin: a live preview image fills the
-// top, a warm gradient scrim carries the name + official badge, and a tagline +
-// host chips sit below on the warm surface. The hairline warms to ember on hover
-// and the whole tile lifts a touch, so the grid reads as a polished app store
-// rather than a list of names. Clicking opens the rich detail.
+// storefront tile for one downloadable plugin: live preview image up top, a
+// warm scrim carrying name + official badge, tagline and host chips below on
+// the warm surface. on hover the hairline warms to ember and the tile lifts a
+// touch, so the grid reads like a polished app store and not a list of names.
+// click = open the rich detail.
 Rectangle {
     id: tile
 
@@ -38,7 +38,7 @@ Rectangle {
         height: 168
         clip: true
 
-        // A quiet placeholder behind the image so a slow/missing load still reads.
+        // quiet placeholder behind the image so a slow/missing load still reads.
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
@@ -63,12 +63,12 @@ Rectangle {
             asynchronous: true
             cache: true
             sourceSize.width: 720
-            // A slow zoom-in on hover, like a featured store card.
+            // slow zoom-in on hover, like a featured store card.
             scale: hover.hovered ? 1.05 : 1.0
             Behavior on scale { NumberAnimation { duration: Theme.slow; easing.type: Theme.ease } }
         }
 
-        // Bottom scrim so the name stays legible over any image.
+        // bottom scrim, keeps the name legible over any image.
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -80,7 +80,7 @@ Rectangle {
             }
         }
 
-        // Official / community badge, top-right.
+        // official / community badge, top-right.
         Rectangle {
             anchors.top: parent.top
             anchors.right: parent.right
@@ -115,7 +115,7 @@ Rectangle {
             }
         }
 
-        // Installed tick, top-left.
+        // installed tick, top-left.
         Rectangle {
             visible: tile.installed
             anchors.top: parent.top
@@ -126,7 +126,7 @@ Rectangle {
             Icon { anchors.centerIn: parent; name: "check"; size: 12; weight: 2.5; tint: "#0d1208" }
         }
 
-        // Name + brand mark over the scrim.
+        // name + brand mark over the scrim.
         Row {
             anchors.left: parent.left
             anchors.right: parent.right

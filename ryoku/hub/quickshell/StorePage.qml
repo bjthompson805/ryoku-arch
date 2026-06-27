@@ -1,13 +1,10 @@
 import QtQuick
 import "Singletons"
 
-/**
- * The unified Ryoku Store: browse and install shell plugins and extras bundles
- * from one place. A segmented switch flips between the two catalogues; a single
- * refresh sits to the left of the switch and re-pulls whichever catalogue is
- * showing. Managing what is already installed lives on the Add-ons page, so the
- * store only browses and installs.
- */
+// Ryoku Store, unified: browse + install shell plugins and extras bundles in
+// one place. segmented switch flips catalogues; one refresh sits left of the
+// switch and re-pulls whichever side is showing. managing what's already
+// installed lives on Add-ons, so this only browses + installs.
 Item {
     id: store
 
@@ -15,7 +12,7 @@ Item {
 
     ShowcaseBackdrop { anchors.fill: parent }
 
-    // Header: refresh (left) + the Plugins / Bundles switch.
+    // refresh (left) + Plugins / Bundles switch.
     Row {
         id: head
         anchors.top: parent.top

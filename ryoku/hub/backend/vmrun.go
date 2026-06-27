@@ -1,9 +1,9 @@
 package main
 
-// vmrun.go: the VM lifecycle over libvirt (qemu:///system). define creates the disk
-// and registers the domain; launch refuses unless the capability verdict is "ready"
-// (the fully-automatic, zero-reboot path the user chose), starts the domain so the
-// libvirt hook binds the dGPU to vfio-pci, then opens the Looking Glass window.
+// vmrun.go: VM lifecycle over libvirt (qemu:///system). define = create the
+// disk + register the domain. launch refuses unless capability verdict is
+// "ready" (the zero-reboot path the user opted into), starts the domain so the
+// libvirt hook binds the dGPU to vfio-pci, then opens Looking Glass.
 
 import (
 	"fmt"
@@ -66,22 +66,22 @@ func vmLaunch() error {
 	if err := vmDefine(v); err != nil {
 		return err
 	}
-	// modules-load.d loads kvmfr at boot; cover the case where the user just enabled
-	// passthrough and has not rebooted.
+	// modules-load.d loads kvmfr at boot; this covers the case where the user
+	// just enabled passthrough and hasn't rebooted yet.
 	run("modprobe", "kvmfr", fmt.Sprintf("static_size_mb=%d", kvmfrStaticMB))
 	if err := virsh("start", v.Name); err != nil {
 		return err
 	}
-	// Detach the client so a launcher-spawned ryoku-hub can exit immediately and the
-	// window outlives it (its fds go to /dev/null, not the caller's captured pipe).
+	// detach the client so a launcher-spawned ryoku-hub can exit right away and
+	// the window outlives it. fds -> /dev/null, not the caller's captured pipe.
 	lg := exec.Command("looking-glass-client", "app:shmFile=/dev/kvmfr0")
 	lg.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	return lg.Start()
 }
 
-// launchBlocker turns a capability verdict into a launch decision. Only "ready"
-// proceeds; everything else returns the exact action the user must take, and the
-// launcher never silently relogins or reboots.
+// launchBlocker: capability verdict -> launch decision. only "ready" goes
+// through; anything else returns the exact action the user has to take, so the
+// launcher never silently relogins or reboots behind their back.
 func launchBlocker(report Capability) (string, bool) {
 	switch report.Verdict {
 	case "ready":

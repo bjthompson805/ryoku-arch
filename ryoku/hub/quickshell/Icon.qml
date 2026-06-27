@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Shapes
 
-// Stroked vector icons rendered from SVG path data, the same approach ryoshot
-// uses: scalable, themeable by `tint`, and free of any shipped image asset.
+// stroked vector icons from SVG path data, ryoshot-style: scalable,
+// `tint`-able, no shipped image asset.
 Item {
     id: icon
 

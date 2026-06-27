@@ -1,8 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// A keycap: a flat warm tile with a darker bottom lip for a hint of mechanical
-// depth, and the glyph in JetBrains Mono. No gradient, no glassy sheen.
+// keycap: flat warm tile, darker bottom lip for a hint of mechanical depth,
+// glyph in JetBrains Mono. no gradient, no glassy sheen.
 Rectangle {
     id: cap
 

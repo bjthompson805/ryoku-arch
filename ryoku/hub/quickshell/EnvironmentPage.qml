@@ -3,19 +3,19 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-// Environment: custom NAME=value pairs layered over the base Hyprland session and
-// edited through the shared HyprStore. Add, edit, or remove rows, then Save writes
-// them into settings.lua. Unlike the appearance knobs, a session reads its
-// environment only at startup, so these take full effect at the next login.
+// environment = custom NAME=value pairs, layered over the base Hyprland session,
+// edited via the shared HyprStore. add / edit / remove rows, Save writes them
+// into settings.lua. unlike the appearance knobs, a session reads its env only
+// at startup, so these take full effect at next login.
 Item {
     id: page
 
     HyprStore { id: store }
 
-    // editList swaps the whole array reference (so the Repeater rebinds), which
-    // would tear down and rebuild the delegate that owns a focused field. To keep
-    // that from happening mid-type, rows commit on editing-finished only, and every
-    // helper hands editList a fresh slice rather than mutating the live list.
+    // editList swaps the whole array (so the Repeater rebinds), which would tear
+    // down + rebuild the delegate owning a focused field. so rows commit on
+    // editing-finished only, and every helper hands editList a fresh slice rather
+    // than mutating the live list.
     function patch(i, key, val) {
         var a = store.env.slice();
         a[i] = Object.assign({}, a[i]);
@@ -230,7 +230,7 @@ Item {
         font.pixelSize: 13
     }
 
-    // --- action bar (mirrors Shell Settings) --------------------------------
+    // ── action bar (mirrors Shell Settings) ─────────────────────────────────
     Rectangle {
         id: bar
         anchors.left: parent.left

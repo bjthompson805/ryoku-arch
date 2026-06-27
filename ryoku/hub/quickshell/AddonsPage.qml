@@ -6,18 +6,14 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-/**
- * Add-ons: the home for plugins you have installed. A bento grid of cards - each
- * showing the plugin's preview and name - opens that plugin's own settings,
- * rendered from its declared schema (manifest.metadata.settings) by
- * PluginSettingsForm, plus its enable toggle, host, and a remove action. Every
- * change persists to plugins.json through `ryoku-plugins-place`, which the shell
- * watches, so the desktop retunes live.
- *
- * Installed plugins come from discover.sh --all (manifest + placement merged).
- * Browsing and installing new plugins lives in the Store; this page only manages
- * what is already here.
- */
+// add-ons = home for installed plugins. bento grid of cards (preview + name)
+// opens that plugin's own settings, rendered from manifest.metadata.settings
+// by PluginSettingsForm, plus its enable toggle, host, and a remove. every
+// change goes through `ryoku-plugins-place` -> plugins.json; the shell watches
+// the file, so the desktop retunes live.
+//
+// installed = discover.sh --all (manifest + placement merged). browsing and
+// installing new ones lives in the Store; this page only manages what's here.
 Item {
     id: page
 
@@ -75,7 +71,7 @@ Item {
 
     ShowcaseBackdrop { anchors.fill: parent; visible: page.view === "grid" }
 
-    // ── Grid: installed plugins as bento cards ──────────────────────────────
+    // ── grid: installed plugins as bento cards ──────────────────────────────
     Flickable {
         anchors.fill: parent
         visible: page.view === "grid"
@@ -120,7 +116,7 @@ Item {
                         autoPaddingEnabled: true
                     }
 
-                    // Preview window.
+                    // preview window.
                     Rectangle {
                         id: shot
                         anchors.left: parent.left
@@ -142,7 +138,7 @@ Item {
                             sourceSize.width: 640
                             visible: status === Image.Ready
                         }
-                        // Fallback mark when there is no preview asset.
+                        // fallback when there's no preview asset.
                         Icon {
                             anchors.centerIn: parent
                             visible: shotImg.status !== Image.Ready
@@ -151,7 +147,7 @@ Item {
                             tint: Theme.faint
                         }
 
-                        // Enabled pip.
+                        // enabled pip.
                         Rectangle {
                             anchors.top: parent.top
                             anchors.right: parent.right
@@ -207,7 +203,7 @@ Item {
             }
         }
 
-        // Empty state.
+        // empty state.
         Column {
             visible: page.plugins.length === 0
             anchors.centerIn: parent
@@ -223,7 +219,7 @@ Item {
         }
     }
 
-    // ── Detail: one plugin's own settings ───────────────────────────────────
+    // ── detail: one plugin's settings ───────────────────────────────────────
     Flickable {
         anchors.fill: parent
         visible: page.view === "detail"
@@ -235,7 +231,7 @@ Item {
             width: parent.width
             spacing: 20
 
-            // Back + name + remove.
+            // back + name + remove.
             Item {
                 width: parent.width
                 height: 34
@@ -262,7 +258,7 @@ Item {
                 HoverHandler { id: backHov; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: page.view = "grid" }
 
-                // Remove.
+                // remove.
                 Rectangle {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -288,7 +284,7 @@ Item {
                 }
             }
 
-            // Enable + host.
+            // enable + host.
             SettingSection {
                 width: parent.width
                 title: "Placement"
@@ -324,7 +320,7 @@ Item {
                 }
             }
 
-            // The plugin's own settings, rendered from its schema.
+            // the plugin's own settings, rendered from its schema.
             PluginSettingsForm {
                 width: parent.width
                 visible: schema.length > 0

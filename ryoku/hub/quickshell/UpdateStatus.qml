@@ -1,9 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// The status header for the Updates section: an ember accent rule, a small
-// eyebrow, the version bump as a current -> latest line, and a terse meta line.
-// Typographic and editorial, not a boxed banner.
+// Updates section header. ember rule + eyebrow, current -> latest bump line,
+// meta line under it. editorial, not a boxed banner.
 Item {
     id: status
 

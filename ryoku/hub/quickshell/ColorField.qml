@@ -2,10 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// The surface colour picker: a live swatch, a manual hex field, and a strip of
-// tasteful dark presets for one click. Reports through modified(color); the owner
-// holds the value. The frame, the pill and the island all read this one colour,
-// so it is the single surface of the shell.
+// surface colour picker: live swatch, manual hex field, strip of dark presets.
+// owner holds the value, we report via modified(color). frame, pill and island
+// all read this one colour, so it's the whole shell's surface.
 Item {
     id: cf
 

@@ -3,10 +3,10 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-// A labelled select for lists too long for a segmented control (resolutions,
-// cursor themes, keyboard layouts). The field shows the current label; tapping it
-// drops a scrollable, searchable-by-scroll list. `options` is a list of
-// { key, label } or plain strings. Reports chosen(key).
+// labelled select for lists too long for a segmented control (resolutions,
+// cursor themes, keyboard layouts). field shows the current label; tap drops a
+// scrollable list. `options` = [{ key, label }] or plain strings. reports
+// chosen(key).
 Item {
     id: root
 

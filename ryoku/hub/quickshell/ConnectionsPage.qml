@@ -2,9 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// The Connections section: Wi-Fi, Bluetooth, and Hotspot, each a subtab. The
-// subtab bar reuses the hub Segmented control; each tab is a self-contained page
-// backed by the Quickshell Networking/Bluetooth services (and nmcli/bluetoothctl).
+// Connections section: Wi-Fi, Bluetooth, Hotspot, each a subtab. the subtab
+// bar reuses the hub Segmented control; each tab is self-contained, backed
+// by the Quickshell Networking/Bluetooth services (plus nmcli/bluetoothctl).
 Item {
     id: page
 

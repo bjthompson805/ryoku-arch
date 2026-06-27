@@ -11,20 +11,20 @@ import (
 	"strings"
 )
 
-// Ryoku Settings persists the system-level (Hyprland) tweaks the GUI exposes as
-// a single JSON store and generates one Lua file the live config loads. The
-// store at ~/.config/ryoku/hypr.json is the editable source of truth; settings.lua
-// at ~/.config/hypr/ is generated from it and require()d by hyprland.lua after the
-// base modules and before user.lua, so these settings override the shipped
-// defaults while a hand-written user.lua still wins.
+// system-level (Hyprland) tweaks the Hub exposes, persisted as one JSON store
+// and rendered into one Lua file the live config loads. the store at
+// ~/.config/ryoku/hypr.json is the editable truth; settings.lua at
+// ~/.config/hypr/ is generated from it and require()d by hyprland.lua after the
+// base modules and before user.lua, so settings.lua overrides the shipped
+// defaults and a hand-written user.lua still wins over both.
 //
-// Only values that differ from the shipped defaults are written, so a setting
-// left untouched falls through to the base module (and future base improvements
-// reach it) instead of being pinned. Live edits apply at once with `hyprctl eval`
-// (the hl API, flash-free); Save persists and reloads to lock the state in,
-// which also handles removals (a dropped rule or bind) that eval cannot undo.
+// only divergences from the defaults are written, so an untouched setting falls
+// through to its base module (and picks up future base improvements) rather
+// than being pinned. live edits apply flash-free via `hyprctl eval` (the hl
+// API); Save persists + reloads to lock the state in, which also handles the
+// removals (a dropped rule or bind) eval can't undo.
 
-// Appearance maps to general/decoration/animations keywords.
+// Appearance: general / decoration / animations keywords.
 type Appearance struct {
 	GapsIn          int     `json:"gapsIn"`
 	GapsOut         int     `json:"gapsOut"`
@@ -44,7 +44,7 @@ type Appearance struct {
 	InactiveBorder  string  `json:"inactiveBorder"`
 }
 
-// Input maps to the input keyword (keyboard, pointer, touchpad).
+// Input: the input keyword (keyboard, pointer, touchpad).
 type Input struct {
 	KbLayout           string  `json:"kbLayout"`
 	KbVariant          string  `json:"kbVariant"`
@@ -61,9 +61,9 @@ type Input struct {
 	SwipeFingers       int     `json:"swipeFingers"`
 }
 
-// Cursor is the cursor theme/size, applied live with `hyprctl setcursor` and
-// persisted both as env (for spawned apps) and a start hook that wins over the
-// base autostart's setcursor, which registers earlier.
+// Cursor: theme + size. live = `hyprctl setcursor`. persisted as env (so spawned
+// apps see it) + a start hook that wins over the base autostart's setcursor
+// (which registers earlier).
 type Cursor struct {
 	Theme string `json:"theme"`
 	Size  int    `json:"size"`
@@ -74,9 +74,9 @@ type EnvVar struct {
 	Value string `json:"value"`
 }
 
-// WindowRule is a single user rule: an optional class/title match and one action.
-// Action is the rule keyword; Value carries its argument where one applies
-// (opacity, size, move, workspace).
+// WindowRule = one user rule: optional class/title match + one action. Action is
+// the rule keyword; Value carries its argument where one applies (opacity, size,
+// move, workspace).
 type WindowRule struct {
 	Class  string `json:"class"`
 	Title  string `json:"title"`
@@ -84,9 +84,8 @@ type WindowRule struct {
 	Value  string `json:"value"`
 }
 
-// LayerRule targets a layer-shell surface by namespace (a bar, a launcher, a
-// notification daemon). Action is the rule; Value carries its argument for
-// ignorealpha/dimaround.
+// LayerRule: target a layer-shell surface by namespace (bar, launcher, notif
+// daemon). Action = the rule; Value = the argument for ignorealpha/dimaround.
 type LayerRule struct {
 	Namespace string `json:"namespace"`
 	Action    string `json:"action"`
@@ -97,7 +96,7 @@ type Autostart struct {
 	Command string `json:"command"`
 }
 
-// Keybind is a user shortcut. Action "exec" runs Value; the dispatcher actions
+// Keybind = a user shortcut. action "exec" runs Value; the dispatcher actions
 // (close, fullscreen, togglefloating) take no value.
 type Keybind struct {
 	Keys   string `json:"keys"`
@@ -105,8 +104,8 @@ type Keybind struct {
 	Value  string `json:"value"`
 }
 
-// AnimCurve is a user bezier: P0 and P3 are fixed at (0,0) and (1,1); only the two
-// control points are stored. Defining one with an existing name overrides the base.
+// AnimCurve = a user bezier. P0/P3 fixed at (0,0) and (1,1); only the two
+// control points stored. redefining a base name overrides it.
 type AnimCurve struct {
 	Name string  `json:"name"`
 	X0   float64 `json:"x0"`
@@ -115,7 +114,7 @@ type AnimCurve struct {
 	Y1   float64 `json:"y1"`
 }
 
-// AnimItem overrides one animation leaf (windows, fade, workspaces, ...).
+// AnimItem: override one animation leaf (windows, fade, workspaces, ...).
 type AnimItem struct {
 	Leaf    string  `json:"leaf"`
 	Enabled bool    `json:"enabled"`
@@ -124,8 +123,8 @@ type AnimItem struct {
 	Style   string  `json:"style"`
 }
 
-// Anim is the per-leaf and per-curve animation overrides (the global on/off lives
-// in Appearance). Curves are emitted before items, which may reference them.
+// Anim: per-leaf + per-curve overrides (the global on/off lives in Appearance).
+// curves first, items second -- items may reference the curves.
 type Anim struct {
 	Items  []AnimItem  `json:"items"`
 	Curves []AnimCurve `json:"curves"`
@@ -144,9 +143,9 @@ type Overrides struct {
 }
 
 // defaultOverrides mirrors the shipped Hyprland modules (decoration.lua,
-// input.lua, keyboard.lua, env.lua/autostart.lua cursor) so the UI shows the real
-// baseline and "Reset to defaults" restores it. Keep these in step with the base
-// modules; only divergence from here is ever written to settings.lua.
+// input.lua, keyboard.lua, env.lua/autostart.lua cursor) so the UI shows the
+// real baseline and "Reset to defaults" actually restores it. keep these in
+// step with the base; only divergence from here is ever written to settings.lua.
 func defaultOverrides() Overrides {
 	return Overrides{
 		Appearance: Appearance{
@@ -194,8 +193,8 @@ func generatedLuaPath() string {
 	return filepath.Join(hyprConfigDir(), "settings.lua")
 }
 
-// loadOverrides reads the store, overlaying it on the defaults so a partial or
-// older store still yields a complete object (missing fields keep their default).
+// loadOverrides: read the store, overlay on the defaults. a partial or older
+// store still yields a complete object (missing fields keep the default).
 func loadOverrides() Overrides {
 	o := defaultOverrides()
 	if b, err := os.ReadFile(hyprStorePath()); err == nil {
@@ -268,7 +267,7 @@ func parseOverrides(s string) (Overrides, error) {
 	return o, nil
 }
 
-// runHypr dispatches `ryoku-hub hypr <sub> [arg]`.
+// runHypr: dispatch for `ryoku-hub hypr <sub> [arg]`.
 func runHypr(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("hypr needs get|defaults|save|preview|restore|cursors|layouts")
@@ -276,7 +275,7 @@ func runHypr(args []string) error {
 	switch args[0] {
 	case "get":
 		o := loadOverrides()
-		_ = writeGeneratedLua(o) // self-heal settings.lua if a deploy wiped it
+		_ = writeGeneratedLua(o) // re-emit settings.lua if a deploy wiped it
 		return printJSON(o)
 	case "defaults":
 		return printJSON(defaultOverrides())
@@ -307,9 +306,9 @@ func runHypr(args []string) error {
 		hyprEval(liveLua(o))
 		return nil
 	case "restore":
-		// Revert the live session to the saved state by reloading (settings.lua plus
-		// the base modules), which resets every keyword exactly, including ones an
-		// eval cannot push back to a default.
+		// revert the live session to the saved state by reloading (settings.lua +
+		// base modules). resets every keyword exactly, including ones eval can't
+		// push back to a default.
 		hyprReload()
 		return nil
 	case "cursors":
@@ -415,8 +414,8 @@ func genLua(o Overrides) string {
 	return b.String()
 }
 
-// genConfig builds one hl.config({...}) holding only the general/decoration/
-// input/animations leaves that diverge from the defaults.
+// genConfig: one hl.config({...}) holding only the general / decoration / input
+// / animations leaves that diverge from the defaults.
 func genConfig(o Overrides) string {
 	d := defaultOverrides()
 	var general, deco, input []string
@@ -615,8 +614,8 @@ func genKeybind(k Keybind) string {
 	return fmt.Sprintf("hl.bind(%s, %s)\n", luaStr(k.Keys), dsp)
 }
 
-// genStartHook runs the cursor setcursor and any user autostart commands at
-// session start. It registers after the base autostart, so its setcursor wins.
+// genStartHook runs the cursor setcursor + any user autostart commands at
+// session start. registers after the base autostart, so its setcursor wins.
 func genStartHook(o Overrides) string {
 	var lines []string
 	d := defaultOverrides().Cursor
@@ -636,9 +635,9 @@ func genStartHook(o Overrides) string {
 	return "hl.on(\"hyprland.start\", function()\n" + strings.Join(lines, "\n") + "\nend)\n"
 }
 
-// fullConfigLua sets every appearance/input leaf explicitly (not just the diffs),
-// so eval forces the exact state, including a value moved back to its default.
-// genConfig stays diff-based for settings.lua; the live preview needs to be able
+// fullConfigLua = every appearance/input leaf set explicitly (not only the
+// diffs), so eval forces the exact state, including a value moved back to its
+// default. genConfig stays diff-based for settings.lua; the live preview needs
 // to reset any key, not only push it away from the baseline.
 func fullConfigLua(o Overrides) string {
 	a, in := o.Appearance, o.Input
@@ -680,7 +679,7 @@ func fullConfigLua(o Overrides) string {
 		"})\n"
 }
 
-// genAnimItem renders one hl.animation override line.
+// genAnimItem: one hl.animation override line.
 func genAnimItem(it AnimItem) string {
 	if strings.TrimSpace(it.Leaf) == "" {
 		return ""
@@ -699,8 +698,8 @@ func genAnimItem(it AnimItem) string {
 	return fmt.Sprintf("hl.animation({ %s })\n", strings.Join(parts, ", "))
 }
 
-// genAnimBlock renders the user's bezier curves (before the animations that may
-// reference them) and the per-leaf animation overrides.
+// genAnimBlock = the user's bezier curves (first, so the items can reference
+// them) + the per-leaf animation overrides.
 func genAnimBlock(o Overrides) string {
 	var b strings.Builder
 	for _, c := range o.Anim.Curves {
@@ -718,7 +717,7 @@ func genAnimBlock(o Overrides) string {
 	return b.String()
 }
 
-// genGesture renders the workspace-swipe touchpad gesture when enabled. The base
+// genGesture: the workspace-swipe touchpad gesture when enabled. the base
 // config ships no gesture, so an empty string leaves swipe off.
 func genGesture(o Overrides) string {
 	if !o.Input.WorkspaceSwipe {
@@ -731,9 +730,9 @@ func genGesture(o Overrides) string {
 	return fmt.Sprintf("hl.gesture({ fingers = %d, direction = \"horizontal\", action = \"workspace\" })\n", n)
 }
 
-// liveLua is the full-config preview plus the cursor, applied flash-free via
-// hyprctl eval (the appearance/input/cursor domains). Rules, keybinds, env, and
-// autostart are not previewed; they apply on Save via reload.
+// liveLua = full-config preview + cursor, applied flash-free via hyprctl eval
+// (appearance / input / cursor). rules, keybinds, env, autostart are not
+// previewed; they apply on Save via reload.
 func liveLua(o Overrides) string {
 	return fullConfigLua(o) + genAnimBlock(o) + genGesture(o) +
 		fmt.Sprintf("hl.exec_cmd(%s)\n", luaStr(fmt.Sprintf("hyprctl setcursor %s %d", o.Cursor.Theme, o.Cursor.Size)))
@@ -754,7 +753,7 @@ func luaNum(f float64) string {
 	return s
 }
 
-// luaRGB turns "#rrggbb" (or "rrggbb") into Hyprland's rgb(rrggbb) color form.
+// luaRGB: "#rrggbb" (or "rrggbb") -> Hyprland's rgb(rrggbb) form.
 func luaRGB(hex string) string {
 	h := strings.TrimPrefix(strings.TrimSpace(hex), "#")
 	return "rgb(" + h + ")"
@@ -768,7 +767,7 @@ func parseFloat(s string, fallback float64) float64 {
 	return f
 }
 
-// parseWxH reads "1500x850" (or "1500 850", "1500,850") into two ints.
+// parseWxH: "1500x850" (or "1500 850" / "1500,850") -> two ints.
 func parseWxH(s string) (int, int) {
 	s = strings.NewReplacer("x", " ", "X", " ", ",", " ").Replace(s)
 	var a, b int
@@ -778,9 +777,8 @@ func parseWxH(s string) (int, int) {
 
 // --- environment enumeration ----------------------------------------------
 
-// listCursorThemes returns the names of installed cursor themes: icon-theme
-// directories that contain a cursors/ subdirectory, across the standard search
-// paths, de-duplicated and sorted.
+// listCursorThemes: installed cursor themes = icon-theme dirs that contain a
+// cursors/ subdir, across the standard search paths, dedup'd and sorted.
 func listCursorThemes() []string {
 	seen := map[string]bool{}
 	for _, dir := range iconSearchDirs() {
@@ -819,8 +817,8 @@ func iconSearchDirs() []string {
 	}
 }
 
-// listKbLayouts returns the X11 keyboard layout codes from the xkb rules base,
-// each as {code, name}. Falls back to a small common set if the base is absent.
+// listKbLayouts: X11 keyboard layout codes from the xkb rules base, each as
+// {code, name}. falls back to a small common set if the base is absent.
 func listKbLayouts() []map[string]string {
 	out := parseXkbLayouts("/usr/share/X11/xkb/rules/base.lst")
 	if len(out) == 0 {

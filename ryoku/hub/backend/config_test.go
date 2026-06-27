@@ -10,7 +10,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	// Missing file yields the default.
+	// no file -> default.
 	if c := loadConfig(); c.UI.Section != "displays" {
 		t.Fatalf("default section = %q, want displays", c.UI.Section)
 	}
@@ -22,7 +22,7 @@ func TestConfigRoundTrip(t *testing.T) {
 		t.Fatalf("after set: got %q ok=%v, want appearance", v, ok)
 	}
 
-	// It persisted as real TOML on disk.
+	// landed on disk as real TOML.
 	b, err := os.ReadFile(filepath.Join(dir, "ryoku", "hub.toml"))
 	if err != nil {
 		t.Fatalf("config not written: %v", err)
@@ -35,7 +35,7 @@ func TestConfigRoundTrip(t *testing.T) {
 func TestUpdateInterval(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	// Missing file yields the default.
+	// no file -> default.
 	if c := loadConfig(); c.UI.UpdateInterval != "daily" {
 		t.Fatalf("default update_interval = %q, want daily", c.UI.UpdateInterval)
 	}

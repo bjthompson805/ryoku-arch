@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// extrasServer serves a tiny catalogue (registry + one bundle + one installer)
-// and lets a test simulate the network going away by flipping `down`.
+// extrasServer: tiny catalogue (registry + one bundle + one installer); flip
+// `down` to fake the network dropping.
 func extrasServer(t *testing.T) (*httptest.Server, *bool) {
 	t.Helper()
 	down := false
@@ -61,12 +61,12 @@ func TestBuildCatalog(t *testing.T) {
 		t.Fatalf("items not resolved: %+v", b.Items)
 	}
 
-	// The script installer should have been warmed into the cache.
+	// script installer should have been warmed into the cache.
 	if _, err := os.Stat(filepath.Join(cache, "ryoku", "extras", "installers", "demo-cli.sh")); err != nil {
 		t.Fatalf("installer not cached: %v", err)
 	}
 
-	// With the network down the catalogue must still resolve from cache.
+	// network down -> catalogue still resolves from the cache.
 	*down = true
 	cat2, err := buildCatalog()
 	if err != nil {
@@ -91,19 +91,19 @@ func TestEnsureInstaller(t *testing.T) {
 		t.Fatalf("path = %q, want %q", p, want)
 	}
 
-	// Offline but cached: still resolves.
+	// offline but cached: still resolves.
 	*down = true
 	if _, err := ensureInstaller("demo-cli"); err != nil {
 		t.Fatalf("offline ensureInstaller: %v", err)
 	}
-	// Offline and never cached: a clear error.
+	// offline + never cached: clear error.
 	if _, err := ensureInstaller("missing"); err == nil {
 		t.Fatal("expected an error for an uncached, unreachable installer")
 	}
 }
 
-// fetch must defeat the GitHub raw CDN cache so a catalogue refresh always sees
-// the latest push; otherwise a freshly added addon stays invisible for minutes.
+// fetch must beat the GitHub raw CDN cache so a catalogue refresh always sees
+// the latest push; else a freshly added addon stays invisible for minutes.
 func TestFetchBustsCDNCache(t *testing.T) {
 	got := make(chan string, 2)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

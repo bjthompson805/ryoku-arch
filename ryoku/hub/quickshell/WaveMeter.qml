@@ -1,10 +1,9 @@
 import QtQuick
 import "Singletons"
 
-// A Ryoku wave used as a progress meter: the line runs the full width dim, with a
-// bright ember crest filled from the left up to `frac` of the width, so the lit
-// length reads as progress. It travels gently while visible. The hub-palette
-// twin of the shell's WaveMeter.
+// ryoku wave as a progress meter: full-width dim line, ember crest lit from
+// the left to `frac`. travels gently while visible. hub-palette twin of the
+// shell WaveMeter.
 Item {
     id: root
 

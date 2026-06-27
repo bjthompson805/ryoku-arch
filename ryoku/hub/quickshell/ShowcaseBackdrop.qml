@@ -3,23 +3,20 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * The showcase ambient frame, shared so every showcase-style page reads as one
- * family: soft glow blooms, a faint spec grid, an edge vignette, and editorial
- * corner ticks. Decorative only - place it behind the page content with
- * `anchors.fill: parent`. Used by ProfilePage, AddonsPage, and StorePage so the
- * Profile, Store, and Add-ons screens share one visual language.
- */
+// shared ambient frame for showcase pages so they read as one family: soft glow
+// blooms, faint spec grid, edge vignette, editorial corner ticks. decorative.
+// drop it behind page content with `anchors.fill: parent`. used by ProfilePage,
+// AddonsPage and StorePage.
 Item {
     id: backdrop
 
-    /** Canvas-safe "rgba(...)" from a Theme colour + alpha. */
+    // canvas-safe "rgba(...)" from a Theme colour + alpha.
     function rgba(c, a) {
         return "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + "," + Math.round(c.b * 255) + "," + a + ")";
     }
 
-    // ── Ambient glow blooms: warmth low-left, a cream wash top-right, a deep
-    //    base at the foot ──────────────────────────────────────────────────────
+    // ambient glow blooms. warmth low-left, cream wash top-right, deep at the
+    // foot.
     Canvas {
         anchors.fill: parent
         property string cream: backdrop.rgba(Theme.cream, 0.06)
@@ -44,7 +41,7 @@ Item {
         }
     }
 
-    // ── Faint spec grid: a quiet technical texture ──────────────────────────
+    // faint spec grid. quiet technical texture.
     Canvas {
         anchors.fill: parent
         property string tint: backdrop.rgba(Theme.cream, 0.022)
@@ -71,7 +68,7 @@ Item {
         }
     }
 
-    // ── Vignette: gently darken the edges so the content holds the eye ───────
+    // vignette. darken the edges a touch so content holds the eye.
     Canvas {
         anchors.fill: parent
         onWidthChanged: requestPaint()
@@ -88,7 +85,7 @@ Item {
         }
     }
 
-    // ── Corner ticks: a light editorial frame around the page ───────────────
+    // corner ticks: a light editorial frame around the page.
     Repeater {
         model: 4
         Item {

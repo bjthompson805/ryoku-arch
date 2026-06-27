@@ -6,21 +6,20 @@ import Quickshell.Io
 import Quickshell.Networking
 import "Singletons"
 
-// Wi-Fi subtab of the Connections section: master on/off, a rescan affordance
-// that spins for ~10 s, and the live network list sorted by signal strength.
-// Security and known-profile ground truth come from nmcli (the Quickshell
-// service does not expose it); clicking a secured unknown network expands an
-// inline password row that connects via `nmcli --ask dev wifi connect`, with
-// the secret piped through stdin so it never appears in /proc/<pid>/cmdline.
-// The page is treated as always-active while it lives, the parent Loader
-// recreates it on tab change, so the device scanner runs while shown.
+// wi-fi subtab. master on/off, rescan (spins ~10s), live list sorted by signal.
+// security + known-profile ground truth come from nmcli; the Quickshell service
+// doesn't expose them. tap a secured unknown net = inline password row that
+// runs `nmcli --ask dev wifi connect`, secret piped through stdin so it never
+// lands in /proc/<pid>/cmdline. parent Loader recreates the page on tab change,
+// so `active` is just true for its whole life; the device scanner runs while
+// we're visible.
 Item {
     id: page
 
     // ---- state ------------------------------------------------------------
 
-    // The page exists only while it is the visible subtab (the Loader swaps
-    // sourceComponent on tab change), so "active" stays true throughout life.
+    // page only exists while it's the visible subtab (Loader swaps source on
+    // tab change), so this stays true for its whole life.
     property bool active: true
 
     readonly property var devices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
@@ -41,15 +40,14 @@ Item {
     property bool connectFailed: false
     property bool scanning: false
 
-    // The Repeater model is a fresh array on every NM rescan, which tears down
-    // and recreates the delegate mid-typing. The draft lives on the page so the
-    // password field restores itself from it when rebuilt.
+    // NM rescan = fresh model array, so the delegate tears down mid-typing.
+    // draft lives on the page; the password field re-fills from it on rebuild.
     property string pwDraft: ""
     property string pendingPw: ""
     property string attemptSsid: ""
     property bool attemptWasKnown: false
 
-    // Width cap for the readable content column on this wide hub page.
+    // content column cap on this wide hub page.
     readonly property real colMax: 640
 
     function isSecured(ssid) {
@@ -62,8 +60,8 @@ Item {
         profProc.running = true;
     }
 
-    // Splits one `nmcli -t` line at its last unescaped colon and unescapes the
-    // leading field. Returns null for lines without a field separator.
+    // split one `nmcli -t` line at its last unescaped colon, unescape the
+    // leading field. null if there's no separator.
     function splitTerse(line) {
         for (var k = line.length - 1; k >= 0; k--) {
             if (line[k] === ":" && (k === 0 || line[k - 1] !== "\\"))
@@ -72,9 +70,8 @@ Item {
         return null;
     }
 
-    // Click dispatch for a network row: disconnect when connected, connect
-    // known or open networks directly, otherwise expand the inline password
-    // row under that network.
+    // row click: connected -> disconnect, known or open -> connect, else
+    // expand the inline password row.
     function activateNetwork(net) {
         if (!net)
             return;
@@ -97,9 +94,8 @@ Item {
         expandedSsid = ssid;
     }
 
-    // Connects via `nmcli --ask`, feeding the password through stdin so the
-    // secret never appears in the process command line (`/proc/<pid>/cmdline`
-    // is world-readable for the whole connection attempt).
+    // `nmcli --ask`, password through stdin. /proc/<pid>/cmdline is world-
+    // readable for the whole attempt, so it MUST NOT be in argv.
     function connectWithPassword(ssid, pw) {
         if (connProc.running || !pw.length)
             return;
@@ -112,9 +108,9 @@ Item {
         connProc.running = true;
     }
 
-    // Reload pulse: forces a fresh nmcli rescan and spins the control for up
-    // to 10 s. The device scanner runs while the page is visible, so the list
-    // never empties; this refreshes results and drives the spinner.
+    // reload pulse. forces an nmcli rescan and spins the button up to 10s.
+    // the scanner runs as long as the page is shown, so the list never
+    // empties; this is just to refresh results and drive the spinner.
     function startScan() {
         if (!wifiOn)
             return;
@@ -212,9 +208,9 @@ Item {
         }
     }
 
-    // A failed `nmcli dev wifi connect` still leaves a connection profile
-    // named after the SSID behind; without deleting it the network would be
-    // treated as known on the next click and silently fail forever.
+    // a failed `nmcli dev wifi connect` leaves a profile named after the SSID;
+    // without deleting it the next click reads it as known and silently fails
+    // forever. ask me how I found out.
     Process {
         id: cleanupProc
         onExited: page.refresh()
@@ -237,7 +233,7 @@ Item {
         anchors.bottom: parent.bottom
         width: Math.min(parent.width, page.colMax)
 
-        // Header row: "WI-FI" label, hairline, Scan/Scanning… button.
+        // header row. "WI-FI" label + hairline + scan button.
         Item {
             id: bar
             anchors.top: parent.top
@@ -279,8 +275,8 @@ Item {
             }
         }
 
-        // Master on/off, the same toggle the link surface offers, but as a
-        // labelled row so it reads as a setting on this full-page surface.
+        // master on/off. same toggle as the link surface, but labelled so it
+        // reads as a setting on this page.
         ToggleRow {
             id: wifiToggle
             anchors.top: bar.bottom
@@ -305,8 +301,8 @@ Item {
             color: Theme.lineSoft
         }
 
-        // Empty states, both share the divider's geometry so we never
-        // double-stack a message and a (possibly empty) flickable.
+        // empty states. both pin to the divider so we never double-stack a
+        // message and a possibly-empty flickable.
         Text {
             anchors.top: divider.bottom
             anchors.topMargin: 28
@@ -342,7 +338,7 @@ Item {
             }
         }
 
-        // Live network list.
+        // live network list.
         Flickable {
             id: netFlick
             anchors.top: divider.bottom
@@ -400,7 +396,7 @@ Item {
                         onExpandedChanged: if (expanded) Qt.callLater(syncPwField)
                         Component.onCompleted: if (expanded) Qt.callLater(syncPwField)
 
-                        // The network row itself.
+                        // the row itself.
                         Rectangle {
                             id: rowBg
                             width: parent.width
@@ -414,7 +410,7 @@ Item {
                             HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: page.activateNetwork(netItem.modelData) }
 
-                            // Signal bars (4 ascending rectangles), bottom-anchored.
+                            // signal bars: 4 ascending rects, bottom-anchored.
                             Item {
                                 id: bars
                                 width: 21
@@ -453,7 +449,7 @@ Item {
                                 }
                             }
 
-                            // SSID + status hint.
+                            // ssid + status hint.
                             Column {
                                 anchors.left: bars.right
                                 anchors.leftMargin: 14
@@ -487,7 +483,7 @@ Item {
                                 }
                             }
 
-                            // Right side: lock + signal percentage.
+                            // right side: lock + signal %.
                             Row {
                                 id: rowRight
                                 anchors.right: parent.right
@@ -516,7 +512,7 @@ Item {
                             }
                         }
 
-                        // Inline password row, only secured, unknown networks.
+                        // password row. secured + unknown only.
                         Item {
                             visible: netItem.expanded
                             width: parent.width

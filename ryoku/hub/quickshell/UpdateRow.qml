@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import "Singletons"
 
-// One incoming commit: a node on a vertical rail, the commit subject, and a
-// right-aligned short hash. The list mirrors `git log <channel>..origin/<channel>`.
+// one incoming commit: a node on a vertical rail, the commit subject, and a
+// right-aligned short hash. mirrors `git log <channel>..origin/<channel>`.
 Item {
     id: row
 

@@ -1,9 +1,9 @@
 import QtQuick
 import "Singletons"
 
-// A nav row: just an icon and a label whose colour tracks state. The selection
-// fill/bar is drawn once by the rail's sliding indicator, not per button, so the
-// rail reads as one moving accent rather than three boxed chips.
+// nav row = icon + label, colour follows state. the rail draws ONE sliding
+// selector for the fill/bar, not one per button, so it reads as one moving
+// accent instead of three boxed chips.
 Item {
     id: btn
 
@@ -16,9 +16,9 @@ Item {
 
     implicitHeight: 44
 
-    // Hover highlight, aligned with the rail's selection pill; hidden on the
-    // selected row (the sliding selector already marks it). A faint preview of
-    // where a click lands.
+    // hover highlight, aligned with the rail's selection pill. hidden on the
+    // selected row (the slider already marks it). faint preview of where a
+    // click would land.
     Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 12

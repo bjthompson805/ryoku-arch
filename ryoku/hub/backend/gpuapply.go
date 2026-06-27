@@ -1,12 +1,12 @@
 package main
 
-// gpuapply.go: the one-time, reversible "enable passthrough" (and its undo). It
-// installs the stack, writes a small set of idempotent /etc files (kvmfr autoload +
-// permissions, the libvirt hook, a polkit rule), adds the user to the libvirt/kvm
-// groups, enables libvirtd, and -- only on an Intel host with IOMMU off -- adds the
-// kernel cmdline token. Everything it writes, `disable` removes. It runs under
-// pkexec (the lock.go pattern); a --dry-run prints the exact plan and touches
-// nothing, which is what the Hub shows before the user confirms.
+// gpuapply.go = the one-time, reversible "enable passthrough" + its undo.
+// installs the stack, writes a small set of idempotent /etc files (kvmfr
+// autoload + perms, the libvirt hook, a polkit rule), adds the user to
+// libvirt/kvm, enables libvirtd, and -- only on an Intel host with IOMMU off --
+// adds the kernel cmdline token. everything `enable` writes, `disable` removes.
+// runs under pkexec (the lock.go pattern); a --dry-run prints the exact plan
+// without touching anything, which is what the Hub shows before the user OKs.
 
 import (
 	"fmt"
@@ -31,8 +31,8 @@ func runGpuApply(args []string) error {
 			dryRun = true
 		}
 	}
-	// hook is an internal entrypoint libvirt calls; keep it on the same subcommand
-	// tree but route it before the privilege dance.
+	// hook = an internal entrypoint libvirt calls. same subcommand tree, but it
+	// has to route before the privilege dance.
 	if dryRun {
 		return applyPlan(action, invokingUser(), selfExe(), true)
 	}
@@ -61,8 +61,8 @@ func selfExe() string {
 	return "ryoku-hub"
 }
 
-// invokingUser is the human behind the action: PKEXEC_UID when escalated, else the
-// current user's name.
+// invokingUser = the human behind the action. PKEXEC_UID when escalated, else
+// the current user's name.
 func invokingUser() string {
 	if u := os.Getenv("PKEXEC_UID"); u != "" {
 		if name := userNameByID(u); name != "" {
@@ -87,11 +87,11 @@ type managedFile struct {
 	rel        string
 	content    string
 	mode       os.FileMode
-	needsKvmfr bool // only written once the kvmfr module is installed
+	needsKvmfr bool // only after the kvmfr module is installed
 }
 
 func managedFiles(user, exe string) []managedFile {
-	gpuBin := exe // ryoku-hub; the hook also needs ryoku-gpu, resolved below
+	gpuBin := exe // ryoku-hub. the hook also needs ryoku-gpu, resolved below.
 	ryokuGpu := "ryoku-gpu"
 	if p, err := exec.LookPath("ryoku-gpu"); err == nil {
 		ryokuGpu = p
@@ -117,9 +117,9 @@ func managedFiles(user, exe string) []managedFile {
 	}
 }
 
-// kvmfrModuleAvailable reports whether the kvmfr kernel module is installed, so a
-// partial enable (no Looking Glass yet) never writes a modules-load entry that
-// would fail at every boot.
+// kvmfrModuleAvailable: is the kvmfr kernel module actually installed? a
+// partial enable (no Looking Glass yet) must not write a modules-load entry
+// that would fail at every boot.
 func kvmfrModuleAvailable() bool {
 	return exec.Command("modinfo", "kvmfr").Run() == nil
 }
@@ -133,9 +133,9 @@ polkit.addRule(function(action, subject) {
 });
 `
 
-// The passthrough stack. Core packages are official and install as one transaction;
-// the Looking Glass pieces live in the [ryoku] repo (or the AUR on a plain Arch
-// box) and install best-effort, so their absence never blocks the core set.
+// the passthrough stack. core packages are official, install as one
+// transaction; the Looking Glass pieces live in [ryoku] (or the AUR on plain
+// Arch) and install best-effort, so their absence never blocks the core set.
 var corePassthroughPkgs = []string{"qemu-desktop", "libvirt", "edk2-ovmf", "swtpm", "dnsmasq"}
 var extraPassthroughPkgs = []string{"looking-glass", "looking-glass-module-dkms"}
 
@@ -150,10 +150,10 @@ func applyPlan(action, user, exe string, dryRun bool) error {
 			snapshot("ryoku gpu passthrough enable")
 			pacmanInstall(corePassthroughPkgs)
 		}
-		// Looking Glass + kvmfr are AUR on a plain Arch box (or [ryoku] on a Ryoku
-		// install). pacman only fetches them when they are in a repo; otherwise the
-		// user adds them with an AUR helper. Skip what is already installed so a
-		// re-run stays quiet instead of printing "target not found".
+		// Looking Glass + kvmfr live in [ryoku] (or the AUR on plain Arch).
+		// pacman only fetches them when they're in a repo; otherwise the user pulls
+		// them with an AUR helper. skip what is already installed so a re-run stays
+		// quiet instead of printing "target not found".
 		for _, p := range extraPassthroughPkgs {
 			switch {
 			case pkgInstalled(p):
@@ -238,8 +238,8 @@ func pacmanInstall(pkgs []string) {
 	run("pacman", append([]string{"-S", "--needed", "--noconfirm"}, pkgs...)...)
 }
 
-// pkgInstalled reports whether a package is locally installed; pkgInRepo whether it
-// is available from a configured pacman repo. Both stay quiet (output discarded).
+// pkgInstalled: is this package locally installed? pkgInRepo: is it available
+// from a configured pacman repo? both stay quiet (output discarded).
 func pkgInstalled(p string) bool { return exec.Command("pacman", "-Q", p).Run() == nil }
 func pkgInRepo(p string) bool    { return exec.Command("pacman", "-Si", p).Run() == nil }
 
@@ -253,15 +253,15 @@ func snapshot(desc string) {
 func run(name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	_ = cmd.Run() // best-effort; non-fatal so one missing tool never aborts the rest
+	_ = cmd.Run() // best-effort; one missing tool never aborts the rest
 }
 
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// addCmdlineTokens appends each missing token to a Limine cmdline: line. Pure, so
-// the (rare, Intel-only) bootloader edit is tested without a reboot.
+// addCmdlineTokens appends each missing token to a Limine cmdline: line. pure,
+// so the (rare, Intel-only) bootloader edit is tested without a reboot.
 func addCmdlineTokens(conf string, tokens []string) (string, bool) {
 	lines := strings.Split(conf, "\n")
 	changed := false

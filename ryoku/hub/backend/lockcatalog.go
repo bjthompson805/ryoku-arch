@@ -12,26 +12,26 @@ import (
 	"time"
 )
 
-// The Lockscreen catalogue browses the full qylock theme set live from the
-// upstream repo, so new and fixed skins appear without a Ryoku release. The two
-// vendored skins (clockwork/orbital, clockwork/tape) are the offline baseline;
-// every other theme is previewed from the upstream Assets gif and downloaded
-// into ~/.local/share/qylock/themes on first select.
+// Lockscreen catalogue = the full qylock theme set, fetched live from upstream
+// so new and fixed skins land without a Ryoku release. the two vendored skins
+// (clockwork/orbital, clockwork/tape) are the offline baseline; everything else
+// previews from the upstream Assets gif and downloads into
+// ~/.local/share/qylock/themes the first time it's picked.
 //
-//	ryoku-hub lock catalog        themes from upstream (installed-only when offline)
-//	ryoku-hub lock install <slug> download a theme's files, then make it active
+//	ryoku-hub lock catalog        themes from upstream (installed-only if offline)
+//	ryoku-hub lock install <slug> pull a theme's files, then activate it
 //
-// A theme is any folder under themes/ holding a Main.qml; its slug is that path
-// (e.g. "clockwork/orbital"). Preview gifs live in Assets/ under names that do
-// not always match the theme folder, so the match normalises both sides and a
-// small alias table covers the two upstream names that still diverge.
+// theme = any folder under themes/ with a Main.qml. slug = that path (e.g.
+// "clockwork/orbital"). preview gifs live in Assets/ under names that don't
+// always match the folder, so matching normalises both sides; a small alias
+// table mops up the couple of upstream names that still diverge.
 
 const (
 	qylockOwnerRepo = "Darkkal44/qylock"
 	qylockBranch    = "main"
 )
 
-// The host is overridable so a fork (or a local fixture under test) can stand in.
+// host is overridable so a fork (or a local fixture under test) can stand in.
 func qylockAPIBase() string {
 	if v := os.Getenv("RYOKU_QYLOCK_API"); v != "" {
 		return v
@@ -59,7 +59,7 @@ var (
 	lockDownloadHTTP = &http.Client{Timeout: 5 * time.Minute}
 )
 
-// qylock theme folders whose Assets gif name does not normalise to the folder.
+// theme folders whose Assets gif name doesn't normalise back to the folder.
 var lockGifAlias = map[string]string{
 	"last-of-us": "the_last_of_us",
 	"windows_7":  "win7",
@@ -76,8 +76,8 @@ type ghTree struct {
 	Truncated bool          `json:"truncated"`
 }
 
-// qylockTree is the parsed catalogue input: theme slugs, the set of Assets gif
-// basenames, and per-theme file list and total byte size.
+// qylockTree = parsed catalogue input: theme slugs, the set of Assets gif
+// basenames, plus per-theme file list and total byte size.
 type qylockTree struct {
 	Themes []string
 	Gifs   map[string]bool
@@ -120,8 +120,8 @@ func parseQylockTree(b []byte) (qylockTree, error) {
 	return out, nil
 }
 
-// lockNorm lowercases and strips every non-alphanumeric rune so theme folders and
-// gif names compare on letters alone ("pixel-coffee" and "pixel_coffee" agree).
+// lockNorm: lowercase, strip every non-alphanumeric rune so theme folders and
+// gif names compare on letters alone ("pixel-coffee" == "pixel_coffee").
 func lockNorm(s string) string {
 	var b strings.Builder
 	for _, r := range strings.ToLower(s) {
@@ -132,9 +132,9 @@ func lockNorm(s string) string {
 	return b.String()
 }
 
-// mapThemeGif returns the Assets gif basename for a theme slug: an alias when one
-// is registered, else the gif whose normalised name matches the theme's top
-// segment (so both clockwork variants share clockwork.gif). ok is false when none.
+// mapThemeGif: Assets gif basename for a slug. alias wins if registered, else
+// the gif whose normalised name matches the top segment (so both clockwork
+// variants share clockwork.gif). ok=false when nothing matches.
 func mapThemeGif(slug string, gifs map[string]bool) (string, bool) {
 	top := slug
 	if i := strings.Index(slug, "/"); i >= 0 {
@@ -155,10 +155,9 @@ func mapThemeGif(slug string, gifs map[string]bool) (string, bool) {
 	return "", false
 }
 
-// buildLockCatalog turns the parsed tree into the catalogue, flagging installed
-// and active skins and resolving each preview to a local gif when one ships,
-// otherwise the upstream Assets gif streamed straight from the repo. Pure: the
-// caller supplies the tree, the themes dir, and the active slug.
+// buildLockCatalog: parsed tree -> catalogue. flags installed + active, picks
+// a local preview gif when one shipped, else streams the upstream Assets gif
+// straight from the repo. pure: caller supplies tree, themes dir, active slug.
 func buildLockCatalog(tree qylockTree, themesDir, active string) LockResponse {
 	skins := make([]LockSkin, 0, len(tree.Themes))
 	for _, slug := range tree.Themes {
@@ -185,9 +184,8 @@ func buildLockCatalog(tree qylockTree, themesDir, active string) LockResponse {
 	return LockResponse{Active: active, Online: true, Skins: skins}
 }
 
-// lockCatalog fetches the upstream tree and builds the live catalogue, falling
-// back to the installed-only listing when the repo is unreachable so the section
-// still works offline.
+// lockCatalog: pull the upstream tree, build the live catalogue. on any error
+// fall back to the installed-only listing so the section still works offline.
 func lockCatalog() LockResponse {
 	b, err := fetchQylockTree()
 	if err != nil {
@@ -218,8 +216,8 @@ func fetchQylockTree() ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 }
 
-// lockInstall downloads every file of a theme from upstream into the qylock
-// themes dir, then activates it as both the in-session lock and the greeter.
+// lockInstall pulls every file of a theme from upstream into the themes dir,
+// then activates it as both the in-session lock and the greeter.
 func lockInstall(slug string) error {
 	if err := lockInstallTo(qylockThemesDir(), slug); err != nil {
 		return err
@@ -227,9 +225,9 @@ func lockInstall(slug string) error {
 	return setLockSkin(slug)
 }
 
-// lockInstallTo downloads into a sibling temp dir on the same filesystem and moves
-// the theme into place only on full success, so a failed or partial download never
-// leaves a half-written theme under the themes dir. Activation is the caller's job.
+// lockInstallTo downloads into a sibling temp dir on the same filesystem and
+// only moves the theme into place on full success, so a failed or partial
+// download never leaves a half-written theme behind. caller does activation.
 func lockInstallTo(themesDir, slug string) error {
 	b, err := fetchQylockTree()
 	if err != nil {

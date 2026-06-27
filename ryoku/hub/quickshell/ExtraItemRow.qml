@@ -1,10 +1,10 @@
 import QtQuick
 import "Singletons"
 
-// One tool inside a bundle: a status indicator, the name and summary, the source
-// tag, and a single action that fits the state (install when absent, remove when
-// present). Scripts are not auto-removed and plugins live under Plugins, so those
-// show a note instead of a remove button.
+// one tool inside a bundle: status dot, name + summary, source tag, single
+// action that fits the state (install when absent, remove when present).
+// scripts aren't auto-removed and plugins live under Plugins, so those show a
+// note instead of a remove button.
 Item {
     id: row
 
@@ -25,7 +25,7 @@ Item {
     implicitHeight: 46
     width: parent ? parent.width : 0
 
-    // Status indicator: spinner while busy, check when here, fault dot on failure.
+    // status: spinner while busy, check when here, fault dot on fail.
     Item {
         id: ind
         anchors.left: parent.left
@@ -105,7 +105,7 @@ Item {
         width: 92
         height: 30
 
-        // Deferred (plugin) or skipped (script remove): a quiet note, no button.
+        // deferred (plugin) or skipped (script remove): quiet note, no button.
         Text {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -116,7 +116,7 @@ Item {
             font.pixelSize: 10
         }
 
-        // Install action for anything not present.
+        // install for anything not here.
         ActionPill {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -126,7 +126,7 @@ Item {
             onClicked: row.install()
         }
 
-        // Remove action for installed packages (scripts are left in place).
+        // remove for installed packages (scripts left alone).
         ActionPill {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter

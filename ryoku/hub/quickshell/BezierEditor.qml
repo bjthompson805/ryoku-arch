@@ -2,11 +2,10 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// A cubic-bezier editor: the endpoints are pinned at (0,0) and (1,1); the two
-// control points drag freely (Y overshoots past 1 for bounce, like ryokuBloom).
-// The page owns the values; the editor reports changed(x0,y0,x1,y1) as a handle
-// moves. X is clamped to [0,1] (Hyprland needs a monotonic-in-time curve), Y is
-// free within the drawn range.
+// cubic-bezier editor. endpoints pinned at (0,0) and (1,1); the two control
+// points drag freely (Y overshoots past 1 for bounce, like ryokuBloom). the
+// page owns the values; editor reports changed(x0,y0,x1,y1) as a handle moves.
+// X clamped to [0,1] (Hyprland wants monotonic-in-time), Y is free in the range.
 Item {
     id: ed
 
@@ -16,8 +15,8 @@ Item {
     property real y1: 1.0
     signal changed(real x0, real y0, real x1, real y1)
 
-    // Hyprland requires control-point X in [0,1] and Y in [-1,2]; the canvas spans
-    // exactly that range and ux/uy clamp to it, so a handle can never produce an
+    // Hyprland wants X in [0,1] and Y in [-1,2]; the canvas spans exactly
+    // that range and ux/uy clamp to it, so a handle can never spit an
     // out-of-range value that breaks the config on reload.
     readonly property real pad: 18
     readonly property real yMin: -1.0

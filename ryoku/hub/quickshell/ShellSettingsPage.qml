@@ -5,13 +5,12 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-// Shell Settings: the live editor for the Ryoku shell's look. Every edit is
-// applied to the running shell at once by writing ~/.config/ryoku/shell.json
-// (throttled, atomic), which the shell watches; the preview is your actual
-// desktop, the frame around this window and the island above it. Save keeps the
-// changes; Revert and leaving the section put the saved look back. Controls are
-// matched to the value: steppers for exact pixels, sliders for opacity/feel, a
-// swatch for colour.
+// Shell Settings: live editor for the Ryoku shell's look. every edit hits the
+// running shell at once via ~/.config/ryoku/shell.json (throttled, atomic),
+// which the shell watches. preview = your actual desktop (the frame around
+// this window, the island above it). Save keeps it; Revert and leaving the
+// section put the saved look back. controls match the value: steppers for
+// exact pixels, sliders for opacity/feel, swatch for colour.
 Item {
     id: page
 
@@ -28,8 +27,8 @@ Item {
     ]
     readonly property var keys: page.shellKeys.concat(page.vizKeys)
 
-    // Mirror of the shells' canonical defaults (pill Singletons/Config.qml and
-    // visualizer Singletons/Config.qml), used for "Reset to defaults" only.
+    // mirror of the shells' canonical defaults (pill Singletons/Config.qml +
+    // visualizer Singletons/Config.qml). only used for "Reset to defaults".
     readonly property var defaults: ({
         "frameRadius": 16, "frameBorder": 66, "frameSmoothing": 30, "frameOpacity": 1,
         "shadowStrength": 0.5, "shadowSize": 26, "surfaceColor": "#1a1b26",
@@ -46,8 +45,8 @@ Item {
     property bool shellLoaded: false
     property bool vizLoaded: false
     readonly property bool ready: page.shellLoaded && page.vizLoaded
-    // The last saved look; comparing against it gives the dirty state and is what
-    // Revert and leave-without-save restore.
+    // last saved look. compare against it for dirty state; Revert and
+    // leave-without-save restore from this.
     property var committedVals: ({})
 
     QtObject {
@@ -98,7 +97,7 @@ Item {
         return false;
     }
 
-    // Pull a file's keys into the draft and the committed baseline (a fresh object
+    // pull a file's keys into draft + the committed baseline (fresh object
     // each time so bindings on the baseline re-evaluate).
     function adopt(keyset, adptr) {
         var c = {};
@@ -120,9 +119,9 @@ Item {
         cfgViz.writeAdapter();
     }
 
-    // Throttle live writes: apply at once, then at most every interval while the
-    // value keeps changing, with a trailing write, so a drag updates the desktop
-    // smoothly without thrashing the files.
+    // throttle live writes: apply immediately, then at most once per interval
+    // while the value keeps changing, with a trailing write. drag stays smooth
+    // without thrashing the files.
     property bool writePending: false
     Timer {
         id: throttle
@@ -236,8 +235,8 @@ Item {
         }
     }
 
-    // Leaving the section (or closing the hub) with unsaved edits puts the saved
-    // look back on the desktop, so a preview is never left applied by accident.
+    // leaving the section (or closing the hub) with unsaved edits puts the
+    // saved look back, so a preview is never left applied by accident.
     Component.onDestruction: {
         if (page.ready && page.dirty) {
             var i, k;
@@ -248,7 +247,7 @@ Item {
         }
     }
 
-    // --- top: section tabs + live hint --------------------------------------
+    // --- top: section tabs + live hint -------------------------------------
     Segmented {
         id: tabs
         anchors.left: parent.left
@@ -274,7 +273,7 @@ Item {
         font.weight: Font.Medium
     }
 
-    // --- controls -----------------------------------------------------------
+    // --- controls ----------------------------------------------------------
     Flickable {
         id: flick
         anchors.left: parent.left
@@ -538,8 +537,8 @@ Item {
             id: vizCol
             spacing: 22
 
-            // Live preview window: the styles hide behind your windows on the real
-            // desktop, so the visualiser tab previews them here instead.
+            // live preview window. the styles hide behind your windows on the
+            // real desktop, so the viz tab previews them here instead.
             Rectangle {
                 width: vizCol.width
                 height: 150
@@ -687,7 +686,7 @@ Item {
         }
     }
 
-    // --- bottom: status and actions -----------------------------------------
+    // --- bottom: status + actions ------------------------------------------
     Rectangle {
         id: bar
         anchors.left: parent.left

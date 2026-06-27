@@ -6,25 +6,24 @@ import Quickshell.Io
 import Quickshell.Networking
 import "Singletons"
 
-// Hotspot subtab of the Connections section: brings the persistent
-// `RyokuHotspot` NetworkManager profile up and down through nmcli, with an
-// editable SSID and WPA2 password. State and credentials are read straight from
-// NetworkManager on entry so the page always reflects what the system thinks.
+// Hotspot subtab of Connections: brings the persistent `RyokuHotspot`
+// NetworkManager profile up/down through nmcli, with an editable SSID + WPA2
+// password. state and credentials read straight from NM on entry, so the page
+// always reflects what the system thinks.
 //
-// The wire protocol (nmcli command shapes, positional args for the
-// secret-bearing apply, the WPA2 minimum) is identical to the pill's LinkWifi
-// hotspot block; only the layout has been recast for the full hub content area
-// and the warm Theme.
+// wire protocol (nmcli command shapes, positional args for the secret-bearing
+// apply, WPA2 minimum) is identical to the pill's LinkWifi hotspot block.
+// only the layout was recast for the full hub content area + warm Theme.
 Item {
     id: page
 
-    // --- Networking lookup (for the wifi interface name only) ---------------
+    // --- Networking lookup (wifi interface name only) ----------------------
     readonly property var devices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
     readonly property var wifiDev: page.devices.find(function(d) { return d && d.type === DeviceType.Wifi }) || null
 
-    // --- Hotspot state ------------------------------------------------------
-    // hsCon is the NetworkManager profile name we own; everything else is read
-    // from that profile or driven into it by applyHotspot/stopHotspot.
+    // --- hotspot state -----------------------------------------------------
+    // hsCon = the NM profile name we own; everything else is read from that
+    // profile or driven into it by applyHotspot / stopHotspot.
     readonly property string hsCon: "RyokuHotspot"
     readonly property string hsIface: page.wifiDev ? (page.wifiDev.name || "wlan0") : "wlan0"
     property string hsName: "Ryoku"
@@ -34,13 +33,10 @@ Item {
     property string hsEdit: ""
     property string hsDraft: ""
 
-    /**
-     * Brings the shared AP up with the current name and password, creating the
-     * persistent connection on first use and modifying it on later changes.
-     * Name and password ride in as positional arguments ($1/$2/$3), never
-     * spliced into the shell string, so an odd character cannot break or
-     * inject the command.
-     */
+    // bring the shared AP up with the current name + password. creates the
+    // persistent connection on first use, modifies it after. name + password
+    // ride in as positional args ($1/$2/$3), NEVER spliced into the shell
+    // string -- an odd character can't break or inject the command.
     function applyHotspot() {
         if (page.hsBusy || page.hsPw.length < 8)
             return;
@@ -69,11 +65,9 @@ Item {
         hsReadProc.running = true;
     }
 
-    /**
-     * Commits an inline name or password edit, ignoring a password shorter than
-     * the 8-character WPA2 minimum. A live hotspot is re-applied so the change
-     * takes effect at once.
-     */
+    // commit an inline name or password edit. password shorter than the WPA2
+    // 8-char minimum is dropped silently. a live hotspot is re-applied so the
+    // change takes effect at once.
     function commitHotspotEdit() {
         if (page.hsEdit === "name") {
             if (page.hsDraft.length)
@@ -88,10 +82,8 @@ Item {
             page.applyHotspot();
     }
 
-    /**
-     * Builds an eight-character WPA2 password from an unambiguous alphabet,
-     * used when the hotspot is switched on before a password has been set.
-     */
+    // 8-char WPA2 password from an unambiguous alphabet (no 0/O/1/l/I). used
+    // when the hotspot is switched on before a password has been set.
     function generatePw() {
         var cs = "abcdefghijkmnpqrstuvwxyz23456789";
         var s = "";
@@ -102,7 +94,7 @@ Item {
 
     Component.onCompleted: page.refreshHotspot()
 
-    // --- nmcli processes ----------------------------------------------------
+    // --- nmcli processes ---------------------------------------------------
 
     Process {
         id: hsApplyProc
@@ -143,7 +135,7 @@ Item {
         }
     }
 
-    // --- header explainer ---------------------------------------------------
+    // --- header explainer --------------------------------------------------
     Column {
         id: head
         anchors.left: parent.left
@@ -162,7 +154,7 @@ Item {
         }
     }
 
-    // --- form column --------------------------------------------------------
+    // --- form column -------------------------------------------------------
     Column {
         id: form
         anchors.left: parent.left
@@ -171,7 +163,7 @@ Item {
         width: Math.min(parent.width, 600)
         spacing: 30
 
-        // -- Big toggle card: icon, label, live status, switch --------------
+        // -- big toggle card: icon, label, live status, switch -------------
         Rectangle {
             width: parent.width
             height: 76
@@ -238,12 +230,12 @@ Item {
             }
         }
 
-        // -- Credentials section -------------------------------------------
+        // -- credentials ---------------------------------------------------
         SettingSection {
             width: parent.width
             title: "DETAILS"
 
-            // An editable label/value row. Tap the value to drop an inline
+            // editable label/value row. tap the value to drop an inline
             // TextField in its place; Enter commits via commitHotspotEdit, Esc
             // (loss of focus) cancels.
             component CredRow: Item {
@@ -260,7 +252,7 @@ Item {
                 width: parent ? parent.width : 0
                 height: 44
 
-                // Hairline background that lights up while editing.
+                // hairline background, lights up while editing.
                 Rectangle {
                     anchors.fill: parent
                     radius: 10
@@ -283,7 +275,7 @@ Item {
                     font.weight: Font.Medium
                 }
 
-                // Read-only value + tap-to-edit affordance.
+                // read-only value + tap-to-edit affordance.
                 Item {
                     visible: !cr.editing
                     anchors.left: crLabel.right
@@ -324,7 +316,7 @@ Item {
                     }
                 }
 
-                // "Show" / "Hide" pill, only on the password row.
+                // "Show" / "Hide" pill, password row only.
                 Rectangle {
                     id: revealBtn
                     visible: cr.secret && !cr.editing && cr.value.length > 0
@@ -354,7 +346,7 @@ Item {
                     TapHandler { onTapped: cr.reveal = !cr.reveal }
                 }
 
-                // Inline editor.
+                // inline editor.
                 TextField {
                     id: crField
                     visible: cr.editing
@@ -389,9 +381,9 @@ Item {
                     }
                 }
 
-                // Inline validation: only the password row, only while typing
-                // too few characters. The actual rejection happens in
-                // commitHotspotEdit; this is just the heads-up.
+                // inline validation: password row only, only while typing too
+                // few characters. real rejection happens in commitHotspotEdit;
+                // this is just the heads-up.
                 Text {
                     visible: cr.tooShort
                     anchors.left: crLabel.right

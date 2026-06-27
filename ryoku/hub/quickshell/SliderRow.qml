@@ -1,10 +1,9 @@
 import QtQuick
 import "Singletons"
 
-// A coarse "feel" control: a label, a slider, and a readout. Used for values
-// tuned by eye over a continuum (opacity, shadow strength, melt) where the exact
-// number matters less than the result, per the slider convention. Reports
-// modified(value) live as the knob travels.
+// coarse "feel" control: label, slider, readout. for values tuned by eye over a
+// range (opacity, shadow strength, melt) where the exact number matters less
+// than what it looks like. modified(value) fires live as the knob moves.
 Item {
     id: root
 

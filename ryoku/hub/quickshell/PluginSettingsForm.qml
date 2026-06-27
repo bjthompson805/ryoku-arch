@@ -4,24 +4,22 @@ import QtQuick
 import QtQuick.Dialogs
 import "Singletons"
 
-/**
- * Renders a plugin's settings from its declared schema (manifest.metadata.settings)
- * using the native hub controls, so every plugin gets a real options panel without
- * shipping any QML. Each field is one of: choice (Dropdown), toggle (ToggleRow),
- * slider (SliderRow), text/image (a labelled input). Fields are grouped by their
- * `group` under mono section headers, in the hub's SettingSection idiom.
- *
- * The form owns a live `values` copy seeded from the plugin's saved settings, so
- * the controls reflect edits at once; every change also fires `changed(key, value)`
- * for the host to persist (it writes plugins.json via `ryoku-plugins-place`).
- */
+// renders a plugin's settings from its declared schema (manifest.metadata.settings)
+// using the native hub controls, so every plugin gets a real options panel
+// without shipping QML. field types: choice -> Dropdown, toggle -> ToggleRow,
+// slider -> SliderRow, text/image -> labelled input. fields grouped by `group`
+// under mono section headers (hub's SettingSection idiom).
+//
+// form keeps a live `values` copy seeded from the plugin's saved settings, so
+// controls reflect edits at once. every change also fires `changed(key, value)`
+// for the host to persist (writes plugins.json via `ryoku-plugins-place`).
 Column {
     id: form
 
     // schema: ordered [{ key, type, label, default, options, min, max, step, decimals, group, placeholder }]
     property var schema: []
-    // values: the plugin's current settings (placement.settings). Copied locally
-    // on assignment so edits show immediately without a round-trip.
+    // values = the plugin's current settings (placement.settings). copied locally
+    // on assignment so edits show without a round-trip.
     property var values: ({})
     property var _local: ({})
     onValuesChanged: form._local = JSON.parse(JSON.stringify(form.values || {}))
@@ -62,7 +60,7 @@ Column {
             readonly property bool startsGroup: fieldWrap.index === 0
                 || ((form.schema[fieldWrap.index - 1].group || "") !== fieldWrap.grp)
 
-            // Section header (mono uppercase + hairline), shown once per group.
+            // section header (mono caps + hairline), once per group.
             Item {
                 width: parent.width
                 height: 16
@@ -96,7 +94,7 @@ Column {
                     case "toggle": return cToggle;
                     case "slider": return cSlider;
                     case "image": return cImage;
-                    default: return cText;   // text, anything unknown
+                    default: return cText;   // text + anything unknown
                     }
                 }
                 onLoaded: item.field = fieldWrap.modelData
@@ -104,7 +102,7 @@ Column {
         }
     }
 
-    // ---- control templates (chosen per field type) --------------------------
+    // control templates, picked per field type.
 
     Component {
         id: cChoice
@@ -196,7 +194,7 @@ Column {
         }
     }
 
-    // image -> a labelled field that opens the system file chooser (portal).
+    // image = labelled field that opens the system file chooser (portal).
     Component {
         id: cImage
         Item {

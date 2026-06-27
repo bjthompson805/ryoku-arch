@@ -1,8 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// A small indeterminate spinner: the refresh glyph rotating in place. Stops when
-// hidden so it never spins off-screen.
+// indeterminate spinner = rotating refresh glyph. stops when hidden so it never
+// spins off-screen.
 Item {
     id: spin
 

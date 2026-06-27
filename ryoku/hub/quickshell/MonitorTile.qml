@@ -1,11 +1,10 @@
 import QtQuick
 import "Singletons"
 
-// One monitor on the layout canvas: a draggable rectangle labelled with its
-// output and resolution. The page owns all geometry (position and size are set by
-// the page from the logical layout); the tile only reports drag deltas (already
-// divided by the canvas scale, so in logical pixels) and selection. Disabled
-// monitors read greyed; the selected one gets the ember ring.
+// one monitor on the layout canvas: draggable rect labelled with output and
+// resolution. the page owns all geometry (position/size set from the logical
+// layout); the tile only reports drag deltas (already divided by canvas scale,
+// so in logical pixels) and selection. disabled = greyed, selected = ember ring.
 Rectangle {
     id: tile
 

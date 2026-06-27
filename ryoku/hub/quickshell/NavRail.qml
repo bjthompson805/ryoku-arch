@@ -3,15 +3,13 @@ import QtQuick
 import QtQuick.Controls as QQC
 import "Singletons"
 
-// The navigation rail, in three bands: a fixed top (items flagged pinned "top" —
-// Profile, the showcase), a scrolling middle (the grouped sections), and a fixed
-// foot (items flagged pinned "bottom" — Updates, the maintenance entry, which
-// keeps its badge permanently in view). The middle groups are drawers that
-// animate open and closed; their headers use the Profile dossier idiom (brand
-// dot, mono label, hairline rule between groups). The group holding the current
-// section is always open (brighter label, no chevron); an expand/collapse-all
-// control in the header tucks or reveals the rest. A sliding selector marks the
-// active row in the middle band; the pinned bands draw their own selection.
+// nav rail = three bands. fixed top (pinned "top": Profile, showcase), scrolling
+// middle (the grouped sections), fixed foot (pinned "bottom": Updates, so its
+// badge stays visible). middle groups are drawers that animate open/closed.
+// headers borrow the Profile dossier look (brand dot, mono label, hairline
+// between groups). the group holding the current section is always open (brighter
+// label, no chevron); expand/collapse-all in the header tucks the rest. a sliding
+// selector marks the active row in the middle; pinned bands draw their own.
 Rectangle {
     id: rail
 
@@ -26,11 +24,11 @@ Rectangle {
     readonly property int navTop: 96 + 54 + 8
     readonly property int navItemH: 44
     readonly property int groupHeaderH: 40
-    readonly property int pinnedGap: 18          // space + rule framing the scrolling band
+    readonly property int pinnedGap: 18          // gap + rule between bands
 
-    // Open state, derived (no init timing): a group is open iff it holds the
-    // current section or the user expanded it. Default {} => only the current
-    // group is open, so the rail starts tucked.
+    // open state, derived (no init timing): a group is open iff it holds the
+    // current section or the user expanded it. default {} => only the current
+    // group is open, rail starts tucked.
     property var userExpanded: ({})
 
     readonly property var pinnedTop: rail.sections.filter(s => s.pinned === "top")
@@ -77,19 +75,19 @@ Rectangle {
             e[rail.groups[i]] = true;
         rail.userExpanded = e;
     }
-    function collapseAll() { rail.userExpanded = ({}); }   // only the current group stays open
+    function collapseAll() { rail.userExpanded = ({}); }   // current group stays
     function toggleGroup(g) {
         if (g === rail.groupOf(rail.current))
-            return;                       // the current group never collapses
+            return;                       // current group never collapses
         var e = Object.assign({}, rail.userExpanded);
         e[g] = !e[g];
         rail.userExpanded = e;
     }
     function toggleAll() { if (rail.allExpanded) rail.collapseAll(); else rail.expandAll(); }
 
-    // Absolute y of a grouped section's row within the scrolling band: a header
-    // per group, items only while the group is open, so the sliding selector
-    // lands on the visible row.
+    // absolute y of a grouped row within the scrolling band. header per group,
+    // items only while the group is open, so the selector lands on the visible
+    // row.
     function itemY(key) {
         var y = 0;
         var last = null;
@@ -116,8 +114,8 @@ Rectangle {
         color: Theme.line
     }
 
-    // A pinned row (top or bottom band): a NavButton with its own selection pill,
-    // since the sliding selector only roams the scrolling middle band.
+    // pinned row (top/bottom band): a NavButton with its own selection pill, since
+    // the sliding selector only roams the middle band.
     component PinnedRow: Item {
         id: pin
         property var section: ({})
@@ -157,7 +155,7 @@ Rectangle {
         }
     }
 
-    // A hairline that frames the scrolling band from the pinned bands.
+    // hairline framing the scrolling band off the pinned bands.
     component BandRule: Item {
         width: parent ? parent.width : 0
         height: rail.pinnedGap
@@ -179,8 +177,8 @@ Rectangle {
         anchors.top: parent.top
         spacing: 0
 
-        // Brand masthead: the RYOKU ARCH wordmark centred over a dimmed 力 backdrop
-        // (a soft warm glow and a faint grid, echoing the Profile portrait window).
+        // brand masthead: RYOKU ARCH wordmark centred over a dimmed 力 backdrop
+        // (soft warm glow + faint grid, echoes the Profile portrait window).
         Item {
             id: masthead
             width: parent.width
@@ -219,7 +217,7 @@ Rectangle {
                 }
             }
 
-            // Dimmed 力, dropped behind the wordmark.
+            // dimmed 力, dropped behind the wordmark.
             Text {
                 anchors.centerIn: parent
                 text: "\u529b"
@@ -230,7 +228,7 @@ Rectangle {
                 font.weight: Font.Black
             }
 
-            // Centred wordmark + subtitle.
+            // wordmark + subtitle, centred.
             Column {
                 anchors.centerIn: parent
                 spacing: 3
@@ -268,8 +266,8 @@ Rectangle {
             }
         }
 
-        // Search, with the expand/collapse-all control for the group drawers tucked
-        // at its right so the brand owns the full row above.
+        // search row, with the expand/collapse-all toggle tucked at its right so
+        // the brand owns the full row above.
         Item {
             width: parent.width
             height: 54
@@ -317,7 +315,7 @@ Rectangle {
         }
     }
 
-    // ── Fixed top band: pinned "top" items (Profile) ─────────────────────────
+    // ── fixed top band: pinned "top" items (Profile) ────────────────────────
     Column {
         id: topBand
         anchors.left: parent.left
@@ -337,7 +335,7 @@ Rectangle {
         BandRule { visible: rail.pinnedTop.length > 0; height: rail.pinnedTop.length > 0 ? rail.pinnedGap : 0 }
     }
 
-    // ── Fixed foot band: pinned "bottom" items (Updates) ─────────────────────
+    // ── fixed foot band: pinned "bottom" items (Updates) ────────────────────
     Column {
         id: bottomBand
         anchors.left: parent.left
@@ -357,7 +355,7 @@ Rectangle {
         }
     }
 
-    // ── Scrolling middle band: the grouped drawers ───────────────────────────
+    // ── scrolling middle band: the grouped drawers ──────────────────────────
     Flickable {
         id: navFlick
         anchors.left: parent.left
@@ -369,7 +367,7 @@ Rectangle {
         boundsBehavior: Flickable.StopAtBounds
         QQC.ScrollBar.vertical: QQC.ScrollBar { policy: QQC.ScrollBar.AsNeeded }
 
-        // Sliding selection indicator (hidden when a pinned band item is current).
+        // sliding selection indicator (hidden when a pinned item is current).
         Rectangle {
             id: selector
             x: 12
@@ -412,9 +410,9 @@ Rectangle {
                     readonly property bool currentGroup: row.modelData.group === rail.groupOf(rail.current)
                     width: parent.width
 
-                    // Group header: a hairline rule between groups, a brand accent
-                    // dot, and a mono label. The current group brightens and drops
-                    // its chevron (it never collapses).
+                    // group header: rule between groups, brand accent dot, mono
+                    // label. current group brightens and drops its chevron (never
+                    // collapses).
                     Item {
                         width: parent.width
                         height: row.firstOfGroup ? rail.groupHeaderH : 0
@@ -478,7 +476,7 @@ Rectangle {
                         TapHandler { enabled: !row.currentGroup; onTapped: rail.toggleGroup(row.modelData.group) }
                     }
 
-                    // The nav row, height-animated as the drawer opens and closes.
+                    // the row itself, height-animated as the drawer opens/closes.
                     Item {
                         width: parent.width
                         height: row.groupOpen ? rail.navItemH : 0

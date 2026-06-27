@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// genLua must emit only what diverges from the shipped defaults: an untouched
-// override produces no hl.config block, so the base modules stay in charge.
+// genLua should only emit what diverges from the shipped defaults: an untouched
+// override -> no hl.config block, base modules stay in charge.
 func TestGenLuaDefaultsAreEmpty(t *testing.T) {
 	out := genLua(defaultOverrides())
 	if strings.Contains(out, "hl.config(") {
@@ -29,14 +29,14 @@ func TestGenLuaEmitsChangedLeavesOnly(t *testing.T) {
 	if !strings.Contains(out, "gaps_in = 12") {
 		t.Errorf("gaps_in override missing:\n%s", out)
 	}
-	// border_size unchanged -> must not appear.
+	// border_size untouched -> must not appear.
 	if strings.Contains(out, "border_size") {
 		t.Errorf("unchanged border_size was emitted:\n%s", out)
 	}
 }
 
-// Border colours are only written when "follow wallpaper" is off, and as the
-// rgb() form Hyprland expects.
+// border colours only land when "follow wallpaper" is off, in the rgb() form
+// Hyprland wants.
 func TestGenLuaBorderColours(t *testing.T) {
 	o := defaultOverrides()
 	if strings.Contains(genLua(o), "col.active_border") {
@@ -83,8 +83,8 @@ func TestGenLuaWindowRuleAndKeybind(t *testing.T) {
 	}
 }
 
-// A rule with no match is dropped (a class-of-everything action would be a
-// footgun), and an exec bind with no command is dropped.
+// rule with no match -> dropped (class-of-everything would be a footgun). exec
+// bind with no command -> dropped.
 func TestGenLuaDropsIncomplete(t *testing.T) {
 	o := defaultOverrides()
 	o.WindowRules = []WindowRule{{Action: "float"}}
@@ -124,8 +124,8 @@ func TestParseWxH(t *testing.T) {
 	}
 }
 
-// loadOverrides overlays a partial store on the defaults: fields the store omits
-// keep their default rather than zeroing.
+// loadOverrides overlays a partial store on the defaults: missing fields keep
+// the default, they don't zero out.
 func TestParseOverridesPartialKeepsDefaults(t *testing.T) {
 	o, err := parseOverrides(`{"appearance":{"rounding":20}}`)
 	if err != nil {
@@ -142,9 +142,9 @@ func TestParseOverridesPartialKeepsDefaults(t *testing.T) {
 	}
 }
 
-// liveLua must emit every appearance/input leaf explicitly (so eval can reset a
-// value back to its default, not only push it away), include the cursor, and
-// parse as valid Lua.
+// liveLua must emit every appearance/input leaf explicitly (so eval can reset
+// a value back to the default, not just push it the other way), include the
+// cursor, and parse as valid Lua.
 func TestLiveLuaIsFullAndParses(t *testing.T) {
 	lua := liveLua(defaultOverrides())
 	for _, want := range []string{
@@ -168,9 +168,9 @@ func TestLiveLuaIsFullAndParses(t *testing.T) {
 	}
 }
 
-// genAnimBlock emits user beziers before the animations that reference them, with
-// optional bezier/style omitted when empty; liveLua includes it so a preview
-// applies curves and animations.
+// genAnimBlock: user beziers go before the animations that reference them,
+// bezier/style omitted when empty. liveLua includes the block so a preview
+// actually plays the curves + animations.
 func TestGenAnimBlock(t *testing.T) {
 	if genAnimBlock(defaultOverrides()) != "" {
 		t.Error("empty anim produced output")
@@ -196,7 +196,7 @@ func TestGenAnimBlock(t *testing.T) {
 	}
 }
 
-// genGesture only emits when workspace swipe is on, and clamps fingers to >= 3.
+// genGesture only emits when workspace swipe is on, fingers clamped to >= 3.
 func TestGenGesture(t *testing.T) {
 	if genGesture(defaultOverrides()) != "" {
 		t.Error("default emitted a gesture")
@@ -214,7 +214,7 @@ func TestGenGesture(t *testing.T) {
 	}
 }
 
-// genLayerRule needs a namespace and a known action; ignorealpha carries a value.
+// genLayerRule needs namespace + a known action; ignorealpha carries a value.
 func TestGenLayerRule(t *testing.T) {
 	if genLayerRule(0, LayerRule{Action: "blur"}) != "" {
 		t.Error("namespaceless layer rule was emitted")

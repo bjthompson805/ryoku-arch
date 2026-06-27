@@ -1,9 +1,9 @@
 import QtQuick
 import "Singletons"
 
-// Placeholder for sections still being built (Extras, Shell Settings): an airy,
-// centred state, no boxed tile. A large ember glyph, a heading, the section's
-// blurb, and a mono "coming soon".
+// placeholder for sections still being built (Extras, Shell Settings). airy,
+// centred, no boxed tile. big ember glyph + heading + section blurb + a mono
+// "coming soon".
 Item {
     id: uc
 

@@ -2,10 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// The Keybinds section: the read-live shortcut legend (every bind in the desktop,
-// parsed from binds.lua) alongside a Custom editor for your own shortcuts. The
-// legend is the source of truth for what is bound; custom binds are layered on top
-// and show up in the legend after they are saved and the config reloads.
+// keybinds page = live legend (every desktop bind, parsed from binds.lua) plus
+// a custom editor. legend is the source of truth; custom binds layer on top,
+// show up once saved + reloaded.
 Item {
     id: page
 

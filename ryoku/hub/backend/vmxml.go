@@ -1,12 +1,12 @@
 package main
 
-// vmxml.go: render a libvirt domain XML from a VM config. The defaults are tuned
-// for a Looking-Glass passthrough guest: q35 + OVMF, host-passthrough CPU, hyperv
-// enlightenments with a hidden KVM and spoofed vendor_id (NVIDIA code-43 insurance),
-// swtpm TPM 2.0 + Secure Boot for Windows 11, virtio disk/net, the dGPU (and its
-// sibling functions) as managed='no' hostdevs, and a kvmfr IVSHMEM device for
-// Looking Glass with the memballoon disabled. A spice/qxl head stays for the first
-// boot and install, before the guest driver and the IDD virtual display exist.
+// vmxml.go: render a libvirt domain XML from a VM config. defaults are tuned
+// for a Looking-Glass passthrough guest: q35 + OVMF, host-passthrough CPU,
+// hyperv enlightenments with KVM hidden + spoofed vendor_id (NVIDIA code-43
+// insurance), swtpm TPM 2.0 + Secure Boot for Win11, virtio disk/net, the dGPU
+// (and its sibling functions) as managed='no' hostdevs, kvmfr IVSHMEM for
+// Looking Glass + memballoon off. a spice/qxl head stays for first boot +
+// install, before the guest driver and the IDD virtual display exist.
 
 import (
 	"bytes"
@@ -15,9 +15,9 @@ import (
 	"text/template"
 )
 
-// kvmfrStaticMB is the Looking Glass shared-memory size (MiB), used for both the
-// kvmfr module's static_size_mb and the VM's ivshmem device. 128 MiB covers SDR
-// panels up to 2160p and most ultrawides; raising it only blocks that much RAM.
+// kvmfrStaticMB = Looking Glass shared-mem size in MiB. used for the kvmfr
+// module's static_size_mb AND the VM's ivshmem device. 128 MiB covers SDR
+// panels up to 2160p and most ultrawides; bumping it just locks down that RAM.
 const kvmfrStaticMB = 128
 
 type pciAddr struct {
@@ -36,8 +36,8 @@ type domainData struct {
 	KvmfrBytes int64
 }
 
-// RenderDomain builds the libvirt domain XML. functions are the PCI slots to pass
-// (the dGPU plus its sibling functions, e.g. its HDMI audio); kvmfrMB sizes the
+// RenderDomain: build the libvirt domain XML. functions = the PCI slots to
+// pass (dGPU + its sibling functions, e.g. its HDMI audio). kvmfrMB sizes the
 // Looking Glass shared-memory device.
 func RenderDomain(vm VM, functions []string, kvmfrMB int) (string, error) {
 	if len(functions) == 0 {
@@ -72,9 +72,9 @@ func RenderDomain(vm VM, functions []string, kvmfrMB int) (string, error) {
 	return buf.String(), nil
 }
 
-// KvmfrSizeMB is the Looking Glass shared-memory size for a resolution, per the
-// project formula next_pow2(w*h*4*2 / 1MiB + 10), floored at the recommended
-// 128 MiB so SDR panels up to 2160p and most ultrawides need no tuning.
+// KvmfrSizeMB: Looking Glass shared-mem size for a resolution. project
+// formula next_pow2(w*h*4*2 / 1MiB + 10), floored at the recommended 128 MiB
+// so SDR panels up to 2160p and most ultrawides need zero tuning.
 func KvmfrSizeMB(w, h int) int {
 	needMB := float64(w*h*4*2)/1024/1024 + 10
 	mb := 1
@@ -87,7 +87,7 @@ func KvmfrSizeMB(w, h int) int {
 	return mb
 }
 
-// parsePCIAddr splits 0000:01:00.0 into hex domain/bus/slot/function fields.
+// parsePCIAddr: 0000:01:00.0 -> hex domain/bus/slot/function.
 func parsePCIAddr(slot string) (pciAddr, error) {
 	parts := strings.FieldsFunc(slot, func(r rune) bool { return r == ':' || r == '.' })
 	if len(parts) != 4 {

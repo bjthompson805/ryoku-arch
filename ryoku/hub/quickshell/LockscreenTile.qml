@@ -2,15 +2,14 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// One lock-skin tile in the catalogue, in the Extras/Themes style: a looping
-// preview of the lockscreen as the hero (a local gif for the vendored skins, the
-// upstream Assets gif for the rest), then a monospace ordinal with a state mark,
-// the theme tag, the skin name, and a one-line summary, over a flat warm surface
-// whose hairline warms to ember on hover. Clicking an installed skin selects it;
-// clicking one that isn't installed downloads it first (the install size is shown
-// up front). Previews load and animate only while the tile is near the viewport,
-// so a long grid of remote gifs stays light. The live Preview chip is offered
-// only for installed skins, since the lock needs the theme's files on disk.
+// one lock-skin tile, Extras/Themes style: looping preview as the hero (local
+// gif for vendored skins, upstream Assets gif otherwise), mono ordinal with a
+// state mark, theme tag, skin name, one-line summary. flat warm surface, hairline
+// warms to ember on hover. clicking an installed skin selects it; clicking one
+// that isn't installed downloads it first (install size shown up front). previews
+// load + animate only while the tile is near the viewport, so a long grid of
+// remote gifs stays light. live Preview chip = installed skins only (lock needs
+// the theme's files on disk).
 Rectangle {
     id: tile
 
@@ -18,15 +17,15 @@ Rectangle {
     property int ordinal: 0
     property bool active: false
     property bool installed: false
-    property bool busy: false       // a set or install is in flight for this skin
-    property bool installing: false // the in-flight op is a download
+    property bool busy: false       // set or install in flight
+    property bool installing: false // in-flight op is a download
     property Flickable viewport: null
     signal applied()
     signal previewed()
 
-    // Near-viewport test: map the tile into the Flickable's visible area and keep
-    // a 600px margin so scrolling preloads just before a tile appears. Reading
-    // contentY/height makes the binding re-evaluate as the list scrolls.
+    // near-viewport test: map the tile into the Flickable's visible area, keep a
+    // 600px margin so scrolling preloads just before a tile shows. reading
+    // contentY/height makes the binding re-eval as the list scrolls.
     readonly property bool onScreen: {
         if (!viewport)
             return true;
@@ -64,7 +63,7 @@ Rectangle {
         anchors.margins: 16
         spacing: 0
 
-        // --- preview hero ---
+        // preview hero
         Rectangle {
             id: media
             width: parent.width
@@ -87,7 +86,7 @@ Rectangle {
                 playing: tile.onScreen
             }
 
-            // placeholder while the gif loads, or when none resolved
+            // placeholder while the gif loads, or none resolved
             Icon {
                 anchors.centerIn: parent
                 visible: gif.status !== AnimatedImage.Ready
@@ -96,7 +95,7 @@ Rectangle {
                 tint: Theme.faint
             }
 
-            // live preview chip: installed skins only (the lock needs the files)
+            // live preview chip: installed skins only (lock needs the files)
             Rectangle {
                 anchors.left: parent.left
                 anchors.bottom: parent.bottom
@@ -158,7 +157,7 @@ Rectangle {
 
         Item { width: 1; height: 16 }
 
-        // --- ordinal + state mark ---
+        // ordinal + state mark
         Item {
             width: parent.width
             height: number.implicitHeight

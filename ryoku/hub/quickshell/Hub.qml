@@ -4,11 +4,11 @@ import Quickshell.Io
 import Quickshell
 import "Singletons"
 
-// Ryoku Settings: the navigation rail (which owns the global search) beside a
-// content area. With no query the content shows the selected section; with a query
-// it shows global results across every section. Data and persisted state come from
-// the ryoku-hub Go backend. Most sections edit the live Hyprland (Lua) config
-// through that backend; Shell tunes the desktop shell; Updates tracks the channel.
+// Ryoku Settings = the nav rail (which owns global search) next to a content
+// area. no query -> selected section. with a query -> global results across
+// every section. data + persisted state come from the ryoku-hub Go backend.
+// most sections edit the live Hyprland (lua) config through that backend;
+// Shell tunes the desktop shell; Updates tracks the channel.
 Rectangle {
     id: hub
 
@@ -117,9 +117,9 @@ Rectangle {
         navRail.query = "";
         if (hub.section === s)
             return;
-        // Leaving a live-preview page (Appearance, Input) with unsaved edits:
-        // reset the desktop to the saved state. The page's own teardown cannot run
-        // a process reliably, so the persistent hub does it.
+        // leaving a live-preview page (Appearance, Input) with unsaved edits:
+        // reset the desktop to the saved state. the page's own teardown can't
+        // run a process reliably, so the persistent hub does it.
         if (pageLoader.item && pageLoader.item.previewDirty === true) {
             restoreProc.command = ["ryoku-hub", "hypr", "restore"];
             restoreProc.running = true;
@@ -129,10 +129,10 @@ Rectangle {
         saveSection.running = true;
     }
 
-    // Absolute config-file paths for the section's CONFIG button (empty = no
-    // button). Hyprland sections open the base module plus user.lua (where edits
-    // persist, since the Hub regenerates settings.lua); shell/widgets open their
-    // JSON; displays opens the generated monitors.lua beside monitors_user.lua.
+    // absolute config-file paths for the section's CONFIG button (empty -> no
+    // button). Hyprland sections open the base module + user.lua (where edits
+    // persist, since the Hub regenerates settings.lua); shell/widgets open
+    // their JSON; displays opens generated monitors.lua beside monitors_user.lua.
     function configPathsFor(s) {
         var base = Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config");
         var hypr = base + "/hypr";

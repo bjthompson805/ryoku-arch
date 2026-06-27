@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// The keybind legend the Hub displays is derived from the live Hyprland config
-// (ryoku/hyprland/modules/binds.lua, deployed to ~/.config/hypr) so it stays the
-// single source of truth: there is no second hand-maintained list to drift.
+// keybind legend = whatever binds.lua actually has live
+// (ryoku/hyprland/modules/binds.lua, deployed to ~/.config/hypr). one source of
+// truth; no second hand-maintained list to drift.
 
 type bind struct {
 	Keys []string `json:"keys"`
@@ -48,10 +48,10 @@ var (
 	reExec   = regexp.MustCompile(`exec_cmd\("([^"]*)"`)
 )
 
-// parseBinds walks binds.lua line by line. Section comments (`-- Apps`) open a
-// category; each hl.bind line adds an entry, taking its description from the
-// trailing comment when present and deriving one from the dispatcher otherwise.
-// The 1..0 workspace loop is collapsed into two range entries.
+// parseBinds walks binds.lua a line at a time. section comments (`-- Apps`)
+// open a category; each hl.bind adds an entry, description = the trailing
+// comment if present, else derived from the dispatcher. the 1..0 workspace
+// loop collapses into two range entries.
 func parseBinds(src string) legend {
 	var cats []category
 	cur := -1
@@ -109,10 +109,9 @@ func parseBinds(src string) legend {
 	return legend{Categories: cats}
 }
 
-// resolveKeys turns the first hl.bind argument into display tokens. It is either
-// a quoted key literal ("XF86AudioRaiseVolume") or a Lua concatenation
-// (mod .. " + SHIFT + A"); inside the workspace loop the `key`/`i` identifier
-// becomes the 1…0 range.
+// resolveKeys: first hl.bind arg -> display tokens. either a quoted key literal
+// ("XF86AudioRaiseVolume") or a Lua concat (mod .. " + SHIFT + A"); inside the
+// workspace loop the `key`/`i` identifier becomes the 1…0 range.
 func resolveKeys(arg, loopVar string) []string {
 	arg = strings.TrimSpace(arg)
 	if strings.HasPrefix(arg, "\"") {

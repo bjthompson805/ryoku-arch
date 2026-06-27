@@ -4,21 +4,20 @@ import QtQuick
 import QtQuick.Effects
 import "Singletons"
 
-// The Profile section: a showcase screen built to be screenshotted and shared
-// alongside a rice. The specimen card sits on the left as the hero; a dossier of
-// extended system stats sits on the right. An ambient backdrop (soft glow blooms,
-// a faint spec grid, an edge vignette, and corner ticks) ties the
-// pair together. The card is the hub-palette twin of the shell pill's system card.
+// Profile section = a showcase screen built to be screenshotted with a rice.
+// specimen card on the left (the hero), extended system stats dossier on the
+// right, ambient backdrop ties them together. card is the hub-palette twin of
+// the shell pill's system card.
 Item {
     id: page
 
-    // The specimen is height-bound; keep it under ~42% of the width so the dossier
-    // keeps room on the right.
+    // specimen is height-bound. keep it under ~42% of the width so the dossier
+    // has room on the right.
     readonly property real cardW: Math.round(Math.min((page.height - 44) * 0.585, page.width * 0.42, 440))
 
     ShowcaseBackdrop { anchors.fill: parent }
 
-    // ── The specimen, left and lifted ───────────────────────────────────────
+    // specimen, left and lifted.
     ProfileCard {
         id: hero
         anchors.left: parent.left
@@ -36,7 +35,7 @@ Item {
         }
     }
 
-    // Hairline rule down the gutter between the specimen and the dossier.
+    // hairline rule down the gutter, specimen | dossier.
     Rectangle {
         anchors.left: hero.right
         anchors.leftMargin: 21
@@ -53,7 +52,7 @@ Item {
         }
     }
 
-    // ── The dossier, right, spanning the specimen's height ───────────────────
+    // dossier, right, spans the specimen's height.
     ProfileStats {
         anchors.left: hero.right
         anchors.leftMargin: 44

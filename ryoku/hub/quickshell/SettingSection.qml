@@ -1,9 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// A titled group of controls: a mono uppercase header with a hairline rule, then
-// the controls stacked beneath. The hub's section idiom, used to break the shell
-// knobs into scannable groups rather than one long list.
+// titled group: mono caps header + hairline, controls stacked below. how the hub
+// breaks shell knobs into scannable groups instead of one long list.
 Column {
     id: sec
 

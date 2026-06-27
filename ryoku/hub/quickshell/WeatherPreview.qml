@@ -2,13 +2,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * A live, plain-QML preview of the desktop weather widget for the Desktop Widgets
- * section. It mirrors the live designs in ryoku/shell/quickshell/widgets/weather
- * with a representative animated sky that cycles through conditions (so the motion
- * shows in the hub), sample data, and your real wallust accent. Layout, unit and
- * scope match the live widget; the forecast numbers are illustrative.
- */
+// live plain-QML preview of the desktop weather widget for the Desktop Widgets
+// section. mirrors ryoku/shell/quickshell/widgets/weather with a representative
+// animated sky cycling through conditions (so motion is visible in the hub),
+// sample data, real wallust accent. layout / unit / scope match the live
+// widget; forecast numbers are illustrative.
 Item {
     id: preview
 
@@ -67,7 +65,7 @@ Item {
         property real spin: 0
         NumberAnimation on spin { running: ms.animate && ms.category === "clear"; from: 0; to: 360; duration: 90000; loops: Animation.Infinite }
 
-        // Sun.
+        // sun.
         Item {
             anchors.fill: parent
             visible: ms.category === "clear"
@@ -89,7 +87,7 @@ Item {
             }
         }
 
-        // Cloud + precipitation.
+        // cloud + precip.
         Item {
             anchors.fill: parent
             visible: ms.category !== "clear"

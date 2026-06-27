@@ -2,9 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// A precise numeric control: a label, then steppers with manual entry. Used for
-// exact pixel values where the number matters (sizes, radii, gaps), per the
-// stepper-with-input convention. Hold a stepper to repeat. Reports modified(value).
+// precise numeric control: label + steppers with manual entry. for exact pixel
+// values where the number matters (sizes, radii, gaps). hold a stepper to repeat.
+// reports modified(value).
 Item {
     id: root
 

@@ -2,27 +2,24 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * Frame-popout placement editor for one plugin, mirroring the Visualizer hub
- * section: a screen-proportioned preview where the user picks which edge the
- * popout grows from and slides it along that edge (start/end; the centre of every
- * edge is reserved for the island/mixer/power and is shown struck out). Edits
- * write live to plugins.json via ryoku-plugins-place, so the running shell retunes
- * as you drag.
- *
- * Desktop-widget plugins are NOT placed here: like the clock and weather, a
- * desktop widget is dragged directly on the wallpaper (left-drag to move,
- * right-click for its menu). So this editor only renders for the framePopout host.
- *
- *   PluginPlacementEditor { pluginId: "wallhaven"; place: {...}
- *                           onChanged: (field, args) => page.place(pluginId, field, ...args) }
- */
+// frame-popout placement editor for one plugin. mirrors the Visualizer hub
+// section: a screen-proportioned preview, pick an edge for the popout to grow
+// from and slide it along that edge (start | end; centre of every edge is
+// reserved for island/mixer/power and shown struck out). edits write live to
+// plugins.json via ryoku-plugins-place so the running shell retunes as you drag.
+//
+// desktop-widget plugins (clock, weather) do NOT come through here. those get
+// dragged on the wallpaper directly (left-drag to move, right-click for menu).
+// so this editor only renders for the framePopout host.
+//
+//   PluginPlacementEditor { pluginId: "wallhaven"; place: {...}
+//                           onChanged: (field, args) => page.place(pluginId, field, ...args) }
 Item {
     id: ed
 
     property string pluginId: ""
     property var place: ({})
-    // Emitted on a settled edit: field is the ryoku-plugins-place verb, args its values.
+    // fires on a settled edit. field = ryoku-plugins-place verb, args = values.
     signal changed(string field, var args)
 
     readonly property string edge: (place && place.framePopout && place.framePopout.edge) ? place.framePopout.edge : "right"
@@ -33,7 +30,7 @@ Item {
 
     implicitHeight: 230
 
-    // Screen-proportioned stage (16:10-ish), the canvas the user places within.
+    // screen-proportioned stage (~16:10), the canvas the user places within.
     Rectangle {
         id: stage
         anchors.horizontalCenter: parent.horizontalCenter
@@ -49,7 +46,7 @@ Item {
         border.color: Theme.line
         clip: true
 
-        // A faint screen frame so it reads as "your display".
+        // faint screen frame so it reads as "your display".
         Rectangle {
             anchors.fill: parent
             anchors.margins: 8
@@ -67,10 +64,10 @@ Item {
             font.letterSpacing: 2
         }
 
-        // The shell pre-reserves the centre of every edge (top: island, left:
-        // mixer, right: power menu, bottom: kept clear for symmetry), so a plugin
-        // can't dock there. The band makes the reservation visible while dragging
-        // and the release snap collapses the middle third to start/end.
+        // shell pre-reserves the centre of every edge (top = island, left =
+        // mixer, right = power menu, bottom = clear for symmetry), so a plugin
+        // can't dock there. band makes the reservation visible while dragging;
+        // release snap collapses the middle third to start/end.
         Rectangle {
             id: reservedBand
             readonly property real m: 10
@@ -106,8 +103,8 @@ Item {
             }
         }
 
-        // The popout body preview: a rounded chip docked to the chosen edge,
-        // positioned by align. Drag it along the edge to change align (start/end).
+        // popout body preview: a rounded chip docked to the chosen edge,
+        // positioned by align. drag it along the edge to flip align (start/end).
         Rectangle {
             id: body
             width: ed.vertical ? 64 : 96
@@ -136,8 +133,9 @@ Item {
                 font.family: Theme.mono; font.pixelSize: 10
             }
 
-            // Drag along the edge to set align; the middle (reserved) third
-            // collapses to whichever of start/end is nearer, so centre is never set.
+            // drag along the edge to set align. middle (reserved) third
+            // collapses to whichever of start/end is nearer, so centre is never
+            // a value.
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
@@ -154,7 +152,7 @@ Item {
         }
     }
 
-    // Edge selector.
+    // edge selector.
     Row {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom

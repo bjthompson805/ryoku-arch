@@ -3,11 +3,11 @@ import QtQuick
 import QtQuick.Effects
 import "Singletons"
 
-// A live, plain-QML preview of the desktop visualiser, driven by a synthetic
-// "music" spectrum so the chosen style, shape, position and mirroring show at a
-// glance without the real spectrum (which lives behind your windows). It mirrors
-// the renderer in ryoku/shell/quickshell/visualizer/Visualizer.qml; the colours
-// are a representative ramp (the real spectrum follows your wallpaper).
+// live plain-QML preview of the desktop visualiser, driven by a synthetic
+// "music" spectrum so the chosen style, shape, position and mirroring show
+// at a glance without the real spectrum (which lives behind your windows).
+// mirrors the renderer in ryoku/shell/quickshell/visualizer/Visualizer.qml.
+// colours = a representative ramp (the real spectrum follows your wallpaper).
 Item {
     id: preview
 
@@ -80,7 +80,7 @@ Item {
         return preview.baseBottom - len;
     }
 
-    // Desktop stand-in so the spectrum reads against something.
+    // desktop stand-in so the spectrum reads against something.
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {

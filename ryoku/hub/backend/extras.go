@@ -12,16 +12,16 @@ import (
 	"time"
 )
 
-// ryoku-hub owns all network and disk for the extras catalogue, so the shell
-// actuator (ryoku-extras-install) never fetches anything itself: it reads the
-// cache this writes and asks for an installer path on demand.
+// ryoku-hub owns network + disk for the extras catalogue, so the shell side
+// (ryoku-extras-install) never fetches anything itself: it reads this cache
+// and asks for an installer path on demand.
 //
-//	ryoku-hub extras catalog        fetch + merge the bundle catalogue as JSON
+//	ryoku-hub extras catalog        fetch + merge the bundle catalogue, JSON
 //	ryoku-hub extras cache          print the catalogue cache directory
-//	ryoku-hub extras installer <n>  ensure installers/<n>.sh is cached, print its path
+//	ryoku-hub extras installer <n>  cache installers/<n>.sh, print its path
 //
-// The source is the ryoku-extras repo, served raw from GitHub; RYOKU_EXTRAS_BASE
-// overrides it (a fork, or a local tree under test).
+// source = the ryoku-extras repo, raw GitHub. RYOKU_EXTRAS_BASE overrides
+// it (a fork, or a local tree under test).
 const defaultExtrasBase = "https://raw.githubusercontent.com/neur0map/ryoku-extras/main"
 
 func extrasBase() string {
@@ -69,7 +69,7 @@ type bundleDef struct {
 	Items       []bundleItem `json:"items"`
 }
 
-// catalogBundle is one bundle as the Hub renders it: the registry metadata plus
+// catalogBundle = one bundle as the Hub draws it: registry metadata plus
 // the resolved item list.
 type catalogBundle struct {
 	ID          string       `json:"id"`
@@ -101,8 +101,8 @@ type pluginRegistry struct {
 	Plugins []pluginRegistryEntry `json:"plugins"`
 }
 
-// catalogPlugin is one plugin as the Hub renders it: the registry metadata
-// enriched from the plugin's manifest.json, with screenshot/preview asset paths
+// catalogPlugin = one plugin as the Hub draws it: registry metadata enriched
+// from the plugin's manifest.json, with screenshot/preview asset paths
 // resolved to absolute URLs the Hub can fetch directly.
 type catalogPlugin struct {
 	ID          string   `json:"id"`
@@ -184,11 +184,11 @@ func runExtras(args []string) error {
 var extrasClient = &http.Client{Timeout: 12 * time.Second}
 
 func fetch(url string) ([]byte, error) {
-	// Bust the GitHub raw (Fastly) CDN cache. The plain URL can keep serving a
-	// pre-push copy of the catalogue for minutes, so a Hub refresh looks broken:
-	// it re-fetches but keeps getting the stale registry.json. A unique query
-	// param is the only reliable buster (raw ignores it for content but keys its
-	// cache on it); the no-cache header is belt and braces.
+	// bust the GitHub raw (Fastly) CDN. plain URL can keep serving a pre-push
+	// copy of the catalogue for minutes, so a Hub refresh just looks broken:
+	// re-fetch, still get the stale registry.json. unique query param is the
+	// only buster that actually works (raw ignores it for content but keys
+	// its cache on it); the no-cache header is belt + braces.
 	sep := "?"
 	if strings.Contains(url, "?") {
 		sep = "&"
@@ -231,8 +231,8 @@ func writeCache(rel string, data []byte) {
 	os.Rename(name, p)
 }
 
-// fetchOrCache returns the live bytes (caching them) or, when the network is
-// unreachable, the last cached copy, so the catalogue still renders offline.
+// fetchOrCache: live bytes (and cache them), or the last cached copy when the
+// network is gone. catalogue still renders offline.
 func fetchOrCache(rel string) ([]byte, error) {
 	if b, err := fetch(extrasBase() + "/" + rel); err == nil {
 		writeCache(rel, b)
@@ -273,7 +273,7 @@ func buildCatalog() (map[string][]catalogBundle, error) {
 				}
 			}
 		}
-		// Warm the installer cache for any script item, best-effort and lazy.
+		// warm the installer cache for any script item. lazy, best-effort.
 		for _, it := range cb.Items {
 			if it.Type == "script" {
 				rel := "installers/" + it.Name + ".sh"
@@ -319,7 +319,7 @@ func buildPluginCatalog() (map[string][]catalogPlugin, error) {
 			Hosts:       e.Hosts,
 			Path:        path,
 		}
-		// Best-effort manifest enrichment, mirroring how buildCatalog folds
+		// best-effort manifest enrichment, same shape as buildCatalog folding
 		// bundle.json into the registry entry: only fill what the registry
 		// omitted, so a curated registry always wins.
 		if b, err := fetchOrCache(path + "/manifest.json"); err == nil {
@@ -344,8 +344,8 @@ func buildPluginCatalog() (map[string][]catalogPlugin, error) {
 				}
 			}
 		}
-		// Resolve relative asset paths under plugins/<id>/ to absolute URLs;
-		// anything already http(s):// passes through untouched.
+		// relative asset paths under plugins/<id>/ -> absolute URLs. anything
+		// already http(s):// passes through.
 		resolve := func(p string) string {
 			if p == "" {
 				return ""
@@ -368,8 +368,8 @@ func buildPluginCatalog() (map[string][]catalogPlugin, error) {
 	return map[string][]catalogPlugin{"plugins": out}, nil
 }
 
-// ensureInstaller fetches a fresh copy of installers/<name>.sh into the cache and
-// returns its path, falling back to the cached copy when offline.
+// ensureInstaller: pull a fresh copy of installers/<name>.sh into the cache
+// and return its path. offline -> fall back to whatever is cached.
 func ensureInstaller(name string) (string, error) {
 	rel := "installers/" + name + ".sh"
 	dst := filepath.Join(extrasCacheDir(), rel)
@@ -383,8 +383,8 @@ func ensureInstaller(name string) (string, error) {
 	return "", fmt.Errorf("installer %q not found in the catalogue", name)
 }
 
-// pluginDataDir is where an installed plugin's source lives; the shell runtime
-// and Settings read it. Mirrors plugin_dir() in ryoku-extras-install.
+// pluginDataDir: where an installed plugin's source lives. shell runtime and
+// Settings both read it. mirrors plugin_dir() in ryoku-extras-install.
 func pluginDataDir(id string) string {
 	base := os.Getenv("XDG_DATA_HOME")
 	if base == "" {
@@ -393,35 +393,35 @@ func pluginDataDir(id string) string {
 	return filepath.Join(base, "ryoku", "plugins", id)
 }
 
-// removePlugin deletes an installed plugin from the data dir. It is symlink-safe:
-// a dev plugin is often a symlink into a checkout, so the symlink itself is
-// removed (os.Remove) without ever recursing into - and deleting - the source
-// tree it points at. A real installed copy is removed with RemoveAll.
+// removePlugin nukes an installed plugin from the data dir. symlink-safe:
+// a dev plugin is often a symlink into a checkout, so the symlink itself
+// is unlinked (os.Remove), never recursed into so we don't eat the source
+// tree it points at. a real install gets RemoveAll.
 func removePlugin(id string) error {
 	if id == "" {
 		return fmt.Errorf("plugin id required")
 	}
-	// Drop the plugin's plugins.json entry (placement + settings) so its config
+	// drop the plugin's plugins.json entry (placement + settings) so its config
 	// disappears with it; the data-dir removal below is the real uninstall.
 	_ = exec.Command("ryoku-plugins-place", id, "forget").Run()
 	dir := pluginDataDir(id)
 	fi, err := os.Lstat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil // already gone
+			return nil // already gone, nothing to do
 		}
 		return err
 	}
 	if fi.Mode()&os.ModeSymlink != 0 {
-		return os.Remove(dir) // unlink only; never touch the target
+		return os.Remove(dir) // unlink the symlink, never touch the target
 	}
 	return os.RemoveAll(dir)
 }
 
-// ensurePlugin fetches a plugin's full source tree from the catalogue
-// (plugins/<id>/) into the data dir and returns that dir. It reads the manifest
-// to learn which files to pull (entryPoints + commands), so a plugin ships only
-// the files it declares. Best-effort per file; a missing optional file is fine.
+// ensurePlugin pulls a plugin's full source tree from the catalogue
+// (plugins/<id>/) into the data dir, returns that dir. reads the manifest
+// to know which files to grab (entryPoints + commands), so a plugin only
+// ships what it declares. per file is best-effort; missing optional file is fine.
 func ensurePlugin(id string) (string, error) {
 	rel := "plugins/" + id
 	manRaw, err := fetch(extrasBase() + "/" + rel + "/manifest.json")
@@ -463,7 +463,7 @@ func ensurePlugin(id string) (string, error) {
 	for _, f := range files {
 		b, err := fetch(extrasBase() + "/" + rel + "/" + f)
 		if err != nil {
-			continue // optional or absent; skip
+			continue // optional or absent, skip
 		}
 		mode := os.FileMode(0o644)
 		if strings.HasPrefix(f, "bin/") {
@@ -473,8 +473,8 @@ func ensurePlugin(id string) (string, error) {
 			return "", err
 		}
 	}
-	// Seed the plugin's preset block into plugins.json so its settings exist in
-	// the right place the moment it is installed (forgotten again on uninstall).
+	// seed the plugin's preset block into plugins.json so its settings exist in
+	// the right place the moment it lands (forgotten again on uninstall).
 	_ = exec.Command("ryoku-plugins-place", id, "seed").Run()
 	return dst, nil
 }

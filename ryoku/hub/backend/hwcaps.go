@@ -1,13 +1,13 @@
 package main
 
-// hwcaps.go: the GPU-passthrough capability engine. It answers two questions the
-// Hub GPU page asks before it offers anything dangerous: "is this machine capable
-// of handing its discrete GPU to a VM?" and "what would that cost the user right
-// now (nothing, a relogin, or a reboot)?".
+// hwcaps.go = the GPU-passthrough capability engine. before the Hub GPU page
+// offers anything dangerous it asks two things: "can this machine hand its
+// discrete GPU to a VM at all?" and "what would that cost right now (nothing,
+// a relogin, or a reboot)?". this file answers both.
 //
-// The verdict logic is a pure function of gathered inputs (buildCapability), so it
-// is exhaustively unit-tested across hardware shapes without touching real sysfs.
-// detectCapability() does the messy system probing and feeds buildCapability.
+// the verdict is a pure function of gathered inputs (buildCapability), so it's
+// unit-tested across hardware shapes without touching real sysfs.
+// detectCapability() does the messy probing and feeds buildCapability.
 
 import (
 	"bufio"
@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-// Check is one row of the capability dossier shown in the Hub.
+// Check = one row of the capability dossier the Hub shows.
 type Check struct {
 	ID    string `json:"id"`
 	Level string `json:"level"` // ok | warn | fail
@@ -30,7 +30,7 @@ type Check struct {
 	Hint  string `json:"hint,omitempty"`
 }
 
-// GPU is a graphics device as the passthrough feature sees it.
+// GPU = a graphics device as the passthrough feature sees it.
 type GPU struct {
 	Slot          string   `json:"slot"` // PCI slot, e.g. 0000:01:00.0
 	Model         string   `json:"model"`
@@ -43,7 +43,7 @@ type GPU struct {
 	Functions     []string `json:"functions"` // sibling PCI funcs to pass together
 }
 
-// Capability is the whole verdict, serialized to the Hub as JSON.
+// Capability = the whole verdict, JSON for the Hub.
 type Capability struct {
 	Chassis     string  `json:"chassis"` // laptop | desktop
 	Mux         string  `json:"mux"`     // none | present-igpu | present-dgpu | unknown
@@ -58,7 +58,7 @@ type Capability struct {
 	RamFreeMB   int     `json:"ramFreeMb"`
 }
 
-// gpuRecord is one entry from `ryoku-gpu detect --json`.
+// gpuRecord = one entry from `ryoku-gpu detect --json`.
 type gpuRecord struct {
 	Slot      string `json:"slot"`
 	Class     string `json:"class"`
@@ -69,12 +69,12 @@ type gpuRecord struct {
 	Model     string `json:"model"`
 }
 
-// tooling tracks whether each piece of the passthrough stack is present.
+// tooling: which pieces of the passthrough stack are present.
 type tooling struct {
 	qemu, libvirt, ovmf, swtpm, lookingGlass, kvmfr, hook bool
 }
 
-// capInputs is everything buildCapability needs, already gathered. Tests build
+// capInputs = everything buildCapability needs, already gathered. tests build
 // this directly; detectCapability() fills it from the live system.
 type capInputs struct {
 	records        []gpuRecord
@@ -92,7 +92,7 @@ type capInputs struct {
 	inLibvirtGroup bool
 }
 
-// buildCapability is the pure verdict function: gathered inputs in, Capability out.
+// buildCapability = the pure verdict. gathered inputs in, Capability out.
 func buildCapability(in capInputs) Capability {
 	c := Capability{
 		Chassis:    in.chassis,
@@ -165,7 +165,7 @@ func gpuFromRecord(r gpuRecord, in capInputs) *GPU {
 	return g
 }
 
-// pciPrefix drops the function digit: 0000:01:00.0 -> 0000:01:00.
+// pciPrefix drops the function digit. 0000:01:00.0 -> 0000:01:00.
 func pciPrefix(slot string) string {
 	if i := strings.LastIndex(slot, "."); i >= 0 {
 		return slot[:i]
@@ -270,7 +270,7 @@ func decide(in capInputs, host, pass *GPU, hardFail bool) (strategy, verdict str
 	switch strategy {
 	case "live-bind":
 		if !in.inLibvirtGroup {
-			return strategy, "needs-relogin" // stack ready, but the group needs a fresh login
+			return strategy, "needs-relogin" // stack ready, group needs a fresh login
 		}
 		return strategy, "ready"
 	case "relogin-then-bind":
@@ -328,7 +328,7 @@ func sysfsRoot() string {
 	return "/"
 }
 
-// detectCapability probes the live system and returns the verdict.
+// detectCapability: probe the live system, return the verdict.
 func detectCapability() (Capability, error) {
 	root := sysfsRoot()
 	in := capInputs{
@@ -359,9 +359,9 @@ func detectCapability() (Capability, error) {
 	return buildCapability(in), nil
 }
 
-// userInGroup reports whether the current process is effectively a member of the
-// named group. It tells a freshly-enabled passthrough (group added but the session
-// predates it) apart from one that is actually ready to launch.
+// userInGroup: is this process actually a member of the named group? lets us
+// tell a freshly-enabled passthrough (group added but the session predates it)
+// apart from one that's actually ready to launch.
 func userInGroup(name string) bool {
 	g, err := user.LookupGroup(name)
 	if err != nil {

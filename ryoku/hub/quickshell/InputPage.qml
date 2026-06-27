@@ -4,20 +4,20 @@ import QtQuick.Controls
 import Quickshell.Io
 import "Singletons"
 
-// Input: keyboard, pointer, touchpad, and key-repeat behaviour, edited live
-// through the ryoku-hub hypr backend (settings.lua applied via hyprctl eval).
-// Every control writes a scalar draft on the shared HyprStore and previews at
-// once; Save persists and reloads, Revert and leaving restore the saved state,
-// and Reset returns just the input domain to its shipped defaults.
+// input: keyboard, pointer, touchpad, key-repeat. edited live through the
+// ryoku-hub hypr backend (settings.lua applied via hyprctl eval). every
+// control writes a scalar draft on the shared HyprStore and previews at
+// once. Save persists + reloads. Revert / leaving restore the saved state.
+// Reset returns just the input domain to shipped defaults.
 Item {
     id: page
 
     HyprStore { id: store }
 
-    // Read by the hub to drop an unsaved live preview when this page is left.
+    // read by the hub to drop a live preview when this page is left.
     readonly property bool previewDirty: store.dirty
 
-    // Keyboard layouts from the xkb rules base, mapped to Dropdown options.
+    // xkb-rules layouts, mapped to Dropdown options.
     property var layoutOptions: []
 
     Process {
@@ -37,9 +37,9 @@ Item {
         }
     }
 
-    // A labelled free-text row (label left, entry right). It commits on
-    // editing-finished rather than per keystroke, and re-binds to the draft on
-    // focus loss so Reset/Revert refresh the shown text after a manual edit.
+    // label left, entry right. commits on editing-finished (not per keystroke)
+    // and re-binds to the draft on focus loss so Reset/Revert refresh the shown
+    // text after a manual edit.
     component TextFieldRow: Item {
         id: tfr
 
@@ -234,7 +234,7 @@ Item {
         }
     }
 
-    // --- action bar (mirrors Shell Settings) --------------------------------
+    // --- action bar, mirrors Shell Settings ---------------------------------
     Rectangle {
         id: bar
         anchors.left: parent.left

@@ -2,9 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// One animation leaf in the Animations list: an enable switch, a speed stepper,
-// and a bezier picker, laid out compactly so the whole tree reads as a table. The
-// page owns the values and persists the change.
+// one animation leaf in the Animations list: enable switch, speed stepper,
+// bezier picker. laid out compactly so the whole tree reads as a table. the
+// page owns the values and persists.
 Rectangle {
     id: row
 
@@ -43,7 +43,7 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 12
 
-        // enable switch
+        // enable
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: 38
@@ -67,7 +67,7 @@ Rectangle {
             TapHandler { onTapped: row.toggled(!row.on) }
         }
 
-        // speed stepper
+        // speed
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0

@@ -1,8 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// A single-select segmented control with a sliding selection pill, matching the
-// nav rail's moving-indicator aesthetic. `model` is a list of { key, label }.
+// single-select segmented control with a sliding selection pill, matching
+// the nav rail's moving-indicator look. `model` = list of { key, label }.
 Item {
     id: seg
 
@@ -31,7 +31,7 @@ Item {
         border.color: Theme.line
     }
 
-    // Sliding selection pill.
+    // sliding selection pill.
     Rectangle {
         y: 4
         height: parent.height - 8

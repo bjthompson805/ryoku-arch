@@ -3,14 +3,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * Update data for the Hub's Updates section, wired to `ryoku status --json`.
- *
- * The installed version, the count of commits behind the channel, and the list
- * of incoming commits are all live. When the checkout is current the list is
- * empty and the section shows the up-to-date state; `check()` re-runs the check
- * (the CLI tracks the git channel, fetching origin/<channel> with no prompt).
- */
+// update data for the Hub's Updates section, wired to `ryoku status --json`.
+// installed version, commits behind the channel, and the incoming commit list
+// are all live. when the checkout is current the list is empty and the section
+// shows the up-to-date state. check() re-runs it (CLI tracks the git channel,
+// fetches origin/<channel> with no prompt).
 Singleton {
     id: root
 
@@ -20,13 +17,13 @@ Singleton {
     property string branch: "main"
     property int behind: 0
 
-    // Newest pacman view: [{ name, old, new }]. Empty when the system is current.
+    // newest pacman view: [{ name, old, new }]. empty when current.
     property var updates: []
 
     property var lastChecked: null
     property int tick: 0
     readonly property string checkedAgo: {
-        root.tick;  // re-evaluate as the clock ticks
+        root.tick;  // re-eval as the clock ticks
         if (!root.lastChecked)
             return "not yet";
         var s = Math.floor((Date.now() - root.lastChecked.getTime()) / 1000);
@@ -72,7 +69,7 @@ Singleton {
         }
     }
 
-    // Keep the "checked Xm ago" line live.
+    // keep the "checked Xm ago" line live.
     Timer {
         interval: 30000
         running: true

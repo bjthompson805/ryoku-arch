@@ -5,13 +5,13 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-// Desktop Widgets: the live editor for the clock and weather widgets on the
-// wallpaper. Every edit is applied to the running widgets at once by writing
+// Desktop Widgets: live editor for the clock + weather widgets on the
+// wallpaper. every edit lands on the running widgets at once via
 // ~/.config/ryoku/widgets.json (throttled, atomic), which the widgets host
-// watches; the preview here mirrors the live design so you can choose without
-// leaning over the hub window. Save keeps the changes; Revert and leaving the
-// section put the saved look back. Controls are matched to the value: steppers for
-// exact pixels, sliders for size/opacity, segmented and dropdowns for choices.
+// watches. preview mirrors the live design so you can pick without leaning
+// over the hub. Save keeps it; Revert and leaving the section put the saved
+// look back. controls are matched to the value: steppers for exact pixels,
+// sliders for size/opacity, segmented + dropdowns for choices.
 Item {
     id: page
 
@@ -24,8 +24,8 @@ Item {
         "weatherBg", "weatherRadius"
     ]
 
-    // Mirror of the widgets' canonical defaults (widgets Singletons/Config.qml),
-    // used for "Reset to defaults" only.
+    // mirror of the widgets' canonical defaults (widgets Singletons/Config.qml),
+    // for "Reset to defaults" only.
     readonly property var defaults: ({
         "clockEnabled": true, "clockDesign": "digital", "clock24h": true, "clockSeconds": false,
         "clockAccent": "wallust", "clockScale": 1.0, "clockAnchor": "top-left",
@@ -111,9 +111,9 @@ Item {
         cfg.writeAdapter();
     }
 
-    // Throttle live writes: apply at once, then at most every interval while the
-    // value keeps changing, with a trailing write, so a drag updates the desktop
-    // smoothly without thrashing the file.
+    // throttle live writes: apply immediately, then at most every interval
+    // while the value keeps changing, with a trailing write. drag updates the
+    // desktop smoothly without thrashing the file.
     property bool writePending: false
     Timer {
         id: throttle
@@ -209,8 +209,8 @@ Item {
         }
     }
 
-    // Leaving the section (or closing the hub) with unsaved edits puts the saved
-    // look back on the desktop, so a preview is never left applied by accident.
+    // leaving the section (or closing the hub) with unsaved edits puts the
+    // saved look back, so a preview is never left applied by accident.
     Component.onDestruction: {
         if (page.loaded && page.dirty) {
             for (var i = 0; i < page.keys.length; i++) {
@@ -533,7 +533,7 @@ Item {
         }
     }
 
-    // --- bottom: status and actions ----------------------------------------
+    // --- bottom: status + actions ------------------------------------------
     Rectangle {
         id: bar
         anchors.left: parent.left

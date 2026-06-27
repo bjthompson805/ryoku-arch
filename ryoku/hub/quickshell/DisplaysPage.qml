@@ -4,16 +4,16 @@ import QtQuick.Controls
 import Quickshell.Io
 import "Singletons"
 
-// Displays: detect every connected monitor and arrange them visually, no
-// coordinate math. Drag tiles on the canvas to place them; tune resolution,
-// refresh, scale, rotation, VRR, and mirroring per monitor; then Apply (which
-// also persists for this display set, so it returns at the next login) or Save a
-// named, hardware-keyed profile. Edits stage in the canvas and only touch the displays
-// on Apply, so fiddling never disrupts your screens.
+// displays: detect every connected monitor, arrange them visually, no coordinate
+// math. drag tiles on the canvas to place; tune resolution, refresh, scale,
+// rotation, VRR, mirror per monitor; Apply (also persists for this display set,
+// so it returns at next login) or Save a named, hardware-keyed profile. edits
+// stage in the canvas + only touch real displays on Apply, so fiddling never
+// nukes your screens.
 Item {
     id: page
 
-    // Live baseline (from ryoku-monitor list) and the editable draft. monCount is
+    // live baseline (from ryoku-monitor list) + the editable draft. monCount is
     // the Repeater model so reassigning draft never happens for in-place edits;
     // `tick` drives reactivity for those mutations (a drag must not rebuild tiles).
     property var draft: []
@@ -30,7 +30,7 @@ Item {
 
     readonly property var sel: (page.selected >= 0 && page.selected < page.draft.length) ? page.draft[page.selected] : null
 
-    // --- data load ----------------------------------------------------------
+    // ── data load ──────────────────────────────────────────────────────────
     Process {
         id: listProc
         command: ["ryoku-monitor", "list"]
@@ -73,12 +73,12 @@ Item {
     }
 
     Process { id: applyProc }
-    Process { id: profileProc } // save / load / rm
+    Process { id: profileProc } // save | load | rm
 
     function reload() { listProc.running = true; profilesProc.running = true; }
     function reloadProfiles() { profilesProc.running = true; }
 
-    // --- model helpers ------------------------------------------------------
+    // ── model helpers ──────────────────────────────────────────────────────
     function parseMode(s) {
         var m = /^(\d+)x(\d+)@([\d.]+)/.exec(s);
         if (!m)
@@ -162,7 +162,7 @@ Item {
         page.tick++;
     }
 
-    // --- canvas geometry ----------------------------------------------------
+    // ── canvas geometry ────────────────────────────────────────────────────
     function bbox() {
         var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9, any = false;
         for (var i = 0; i < page.draft.length; i++) {
@@ -250,7 +250,7 @@ Item {
         }
     }
 
-    // --- apply / profiles ---------------------------------------------------
+    // ── apply / profiles ───────────────────────────────────────────────────
     function apply() {
         applyProc.command = ["ryoku-monitor", "apply", JSON.stringify(page.specsAll())];
         applyProc.running = true;
@@ -286,7 +286,7 @@ Item {
     Timer { id: listRefresh; interval: 700; onTriggered: page.reload() }
     Timer { id: profileRefresh; interval: 300; onTriggered: page.reloadProfiles() }
 
-    // --- layout -------------------------------------------------------------
+    // ── layout ─────────────────────────────────────────────────────────────
     Text {
         id: detected
         anchors.left: parent.left
@@ -329,7 +329,7 @@ Item {
             border.color: Theme.line
             clip: true
 
-            // a faint grid baseline
+            // faint grid baseline
             Rectangle {
                 anchors.fill: parent
                 anchors.margins: 1
@@ -648,7 +648,7 @@ Item {
         return out;
     }
 
-    // --- action bar ---------------------------------------------------------
+    // ── action bar ─────────────────────────────────────────────────────────
     Rectangle {
         id: bar
         anchors.left: parent.left

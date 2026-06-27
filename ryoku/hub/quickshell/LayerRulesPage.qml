@@ -3,9 +3,9 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-// Custom Hyprland layer rules: tweak layer-shell surfaces (bars, launchers,
-// notification daemons) by namespace. Edited as a list through the shared
-// HyprStore; like window rules they are not previewed live but apply on Save.
+// custom Hyprland layer rules: tweak layer-shell surfaces (bars, launchers,
+// notif daemons) by namespace. edited as a list through the shared HyprStore;
+// like window rules, not previewed live; applied on Save.
 Item {
     id: page
 
@@ -249,7 +249,7 @@ Item {
         }
     }
 
-    // --- action bar (mirrors Shell Settings) --------------------------------
+    // --- action bar, mirrors Shell Settings ---------------------------------
     Rectangle {
         id: bar
         anchors.left: parent.left

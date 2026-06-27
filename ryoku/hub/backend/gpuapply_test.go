@@ -36,7 +36,7 @@ func TestWriteManagedIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := writeManaged(root, f); err != nil {
-		t.Fatal(err) // identical content is a no-op, never an error
+		t.Fatal(err) // same content = no-op, not an error
 	}
 	b, _ := os.ReadFile(filepath.Join(root, f.rel))
 	if string(b) != "kvmfr\n" {

@@ -3,11 +3,11 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-// Custom Hyprland window rules layered over the ones Ryoku ships, edited as a
-// list through the shared HyprStore. Each row matches a window by class and/or
-// title and applies one action (a few actions carry a typed value). List edits
-// are not previewed live: they apply on Save, so add/edit/delete all rebuild the
-// draft array and go through store.editList with a fresh reference.
+// custom Hyprland window rules layered over the ones Ryoku ships, edited as a
+// list through the shared HyprStore. each row matches by class and/or title
+// and applies one action (a few carry a typed value). list edits aren't
+// previewed live -- they apply on Save, so add/edit/delete rebuild the draft
+// array and go through store.editList with a fresh reference.
 Item {
     id: page
 
@@ -27,12 +27,12 @@ Item {
         { "key": "move", "label": "Move (XxY)" },
         { "key": "workspace", "label": "Workspace" }
     ]
-    // Actions whose effect needs a free-form value the user types in.
+    // actions whose effect needs a free-form value the user types.
     readonly property var valueActions: ["opacity", "size", "move", "workspace"]
 
-    // Every mutation replaces the whole list with a new array: editList needs a
-    // fresh reference and the Repeater rebuilds its rows on each change, so text
-    // edits are committed on editing-finished, never per keystroke.
+    // every mutation replaces the whole list with a new array: editList wants
+    // a fresh ref and the Repeater rebuilds its rows on each change, so text
+    // edits commit on editing-finished, not per keystroke.
     function patch(i, key, val) {
         var a = store.windowRules.slice();
         a[i] = Object.assign({}, a[i]);
@@ -132,8 +132,8 @@ Item {
                             : a === "move" ? "100x100"
                             : a === "workspace" ? "3" : "";
                     }
-                    // Fixed widths for the action/value/delete cluster; the two
-                    // match fields split whatever space is left.
+                    // fixed widths for action/value/delete; the two match
+                    // fields split whatever space is left.
                     readonly property real gap: 10
                     readonly property real ddW: 150
                     readonly property real valW: 110
@@ -305,7 +305,7 @@ Item {
         }
     }
 
-    // --- action bar (mirrors Shell Settings) --------------------------------
+    // --- action bar (mirrors Shell Settings) -------------------------------
     Rectangle {
         id: bar
         anchors.left: parent.left

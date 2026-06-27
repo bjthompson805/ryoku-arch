@@ -1,8 +1,9 @@
 package main
 
-// vm.go: the single Ryoku VM's configuration. The Hub VM panel reads and writes it;
-// later phases generate a libvirt domain from it and drive its lifecycle. One VM in
-// v1; the on-disk shape is a single object so a future multi-VM list is additive.
+// vm.go: the single Ryoku VM's configuration. the Hub VM panel reads + writes
+// it; later phases generate a libvirt domain from it and drive its lifecycle.
+// one VM in v1; the on-disk shape is a single object so a future multi-VM list
+// is additive.
 
 import (
 	"encoding/json"
@@ -11,7 +12,7 @@ import (
 	"path/filepath"
 )
 
-// VM is the user-facing virtual-machine configuration, persisted at
+// VM = the user-facing virtual-machine configuration, persisted at
 // ~/.config/ryoku/vm.json.
 type VM struct {
 	Name      string `json:"name"`
@@ -69,7 +70,7 @@ func saveVM(v VM) error {
 	if v.Name == "" {
 		return fmt.Errorf("vm name required")
 	}
-	// Clamp to sane floors so a bad UI value can never produce an unbootable domain.
+	// clamp to floors so a bad UI value can never produce an unbootable domain.
 	if v.Cores < 1 {
 		v.Cores = 1
 	}

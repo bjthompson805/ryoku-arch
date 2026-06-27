@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// A representative slice of binds.lua exercising every parser branch: a header,
-// a modified combo, a comment vs a derived description, a string-literal media
-// key, a mouse bind, and the 1..0 workspace loop.
+// slice of binds.lua hitting every parser branch: a header, a modified combo,
+// comment vs derived description, a string-literal media key, a mouse bind,
+// and the 1..0 workspace loop.
 const sampleBinds = `local mod = "SUPER"
 
 -- Windows
@@ -71,7 +71,7 @@ func TestDerivedDescriptionFromDispatcher(t *testing.T) {
 	if a == nil || len(a.Binds) == 0 {
 		t.Fatal("Apps category missing")
 	}
-	// kitty has no trailing comment, so the description comes from the dispatcher.
+	// kitty has no trailing comment; description comes from the dispatcher.
 	if a.Binds[0].Desc != "Terminal" {
 		t.Errorf("derived desc = %q, want Terminal", a.Binds[0].Desc)
 	}
@@ -82,7 +82,7 @@ func TestWorkspaceLoopCollapses(t *testing.T) {
 	if ws == nil {
 		t.Fatal("Switch workspaces category missing")
 	}
-	// One explicit Left bind plus the two loop binds = three entries.
+	// 1 explicit Left bind + 2 loop binds = 3 entries.
 	if len(ws.Binds) != 3 {
 		t.Fatalf("got %d binds, want 3: %+v", len(ws.Binds), ws.Binds)
 	}
@@ -117,8 +117,8 @@ func TestPrettyKeyGrave(t *testing.T) {
 	}
 }
 
-// A lambda action (multi-dispatch, e.g. SUPER+A float + centre) is not an
-// hl.dsp expression, but it still belongs in the legend; its description comes
+// lambda action (multi-dispatch, e.g. SUPER+A float + centre) isn't an
+// hl.dsp expression but it still belongs in the legend. description comes
 // from the trailing comment.
 func TestLambdaBind(t *testing.T) {
 	const src = `-- Windows
