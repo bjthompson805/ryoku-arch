@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# 力 Game Mode: one reversible toggle that tunes the session for competitive play
+# and restores it on exit. The compositor is driven through hyprctl eval (no root);
+# WiFi power-save is toggled by the privileged ryoku-wifi-powersave helper via
+# pkexec (a polkit rule authorizes exactly it without a password, so the toggle
+# stays one click). Do-Not-Disturb is the shell's concern (Flags.dnd); the shell
+# flips it and bridges this helper, mirroring ryoku-cmd-caffeine.
+#
+#   status   exit 0 when game mode is on
+#   start    apply tuning, persist the request (idempotent: safe to re-run)
+#   stop     restore everything, clear the request
+#   toggle   start if off, stop if on
+#
+# Revert is exact. The compositor changes are runtime hyprctl eval overrides, which
+# `hyprctl reload` wipes by re-reading the Lua config, so nothing needs to be
+# remembered. The WiFi helper saves and restores the radio's prior power-save
+# state. `start` re-applies cleanly after a relogin (Hyprland comes up fresh from
+# the Lua config while the request is still persisted).
+set -u
+
+state_dir="${RYOKU_STATE_PATH:-${XDG_STATE_HOME:-$HOME/.local/state}/ryoku}"
+state_file="${RYOKU_GAMEMODE_STATE_FILE:-$state_dir/game-mode.enabled}"
+
+is_on() { [[ -f $state_file ]]; }
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -a Ryoku "$1" "$2" || true
+}
+
+# ── Compositor ────────────────────────────────────────────────────────────────
+# Ryoku's Hyprland runs the Lua config parser, where `hyprctl keyword` is rejected;
+# `hyprctl eval` runs Lua against the same `hl` API the config uses (the flash-free
+# path ryoku-hub also uses). Drop every present-time cost (blur, shadow, rounding,
+# opacity blending, animations) and switch to the low-latency path: tearing allowed
+# with an immediate rule, plus fullscreen-only VRR. Tearing only actually engages on
+# a fullscreen, sole-window game (Hyprland wiki), which is exactly the case here.
+hypr_fast() {
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  hyprctl eval '
+hl.config({
+  general = { allow_tearing = true },
+  decoration = {
+    rounding = 0,
+    active_opacity = 1.0,
+    inactive_opacity = 1.0,
+    blur = { enabled = false },
+    shadow = { enabled = false },
+  },
+  animations = { enabled = false },
+  misc = { vrr = 2 },
+})
+hl.window_rule({ name = "game-mode-immediate", match = { class = ".*" }, immediate = true })
+' >/dev/null 2>&1 || true
+}
+
+# Reload re-reads the Lua config, dropping every eval override set above.
+hypr_restore() {
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  hyprctl reload >/dev/null 2>&1 || true
+}
+
+# ── WiFi (latency only, never a cap) ──────────────────────────────────────────
+# Disabling 802.11 power-save keeps the radio fully awake, removing the periodic
+# micro-sleeps that spike latency on an idle link. It does NOT shape, cap, or drop
+# the connection, so online play keeps full throughput. The privileged helper does
+# it via iw with no reconnect and saves/restores the prior state. With no WiFi
+# device, or on a system without the desktop package (no helper), this is a no-op.
+has_wifi() {
+  local w
+  for w in "${RYOKU_NET_SYSFS:-/sys/class/net}"/*/wireless; do [[ -e $w ]] && return 0; done
+  return 1
+}
+
+wifi_set() {  # off | on
+  local helper
+  helper="$(command -v ryoku-wifi-powersave)" || return 0
+  has_wifi || return 0
+  pkexec "$helper" "$1" >/dev/null 2>&1 || true
+}
+
+start() {
+  mkdir -p "$state_dir" 2>/dev/null || true
+  hypr_fast
+  wifi_set off
+  printf 'enabled\n' >"$state_file" 2>/dev/null || true
+  notify "力 Game Mode" "On - compositor stripped, WiFi power-save off"
+}
+
+stop() {
+  hypr_restore
+  wifi_set on
+  rm -f "$state_file" 2>/dev/null || true
+  notify "力 Game Mode" "Off - desktop restored"
+}
+
+case "${1:-toggle}" in
+  status)     is_on ;;
+  on | start) start ;;
+  off | stop) stop ;;
+  toggle)     if is_on; then stop; else start; fi ;;
+  *)
+    echo "usage: ryoku-cmd-game-mode [status | start | stop | toggle]" >&2
+    exit 1
+    ;;
+esac

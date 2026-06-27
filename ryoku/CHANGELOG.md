@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Added
+- `hyprland/scripts/ryoku-cmd-game-mode` + `system/hardware/network` +
+  `shell/quickshell/pill`: a one-click **Game Mode** in the Control Deck. A
+  Utilities switch flips `Flags.gameMode`; the shell bridges it to the helper,
+  which strips the compositor to its low-latency path through `hyprctl eval` (the
+  Lua-parser path, since `hyprctl keyword` is rejected): no blur/shadow/rounding,
+  animations off, `allow_tearing` with an immediate rule, and fullscreen-only VRR.
+  It disables 802.11 power-save on every WiFi device (a pure latency win, with no
+  reconnect and no throughput cap) via the privileged `ryoku-wifi-powersave`
+  helper (`iw`), authorized passwordless by a polkit rule so the toggle stays one
+  click, and pulls Do-Not-Disturb on. Fully reversible: `hyprctl reload` drops the
+  eval overrides, the WiFi helper restores each device's prior power-save, and DND
+  returns. Adds `iw` to the base set. Covered by `tests/game-mode.sh` and
+  `tests/wifi-powersave.sh`.
 - `shell/quickshell/plugins` + `hub/quickshell/PluginsPage`: a shell plugin
   system. A plugin ships a service + one adaptive `content/Widget.qml` (glyph /
   compact / full); the shell owns each host's layer, shape, size, and motion, so
