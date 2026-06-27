@@ -84,9 +84,10 @@ func userNameByID(uid string) string {
 }
 
 type managedFile struct {
-	rel     string
-	content string
-	mode    os.FileMode
+	rel        string
+	content    string
+	mode       os.FileMode
+	needsKvmfr bool // only written once the kvmfr module is installed
 }
 
 func managedFiles(user, exe string) []managedFile {
@@ -108,12 +109,19 @@ func managedFiles(user, exe string) []managedFile {
 		"exit 0\n"
 	udev := fmt.Sprintf("SUBSYSTEM==\"kvmfr\", OWNER=\"%s\", GROUP=\"kvm\", MODE=\"0660\"\n", user)
 	return []managedFile{
-		{"etc/modules-load.d/ryoku-kvmfr.conf", "kvmfr\n", 0o644},
-		{"etc/modprobe.d/ryoku-kvmfr.conf", fmt.Sprintf("options kvmfr static_size_mb=%d\n", kvmfrStaticMB), 0o644},
-		{"etc/udev/rules.d/99-ryoku-kvmfr.rules", udev, 0o644},
-		{"etc/polkit-1/rules.d/50-ryoku-libvirt.rules", polkitRule, 0o644},
-		{"etc/libvirt/hooks/qemu", hook, 0o755},
+		{"etc/modules-load.d/ryoku-kvmfr.conf", "kvmfr\n", 0o644, true},
+		{"etc/modprobe.d/ryoku-kvmfr.conf", fmt.Sprintf("options kvmfr static_size_mb=%d\n", kvmfrStaticMB), 0o644, true},
+		{"etc/udev/rules.d/99-ryoku-kvmfr.rules", udev, 0o644, true},
+		{"etc/polkit-1/rules.d/50-ryoku-libvirt.rules", polkitRule, 0o644, false},
+		{"etc/libvirt/hooks/qemu", hook, 0o755, false},
 	}
+}
+
+// kvmfrModuleAvailable reports whether the kvmfr kernel module is installed, so a
+// partial enable (no Looking Glass yet) never writes a modules-load entry that
+// would fail at every boot.
+func kvmfrModuleAvailable() bool {
+	return exec.Command("modinfo", "kvmfr").Run() == nil
 }
 
 const polkitRule = `// Managed by Ryoku. Let the libvirt group manage libvirt without a password so the
@@ -125,9 +133,11 @@ polkit.addRule(function(action, subject) {
 });
 `
 
-// installPackages, groups and services are the privileged actions that have no
-// pure form; they are listed in the dry-run plan and executed only as root.
-var passthroughPkgs = []string{"qemu-desktop", "libvirt", "edk2-ovmf", "swtpm", "dnsmasq", "looking-glass"}
+// The passthrough stack. Core packages are official and install as one transaction;
+// the Looking Glass pieces live in the [ryoku] repo (or the AUR on a plain Arch
+// box) and install best-effort, so their absence never blocks the core set.
+var corePassthroughPkgs = []string{"qemu-desktop", "libvirt", "edk2-ovmf", "swtpm", "dnsmasq"}
+var extraPassthroughPkgs = []string{"looking-glass", "looking-glass-module-dkms"}
 
 func applyPlan(action, user, exe string, dryRun bool) error {
 	files := managedFiles(user, exe)
@@ -135,13 +145,22 @@ func applyPlan(action, user, exe string, dryRun bool) error {
 	say := func(s string) { fmt.Println(planPrefix(dryRun) + s) }
 
 	if action == "enable" {
-		say("install packages: " + strings.Join(passthroughPkgs, " "))
+		allPkgs := append(append([]string{}, corePassthroughPkgs...), extraPassthroughPkgs...)
+		say("install packages: " + strings.Join(allPkgs, " "))
 		if !dryRun {
 			snapshot("ryoku gpu passthrough enable")
-			pacmanInstall(passthroughPkgs)
+			pacmanInstall(corePassthroughPkgs)
+			for _, p := range extraPassthroughPkgs {
+				pacmanInstall([]string{p}) // best-effort: [ryoku] repo / AUR; never blocks the core set
+			}
 		}
+		kvmfrOK := dryRun || kvmfrModuleAvailable()
 		for _, f := range files {
-			say("write " + "/" + f.rel)
+			if f.needsKvmfr && !kvmfrOK {
+				say("skip /" + f.rel + " (kvmfr module not installed; re-run enable after adding Looking Glass)")
+				continue
+			}
+			say("write /" + f.rel)
 			if !dryRun {
 				if err := writeManaged(root, f); err != nil {
 					return err

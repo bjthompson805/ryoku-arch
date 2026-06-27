@@ -19,6 +19,7 @@ Item {
     property string planText: ""
     property bool planning: false
     property string actionError: ""
+    property bool vmRunning: false
 
     readonly property var blockerText: ({
         "needs-relogin": "Log out and back in: Ryoku must move to the iGPU first.",
@@ -31,6 +32,7 @@ Item {
         capsProc.running = true;
         vmProc.running = true;
         modeProc.running = true;
+        statusProc.running = true;
     }
     function patch(k, v) {
         var d = JSON.parse(JSON.stringify(page.draft));
@@ -124,6 +126,24 @@ Item {
                     page.patch("isoPath", p);
             }
         }
+    }
+    Process {
+        id: statusProc
+        command: ["ryoku-hub", "vm", "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    page.vmRunning = JSON.parse(this.text).running === true;
+                } catch (e) {}
+            }
+        }
+    }
+    // While the Machine tab is open, keep the Launch/Stop toggle in step with the VM.
+    Timer {
+        interval: 5000
+        repeat: true
+        running: page.seg === "vm"
+        onTriggered: statusProc.running = true
     }
 
     // A dossier row: status dot, label, and the detected value, coloured by level.
@@ -431,13 +451,18 @@ Item {
                                 }
                             }
                             HubButton {
+                                visible: !page.vmRunning
                                 label: "Launch VM"
                                 icon: "rocket"
                                 primary: true
                                 enabled: page.caps.verdict === "ready"
-                                onClicked: {
-                                    page.act(["ryoku-hub", "vm", "launch"]);
-                                }
+                                onClicked: page.act(["ryoku-hub", "vm", "launch"])
+                            }
+                            HubButton {
+                                visible: page.vmRunning
+                                label: "Stop VM"
+                                icon: "close"
+                                onClicked: page.act(["ryoku-hub", "vm", "stop"])
                             }
                         }
                         Text {

@@ -31,7 +31,7 @@ func TestManagedFilesContent(t *testing.T) {
 
 func TestWriteManagedIdempotent(t *testing.T) {
 	root := t.TempDir()
-	f := managedFile{"etc/modules-load.d/ryoku-kvmfr.conf", "kvmfr\n", 0o644}
+	f := managedFile{"etc/modules-load.d/ryoku-kvmfr.conf", "kvmfr\n", 0o644, true}
 	if err := writeManaged(root, f); err != nil {
 		t.Fatal(err)
 	}
