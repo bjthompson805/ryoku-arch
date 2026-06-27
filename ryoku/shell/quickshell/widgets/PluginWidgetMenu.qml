@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell.Io
+import QtQuick.Dialogs
 import Ryoku.PluginKit.Singletons
 
 /**
@@ -62,11 +63,11 @@ Item {
         menu.settingChanged(menu.scope, key, value);
     }
 
-    // Scan ~/Pictures for images to offer in the image picker (newest first).
+    // Scan ~/Pictures (one level deep) for images to offer in the picker.
     Process {
         id: picScan
         command: ["bash", "-c",
-            "d=\"${XDG_PICTURES_DIR:-$HOME/Pictures}\"; ls -t \"$d\"/*.{jpg,jpeg,png,webp,gif,JPG,JPEG,PNG} 2>/dev/null | head -18"]
+            "find \"${XDG_PICTURES_DIR:-$HOME/Pictures}\" -maxdepth 2 -type f \\( -iname '*.jpg' -o -iname '*.png' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.gif' \\) 2>/dev/null | head -24"]
         stdout: StdioCollector {
             onStreamFinished: menu.pics = text.split("\n").filter(function (l) { return l.trim().length > 0; })
         }
@@ -430,6 +431,26 @@ Item {
                                         TapHandler { onTapped: menu.set(fieldWrap.f.key, "") }
                                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                                     }
+                                    // "Browse" opens the system file chooser (portal).
+                                    Rectangle {
+                                        width: 66
+                                        height: 48
+                                        radius: 6
+                                        color: brHov.hovered ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.12) : Theme.tileBg
+                                        border.width: 1
+                                        border.color: brHov.hovered ? Theme.brand : Theme.border
+                                        Behavior on color { ColorAnimation { duration: 90 } }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "+ Browse"
+                                            color: brHov.hovered ? Theme.cream : Theme.subtle
+                                            font.family: Theme.mono
+                                            font.pixelSize: 9
+                                            font.weight: Font.DemiBold
+                                        }
+                                        HoverHandler { id: brHov; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: imgFileDlg.open() }
+                                    }
                                     Repeater {
                                         model: menu.pics
                                         delegate: Rectangle {
@@ -457,6 +478,12 @@ Item {
                                         }
                                     }
                                 }
+                            }
+                            FileDialog {
+                                id: imgFileDlg
+                                title: "Choose an image"
+                                nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp)", "All files (*)"]
+                                onAccepted: menu.set(fieldWrap.f.key, "" + imgFileDlg.selectedFile)
                             }
                         }
                     }

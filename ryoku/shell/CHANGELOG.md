@@ -191,6 +191,10 @@
   palette stays static.
 
 ### Changed
+- `quickshell/widgets`: a desktop widget's right-click image picker gains a
+  **Browse** tile that opens the system file chooser (portal), and its thumbnail
+  scan recurses one level into `~/Pictures` (so Wallpapers / Screenshots appear),
+  not just the top level.
 - `quickshell/widgets`: a desktop-widget tile now honours its plugin's manifest
   default card style (`defaults.desktopWidget.bg`) when the placement pins none,
   so a plugin like photo-frame can opt out of the host card (`bg: "none"`) and
