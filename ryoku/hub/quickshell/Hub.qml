@@ -30,8 +30,7 @@ Rectangle {
         { "key": "lockscreen",  "name": "Lockscreen",      "icon": "lock",     "group": "Desktop" },
         { "key": "widgets",     "name": "Desktop Widgets", "icon": "widgets",  "group": "Desktop" },
         { "key": "shell",       "name": "Shell",           "icon": "gear",     "group": "Desktop" },
-        { "key": "plugins",     "name": "Plugins",         "icon": "widgets",  "group": "Add-ons" },
-        { "key": "extras",      "name": "Extras",          "icon": "sparkles", "group": "Add-ons" },
+        { "key": "store",       "name": "Store",           "icon": "sparkles", "group": "Add-ons" },
         { "key": "addons",      "name": "Installed",       "icon": "widgets",  "group": "Add-ons" },
         { "key": "windowrules", "name": "Window Rules",    "icon": "window",   "group": "Advanced" },
         { "key": "layerrules",  "name": "Layer Rules",     "icon": "window",   "group": "Advanced" },
@@ -55,8 +54,7 @@ Rectangle {
         "widgets":     { "title": "Desktop Widgets", "subtitle": "Clock and weather on the wallpaper: pick a design, size, shape, and placement, with a live preview that follows your palette." },
         "connections": { "title": "Connections", "subtitle": "Wi-Fi networks, Bluetooth devices, and your hotspot, all in one place." },
         "updates":     { "title": "Updates", "subtitle": "Updates pending for your Ryoku system." },
-        "extras":      { "title": "Extras", "subtitle": "Curated bundles of extra tools, installed and removed with one click." },
-        "plugins":     { "title": "Plugins", "subtitle": "Shell plugins you can place where you like: a frame popout, a desktop widget, or a topbar glyph. Each runs in the Ryoku look." },
+        "store":       { "title": "Store", "subtitle": "Browse and install shell plugins and extras bundles for the Ryoku desktop." },
         "addons":      { "title": "Add-ons", "subtitle": "Your installed plugins. Open one to change its settings, enable it, or remove it." }
     })
 
@@ -216,8 +214,7 @@ Rectangle {
         case "widgets": return widgetsComp;
         case "updates": return updatesComp;
         case "connections": return connectionsComp;
-        case "extras": return extrasComp;
-        case "plugins": return pluginsComp;
+        case "store": return storeComp;
         case "addons": return addonsComp;
         default: return shellComp;
         }
@@ -238,8 +235,7 @@ Rectangle {
     Component { id: shellComp; ShellSettingsPage {} }
     Component { id: widgetsComp; WidgetsPage {} }
     Component { id: updatesComp; UpdatesPage {} }
-    Component { id: extrasComp; ExtrasPage {} }
-    Component { id: pluginsComp; PluginsPage {} }
+    Component { id: storeComp; StorePage {} }
     Component { id: addonsComp; AddonsPage {} }
     Component { id: connectionsComp; ConnectionsPage {} }
 

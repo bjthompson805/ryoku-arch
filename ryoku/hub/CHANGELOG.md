@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- The **Store**: the plugin Discover catalogue and the Extras bundles are unified
+  into one section with a Plugins / Bundles switch. The separate Plugins and Extras
+  nav entries are gone, and installed-plugin management moved to the Add-ons
+  section, so the Store only browses and installs.
 - An **Add-ons** section: installed plugins as a bento grid, each card opening that
   plugin's own settings - rendered from its `metadata.settings` schema by
   `PluginSettingsForm` (dropdown / toggle / slider / text controls grouped under

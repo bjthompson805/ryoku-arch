@@ -28,6 +28,9 @@ Item {
     property var plugins: []      // installed plugins (from discover.sh --all)
     property string busyId: ""    // id currently installing/removing
     property bool refreshing: false
+    // Discover-only when embedded in the unified Store: the Installed tab moves to
+    // the Add-ons page, so the store just browses and installs.
+    property bool storeMode: false
 
     readonly property string shellDir: Quickshell.env("RYOKU_SHELL_DIR")
     readonly property string script: (shellDir && shellDir.length > 0)
@@ -138,7 +141,7 @@ Item {
     // ── Segmented switch: Discover | Installed (hidden on the detail view) ───
     Row {
         id: tabs
-        visible: page.view !== "detail"
+        visible: page.view !== "detail" && !page.storeMode
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.rightMargin: 8
