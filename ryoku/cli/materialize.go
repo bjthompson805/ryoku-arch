@@ -41,7 +41,11 @@ func materialize() error {
 
 	info, err := os.Stat(base)
 	if err != nil || !info.IsDir() {
-		return fmt.Errorf("base config dir not found: %s", base)
+		if os.Getenv("RYOKU_CONFIG_BASE") != "" {
+			return fmt.Errorf("base config dir not found: %s (RYOKU_CONFIG_BASE points at a missing dir)", base)
+		}
+		return fmt.Errorf("base config dir not found: %s\n"+
+			"  `ryoku materialize` applies a packaged install's config; on a dev checkout run `ryoku deploy` instead", base)
 	}
 
 	current, err := walkRel(base)

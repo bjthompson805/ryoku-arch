@@ -12,6 +12,11 @@
   hand) re-asserts each output's intended mode via `ryoku-monitor settle`,
   respecting an explicit Ryoku Settings resolution and `monitors_user.lua`.
   Covered by `doctor_test.go` and `tests/monitor-profiles.sh`.
+- `materialize` now points at `ryoku deploy` when the base config dir is absent,
+  instead of failing with a bare `base config dir not found: /usr/share/ryoku/config`.
+  That path only exists on a packaged install; on a dev checkout `ryoku deploy` is
+  the command, and the error now says so (a set-but-missing `RYOKU_CONFIG_BASE` is
+  called out separately).
 - `bin/ryoku-recovery` (the `curl | bash` panic button) now always restores the
   stable `main` branch and repairs the broken checkout in place. A machine from
   an old ISO could be stranded on `unstable-dev`: that ISO's `ryoku-update`
