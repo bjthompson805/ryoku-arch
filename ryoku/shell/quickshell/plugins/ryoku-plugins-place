@@ -1,21 +1,55 @@
 #!/usr/bin/env bash
 # Merge a plugin placement change into ~/.config/ryoku/plugins.json. Used by the
-# desktop layer to persist a dragged tile's free position (and by Ryoku Settings
-# for any placement edit). The Registry's file watch picks the change up and
-# retunes every surface, so there is no reload.
+# desktop layer to persist a dragged tile's free position, by Ryoku Settings for
+# any placement edit, and by the installer to seed/forget a plugin's settings
+# block. The Registry's file watch picks the change up and retunes every surface,
+# so there is no reload.
 #
-#   ryoku-plugins-place <id> desktopWidget <x> <y>
+#   ryoku-plugins-place <id> desktopWidget <x> <y> [scale] [locked]
 #   ryoku-plugins-place <id> framePopout <edge> <align> <hoverW> <hoverH>
 #   ryoku-plugins-place <id> host <hostName>
 #   ryoku-plugins-place <id> enabled <true|false>
+#   ryoku-plugins-place <id> settings <json>   merge a settings object
+#   ryoku-plugins-place <id> seed              inject the manifest preset block
+#   ryoku-plugins-place <id> forget            drop the whole entry (uninstall)
 set -euo pipefail
 
 cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 f="$cfg_home/ryoku/plugins.json"
 mkdir -p "$(dirname "$f")"
 [ -f "$f" ] || echo '{}' >"$f"
 
 id="${1:?id required}"; field="${2:?field required}"; shift 2
+
+# Print a plugin's manifest path, searching the dev override dirs then the data
+# dir (the same order discover.sh uses). Non-zero when none is found.
+manifest_for() {
+	local pid="$1" d
+	local -a dirs=()
+	[ -n "${RYOKU_PLUGINS_DIR:-}" ] && IFS=':' read -r -a dirs <<<"$RYOKU_PLUGINS_DIR"
+	dirs+=("$data_home/ryoku/plugins")
+	for d in "${dirs[@]}"; do
+		[ -n "$d" ] && [ -f "$d/$pid/manifest.json" ] && { printf '%s\n' "$d/$pid/manifest.json"; return 0; }
+	done
+	return 1
+}
+
+# Inject a plugin's shipped presets - its default host and default settings - into
+# its plugins.json entry, filling only what is missing so a user's edits survive.
+# Best-effort and idempotent: no manifest means nothing to seed.
+seed_entry() {
+	local pid="$1" man defs host
+	man="$(manifest_for "$pid")" || return 0
+	defs="$(jq -c '.metadata.defaultSettings // {}' "$man")"
+	host="$(jq -r '.defaults.host // "desktopWidget"' "$man")"
+	jq --arg id "$pid" --argjson defs "$defs" --arg host "$host" \
+		'.[$id] = ((.[$id] // {}) + {
+			enabled: ((.[$id].enabled) // false),
+			host: ((.[$id].host) // $host),
+			settings: ($defs + ((.[$id].settings) // {}))
+		})' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+}
 
 case "$field" in
 desktopWidget)
@@ -46,9 +80,24 @@ host)
 enabled)
 	en="${1:?enabled}"
 	jq --arg id "$id" --argjson e "$en" '.[$id] = ((.[$id] // {}) + { enabled: $e })' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+	# Enabling injects the preset block, so a plugin's settings exist in the right
+	# place the moment it goes live (a fresh enable needs no hand edit).
+	if [ "$en" = "true" ]; then seed_entry "$id"; fi
+	;;
+settings)
+	json="${1:?settings json}"
+	jq --arg id "$id" --argjson s "$json" \
+		'.[$id] = ((.[$id] // {}) + { settings: (((.[$id].settings) // {}) + $s) })' \
+		"$f" >"$f.tmp" && mv "$f.tmp" "$f"
+	;;
+seed)
+	seed_entry "$id"
+	;;
+forget)
+	jq --arg id "$id" 'del(.[$id])' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
 	;;
 *)
-	echo "usage: ryoku-plugins-place <id> desktopWidget <x> <y> | host <name> | enabled <bool>" >&2
+	echo "usage: ryoku-plugins-place <id> desktopWidget <x> <y> | framePopout <edge> <align> <hoverW> <hoverH> | host <name> | enabled <bool> | settings <json> | seed | forget" >&2
 	exit 2
 	;;
 esac

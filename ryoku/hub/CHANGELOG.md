@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- Plugins: a plugin's settings now follow its lifecycle. `ryoku-hub extras` seeds
+  a plugin's manifest presets into `plugins.json` (`<id>.settings`) on install and
+  forgets the whole entry on uninstall, so a widget's settings appear with it and
+  disappear when it is removed (through `ryoku-plugins-place seed` / `forget`).
 - A **Desktop Widgets** section: a live editor for the clock and weather widgets
   on the wallpaper (`WidgetsPage`, with Clock and Weather tabs). Each tab pairs a
   live preview that mirrors the running design (`ClockPreview`/`WeatherPreview`,

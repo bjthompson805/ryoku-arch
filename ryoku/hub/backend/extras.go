@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -400,6 +401,9 @@ func removePlugin(id string) error {
 	if id == "" {
 		return fmt.Errorf("plugin id required")
 	}
+	// Drop the plugin's plugins.json entry (placement + settings) so its config
+	// disappears with it; the data-dir removal below is the real uninstall.
+	_ = exec.Command("ryoku-plugins-place", id, "forget").Run()
 	dir := pluginDataDir(id)
 	fi, err := os.Lstat(dir)
 	if err != nil {
@@ -467,5 +471,8 @@ func ensurePlugin(id string) (string, error) {
 			return "", err
 		}
 	}
+	// Seed the plugin's preset block into plugins.json so its settings exist in
+	// the right place the moment it is installed (forgotten again on uninstall).
+	_ = exec.Command("ryoku-plugins-place", id, "seed").Run()
 	return dst, nil
 }

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `quickshell/plugins/ryoku-plugins-place` gains `seed`, `settings`, and `forget`
+  verbs: `seed` injects a plugin's manifest preset block (default host + default
+  settings) into `plugins.json`, filling only what is missing so user edits
+  survive; `settings <json>` merges an edit; `forget` drops the entry. Enabling a
+  plugin now also seeds, so its settings exist in the right place the moment it
+  goes live.
 - `quickshell/pill` stash install: drop a file, get a launcher entry. Beyond
   AppImages and self-contained tarballs, the installer now handles native and
   portable package formats so they open afterwards:
