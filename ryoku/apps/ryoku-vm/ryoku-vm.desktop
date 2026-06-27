@@ -6,5 +6,5 @@ Comment=Launch the Looking-Glass Windows VM with the discrete GPU
 Exec=ryoku-vm
 Terminal=false
 Icon=computer
-Categories=System;Utility;
+Categories=System;
 Keywords=vm;windows;virtual machine;looking glass;passthrough;gpu;

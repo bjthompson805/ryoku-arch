@@ -110,7 +110,6 @@ var domainTmpl = template.Must(template.New("domain").Parse(`<domain type='kvm' 
     <type arch='x86_64' machine='q35'>hvm</type>
 {{- if .IsWindows}}
     <firmware>
-      <feature enabled='yes' name='enrolled-keys'/>
       <feature enabled='yes' name='secure-boot'/>
     </firmware>
     <loader secure='yes'/>
