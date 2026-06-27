@@ -5,21 +5,18 @@ import Quickshell
 import Quickshell.Hyprland
 import "Singletons"
 
-/**
- * Workspace switcher grown from the pill centre (Super+Tab). A filmstrip of
- * workspace tiles for this monitor, each a scaled mini-map of that workspace
- * with its windows drawn where they actually sit. Click a window to focus it,
- * click a tile to switch to that workspace, or drag a window onto another tile
- * to move it there; a trailing "+" tile sends a window to a fresh workspace.
- *
- * Windows on inactive workspaces are unmapped in Hyprland, so they cannot be
- * live thumbnails: each is an icon card placed at its real scaled geometry.
- *
- * The drag is tracked by hand rather than with Qt's Drag/DropArea: the pill is a
- * layer-shell surface and reparenting a dragged item into an overlay mid-grab
- * loses the pointer, so the press-grabbing MouseArea instead drives a cursor
- * ghost and hit-tests the tile under the pointer on release.
- */
+// workspace switcher grown from the pill centre (Super+Tab). filmstrip of
+// tiles for this monitor, each a scaled mini-map with windows drawn where
+// they actually sit. click a window -> focus, click a tile -> switch, drag
+// a window onto a tile -> move. trailing "+" tile = send to a fresh ws.
+//
+// inactive workspaces are unmapped in Hyprland, so no live thumbnails: each
+// is an icon card placed at its real scaled geometry.
+//
+// drag is hand-tracked, not Qt Drag/DropArea: the pill is a layer-shell
+// surface and reparenting a dragged item into an overlay mid-grab loses the
+// pointer. so the press-grabbing MouseArea drives a cursor ghost and
+// hit-tests the tile under the pointer on release.
 PillSurface {
     id: root
 
@@ -30,11 +27,11 @@ PillSurface {
 
     ameForm: "off"
 
-    // Set by the pill: the monitor this surface lives on, so the strip shows
-    // that screen's workspaces (matching the pill's WorkspaceWave).
+    // pill sets this: the monitor this surface lives on, so the strip shows
+    // that screen's workspaces (matches the pill's WorkspaceWave).
     property string screenName: ""
 
-    // ── Monitor geometry (logical, matching hyprctl client coords) ─────────
+    // monitor geometry (logical, matching hyprctl client coords)
     readonly property var mon: {
         var ms = Hyprland.monitors.values;
         for (var i = 0; i < ms.length; i++)
@@ -51,7 +48,7 @@ PillSurface {
     readonly property real aspect: root.monLW > 0 ? root.monLH / root.monLW : 0.625
     readonly property int activeWsId: (root.mon && root.mon.activeWorkspace) ? root.mon.activeWorkspace.id : -1
 
-    // ── Workspaces on this monitor, low id first ───────────────────────────
+    // workspaces on this monitor, low id first
     readonly property var wsList: {
         var out = [];
         var all = Hyprland.workspaces.values;
@@ -63,7 +60,7 @@ PillSurface {
         out.sort(function (a, b) { return a.id - b.id; });
         return out;
     }
-    // The next free workspace id, the target of the trailing "+" tile.
+    // next free ws id; target of the trailing "+" tile.
     readonly property int newWsId: {
         var m = 0;
         for (var i = 0; i < root.wsList.length; i++)
@@ -72,7 +69,7 @@ PillSurface {
         return m + 1;
     }
 
-    // ── Tile sizing: a row that shrinks each tile to stay bounded ──────────
+    // tile sizing: a row that shrinks each tile to stay bounded
     readonly property real gap: 10 * root.s
     readonly property real labelH: 17 * root.s
     readonly property real maxRowW: 760 * root.s
@@ -84,18 +81,18 @@ PillSurface {
     readonly property real tileH: Math.round(root.tileW * root.aspect)
     readonly property real innerW: root.tileCount * root.tileW + (root.tileCount - 1) * root.gap
 
-    // Read by the pill's surfaceSize: full pill width and content height.
+    // read by the pill's surfaceSize: full pill width + content height.
     readonly property real desiredW: root.innerW + (root.mLeft + root.mRight) * root.s
     implicitHeight: root.labelH + root.tileH
 
-    // Open with fresh geometry: the pill refreshes toplevels on open/close/move,
-    // not on in-place moves, so a window's position could otherwise be stale.
+    // open with fresh geometry. the pill refreshes toplevels on open/close/
+    // move, not on in-place moves, so a window pos could otherwise be stale.
     onOpenChanged: if (open) {
         Hyprland.refreshWorkspaces();
         Hyprland.refreshToplevels();
     }
 
-    // ── Drag state (a window card being carried to another tile) ───────────
+    // drag state (a window card being carried to another tile)
     readonly property int noWs: -999
     property bool dragging: false
     property string dragAddr: ""
@@ -113,9 +110,9 @@ PillSurface {
         root.dragTl = null;
     }
 
-    // Which workspace tile sits under a point in `strip` coordinates, or noWs
-    // for a gap / off the strip. The "+" tile (index == wsList.length) targets
-    // a fresh workspace.
+    // which workspace tile sits under a point in `strip` coords, or noWs for
+    // a gap / off the strip. the "+" tile (index == wsList.length) targets a
+    // fresh ws.
     function tileAt(px, py) {
         if (py < 0 || py > root.labelH + root.tileH || px < 0)
             return root.noWs;
@@ -169,7 +166,7 @@ PillSurface {
                 width: root.tileW
                 height: root.labelH + root.tileH
 
-                // Windows on this workspace as fraction-of-monitor rects.
+                // windows on this ws as fraction-of-monitor rects.
                 readonly property var cards: {
                     var out = [];
                     if (!root.mon)
@@ -216,8 +213,8 @@ PillSurface {
                     font.weight: Font.Medium
                 }
 
-                // Switch-to-workspace on the tile body; the cards above grab
-                // their own presses, so only empty space falls through to here.
+                // switch-to-workspace on the tile body. cards above grab
+                // their own presses, so only empty space falls through here.
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
@@ -268,7 +265,7 @@ PillSurface {
                             border.width: 1
                             border.color: ma.containsMouse ? Theme.brand : Theme.border
                             antialiasing: true
-                            // Fade the carried window in place while it is dragged.
+                            // fade the carried window in place while dragged.
                             opacity: (root.dragging && card.addr === root.dragAddr) ? 0.3 : 1
 
                             Behavior on border.color { ColorAnimation { duration: Motion.fast } }
@@ -341,8 +338,8 @@ PillSurface {
             }
         }
 
-        // Trailing tile: drag a window here to send it to a fresh workspace, or
-        // click to create and switch to one.
+        // trailing tile: drag a window here -> send to a fresh ws, or click
+        // to create + switch.
         Item {
             id: addTile
             readonly property bool hot: root.dragging && root.dragTargetWs === root.newWsId
@@ -362,7 +359,7 @@ PillSurface {
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
                 Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
-                // A plus mark, drawn so the strip needs no extra glyph asset.
+                // a plus mark, drawn so the strip needs no glyph asset.
                 Rectangle {
                     anchors.centerIn: parent
                     width: 15 * root.s
@@ -387,7 +384,7 @@ PillSurface {
         }
     }
 
-    // The carried window's ghost, riding above the strip and following the
+    // carried window's ghost, riding above the strip and following the
     // cursor while a drag is in flight.
     Item {
         id: dragLayer

@@ -7,33 +7,30 @@ import Quickshell.Widgets
 import ".."
 import "../Singletons"
 
-/**
- * Power popout content for the frame: a vertical column of hand-drawn session
- * glyphs with Shutdown enlarged at the centre as the primary action. The
- * destructive holds (Logout, Restart, Shutdown) flank the centre and fire only
- * on press-and-hold, ramping a bottom-up heat fill; releasing early drains it,
- * so a stray click can never reboot the machine. The safe taps (Lock, Sleep)
- * sit at the ends.
- *
- * Root is a plain transparent Item: the blob body behind it (the Popout surface)
- * is what the user sees, so painting a background here would double it.
- */
+// power popout body for the frame: vertical column of hand-drawn session glyphs
+// with Shutdown blown up in the middle as the primary. destructive holds
+// (logout / restart / shutdown) flank it and only fire on press-and-hold,
+// ramping a bottom-up heat fill. release early -> drains. one stray click
+// will never reboot the box. safe taps (lock, sleep) at the ends.
+//
+// root is a transparent Item: the blob behind (the Popout surface) is what the
+// user sees, painting a bg here would just double it.
 Item {
     id: root
 
     anchors.fill: parent
 
-    // Host passes its content scale; every sizing term reads root.s.
+    // host passes its content scale, every sizing term reads root.s.
     property real s: 1
 
-    // Emitted after an action runs so the host can dismiss the popout. The
-    // popout also closes on hover-leave, so this is just a courtesy.
+    // courtesy: popout already closes on hover-leave, host can still dismiss
+    // on this signal after an action runs.
     signal closed()
 
     property string hovered: ""
 
-    // Ordered top -> bottom with Shutdown at the centre (index 2): safe taps at
-    // the ends, the destructive holds clustered around the central Shutdown.
+    // top -> bottom, Shutdown centered (index 2). safe taps at the ends,
+    // destructive holds clustered around the middle.
     readonly property var actions: [
         { key: "lock",     glyph: "lock",     label: "Lock",     confirm: false, dispatch: "",              argv: ["ryoku-shell", "lock"] },
         { key: "logout",   glyph: "logout",   label: "Logout",   confirm: true,  dispatch: "hl.dsp.exit()", argv: [] },
@@ -88,10 +85,10 @@ Item {
                 }
 
                 /**
-                 * Heat fill lives in a ClippingRectangle that carries the tile's
+                 * Heat fill in a ClippingRectangle that carries the tile's
                  * corner radius. A plain Rectangle with its own radius gets it
-                 * clamped to height/2 while the fill is still flat, so corners
-                 * poke outside the tile outline on the first beat of every hold.
+                 * clamped to height/2 while the fill is still flat -> corners
+                 * poke outside the tile outline on the first beat of a hold.
                  */
                 ClippingRectangle {
                     anchors.fill: parent

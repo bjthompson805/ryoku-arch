@@ -4,15 +4,13 @@ import Quickshell
 import Quickshell.Io
 import "../lib/events.js" as Model
 
-/**
- * Local calendar events, persisted as a plain JSON array at
- * ~/.local/state/ryoku/events.json. The in-memory `events` is the source of
- * truth: add/remove mutate it and write the file, which is read back only at
- * startup. The file is deliberately NOT watched, because re-reading our own write
- * races the FileView's cached text and drops the just-added event. All logic
- * lives in lib/events.js so the model is unit-tested under node; this singleton
- * is the thin Quickshell wrapper (persistence + reactive `events`).
- */
+// Local calendar events, persisted as a plain JSON array at
+// ~/.local/state/ryoku/events.json. The in-memory `events` is the source of
+// truth: add/remove mutate it and write the file, which is read back only at
+// startup. The file is NOT watched: re-reading our own write races the
+// FileView's cached text and drops the just-added event. All logic lives in
+// lib/events.js so the model is unit-tested under node; this singleton is the
+// thin Quickshell wrapper (persistence + reactive `events`).
 Singleton {
     id: root
 
@@ -42,8 +40,8 @@ Singleton {
         root.persist();
     }
 
-    /** Add from one typed line, splitting an optional leading HH:MM start time.
-     *  Returns false (and adds nothing) when the line has no text. */
+    // Add from one typed line, splitting an optional leading HH:MM start time.
+    // Returns false (and adds nothing) when the line has no text.
     function addEntry(date, raw) {
         var p = Model.parseEntry(raw);
         if (p.text.length === 0)
@@ -58,7 +56,7 @@ Singleton {
     }
 
     // The state dir may not exist on a fresh profile; create it before the first
-    // persist so setText never fails silently into a dropped event.
+    // persist so setText doesn't fail silently into a dropped event.
     Process {
         command: ["mkdir", "-p", root.stateDir]
         running: true

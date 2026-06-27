@@ -2,8 +2,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// A single-select segmented control with a sliding indicator, in the pill's
-// dossier idiom. `model` is a list of { key, label }; emits `selected(key)`.
+// single-select segmented control with a sliding indicator, dossier idiom.
+// `model` = list of { key, label }, emits selected(key).
 Item {
     id: seg
 
@@ -33,7 +33,7 @@ Item {
         border.color: Theme.border
     }
 
-    // Sliding selection indicator.
+    // sliding indicator.
     Rectangle {
         y: 4 * seg.s
         height: parent.height - 8 * seg.s

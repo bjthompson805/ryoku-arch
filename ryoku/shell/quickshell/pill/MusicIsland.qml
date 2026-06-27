@@ -189,9 +189,9 @@ Item {
         cursorShape: root.controlsOpen ? Qt.ArrowCursor : Qt.PointingHandCursor
     }
 
-    // Clicking the now-playing area (art and bars) opens the full media player;
-    // the transport buttons sit to the right and keep their own taps, so this
-    // stays clear of them and works whether or not the controls are revealed.
+    // click on the art / bars opens the full media player. transport buttons
+    // sit to the right with their own taps, so this stays clear of them and
+    // works whether or not controls are revealed.
     MouseArea {
         anchors.left: parent.left
         anchors.top: parent.top

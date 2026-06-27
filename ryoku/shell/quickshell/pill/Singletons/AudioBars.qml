@@ -32,9 +32,8 @@ Singleton {
         onTriggered: if (root.active && !cavaProc.running) cavaProc.running = true
     }
 
-    // Cava streams continuously while audio plays; if it stalls (a restart gap or
-    // a missing binary) settle the bars to a flat resting line rather than fake
-    // motion, so the island never animates without real audio behind it.
+    // cava streams while audio plays. if it stalls (restart gap, missing binary)
+    // pin the bars flat so the island doesn't animate without real audio.
     Timer {
         interval: 120
         running: root.active

@@ -8,24 +8,23 @@ import Quickshell.Wayland
 import Quickshell.Services.SystemTray
 import "Singletons"
 
-/**
- * System tray. Draws StatusNotifier items as warm-tinted icons. Left-click
- * activates (preferring the resolved desktop entry), middle-click does the
- * secondary action, right-click opens the item's native menu in a floating
- * washi card, wheel scrolls the item. The menu gets its own overlay window so
- * it can grab keyboard focus for dismissal.
- */
+// system tray. draws StatusNotifier items as warm-tinted icons.
+//   left   = activate (prefers resolved desktop entry)
+//   middle = secondary action
+//   right  = item's native menu in a floating washi card
+//   wheel  = scroll the item
+// the menu lives in its own overlay window so it can grab keyboard focus for
+// dismissal.
 Item {
     id: tray
 
     property real s: 1
     property var barWindow
 
-    // Hide idle items (Passive per the StatusNotifier spec) and Handy. Handy runs
-    // --start-hidden so its window never opens, but it still registers an Active
-    // tray item, and it is keybind-driven (Super+`), so it does not belong in the
-    // island. Match it by title, since its StatusNotifier id carries a per-launch
-    // pid.
+    // hide idle items (Passive per StatusNotifier spec) and Handy. Handy runs
+    // with --start-hidden (no window) but it still registers an Active tray
+    // item, and it's keybind-driven (Super+`), so it doesn't belong in the
+    // island. match by title since its StatusNotifier id carries a per-launch pid.
     readonly property var shown: {
         const out = [];
         const items = SystemTray.items.values;
@@ -122,11 +121,9 @@ Item {
         }
     }
 
-    /**
-     * One menu line: separator, or a row with optional checkbox/radio state,
-     * icon, label and a submenu chevron that rotates when expanded. Used for
-     * both top-level entries and indented submenu children.
-     */
+    // one menu line: separator, or a row with optional checkbox/radio state,
+    // icon, label, and a submenu chevron that rotates when expanded. used for
+    // both top-level entries and indented submenu children.
     component MenuRow: Item {
         id: mrow
 

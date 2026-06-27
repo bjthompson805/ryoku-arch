@@ -3,14 +3,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * The LocalSend send sheet, raised over the stash grid. It runs a ~2s LAN scan
- * and lists the devices it finds; picking one raises an inline confirmation
- * naming exactly what goes where before anything is uploaded. The same sheet
- * handles all three send kinds: a single file, the whole stash, or a typed note
- * (which adds a paste-or-type field up top). All discovery and upload state lives
- * in the Stash singleton; this is purely its face.
- */
+// LocalSend send sheet, raised over the stash grid. ~2s LAN scan, list of
+// devices it found, picking one raises an inline confirm naming exactly what
+// goes where before anything uploads. one sheet, three send kinds: a single
+// file, the whole stash, or a typed note (adds a paste-or-type field up top).
+// discovery + upload state lives in Stash; this is its face.
 Rectangle {
     id: root
 
@@ -22,17 +19,17 @@ Rectangle {
     readonly property bool sending: Stash.lsState === "sending"
     readonly property bool ready: Stash.lsState === "ready"
 
-    // A device is pickable once the scan is ready, and (for a note) only once
-    // there is text to send, so an empty note can never go out.
+    // pickable once the scan is ready. for a note, also gated on text being
+    // present, so an empty note can't go out.
     readonly property bool canPick: ready && (!isText || Stash.composeText.length > 0)
 
-    // What this send will move, for the title and the confirmation.
+    // what this send will move, for the title + confirm copy.
     readonly property string subject: Stash.sendKind === "all"
         ? (Stash.count + (Stash.count === 1 ? " file" : " files"))
         : Stash.sendKind === "text" ? "a note"
         : (("" + Stash.pendingFile).split("/").pop() || "file")
 
-    // The device the user tapped, awaiting confirmation.
+    // device the user tapped, awaiting confirm.
     property string pickIp: ""
     property string pickAlias: ""
 
@@ -42,10 +39,10 @@ Rectangle {
 
     onActiveChanged: if (!active) { root.pickIp = ""; root.pickAlias = ""; }
 
-    // Absorb clicks/hover so the grid beneath stays inert.
+    // eat clicks/hover so the grid beneath stays inert.
     MouseArea { anchors.fill: parent; hoverEnabled: true }
 
-    // ── Header ──────────────────────────────────────────────────────────
+    // header
     Item {
         id: head
         anchors.top: parent.top
@@ -61,7 +58,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8 * root.s
 
-            // Orbiting dot while a scan or upload runs.
+            // orbiting dot while a scan or upload runs.
             Item {
                 id: spinner
                 width: 13 * root.s
@@ -146,7 +143,7 @@ Rectangle {
         }
     }
 
-    // ── Compose field (text send only) ──────────────────────────────────
+    // compose field (text send only)
     Rectangle {
         id: composeBox
         anchors.top: head.bottom
@@ -200,7 +197,7 @@ Rectangle {
             }
         }
 
-        // Paste-from-clipboard affordance.
+        // paste-from-clipboard.
         Rectangle {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -243,7 +240,7 @@ Rectangle {
         }
     }
 
-    // ── Device list ─────────────────────────────────────────────────────
+    // device list
     ListView {
         id: deviceList
         anchors.top: composeBox.visible ? composeBox.bottom : head.bottom
@@ -340,7 +337,7 @@ Rectangle {
         }
     }
 
-    // Empty / scanning hint when the list has nothing yet.
+    // empty / scanning hint when the list has nothing yet.
     Column {
         anchors.centerIn: deviceList
         spacing: 6 * root.s
@@ -406,7 +403,7 @@ Rectangle {
         }
     }
 
-    // ── Confirmation bar (after a device is picked) ─────────────────────
+    // confirm bar (after a device is picked)
     Rectangle {
         anchors.fill: parent
         radius: Motion.rTile * root.s

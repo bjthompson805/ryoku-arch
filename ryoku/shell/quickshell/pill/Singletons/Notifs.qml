@@ -122,12 +122,10 @@ Singleton {
         root.history = root.history.filter(function(h) { return !gone[h.id]; });
     }
 
-    /**
-     * Open the app behind a notification entry: invoke its default action when
-     * present, then focus the app's Hyprland window (workspace switch included)
-     * by matching desktopEntry/appName against window classes. The entry is
-     * dismissed afterwards, mirroring stock notification-center behavior.
-     */
+    // open the app behind a notification: invoke its default action if
+    // present, then focus its Hyprland window (workspace switch included) by
+    // matching desktopEntry/appName against window classes. dismiss after,
+    // same as stock notification-center behaviour.
     function activateEntry(e) {
         if (!e || !e.n) return;
         var n = e.n;

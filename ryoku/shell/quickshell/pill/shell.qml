@@ -10,23 +10,19 @@ import Ryoku.Blobs
 import "Singletons"
 import "popouts"
 
-/**
- * Washi pill top shell. Each monitor carries two layer-shell windows:
- *
- *  - `reserve` is a zero-content strip that only claims an exclusive zone the
- *    height of the rest pill, so tiled windows always sit below the pill even
- *    while it is expanded or a surface is open.
- *  - `overlay` is a full-screen transparent Overlay layer hosting the single
- *    morphing pill anchored at top-centre. The pill never moves windows and is
- *    never re-parented; it just grows in place, so every surface grows out of
- *    the rest pill instead of popping up as a separate panel.
- *
- * Input is routed by the window mask. While the pill is collapsed the mask is
- * the pill rect only, so the rest of the screen clicks through to windows.
- * While the pill is expanded (hovered/pinned) or a surface is open the mask is
- * cleared so the whole layer catches clicks. A backdrop press dismisses, and
- * keyboard focus is taken on demand so Escape closes the open surface.
- */
+// washi pill. per monitor, two layer-shell windows:
+//   reserve = zero-content strip claiming an exclusive zone the height of
+//             the rest pill, so tiled windows sit below the pill even
+//             while it's expanded or a surface is open.
+//   overlay = full-screen transparent Overlay layer hosting the one
+//             morphing pill, anchored at top-centre. never moves windows,
+//             never re-parented; grows in place, so every surface grows
+//             out of the rest pill instead of popping as a separate panel.
+//
+// input routing = the window mask. collapsed -> mask is the pill rect, rest
+// of the screen clicks through. expanded (hover/pin) or surface open ->
+// mask cleared, whole layer catches clicks. backdrop press dismisses;
+// keyboard focus taken on demand so Escape closes the open surface.
 ShellRoot {
     id: root
 
@@ -34,8 +30,8 @@ ShellRoot {
     property string openSurface: ""
     property string peekMon: ""
 
-    // Which edge popout (mixer/power) is pinned open by IPC, and on which
-    // monitor. Hover is the primary trigger; this just lets a keybind force one.
+    // which edge popout (mixer/power) is pinned by IPC, and on which
+    // monitor. hover is the usual trigger; this is the keybind path.
     property string popout: ""
     property string popoutMon: ""
 
@@ -48,16 +44,16 @@ ShellRoot {
     Component.onCompleted: {
         refresh();
         Devices.restore();
-        // Re-establish the durable idle inhibitor to match the persisted flag.
-        // On a shell reload the external inhibitor is usually still up (it lives
-        // outside this process), so "start" is an idempotent confirm; "stop"
-        // clears any stray inhibitor when Keep-Awake is off.
+        // re-arm the durable idle inhibitor for the persisted flag. on a
+        // shell reload the external inhibitor is usually still up (lives
+        // outside this process), so "start" = idempotent confirm; "stop"
+        // clears a stray when Keep-Awake is off.
         root.syncCaffeine(Flags.keepAwake ? "start" : "stop");
-        // Re-assert Game Mode if it persisted on: after a relogin Hyprland comes
-        // up fresh from the Lua config, so the compositor tuning must be re-applied
-        // (start is idempotent and preserves the saved WiFi value). Only "start",
-        // never "stop": a reload is expensive and the desktop already sits in its
-        // normal config when game mode is off.
+        // re-assert Game Mode if it persisted on. relogin brings Hyprland
+        // up fresh from the lua config, so the compositor tuning has to be
+        // re-applied (start is idempotent and preserves the saved WiFi
+        // value). only "start", never "stop": a reload is expensive and the
+        // desktop already sits in its normal config when game mode is off.
         if (Flags.gameMode)
             root.syncGameMode("start");
     }
@@ -82,12 +78,13 @@ ShellRoot {
         IdleInhibitor { window: inhibitWin; enabled: Flags.keepAwake }
     }
 
-    // Keep-Awake's durable inhibitor lives outside the shell so it survives a
-    // reload/restart: ryoku-cmd-caffeine runs systemd-inhibit via systemd-run
-    // (setsid fallback), independent of this process's lifetime. The Wayland
-    // IdleInhibitor above only gives immediate compositor-level effect and dies
-    // with the pill on every respawn; this bridge keeps Keep-Awake unbroken
-    // across the swap. Every surface toggle still just flips Flags.keepAwake.
+    // Keep-Awake's durable inhibitor lives outside the shell so it survives
+    // a reload/restart. ryoku-cmd-caffeine runs systemd-inhibit via
+    // systemd-run (setsid fallback), independent of our lifetime. the
+    // Wayland IdleInhibitor above only gives compositor-level effect and
+    // dies with the pill on every respawn; this bridge keeps Keep-Awake
+    // unbroken across the swap. every surface toggle just flips
+    // Flags.keepAwake.
     readonly property string caffeineScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-caffeine"
 
     function syncCaffeine(action) {
@@ -101,11 +98,11 @@ ShellRoot {
         }
     }
 
-    // Game Mode's compositor + WiFi tuning lives outside the shell, like
-    // Keep-Awake: ryoku-cmd-game-mode drives hyprctl and NetworkManager so the
-    // tuning survives a shell reload and re-applies after a relogin. DND is the
-    // shell's own concern (handled in Flags); the deck toggle just flips
-    // Flags.gameMode.
+    // game mode's compositor + WiFi tuning lives outside the shell, same
+    // shape as Keep-Awake. ryoku-cmd-game-mode drives hyprctl and
+    // NetworkManager so the tuning survives a shell reload and re-applies
+    // after a relogin. DND is the shell's own (handled in Flags); deck
+    // toggle just flips Flags.gameMode.
     readonly property string gameModeScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-game-mode"
 
     function syncGameMode(action) {
@@ -119,12 +116,10 @@ ShellRoot {
         }
     }
 
-    /**
-     * Only these raw events can change what the pill renders (per-monitor
-     * active workspace, minimized toplevels, monitor hotplug). Everything
-     * else (window drags, resizes, title spam) must not trigger the triple
-     * model refresh, which costs three Hyprland IPC round-trips.
-     */
+    // only these raw events change what the pill renders (per-monitor
+    // active workspace, minimized toplevels, monitor hotplug). everything
+    // else (window drags, resizes, title spam) MUST NOT trigger the triple
+    // model refresh: three Hyprland IPC round-trips a pop.
     readonly property var refreshEvents: ({
         workspace: true, workspacev2: true,
         createworkspace: true, createworkspacev2: true,
@@ -156,9 +151,9 @@ ShellRoot {
     }
 
     function close() {
-        // A user-driven dismissal of the keyring island (Escape, backdrop, Cancel)
-        // must tell the daemon to cancel the prompt; a daemon-driven hide clears
-        // Keyring first, so dismiss() is then a no-op.
+        // user-driven dismissal of the keyring island (Escape, backdrop,
+        // Cancel) has to tell the daemon to cancel the prompt. a
+        // daemon-driven hide clears Keyring first, so dismiss() is a no-op.
         if (root.openSurface === "keyring")
             Keyring.dismiss();
         root.openMon = "";
@@ -174,16 +169,17 @@ ShellRoot {
         root.peekMon = root.peekMon === mon ? "" : mon;
     }
 
-    // A stash install that reaches a sudo/polkit prompt asks the deck to step
-    // aside, so the prompt (a window beneath this overlay's keyboard grab) can take
-    // focus instead of landing behind the open deck.
+    // a stash install hitting a sudo/polkit prompt asks the deck to step
+    // aside so the prompt (a window beneath our keyboard grab) takes focus
+    // instead of landing behind the open deck.
     Connections {
         target: Stash
         function onAuthStepAside() { root.close(); }
     }
 
-    // Pin/unpin an edge popout (mixer/power) on a monitor; re-issuing the same
-    // one clears it. Hover opens them on its own, so this is the IPC/keybind path.
+    // pin/unpin an edge popout (mixer/power) on a monitor. re-issuing the
+    // same one clears it. hover opens them on its own; this is the
+    // IPC/keybind path.
     function togglePopout(mon, name) {
         if (root.popout === name && root.popoutMon === mon) {
             root.popout = "";
@@ -193,9 +189,10 @@ ShellRoot {
         root.popoutMon = mon;
     }
 
-    // Open the Hub on its Updates section. The update island is an entry point to
-    // the surface Super+, opens; binds.lua holds the canonical launcher, so this
-    // mirrors its flock guard to avoid spawning a second Hub instance.
+    // open the Hub on its Updates section. the update island is an entry
+    // point to the surface Super+, opens; binds.lua holds the canonical
+    // launcher, so we mirror its flock guard to avoid spawning a second
+    // Hub instance.
     function openUpdates() {
         Quickshell.execDetached(["sh", "-c",
             "ryoku-hub config set section updates; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
@@ -235,7 +232,7 @@ ShellRoot {
         function voiceHide(): void { if (root.openSurface === "voice") root.close(); }
         function peek(mon: string): void { root.peek(mon); }
         function hide(): void { root.close(); }
-        // Toggle an enabled plugin's frame popout by id (leader menu / keybind).
+        // toggle an enabled plugin's frame popout by id (leader menu / keybind).
         function pluginPopout(mon: string, id: string): void { root.togglePopout(mon, "plugin:" + id); }
     }
 
@@ -248,13 +245,13 @@ ShellRoot {
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
             readonly property real topGap: Config.islandGap * s
             readonly property real restHeight: Config.islandHeight * s
-            // Only the classic fused island, shown at rest, reserves its own strip
-            // so tiles sit below it. Floating, none, and any auto-hidden island
-            // float over the content instead, so the reserved top collapses to a
-            // small even gap that matches the other three frame edges.
+            // only the classic fused island reserves its own strip so tiles
+            // sit below it. floating/none/auto-hidden float over content,
+            // so the reserved top collapses to a small even gap matching
+            // the other three edges.
             readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide && !Config.barEnabled
             readonly property real evenTop: 22 * s
-            // The bar swells the frame's top into a band; reserve it so tiles tuck below.
+            // bar swells the frame's top into a band; reserve it so tiles tuck below.
             readonly property real barBand: 26 * s
             readonly property real zone: Config.barEnabled ? (evenTop + barBand) : (reservesIsland ? (restHeight + topGap) : evenTop)
 
@@ -281,51 +278,53 @@ ShellRoot {
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
             readonly property real topGap: Config.islandGap * s
 
-            // Bar mode: the frame's top border swells into a band carrying the
-            // options (Bar.qml). The inverted rect is oversized 50px (its
-            // anchors.margins), so the on-screen top is borderTop - 50; the bar
-            // adds `barBand` below that.
+            // bar mode: the frame's top border swells into a band carrying
+            // the options (Bar.qml). inverted rect is oversized 50px (its
+            // anchors.margins), so the on-screen top is borderTop - 50; the
+            // bar adds `barBand` below that.
             readonly property real frameTopVisible: Config.frameBorder - 50
             readonly property real barBand: 26 * s
             readonly property real barVisibleH: frameTopVisible + barBand
 
-            // Island appearance, read from the live config. The frame is identical
-            // across styles; only the centre island changes.
-            //  - fused: the classic pill, its neck melted into the top frame.
-            //  - floating: a detached pill that hangs below the frame and floats
-            //    over the content.
-            //  - none: no resting island at all.
+            // island appearance, read from the live config. the frame is
+            // the same across styles; only the centre island changes.
+            //   fused    = classic pill, neck melted into the top frame.
+            //   floating = detached pill, hangs below the frame, floats
+            //              over content.
+            //   none     = no resting island at all.
             readonly property bool fused: Config.islandStyle === "island"
             readonly property bool styleNone: Config.islandStyle === "none" || Config.barEnabled
             readonly property bool autohide: Config.islandAutohide && !styleNone
-            // Where the pill sits below the screen top: fused rides the frame neck,
-            // floating/none hang a little lower so they read as detached.
+            // where the pill sits below the screen top. fused rides the
+            // frame neck; floating/none hang lower so they read as detached.
             readonly property real floatTopGap: (18 + Config.islandGap) * s
             readonly property real pillTop: fused ? topGap : floatTopGap
-            // Rest visibility: fused/floating show at rest unless auto-hidden; none
-            // never shows at rest. Only an explicit summon brings a hidden island in:
-            // an open surface (a keybind), a peek/pin, or (when auto-hidden) a hover of
-            // the top centre. A passing toast or OSD does NOT pop a hidden island, so
-            // none and the auto-hidden styles stay clean; notifications and the volume
-            // OSD still show in the always-on island and floating styles, where the
-            // island is present anyway.
+            // rest visibility. fused/floating show at rest unless
+            // auto-hidden; none never shows at rest. an explicit summon
+            // brings a hidden island in: open surface (a keybind), peek or
+            // pin, or (auto-hidden) a hover of the top centre. a passing
+            // toast or OSD does NOT pop a hidden island, so none and the
+            // auto-hidden styles stay clean. notifications and the volume
+            // OSD still surface in the always-on island and floating
+            // styles, where the island is present anyway.
             readonly property bool idleShown: styleNone ? false : !autohide
             readonly property bool islandShown: !monFullscreen
                 && (Config.barEnabled
                     ? pill.surfaceOpen
                     : (idleShown || pill.surfaceOpen || pill.held || (autohide && pill.hoverLatch)))
-            // The auto-hide reveal trigger: a thin strip under the top frame that
-            // brings the hidden island down on hover.
+            // auto-hide reveal trigger: thin strip under the top frame,
+            // hover brings the hidden island down.
             readonly property real revealTrigger: pillTop + 14 * s
             readonly property string surface: root.openMon === modelData.name ? root.openSurface : ""
             readonly property bool surfaceOpen: surface.length > 0
-            // Voice dictation must not steal keyboard focus or block the pointer:
-            // Handy types the transcription into whatever app the user is dictating
-            // into, so the voice surface stays non-modal and OnDemand-focus.
+            // voice dictation can't steal keyboard focus or block the
+            // pointer. Handy types the transcription into whatever app the
+            // user is dictating into, so the voice surface stays non-modal
+            // and OnDemand-focus.
             readonly property bool focusSurface: surfaceOpen && surface !== "voice"
             readonly property bool modal: focusSurface || pill.held
 
-            // True when this monitor's active workspace has a fullscreen window.
+            // true if this monitor's active workspace has a fullscreen window.
             readonly property bool monFullscreen: {
                 var mons = Hyprland.monitors.values;
                 for (var i = 0; i < mons.length; i++)
@@ -363,37 +362,37 @@ ShellRoot {
                 y: 0
                 width: baseW + musicPad
                 height: pill.y + Math.max(pill.height, pill.targetH) + 6 * pill.s
-                // Edge popouts grab input at the frame edges (their trigger) and
-                // over the open body, so hovering the centre-left/right border
-                // opens them while the rest of the screen stays click-through.
+                // edge popouts grab input at their frame-edge trigger and
+                // over the open body, so hovering the centre-left/right
+                // border opens them while the rest stays click-through.
                 Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
                 Region { x: mixerPop.bodyX; y: mixerPop.bodyY; width: mixerPop.bodyW; height: mixerPop.bodyH }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
                 Region { x: powerPop.bodyX; y: powerPop.bodyY; width: powerPop.bodyW; height: powerPop.bodyH }
-                // Plugin frame popouts: aggregate trigger+body input grab.
+                // plugin frame popouts: aggregate trigger+body input grab.
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
-                // The activity strip rides left of the pill, outside the pill body,
-                // so input must be grabbed over it for its chips (REC stop, stash) to
-                // receive hover and clicks instead of passing through to the window.
+                // activity strip rides left of the pill, outside the body:
+                // grab input over it so its chips (REC stop, stash) get
+                // hover/clicks instead of passing through.
                 Region { x: activityStrip.x; y: activityStrip.y; width: activityStrip.width; height: activityStrip.height }
-                // The update island rides the top-right corner, outside the pill
-                // body, so input must be grabbed over it for its hover and the
-                // click that opens the Hub instead of passing through to a window.
+                // update island rides top-right, outside the body: grab
+                // input for its hover and the click that opens the Hub,
+                // instead of passing through to a window.
                 Region { x: updateIsland.x; y: updateIsland.y; width: updateIsland.width; height: updateIsland.height }
             }
             Region {
                 id: idleRegion
-                // The reveal trigger: a thin strip under the top frame, sized to the
-                // rest pill, that catches the hover bringing an auto-hidden island
-                // down. Zero for 'none', which never reveals, so the top centre stays
-                // click-through and fully functional.
+                // reveal trigger: thin strip under the top frame, sized to
+                // the rest pill, catches the hover bringing an auto-hidden
+                // island down. zero for 'none', which never reveals, so
+                // the top centre stays click-through.
                 x: overlay.autohide ? pill.x : 0
                 y: 0
                 width: overlay.autohide ? pill.width : 0
                 height: overlay.autohide ? overlay.revealTrigger : 0
-                // Edge popouts stay part of the frame in every island style, so their
-                // hover triggers and open bodies always catch input.
+                // edge popouts stay part of the frame in every island
+                // style, so their hover triggers + open bodies always catch.
                 Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
                 Region { x: mixerPop.bodyX; y: mixerPop.bodyY; width: mixerPop.bodyW; height: mixerPop.bodyH }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
@@ -408,7 +407,7 @@ ShellRoot {
             }
             Region {
                 id: barRegion
-                // The bar strip catches input for its options; the edge popouts
+                // bar strip catches input for its options; the edge popouts
                 // keep their hover triggers and bodies so mixer/power still open.
                 x: 0
                 y: 0
@@ -440,7 +439,7 @@ ShellRoot {
                 id: focusScope
                 anchors.fill: parent
                 focus: overlay.focusSurface
-                // The whole shell hides while a window is fullscreen.
+                // whole shell hides while a window is fullscreen.
                 visible: !overlay.monFullscreen
 
                 Keys.onEscapePressed: if (!pill.linkBack()) root.close()
@@ -450,8 +449,8 @@ ShellRoot {
                 Keys.onEnterPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
                 Keys.onSpacePressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
 
-                // The screen frame and the pill share one blob field, so the pill
-                // reads as the frame swelling open at top-centre, not a bar on top.
+                // frame and pill share one blob field, so the pill reads
+                // as the frame swelling open at top-centre, not a bar on top.
                 BlobGroup {
                     id: blobGroup
                     color: Config.matchWallpaper ? Wallust.surface : Config.surfaceColor
@@ -461,9 +460,10 @@ ShellRoot {
                 }
 
                 BlobInvertedRect {
-                    // The rounded screen border, sitting in Hyprland's gaps_out ring.
-                    // Oversized by 50px so the outer edge clips off-screen and only the
-                    // inner (window) edge shows; borders grow to keep the hole at gaps_out.
+                    // rounded screen border, sits in Hyprland's gaps_out
+                    // ring. oversized 50px so the outer edge clips
+                    // off-screen and only the inner (window) edge shows;
+                    // borders grow to keep the hole at gaps_out.
                     anchors.fill: parent
                     anchors.margins: -50
                     group: blobGroup
@@ -476,8 +476,8 @@ ShellRoot {
                     visible: !overlay.monFullscreen
                 }
 
-                // The options ride the thickened frame top, drawn in the frame's
-                // own scene so there is no separate program and no seam.
+                // options ride the thickened frame top, drawn in the
+                // frame's own scene so there's no separate program, no seam.
                 Bar {
                     id: topBar
                     visible: Config.barEnabled && !overlay.monFullscreen
@@ -493,19 +493,21 @@ ShellRoot {
                 }
 
                 BlobRect {
-                    // The fused pill body, in the frame's field: its neck melts into
-                    // the top border. A blob leaves the SDF field only by collapsing
-                    // to zero size (the field ignores `visible`), so presence rides
-                    // geometry. Open is the fused melt out of the frame/bar; the bar
-                    // close fades out in place at full size (no shrink), so a
-                    // retracting content-less blob never swells the bar's edge.
+                    // fused pill body, in the frame's field: neck melts
+                    // into the top border. blobs only leave the SDF field
+                    // by collapsing to zero (field ignores `visible`, do
+                    // not "fix" that), so presence rides geometry. open =
+                    // fused melt out of the frame/bar; the bar close fades
+                    // in place at full size (no shrink), so a retracting
+                    // content-less blob doesn't swell the bar's edge.
                     id: pillBlob
                     group: blobGroup
                     readonly property real dropW: pill.openW
-                    // `geo` drives geometry: it grows on open and, on a bar close, is
-                    // held at full then snapped to 0 once invisible (no shrink melt).
-                    // `closeFade` is the bar-close opacity; island mode keeps `reveal`
-                    // for its original melt-shrink close, untouched.
+                    // `geo` drives geometry: grows on open and, on a bar
+                    // close, is held at full then snapped to 0 once
+                    // invisible (no shrink melt). `closeFade` = bar-close
+                    // opacity. island mode keeps `reveal` for its original
+                    // melt-shrink close, untouched.
                     property real reveal: 0
                     property real geo: 0
                     property real closeFade: 0
@@ -536,17 +538,19 @@ ShellRoot {
                             SequentialAnimation {
                                 PropertyAction { property: "geo"; value: 1 }
                                 PropertyAction { property: "closeFade"; value: 1 }
-                                // Bar: hold the panel opaque while its content fades
-                                // out, so the surface's text dissolves against the
-                                // solid panel, never against the busy desktop behind
-                                // it (a translucent panel double-exposes both). Island
-                                // has no panel to hold, so it melt-shrinks here.
+                                // bar: hold the panel opaque while content
+                                // fades out, so surface text dissolves
+                                // against the solid panel, never against
+                                // the busy desktop (a translucent panel
+                                // double-exposes both). island has no panel
+                                // to hold, melt-shrinks here.
                                 ParallelAnimation {
                                     PauseAnimation { duration: Config.barEnabled ? Motion.morph : 0 }
                                     NumberAnimation { property: "reveal"; to: 0; duration: Motion.morph; easing.type: Easing.OutCubic }
                                 }
-                                // Bar: the now-empty panel fades quickly; a solid fade
-                                // reads smooth with no text double-exposure.
+                                // bar: the now-empty panel fades quickly;
+                                // a solid fade reads smooth with no text
+                                // double-exposure.
                                 NumberAnimation { property: "closeFade"; to: 0; duration: Config.barEnabled ? 170 : 0; easing.type: Easing.OutCubic }
                                 PropertyAction { property: "geo"; value: 0 }
                             }
@@ -554,8 +558,8 @@ ShellRoot {
                     ]
                 }
 
-                // Mixer popout: grows out of the centre-left frame edge on hover,
-                // melting into the border through the frame's shared blob field.
+                // mixer popout: grows out of the centre-left frame edge on
+                // hover, melting into the border through the shared blob field.
                 Popout {
                     id: mixerPop
                     group: blobGroup
@@ -575,7 +579,7 @@ ShellRoot {
                     }
                 }
 
-                // Power popout: grows out of the centre-right frame edge on hover.
+                // power popout: grows out of the centre-right frame edge on hover.
                 Popout {
                     id: powerPop
                     group: blobGroup
@@ -594,8 +598,8 @@ ShellRoot {
                     }
                 }
 
-                // Plugin frame popouts: every enabled plugin whose host is a
-                // frame popout, fused into the same blob field as Mixer/Power.
+                // plugin frame popouts: every enabled plugin whose host is
+                // a frame popout, fused into the same blob field as Mixer/Power.
                 PluginPopouts {
                     id: pluginPops
                     group: blobGroup
@@ -612,9 +616,10 @@ ShellRoot {
                     }
                 }
 
-                // The music island buds off the centre island through its own blob
-                // field: a pill-shaped anchor it warps out of and melts back into. A
-                // second field (not the frame's) so the music never fuses the border.
+                // music island buds off the centre island through its own
+                // blob field: a pill-shaped anchor it warps out of and
+                // melts back into. second field (not the frame's) so the
+                // music never fuses the border.
                 BlobGroup {
                     id: islandGroup
                     color: Config.matchWallpaper ? Wallust.surface : Config.surfaceColor
@@ -622,12 +627,16 @@ ShellRoot {
                 }
 
                 BlobRect {
-                    // The island body, in the island field (never the frame field, so
-                    // it cannot fuse the border). Fused: it mirrors the pillBlob as the
-                    // anchor the music bud melts into, present only while music shows.
-                    // Detached (floating/none): it IS the visible floating pill, a fully
-                    // rounded rect below the frame that the music buds off. Height
-                    // carries the same reveal curtain as the pillBlob.
+                    // island body, in the island field (never the frame
+                    // field, so it can't fuse the border).
+                    //   fused                = mirrors pillBlob as the
+                    //                          anchor the music bud melts
+                    //                          into, present only while
+                    //                          music shows.
+                    //   detached (float/none)= IS the visible floating
+                    //                          pill, rounded rect below the
+                    //                          frame the music buds off.
+                    // height carries the same reveal curtain as pillBlob.
                     id: islandBlob
                     group: islandGroup
                     x: pill.x
@@ -654,16 +663,17 @@ ShellRoot {
                 }
 
                 BlobRect {
-                    // Tracks the music island; the smooth-min neck to islandBlob
-                    // stretches and breaks as it slides out (the warp), and reforms
-                    // as it melts back in on close.
+                    // tracks the music island. the smooth-min neck to
+                    // islandBlob stretches and breaks as it slides out (the
+                    // warp) and reforms as it melts back in on close.
                     id: musicBlob
                     group: islandGroup
                     x: musicIsland.x
                     y: musicIsland.y
-                    // Collapse to nothing when hidden: the SDF field ignores `visible`,
-                    // so a sized-but-invisible bud still shows wherever another shape in
-                    // the group paints. Zero size removes it from the field entirely.
+                    // collapse to nothing when hidden. the SDF field
+                    // ignores `visible`, so a sized-but-invisible bud still
+                    // paints wherever another shape in the group does.
+                    // zero size removes it from the field entirely.
                     width: musicIsland.visible ? musicIsland.width : 0
                     height: musicIsland.visible ? musicIsland.height : 0
                     radius: musicIsland.height / 2
@@ -673,9 +683,9 @@ ShellRoot {
                 }
 
                 DropArea {
-                    // Drag a file onto the island and the stash opens for the drop.
-                    // ...except while the workspace switcher is open, where its
-                    // own card drags move windows between workspaces.
+                    // drag a file on the island = stash opens for the drop.
+                    // ...except while the workspace switcher is open, where
+                    // its own card drags move windows between workspaces.
                     enabled: !pill.workspacesOpen
                     x: pill.x
                     y: pill.y
@@ -720,12 +730,13 @@ ShellRoot {
                 }
 
                 Item {
-                    // The neck/reveal hover zone: it only covers the strip ABOVE the
-                    // pill body (the blob neck up into the frame) and, while the
-                    // island is auto-hidden, the thin reveal trigger. The body's own
-                    // hover is read by a HoverHandler on the pill itself, so this
-                    // zone must NOT overlap the body -- a covering sibling handler
-                    // would swallow hover from the surfaces and tray icons beneath.
+                    // neck/reveal hover zone: covers only the strip ABOVE
+                    // the pill body (blob neck up into the frame), plus
+                    // the thin reveal trigger while auto-hidden. MUST NOT
+                    // overlap the body. the body's own hover is read by a
+                    // HoverHandler on the pill, and a covering sibling
+                    // here would swallow hover from the surfaces and tray
+                    // icons beneath.
                     enabled: !overlay.styleNone
                     x: pill.x
                     y: 0

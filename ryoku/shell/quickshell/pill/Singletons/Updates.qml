@@ -3,24 +3,21 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * Update state for the top-right update island, wired to `ryoku status --json`.
- *
- * `available`/`behind` come from the live count of commits behind the channel,
- * the island folds to nothing when the system is current. The run-state fields
- * mirror an in-flight `ryoku update`: the CLI publishes its progress to a small
- * runtime file (a Ryoku wave while it runs), and once it finishes the island
- * re-checks and folds away.
- */
+// Update state for the top-right update island, wired to `ryoku status --json`.
+//
+// `available`/`behind` reflect commits behind the channel; the island folds to
+// nothing when current. The run-state fields mirror an in-flight `ryoku update`:
+// the CLI publishes progress to a small runtime file (a Ryoku wave while it
+// runs), and once it finishes the island re-checks and folds away.
 Singleton {
     id: root
 
-    // --- availability (live, from `ryoku status --json`) --------------------
+    // availability (live, from `ryoku status --json`)
     property bool available: false
     property int behind: 0
     property string latestVersion: ""
 
-    // --- live run state (published by `ryoku update`) -----------------------
+    // live run state (published by `ryoku update`)
     property string runPhase: "idle"   // idle | running | success
     property real runProgress: 0
 
@@ -52,12 +49,12 @@ Singleton {
             root.runPhase = "idle";
             root.runProgress = 0;
         }
-        // An update just finished: re-check so the island folds when current.
+        // update just finished: re-check so the island folds when current.
         if (prev === "running" && root.runPhase !== "running")
             root.check();
     }
 
-    // Dismiss the run state (write idle); used after a refresh.
+    // Dismiss the run state (write idle). Used after a refresh.
     function clearRun() {
         root.runPhase = "idle";
         root.runProgress = 0;
@@ -80,9 +77,9 @@ Singleton {
 
     Component.onCompleted: root.check()
 
-    // The first check after boot can race a slow fetch; re-check on a steady
-    // cadence so the island reliably surfaces commits that land during a session
-    // and recovers if an early read returned nothing.
+    // First check after boot can race a slow fetch. Re-check on a steady cadence
+    // so commits that land mid-session still surface and an early empty read
+    // recovers.
     Timer {
         interval: 300000
         running: true

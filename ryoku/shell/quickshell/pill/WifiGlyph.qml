@@ -2,13 +2,10 @@ import QtQuick
 import QtQuick.Shapes
 import "Singletons"
 
-/**
- * Hand-drawn wifi glyph: three concentric arcs over a base dot, the lit-arc
- * count standing in for signal strength (>0.66 lights all three, >0.33 two,
- * >0 one). Lit strokes use iconDim, unlit use threadBg. When `!on` the arcs go
- * faint and a diagonal slash crosses the glyph. Paths sit centred in a 24x24
- * space scaled to the item; every weight scales by `s`.
- */
+// hand-drawn wifi glyph: three concentric arcs over a base dot, lit-arc count
+// = signal strength (>0.66 lights all three, >0.33 two, >0 one). lit = iconDim,
+// unlit = threadBg. !on -> arcs go faint + diagonal slash crosses the glyph.
+// paths centred in a 24x24 space scaled to the item; every weight scales by `s`.
 Item {
     id: root
 

@@ -7,24 +7,22 @@ import Quickshell.Services.SystemTray
 import Quickshell.Widgets
 import "Singletons"
 
-/**
- * The bar content that rides the frame's thickened top edge. When the bar is
- * enabled the frame's top border swells into a band (BlobInvertedRect.borderTop
- * in shell.qml) and this draws the options directly on it, in the frame's own
- * scene, so there is no separate program and no seam: the frame simply has the
- * options on top, the way the island is the frame swelling at the centre.
- *
- * Layout: left = 力 mark + workspaces; centre = clock; right = now-playing +
- * system tray + power. Content sits below `contentTop` (the frame's own top
- * edge) so it reads as riding the thickened frame, not floating in the border.
- */
+// bar content riding the frame's thickened top edge. when the bar is on, the
+// frame's top border swells into a band (BlobInvertedRect.borderTop in
+// shell.qml) and this draws the options directly on it, in the frame's own
+// scene. no separate program, no seam: the frame just has options on top, the
+// same way the island is the frame swelling at the centre.
+//
+// layout: left = 力 mark + workspaces, centre = clock, right = now-playing +
+// system tray + power. content sits below `contentTop` (the frame's own top
+// edge) so it reads as riding the thickened frame, not floating in the border.
 Item {
     id: bar
 
     required property real s
-    // The frame's own top-edge thickness; content sits below it.
+    // frame's own top-edge thickness, content sits below it.
     required property real contentTop
-    // The window the tray menus anchor to.
+    // window the tray menus anchor to.
     required property var trayWindow
 
     signal calendarRequested()
@@ -41,7 +39,7 @@ Item {
         anchors.fill: parent
         anchors.topMargin: bar.contentTop
 
-        // ── Left: 力 mark + workspaces ────────────────────────────────────
+        // left: 力 mark + workspaces.
         Row {
             anchors.left: parent.left
             anchors.leftMargin: 34 * bar.s
@@ -102,7 +100,7 @@ Item {
             }
         }
 
-        // ── Centre: clock (opens the pill calendar) ───────────────────────
+        // centre: clock (tap opens the pill calendar).
         Item {
             anchors.centerIn: parent
             height: parent.height
@@ -140,7 +138,7 @@ Item {
             }
         }
 
-        // ── Right: now-playing + tray + power ─────────────────────────────
+        // right: now-playing + tray + power.
         Row {
             id: rightRow
             anchors.right: parent.right
@@ -202,7 +200,7 @@ Item {
                 visible: rightRow.player !== null && rightRow.player.trackTitle
             }
 
-            // System tray.
+            // system tray.
             Row {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8 * bar.s
@@ -237,7 +235,7 @@ Item {
                 }
             }
 
-            // Power (opens the pill's power popout).
+            // power (opens the pill's power popout).
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "⏻"

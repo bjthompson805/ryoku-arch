@@ -6,15 +6,13 @@ import Quickshell.Services.Pipewire
 import ".."
 import "../Singletons"
 
-/**
- * Mixer popout content: a 力 MIXER header over a row
- * of vertical ink-faders wired to real hardware (per-monitor brightness via
- * ddcutil, vibrance via nvibrant, volume and mic via Pipewire). A plain
- * transparent Item; the frame blob behind it is the surface, and Popout sizes
- * and reveals it. Ported from the pill's Mixer, decoupled from PillSurface and
- * the pill's Ame bead. The fader under the pointer lights and the wheel nudges
- * it; the popout is pointer-driven, with no keyboard focus.
- */
+// mixer popout content. 力 MIXER header over a row of vertical ink-faders
+// wired to real hardware: per-monitor brightness (ddcutil), vibrance
+// (nvibrant), volume + mic (Pipewire). plain transparent Item, the frame
+// blob behind it IS the surface, Popout sizes and reveals it.
+// ported from the pill's Mixer, decoupled from PillSurface and the pill's
+// Ame bead. fader under the pointer lights up, wheel nudges it.
+// pointer-driven, no keyboard focus.
 Item {
     id: root
 
@@ -41,15 +39,15 @@ Item {
     readonly property bool surfaceHovered: hoverTracker.hovered
     onSurfaceHoveredChanged: if (!surfaceHovered) focusIndex = -1
 
-    // Pointer column under the cursor drives which fader lights. Coordinates are
-    // body-local (the HoverHandler lives in `body`), matching faderRow's frame.
+    // pointer column under the cursor drives which fader lights.
+    // coords are body-local (HoverHandler lives in `body`), matches faderRow.
     readonly property int hoverIndex: surfaceHovered && body.width > 0
         && hoverTracker.point.position.y >= faderRow.y
         ? Math.max(0, Math.min(faders.length - 1, Math.floor(hoverTracker.point.position.x / (body.width / faders.length))))
         : -1
     onHoverIndexChanged: if (hoverIndex >= 0) focusIndex = hoverIndex
 
-    /** Nudge the focused fader by `deltaPct` percent; true when one handled it. */
+    // nudge the focused fader by `deltaPct` percent. true if one handled it.
     function stepFocused(deltaPct) {
         if (focusIndex < 0)
             return false;
@@ -234,7 +232,7 @@ Item {
         }
     }
 
-    // Wheel over a fader nudges it without a click.
+    // wheel over a fader nudges, no click needed.
     MouseArea {
         id: wheelArea
         anchors.fill: parent

@@ -3,14 +3,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * The cobalt download/remux window, raised over the stash grid. It mirrors
- * cobalt's own flow (https://github.com/imputnet/cobalt): a download tab with the
- * auto/audio/mute modes and a paste bar, and a remux tab that rebuilds a media
- * file's container losslessly. Both feed a shared processing queue. The work runs
- * through stash-cobalt.sh (a cobalt API client with a yt-dlp fallback) behind the
- * Stash singleton; the cobalt credit stays visible since the engine is theirs.
- */
+// Cobalt download/remux window, raised over the stash grid. Mirrors cobalt's
+// own flow (https://github.com/imputnet/cobalt): a download tab with auto/audio/
+// mute modes plus a paste bar, and a remux tab that rebuilds a media file's
+// container losslessly. Both feed one processing queue. Work runs through
+// stash-cobalt.sh (cobalt API client with a yt-dlp fallback) behind the Stash
+// singleton; the cobalt credit stays visible since the engine is theirs.
 Rectangle {
     id: root
 
@@ -54,7 +52,7 @@ Rectangle {
         }
     }
 
-    // ── Header: cobalt mark + tabs ──────────────────────────────────────
+    // Header: cobalt mark + tabs.
     Item {
         id: head
         anchors.top: parent.top
@@ -99,7 +97,7 @@ Rectangle {
         }
     }
 
-    // ── Download tab: modes + paste bar ─────────────────────────────────
+    // Download tab: modes + paste bar.
     Item {
         id: dlPane
         anchors.top: head.bottom
@@ -164,7 +162,7 @@ Rectangle {
             ModeBtn { mode: "mute";  glyph: "speaker-off"; label: "Mute" }
         }
 
-        // Paste bar with an inline Paste button; Enter or the arrow submits.
+        // Paste bar with an inline Paste button. Enter or the arrow submits.
         Rectangle {
             id: bar
             anchors.top: modeRow.bottom
@@ -297,7 +295,7 @@ Rectangle {
         }
     }
 
-    // ── Remux tab: info + droppable media list ──────────────────────────
+    // Remux tab: info + droppable media list.
     Item {
         id: rxPane
         anchors.top: head.bottom
@@ -349,7 +347,7 @@ Rectangle {
         }
     }
 
-    // ── Shared list area: processing queue (download) or media (remux) ──
+    // Shared list area: queue (download) or media (remux).
     Item {
         id: listArea
         anchors.top: root.isRemux ? rxPane.bottom : dlPane.bottom
@@ -361,7 +359,6 @@ Rectangle {
         anchors.rightMargin: 14 * root.s
         anchors.bottomMargin: 6 * root.s
 
-        // Section label.
         Item {
             id: secHead
             anchors.top: parent.top
@@ -379,7 +376,6 @@ Rectangle {
                 font.weight: Font.DemiBold
             }
 
-            // Clear finished queue entries.
             Text {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
@@ -399,7 +395,6 @@ Rectangle {
             }
         }
 
-        // Processing queue (download tab).
         ListView {
             id: queue
             anchors.top: secHead.bottom
@@ -502,7 +497,7 @@ Rectangle {
             }
         }
 
-        // Media list (remux tab): tap a stash media file to remux it.
+        // Remux tab media list: tap a stash file to remux it.
         Flickable {
             id: mediaFlick
             anchors.top: secHead.bottom
@@ -587,7 +582,6 @@ Rectangle {
             }
         }
 
-        // Empty states.
         Column {
             anchors.centerIn: parent
             spacing: 5 * root.s
@@ -611,7 +605,7 @@ Rectangle {
         }
     }
 
-    // ── Credit ──────────────────────────────────────────────────────────
+    // Credit.
     Text {
         id: credit
         anchors.bottom: parent.bottom

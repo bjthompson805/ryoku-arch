@@ -3,16 +3,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * Voice dictation surface grown from the pill centre. Tapping Super+` starts
- * Handy's transcription and opens this surface; tapping again stops it. VoiceBars
- * runs cava on the default microphone, and the Ryoku wave lies flat while the mic
- * is silent and swells into highs and lows as the user speaks, mapping the live
- * mic spectrum onto the brand wave, so the island reads as listening.
- *
- * The surface is deliberately non-focus-grabbing in the shell, so the keystrokes
- * Handy types land in the app the user is dictating into, not the pill.
- */
+// voice dictation surface grown from the pill centre. Super+` starts Handy's
+// transcription and opens this; tapping again stops. VoiceBars runs cava on
+// the default mic, the Ryoku wave sits flat in silence and swells with the
+// live spectrum as you speak. island reads as listening.
+//
+// deliberately non-focus-grabbing in the shell, so the keystrokes Handy types
+// land in the app you're dictating into, not the pill.
 PillSurface {
     id: root
 
@@ -25,12 +22,11 @@ PillSurface {
 
     implicitHeight: 30 * root.s
 
-    // Drive cava only while the surface is live, and never leave it running.
+    // run cava only while the surface is live, never leave it running.
     onOpenChanged: VoiceBars.active = root.open
     Component.onDestruction: VoiceBars.active = false
 
-    // Overall mic energy (0..1), so the mic glyph and the wave brighten as the
-    // user speaks and rest dim while silent.
+    // mic energy 0..1. mic glyph + wave brighten as user speaks, rest dim.
     readonly property real energy: {
         const l = VoiceBars.levels;
         if (!l || l.length === 0)

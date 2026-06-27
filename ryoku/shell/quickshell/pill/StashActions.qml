@@ -3,14 +3,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * The stash action bar along the bottom of the section: five tiles distributed
- * evenly across the full width (Send all, Text, Download, Compress, Install), with
- * a single hairline in the middle gap separating the outgoing actions from the
- * ones that manage what is already here. Actions that act on the files dim when
- * the stash is empty; Text and Download stay live since they bring content in.
- * Tiles lift and light on hover, matching the deck's other tiles.
- */
+// stash action bar, bottom of the section. five tiles full-width: Send all,
+// Text, Download, Compress, Install. one hairline in the middle gap splits
+// outgoing actions from the ones that manage what's already here. tiles that
+// act on files dim when the stash is empty; Text + Download stay live since
+// they bring content in. lift + light on hover, deck idiom.
 Item {
     id: root
 
@@ -95,7 +92,7 @@ Item {
         }
     }
 
-    // Five tiles, each an equal fifth of the width, so the chips are evenly spaced.
+    // five tiles, each a fifth of the width, so chips space evenly.
     Row {
         anchors.fill: parent
 
@@ -134,7 +131,7 @@ Item {
         }
     }
 
-    // Hairline in the middle gap: outgoing (Send, Text) | manage (Download, ...).
+    // hairline in the middle gap: outgoing (Send, Text) | manage (rest).
     Rectangle {
         x: root.width * 0.4 - width / 2
         y: 6 * root.s

@@ -4,14 +4,12 @@ import QtQuick
 import Quickshell.Services.Notifications
 import "Singletons"
 
-/**
- * 力 INBOX surface: the notification center, opened by the pill's bell icon.
- * Notifications group per app with expandable stacks, critical entries gain a
- * vermilion hairline, an empty state reads IDLE, and CLEAR wipes the lot.
- * Opening marks everything seen after a short beat so the bell's unread ember
- * clears once it is read. The Ame bead docks as a seam on the focused row.
- * Connectivity lives in its own LINK surface; this one is notifications only.
- */
+// 力 INBOX surface = the notification center, opened by the pill bell. one
+// row per app with expandable stacks, criticals get a vermilion hairline,
+// empty = IDLE, CLEAR wipes it. opening marks everything seen after a short
+// beat so the bell ember clears once you've actually looked. Ame bead docks
+// as a seam on the focused row. connectivity is its own LINK surface; this
+// is notifications only.
 PillSurface {
     id: root
 
@@ -22,11 +20,8 @@ PillSurface {
 
     implicitHeight: mainCol.implicitHeight
 
-    /**
-     * Row-soul focus registry. Each hoverable row reports itself here; the bead
-     * docks as a glowing seam at the left edge of the focused row and hides when
-     * nothing is focused.
-     */
+    // row-soul focus registry. each hoverable row reports here; the bead
+    // docks as a glowing seam at the row's left edge, hides on nothing.
     property Item focusRowItem: null
     function reportRowHover(item, hovered) {
         if (hovered)
@@ -63,11 +58,9 @@ PillSurface {
         onTriggered: Notifs.markAllSeen()
     }
 
-    /**
-     * Single inbox entry: icon tile or diamond, body text, ×N coalesce badge,
-     * age label that cross-fades into a dismiss glyph on hover. Critical entries
-     * gain a vermilion left hairline and cream emphasis.
-     */
+    // single entry: icon tile or diamond, body, ×N coalesce badge, age that
+    // cross-fades into a dismiss glyph on hover. criticals get a vermilion
+    // hairline + cream weight.
     component NotifRow: Rectangle {
         id: nrow
 

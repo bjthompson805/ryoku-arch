@@ -6,13 +6,11 @@ import Quickshell.Io
 import Quickshell.Networking
 import "Singletons"
 
-/**
- * WLAN drill-in for the link surface: back chevron, wifi enable toggle and the
- * live network list sorted by signal strength. Security and known-profile
- * ground truth come from nmcli; clicking a secured unknown network expands an
- * inline password row that connects through `nmcli dev wifi connect`. The pill
- * body provides the surface material, so this item draws no background.
- */
+// wifi drill-in for the link surface. back chevron, enable toggle, live
+// network list sorted by signal. nmcli is ground truth for security and
+// known-profile state; clicking a secured-unknown network drops an inline
+// password row that pipes through `nmcli dev wifi connect`. background comes
+// from the pill body, so we draw none.
 Item {
     id: root
 
@@ -45,12 +43,9 @@ Item {
     property string hsEdit: ""
     property string hsDraft: ""
 
-    /**
-     * Draft of the password being typed for `expandedSsid`. Lives on the root
-     * because the Repeater model is a fresh array on every NM rescan, which
-     * tears down and recreates the delegate mid-typing. The field restores
-     * itself from this draft when rebuilt.
-     */
+    // password being typed for expandedSsid. lives on the root because the
+    // Repeater model is a brand-new array on every NM rescan, which tears down
+    // and recreates the delegate mid-typing. field restores from this on rebuild.
     property string pwDraft: ""
     property string pendingPw: ""
     property string attemptSsid: ""
@@ -68,10 +63,8 @@ Item {
         profProc.running = true;
     }
 
-    /**
-     * Splits one `nmcli -t` line at its last unescaped colon and unescapes the
-     * leading field. Returns null for lines without a field separator.
-     */
+    // split one `nmcli -t` line at its last unescaped colon, unescape the head.
+    // null = no separator.
     function splitTerse(line) {
         for (var k = line.length - 1; k >= 0; k--) {
             if (line[k] === ":" && (k === 0 || line[k - 1] !== "\\"))
@@ -80,11 +73,8 @@ Item {
         return null;
     }
 
-    /**
-     * Click dispatch for a network row: disconnect when connected, connect
-     * known or open networks directly, otherwise expand the inline password
-     * row under that network.
-     */
+    // row click dispatch: connected -> disconnect, known/open -> connect,
+    // else expand the inline pw row.
     function activateNetwork(net) {
         if (!net)
             return;
@@ -107,11 +97,8 @@ Item {
         expandedSsid = ssid;
     }
 
-    /**
-     * Connects via `nmcli --ask`, feeding the password through stdin so the
-     * secret never appears in the process command line (`/proc/<pid>/cmdline`
-     * is world-readable for the whole connection attempt).
-     */
+    // connect via `nmcli --ask`, piping the password on stdin so the secret
+    // never lands in /proc/<pid>/cmdline (world-readable for the whole attempt).
     function connectWithPassword(ssid, pw) {
         if (connProc.running || !pw.length)
             return;
@@ -124,11 +111,9 @@ Item {
         connProc.running = true;
     }
 
-    /**
-     * Reload pulse: forces a fresh nmcli rescan and spins the control for up to
-     * 10s. The device scanner already runs while the drill-in is open, so the
-     * list never empties; this only refreshes results and drives the spinner.
-     */
+    // reload pulse: kick a fresh nmcli rescan, spin the icon for up to 10s.
+    // the device scanner is already on while the drill-in is open, so the list
+    // never empties; this only refreshes results and drives the spinner.
     function startScan() {
         if (!wifiOn)
             return;
@@ -174,12 +159,10 @@ Item {
         command: ["nmcli", "dev", "wifi", "rescan"]
     }
 
-    /**
-     * Brings the shared AP up with the current name and password, creating the
-     * persistent connection on first use and modifying it on later changes. Name
-     * and password are passed as positional arguments, never spliced into the
-     * shell string, so an odd character cannot break or inject the command.
-     */
+    // bring the shared AP up with the current name/pw. creates the persistent
+    // connection on first use, modifies it after. name and pw are positional
+    // args, never spliced into the shell string -- a weird char can't break or
+    // inject the command.
     function applyHotspot() {
         if (hsBusy || hsPw.length < 8)
             return;
@@ -208,11 +191,8 @@ Item {
         hsReadProc.running = true;
     }
 
-    /**
-     * Commits an inline name or password edit, ignoring a password shorter than
-     * the 8-character WPA2 minimum. A live hotspot is re-applied so the change
-     * takes effect at once.
-     */
+    // commit an inline name/pw edit. pw shorter than the WPA2 minimum (8) is
+    // ignored. live hotspot is re-applied so the change takes effect now.
     function commitHotspotEdit() {
         if (hsEdit === "name") {
             if (hsDraft.length)
@@ -226,10 +206,8 @@ Item {
             applyHotspot();
     }
 
-    /**
-     * Builds an eight-character WPA2 password from an unambiguous alphabet, used
-     * when the hotspot is switched on before a password has been set.
-     */
+    // 8-char WPA2 pw from an unambiguous alphabet. used when the hotspot is
+    // flipped on before a pw has been set.
     function generatePw() {
         var cs = "abcdefghijkmnpqrstuvwxyz23456789";
         var s = "";
@@ -339,11 +317,9 @@ Item {
         }
     }
 
-    /**
-     * A failed `nmcli dev wifi connect` still leaves a connection profile
-     * named after the SSID behind; without deleting it the network would be
-     * treated as known on the next click and silently fail forever.
-     */
+    // a failed `nmcli dev wifi connect` still leaves an SSID-named profile
+    // behind. without nuking it the network looks "known" on the next click and
+    // silently fails forever.
     Process {
         id: cleanupProc
         onExited: root.refresh()

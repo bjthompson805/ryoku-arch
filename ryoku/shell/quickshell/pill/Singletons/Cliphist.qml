@@ -3,22 +3,21 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * cliphist bridge: keeps a warm in-memory snapshot of the clipboard history so
- * the clipboard surface opens instantly without shelling out on demand. A
- * wl-paste watcher fires on every clipboard change; after a short debounce the
- * thumbnail script regenerates missing image previews (and prunes stale ones),
- * then `cliphist list` is re-read into `entries`. Thumbnails are written before
- * the list lands so image delegates never bind to a not-yet-existing file. A
- * change arriving while the pipeline runs sets `pending` and replays once the
- * list lands, so no clipboard event is ever silently dropped; the watcher
- * respawns through a cooldown timer if wl-paste dies.
- *
- * Entries are plain objects: { id, preview, isImage, meta, label, sizeLabel,
- * thumb } where meta is cliphist's raw binary descriptor ("245 KiB png
- * 1920x1080"), label/sizeLabel its display split ("png 1920×1080" / "245 KiB")
- * and thumb the absolute path of the cached preview png (empty for text).
- */
+// cliphist bridge. warm in-memory snapshot of the clipboard history so the
+// clipboard surface opens without shelling out on demand.
+// pipeline: wl-paste watcher fires on every clipboard change; after a
+// short debounce the thumbnail script regenerates missing image previews
+// (and prunes stale ones), then `cliphist list` is re-read into `entries`.
+// thumbnails land BEFORE the list, so image delegates never bind to a
+// not-yet-existing file. a change arriving mid-pipeline sets `pending` and
+// replays once the list lands, so no clipboard event is silently dropped.
+// the watcher respawns through a cooldown timer if wl-paste dies.
+//
+// entry shape: { id, preview, isImage, meta, label, sizeLabel, thumb }.
+// meta     = cliphist's raw binary descriptor ("245 KiB png 1920x1080")
+// label    = display split ("png 1920×1080")
+// sizeLabel= the size half ("245 KiB")
+// thumb    = absolute path of the cached preview png (empty for text).
 Singleton {
     id: root
 
@@ -48,13 +47,10 @@ Singleton {
         wipeProc.running = true;
     }
 
-    /**
-     * Deletes are queued through a tracked process and any refresh is held
-     * until the queue drains: a fire-and-forget delete racing an in-flight
-     * `cliphist list` used to resurrect the removed entry from the stale
-     * snapshot. The local prune stays optimistic so the row vanishes
-     * immediately.
-     */
+    // deletes are queued through a tracked process, any refresh held until
+    // the queue drains. a fire-and-forget delete racing an in-flight
+    // `cliphist list` used to resurrect the removed entry from the stale
+    // snapshot. local prune stays optimistic so the row vanishes on click.
     property var delQueue: []
 
     function remove(entry) {

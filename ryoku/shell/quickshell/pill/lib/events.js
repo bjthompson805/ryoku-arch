@@ -1,20 +1,20 @@
-// Pure calendar-event model, shared by the Events singleton and its node tests.
-// An event is a plain object { id, date, endDate, time, endTime, text } with
-// date/endDate as zero-padded "YYYY-MM-DD", so a string compare orders and spans
-// dates without Date parsing. endDate "" means a single day; time/endTime "" mean
-// all-day or open-ended. Framework-free on purpose: no QML, no Date, no Math
-// (Math.random/Date.now throw in the QML JS engine), so the same code runs under
-// Quickshell and under node.
+// calendar-event model, shared by the Events singleton and the node tests.
+// event = { id, date, endDate, time, endTime, text }. date/endDate are
+// zero-padded "YYYY-MM-DD", so plain string compare both orders and spans dates,
+// no Date parse needed. endDate "" = single day; time/endTime "" = all-day or
+// open-ended. framework-free on purpose: no QML, no Date, no Math
+// (Math.random / Date.now throw in the QML JS engine), so the same code runs
+// under Quickshell and under node.
 
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
-// Zero-padded "YYYY-MM-DD" for (year, 0-based month, day), matching the keys the
-// month grid builds so coverage checks stay plain string compares.
+// zero-padded "YYYY-MM-DD" for (year, 0-based month, day). matches the keys
+// the month grid builds, so coverage stays a plain string compare.
 function dateKey(year, month, day) {
     return year + "-" + pad2(month + 1) + "-" + pad2(day);
 }
 
-// Last day an event covers: its endDate, or its start when single-day.
+// last day an event covers: endDate, or date when single-day.
 function lastDay(e) {
     return e.endDate && e.endDate.length > 0 ? e.endDate : e.date;
 }
@@ -23,8 +23,8 @@ function covers(e, dateStr) {
     return dateStr >= e.date && dateStr <= lastDay(e);
 }
 
-// Events covering dateStr, sorted by start time; an all-day (empty time) entry
-// sorts first. Builds on a filtered copy so the caller's array is never mutated.
+// events covering dateStr, sorted by start time; an all-day (empty time) entry
+// sorts first. runs on a filtered copy, caller's array stays untouched.
 function forDate(events, dateStr) {
     var out = events.filter(function (e) { return covers(e, dateStr); });
     out.sort(function (a, b) {
@@ -44,8 +44,8 @@ function hasEvents(events, dateStr) {
     return false;
 }
 
-// One past the highest id present, so a freshly added event never collides with
-// one loaded from disk (ids are monotonic and never reused).
+// max(id) + 1, so a fresh event never collides with one loaded from disk
+// (ids are monotonic, never reused).
 function nextIdFrom(events) {
     var maxId = 0;
     for (var i = 0; i < events.length; i++) {
@@ -55,8 +55,8 @@ function nextIdFrom(events) {
     return maxId + 1;
 }
 
-// Append an event, returning a NEW array (never mutates the input) so QML
-// bindings refresh on reassignment. Omitted fields default to "".
+// append, returning a NEW array (input untouched) so QML bindings refresh on
+// reassignment. omitted fields default to "".
 function add(events, id, fields) {
     var next = events.slice();
     next.push({
@@ -74,9 +74,9 @@ function remove(events, id) {
     return events.filter(function (e) { return e.id !== id; });
 }
 
-// Split one typed line into { time, text }: a leading "H:MM" or "HH:MM" in valid
-// ranges becomes the start time (normalized to "HH:MM"), the rest is the text.
-// Anything else is an all-day entry with the whole trimmed line as text.
+// split a typed line into { time, text }. leading "H:MM" / "HH:MM" in valid
+// ranges -> start time (normalised to "HH:MM"), rest is text. anything else =
+// all-day with the whole trimmed line as text.
 function parseEntry(raw) {
     var s = (raw || "").trim();
     var m = s.match(/^(\d{1,2}):(\d{2})\s+(.+)$/);
@@ -89,8 +89,8 @@ function parseEntry(raw) {
     return { time: "", text: s };
 }
 
-// Guarded parse: a truncated, non-array, or corrupt body yields [] rather than
-// throwing, so a bad file never wipes or crashes the model.
+// guarded parse: truncated / non-array / corrupt body returns [] instead of
+// throwing, so a bad file can't wipe or crash the model.
 function parse(text) {
     try {
         if (text && text.trim().length > 0) {

@@ -3,12 +3,10 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * The rail-job sheet for install and compress. It opens on a confirm step that
- * spells out what the job will do, runs the helper once confirmed, then shows the
- * helper's final line as the result until dismissed. The work lives in the helper
- * scripts behind the Stash singleton; this is its confirm-run-report face.
- */
+// rail-job sheet for install + compress. opens on a confirm step that spells
+// out what the job will do, runs the helper once confirmed, shows the helper's
+// final line until dismissed. real work lives in the scripts behind Stash;
+// this is the confirm-run-report face.
 Rectangle {
     id: root
 
@@ -33,7 +31,7 @@ Rectangle {
 
     MouseArea { anchors.fill: parent; hoverEnabled: true }
 
-    // ── Confirm step ────────────────────────────────────────────────────
+    // ── confirm ────────────────────────────────────────────────────────
     Column {
         anchors.centerIn: parent
         width: parent.width - 40 * root.s
@@ -138,7 +136,7 @@ Rectangle {
         }
     }
 
-    // ── Running / result step ───────────────────────────────────────────
+    // ── running / result ──────────────────────────────────────────────
     Column {
         anchors.centerIn: parent
         width: parent.width - 44 * root.s
@@ -150,7 +148,7 @@ Rectangle {
             width: 34 * root.s
             height: 34 * root.s
 
-            // Orbiting dot while running.
+            // orbiting dot, running.
             Item {
                 anchors.fill: parent
                 visible: root.running
@@ -167,7 +165,7 @@ Rectangle {
                 }
             }
 
-            // Result ring once finished.
+            // result ring once done.
             Rectangle {
                 anchors.centerIn: parent
                 visible: !root.running

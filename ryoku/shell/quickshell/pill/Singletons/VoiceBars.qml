@@ -3,15 +3,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * Microphone spectrum for the voice surface. Mirrors AudioBars, but cava reads
- * the default *input* (the mic Handy records from, resolved with
- * `pactl get-default-source`) instead of the playback monitor, so the bars
- * track what is actually being spoken. `active` runs it only while the voice
- * surface is open. Bars stay near zero when the mic is silent -- the surface
- * draws that as a flat line -- and rise as the user speaks. A small noise gate
- * (`floor`) keeps room tone from rippling the resting line.
- */
+// mic spectrum for the voice surface. mirrors AudioBars, but cava reads
+// the default *input* (the mic Handy records from, resolved via
+// `pactl get-default-source`) instead of the playback monitor, so the
+// bars track what's actually spoken. `active` runs it only while the
+// voice surface is open. bars sit near zero on silence (the surface
+// draws that as a flat line) and rise as the user speaks. small noise
+// gate (`floor`) keeps room tone from rippling the resting line.
 Singleton {
     id: root
 
@@ -38,9 +36,9 @@ Singleton {
         onTriggered: if (root.active && !cavaProc.running) cavaProc.running = true
     }
 
-    // Cava sleeps and stops emitting frames once the mic is idle, so the bars
-    // would otherwise freeze on the last spoken peak. Settle them back to a flat
-    // line when no frame has arrived recently.
+    // cava sleeps and stops emitting frames once the mic is idle, so the
+    // bars would otherwise freeze on the last spoken peak. settle back to
+    // flat when no frame has arrived recently.
     Timer {
         interval: 120
         running: root.active

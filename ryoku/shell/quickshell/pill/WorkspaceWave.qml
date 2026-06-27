@@ -5,13 +5,13 @@ import Quickshell.Hyprland
 import "Singletons"
 
 /**
- * Ryoku's workspace mark: a live orange wave under the clock, the house motion
- * signature (it replaces the inherited soul-bead here). The line carries one
- * segment per occupied workspace on this monitor and grows with the count, so a
- * single workspace is a short wave and the line lengthens as more fill. The
- * focused workspace is not a dot: the wave swells taller and brightens over it
- * (an energy crest) and that live region flows to the new spot when you switch.
- * Centred, so it grows symmetrically; travels continuously while at rest.
+ * ryoku's workspace mark = a live orange wave under the clock, the house
+ * motion signature (replaces the inherited soul-bead here). one segment per
+ * occupied workspace on this monitor; line grows with the count, so one
+ * workspace = short wave, more fill = longer line. focused workspace isn't a
+ * dot. the wave swells taller and brightens over it (an energy crest), and
+ * the live region flows to the new spot on switch. centred, grows
+ * symmetrically, travels continuously at rest.
  */
 Item {
     id: root
@@ -20,10 +20,10 @@ Item {
     property real s: 1
     property bool live: true
 
-    readonly property real per: 15 * s          // line length per workspace
+    readonly property real per: 15 * s          // line per ws
     readonly property real wavelength: 9 * s     // ripple period
     readonly property real baseAmp: 1.2 * s      // calm height away from focus
-    readonly property real peakAmp: 3 * s        // extra height at the focus crest
+    readonly property real peakAmp: 3 * s        // extra height at the crest
 
     readonly property string activeName: {
         const mons = Hyprland.monitors.values;
@@ -52,7 +52,7 @@ Item {
         return -1;
     }
 
-    // The crest glides to the focused workspace instead of a bead hopping to it.
+    // crest glides to the focused ws instead of a bead hopping to it.
     property real activeCenter: (Math.max(0, activeIndex) + 0.5) * per
     Behavior on activeCenter { NumberAnimation { duration: Motion.standard; easing.type: Motion.easeStandard } }
 
@@ -76,7 +76,7 @@ Item {
             const cx = root.activeCenter;
             const sigma = root.per * 0.7;
 
-            // Brightness rises toward the focused workspace, dim at the ends.
+            // brightness rises toward focus, dim at the ends.
             ctx.strokeStyle = Qt.alpha(Theme.brand, 0.22);
             if (hasActive && w > 0) {
                 const c = Math.min(0.999, Math.max(0.001, cx / w));

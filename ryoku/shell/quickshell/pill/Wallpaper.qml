@@ -5,28 +5,24 @@ import QtQuick.Effects
 import Quickshell.Widgets
 import "Singletons"
 
-/**
- * Wallpaper surface: a filmstrip over the wallpaper directory, rendered as one
- * of the pill's surfaces. Thumbs come from the Walls singleton snapshot, newest
- * first. The focused thumb is large and fully lit; neighbours shrink, dim and
- * desaturate as they slide under it, so the strip reads as depth. Arrow keys
- * and wheel move focus, clicking a neighbour glides to it, Enter or a tap on
- * the focused thumb applies it via ryoku-shell wallpaper (strip stays open so you can
- * keep trying picks). Hold the focused thumb for the heat duration to trash the
- * file (press-and-hold confirm, same as the clipboard wipe); progress sweeps
- * along the thumb's lower edge and drains on early release.
- */
+// wallpaper surface: filmstrip over the wallpaper dir, one of the pill's
+// surfaces. thumbs from the Walls singleton, newest first. focused thumb =
+// big + lit; neighbours shrink, dim, desaturate as they slide under it, so
+// the strip reads as depth. arrows / wheel move focus, clicking a neighbour
+// glides to it, Enter (or a tap on the focused thumb) applies via
+// ryoku-shell wallpaper. strip stays open so you can keep trying picks.
+// hold the focused thumb for the heat duration to trash the file
+// (press-and-hold confirm, same as the clipboard wipe); progress sweeps along
+// the lower edge and drains on early release.
 PillSurface {
     id: root
 
     property int focusIndex: 0
 
-    /**
-     * Continuous view position chasing focusIndex. The strip renders from this
-     * single value, so any input rate (40Hz key autorepeat, wheel bursts) stays
-     * coherent: lag is bounded by the chase time constant, not piled up across
-     * per-tile retargeting animations.
-     */
+    // continuous view position chasing focusIndex. strip renders from this
+    // single value, so any input rate (40Hz key autorepeat, wheel bursts) stays
+    // coherent: lag is bounded by the chase time constant, not piled across
+    // per-tile retargeting anims.
     property real pos: 0
 
     clip: true
@@ -128,11 +124,8 @@ PillSurface {
             readonly property real hold: trashHeat.hold
             readonly property bool holding: trashHeat.holding
 
-            /**
-             * Fade a tile out as its outer edge nears the clipped strip
-             * boundary, so the strip ends soften instead of getting hard-cut by
-             * the pill's clip.
-             */
+            // fade a tile as its outer edge nears the clipped strip boundary
+            // -- softens the ends instead of letting the pill's clip hard-cut.
             readonly property real edgeFade: {
                 var soft = 70 * root.s;
                 var gap = Math.min(x, root.width - (x + width));

@@ -1,15 +1,12 @@
 import QtQuick
 import "Singletons"
 
-/**
- * Hold-to-confirm heat shared by the destructive gestures (power tiles,
- * wallpaper trash, clipboard wipe): `hold` fills 0→1 over Motion.heat while
- * pressed, fires `confirmed` when full and drains on release or exit. A
- * release before the fill completes drains; one shorter than `tapThreshold`
- * additionally fires `tapped` for sites whose hitbox doubles as a click
- * target. The fired latch keeps a release shortly after a confirm from being
- * misread as a tap while the drain is still running.
- */
+// hold-to-confirm heat for destructive gestures (power tiles, wallpaper trash,
+// clipboard wipe). `hold` fills 0->1 over Motion.heat while pressed, fires
+// `confirmed` when full, drains on release/exit. release before full = drain;
+// release shorter than `tapThreshold` ALSO fires `tapped` for sites whose
+// hitbox doubles as a click target. `fired` keeps a release just after a
+// confirm from being misread as a tap while the drain is still running.
 Item {
     id: root
 

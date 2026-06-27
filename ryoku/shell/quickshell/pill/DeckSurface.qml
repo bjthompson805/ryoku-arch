@@ -3,15 +3,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * 力 CONTROL DECK: a wide, single-view dashboard that gathers Stash (file drop +
- * LocalSend), Tools (screen-capture helpers), and Utilities (recorder, keep-awake,
- * quick toggles, recordings) into one panel in the Ryoku Hub dossier language. No
- * sub-tabs: everything is visible at once across two hairline-split columns, Stash
- * on the left, Tools over Utilities on the right, framed by corner registration
- * ticks under a 力 masthead. The three keybinds (Super+D/Z/U) all open this one
- * surface. Exposes `implicitHeight` from its content; Ame stays off.
- */
+// 力 CONTROL DECK = the wide single-view dashboard. pulls Stash (file drop +
+// LocalSend), Tools (screen-capture helpers), Utilities (recorder, keep-awake,
+// quick toggles, recordings) into one panel in the Ryoku Hub dossier idiom.
+// no sub-tabs, everything visible at once across two hairline-split columns
+// (Stash left, Tools-over-Utilities right) under a 力 masthead with corner
+// ticks. Super+D/Z/U all open this one surface. implicitHeight comes from
+// content; Ame is off.
 PillSurface {
     id: root
 
@@ -34,7 +32,7 @@ PillSurface {
         anchors.right: parent.right
         spacing: 0
 
-        // ── Masthead: 力 + CONTROL DECK ────────────────────────────────────
+        // masthead: 力 + CONTROL DECK.
         Item {
             width: parent.width
             height: root.headerH
@@ -69,7 +67,7 @@ PillSurface {
 
         Item { width: 1; height: 16 * root.s }
 
-        // ── Body: two hairline-split columns ──────────────────────────────
+        // body: two hairline-split columns.
         Item {
             id: bodyHolder
             width: parent.width
@@ -86,7 +84,7 @@ PillSurface {
                 height: bodyHolder.bodyH
                 spacing: root.gutter
 
-                // Left: Stash (fills the column to balance the taller right side).
+                // left: Stash, fills the column to balance the taller right.
                 Item {
                     id: leftCol
                     width: bodyHolder.leftW
@@ -113,14 +111,14 @@ PillSurface {
                     }
                 }
 
-                // Gutter divider.
+                // gutter divider.
                 Rectangle {
                     width: 1
                     height: bodyHolder.bodyH
                     color: Theme.hair
                 }
 
-                // Right: Tools over Utilities.
+                // right: Tools over Utilities.
                 Column {
                     id: rightStack
                     width: bodyHolder.rightW
@@ -157,7 +155,7 @@ PillSurface {
         Item { width: 1; height: 4 * root.s }
     }
 
-    // Registration ticks framing the dashboard like a specimen sheet.
+    // corner registration ticks around the dashboard.
     CornerTicks {
         anchors.fill: parent
         s: root.s

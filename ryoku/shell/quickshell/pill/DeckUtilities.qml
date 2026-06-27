@@ -7,15 +7,14 @@ import Quickshell.Bluetooth
 import "Singletons"
 
 /**
- * Utilities section of the 力 deck: a flat-carbon dossier of Recorder,
- * Keep-Awake, quick toggles and the recordings list, ported from
- * UtilitiesSurface. Polling is gated on `active` so the wifi / mic / night
- * probes only run while the deck is open. `requestClose()` dismisses the deck
- * before any screen-grab action (slurp region, gpu-screen-recorder, xdg-open)
- * so the panel is never captured. Content is column-wide; `implicitHeight`
- * sums fixed group heights and is independent of width. The deck renders the
- * "Utilities" eyebrow above us, so this component is content-only and groups
- * within carry their own micro-labels.
+ * utilities slot of the 力 deck = flat-carbon dossier (recorder, keep-awake,
+ * quick toggles, recordings list), ported from UtilitiesSurface. polling is
+ * gated on `active` so wifi / mic / night probes only run while the deck is
+ * open. requestClose() dismisses the deck before any screen-grab action
+ * (slurp region, gpu-screen-recorder, xdg-open) so the panel is never in the
+ * capture. content is column-wide; implicitHeight is the sum of fixed group
+ * heights, width-independent. the deck renders the "Utilities" eyebrow above
+ * us, so this one is content-only and groups carry their own micro-labels.
  */
 Item {
     id: root
@@ -29,7 +28,7 @@ Item {
     readonly property string scripts: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/"
     readonly property string recDir: (Quickshell.env("HOME") || "") + "/Videos/Recordings"
 
-    // ── Keep-Awake elapsed ────────────────────────────────────────────────
+    // ── keep-awake elapsed ────────────────────────────────────────────────
     property int awakeElapsed: 0
     Timer {
         interval: 1000
@@ -39,7 +38,7 @@ Item {
         onTriggered: root.awakeElapsed = Math.max(0, Math.floor((Date.now() - Flags.keepAwakeSince) / 1000))
     }
 
-    // ── Recordings model ──────────────────────────────────────────────────
+    // ── recordings model ──────────────────────────────────────────────────
     ListModel { id: recModel }
 
     function refreshRecs() {
@@ -95,8 +94,8 @@ Item {
         nightProc.running = true;
     }
 
-    // Pre-warm recordings and toggle state once at startup so the first open is
-    // already at its final size and the panel does not re-morph as polls return.
+    // pre-warm recordings + toggle state once at startup, so the first open is
+    // already at its final size and the panel doesn't re-morph as polls return.
     Component.onCompleted: {
         refreshRecs();
         wifiProc.running = true;
@@ -104,7 +103,7 @@ Item {
         nightProc.running = true;
     }
 
-    // Refresh the list shortly after a recording ends so the new file appears.
+    // refresh the list a hair after a recording ends so the new file shows up.
     Connections {
         target: Recorder
         function onActiveChanged() {
@@ -114,7 +113,7 @@ Item {
     }
     Timer { id: recRefresh; interval: 1500; onTriggered: root.refreshRecs() }
 
-    // ── Quick-toggle state (wifi, mic; bluetooth via the BT service) ───────
+    // ── quick-toggle state (wifi, mic; bluetooth via BT service) ──────────
     property bool wifiOn: false
     Process {
         id: wifiProc
@@ -167,7 +166,7 @@ Item {
     }
     Timer { id: nightPoll; interval: 2000; onTriggered: nightProc.running = true }
 
-    // ── Record modes ──────────────────────────────────────────────────────
+    // ── record modes ──────────────────────────────────────────────────────
     readonly property var recModes: [
         { glyph: "monitor", label: "Record display",      args: [] },
         { glyph: "region",  label: "Record region",       args: ["-r"] },
@@ -176,10 +175,10 @@ Item {
     ]
     property bool menuOpen: false
 
-    // Recording grabs the screen: a region mode runs slurp, and gpu-screen-recorder
-    // would otherwise capture this very panel. Close the deck, let the morph
-    // settle, then start, so slurp gets a clear screen and the panel stays out of
-    // the recording.
+    // recording grabs the screen: region mode runs slurp, and gpu-screen-
+    // recorder would otherwise capture this very panel. close the deck, let
+    // the morph settle, then start. slurp gets a clear screen, panel stays
+    // out of the file.
     property var pendingRec: null
     function startRecording(args) {
         root.pendingRec = args;
@@ -207,10 +206,10 @@ Item {
         return (h > 0 ? h + ":" + p(m) : m) + ":" + p(r);
     }
 
-    // ── Reusable bits ─────────────────────────────────────────────────────
+    // ── reusable bits ─────────────────────────────────────────────────────
 
-    // Flat icon button (play / folder / trash / pause / stop). Tints carry the
-    // semantics: vermilion for destructive, cream for neutral, iconDim for rest.
+    // flat icon button (play / folder / trash / pause / stop). tints carry
+    // semantics: vermilion = destructive, cream = neutral, iconDim = rest.
     component IconBtn: Rectangle {
         property string glyph: ""
         property color tint: Theme.iconDim
@@ -232,8 +231,8 @@ Item {
         TapHandler { onTapped: parent.clicked() }
     }
 
-    // Flat quick-toggle tile: glyph-only, lights vermilion when on. Square,
-    // hairline-bordered at rest, frameBg on hover.
+    // flat quick-toggle tile: glyph only, lights vermilion when on. square,
+    // hairline border at rest, frameBg on hover.
     component ToggleTile: Rectangle {
         id: tt
         property string glyph: ""
@@ -257,7 +256,7 @@ Item {
         TapHandler { onTapped: tt.acted() }
     }
 
-    // ── Content stack ─────────────────────────────────────────────────────
+    // ── content stack ─────────────────────────────────────────────────────
     Column {
         id: content
         anchors.top: parent.top
@@ -265,12 +264,12 @@ Item {
         anchors.right: parent.right
         spacing: 14 * root.s
 
-        // ── RECORD ────────────────────────────────────────────────────────
+        // ── record ────────────────────────────────────────────────────────
         Column {
             width: parent.width
             spacing: 9 * root.s
 
-            // Eyebrow + live status pill (right-aligned).
+            // eyebrow + live status pill, right-aligned.
             Item {
                 width: parent.width
                 height: recEyebrow.implicitHeight
@@ -293,8 +292,8 @@ Item {
                 }
             }
 
-            // Running controls: a pulsing vermilion REC tag, elapsed time in
-            // tabular figures, then pause + stop on the right.
+            // running controls = pulsing vermilion REC tag, elapsed time in
+            // tabular figures, pause + stop on the right.
             Item {
                 width: parent.width
                 visible: Recorder.active
@@ -350,7 +349,7 @@ Item {
                 }
             }
 
-            // Idle Record button: a flat tile that opens the mode dropdown.
+            // idle Record button: flat tile, opens the mode dropdown.
             Rectangle {
                 id: recBtn
                 width: parent.width
@@ -397,7 +396,7 @@ Item {
                 TapHandler { onTapped: root.menuOpen = !root.menuOpen }
             }
 
-            // Inline mode dropdown: flat rows, hover-highlighted.
+            // inline mode dropdown: flat rows, hover-highlighted.
             Column {
                 width: parent.width
                 visible: root.menuOpen && !Recorder.active
@@ -442,7 +441,7 @@ Item {
 
         Rectangle { width: parent.width; height: 1; color: Theme.hair }
 
-        // ── KEEP AWAKE ────────────────────────────────────────────────────
+        // ── keep awake ────────────────────────────────────────────────────
         Column {
             width: parent.width
             spacing: 9 * root.s
@@ -488,7 +487,7 @@ Item {
 
         Rectangle { width: parent.width; height: 1; color: Theme.hair }
 
-        // ── GAME MODE ─────────────────────────────────────────────────────
+        // ── game mode ─────────────────────────────────────────────────────
         Column {
             width: parent.width
             spacing: 9 * root.s
@@ -533,7 +532,7 @@ Item {
 
         Rectangle { width: parent.width; height: 1; color: Theme.hair }
 
-        // ── TOGGLES ───────────────────────────────────────────────────────
+        // ── toggles ───────────────────────────────────────────────────────
         Column {
             width: parent.width
             spacing: 9 * root.s
@@ -544,8 +543,8 @@ Item {
                 id: togglesRow
                 width: parent.width
                 spacing: 6 * root.s
-                // Evenly divide the column into five tiles; the deck gives us
-                // ~280 scale-units so each tile is ~51 units wide.
+                // five even tiles. deck width ~280 scale-units, so each tile
+                // is ~51 wide.
                 readonly property real tileW: (width - spacing * 4) / 5
 
                 ToggleTile {
@@ -583,7 +582,7 @@ Item {
 
         Rectangle { width: parent.width; height: 1; color: Theme.hair }
 
-        // ── RECORDINGS ────────────────────────────────────────────────────
+        // ── recordings ────────────────────────────────────────────────────
         Column {
             width: parent.width
             spacing: 9 * root.s
@@ -618,8 +617,8 @@ Item {
             ListView {
                 width: parent.width
                 visible: recModel.count > 0
-                // Height is a fixed multiple of the row height (cap at 4 rows);
-                // never derived from width, so the column lays out clean.
+                // height = fixed multiple of row height, cap at 4 rows. never
+                // derived from width, so the column lays out clean.
                 implicitHeight: Math.min(recModel.count, 4) * 30 * root.s
                 clip: true
                 model: recModel

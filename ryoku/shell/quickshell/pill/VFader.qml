@@ -1,12 +1,10 @@
 import QtQuick
 import "Singletons"
 
-/**
- * Vertical filament fader. A thin matte thread with a rising fill and a flat
- * tick marker. Dim at rest; saturates and brightens its readout when focused.
- * Hover targeting is owned by the parent surface, which maps pointer position
- * to a fader column and drives `focused`. No knob, no glow. Value is 0..1.
- */
+// vertical filament fader = thin matte thread + a rising fill + a flat tick
+// marker. dim at rest; saturates and brightens its readout when focused.
+// parent surface owns hover targeting (maps pointer x -> fader column, drives
+// `focused`). no knob, no glow. value 0..1.
 Item {
     id: root
 
@@ -24,13 +22,10 @@ Item {
 
     readonly property real trackH: 86 * s
 
-    /**
-     * Live tick centre in this fader's coordinates. tick.y and root.width are
-     * voided because mapToItem creates no QML dependency on the source item's
-     * transform; without them the binding snapshots the tick where it first
-     * rendered and the bead docks at a stale height after a value change and a
-     * stale x after the mixer resizes.
-     */
+    // live tick centre in this fader's coords. tick.y / root.width voided
+    // because mapToItem creates no QML dep on the source's transform; without
+    // them the binding snapshots the tick where it first painted -> bead docks
+    // at a stale height after a value change, stale x after a mixer resize.
     readonly property point tickCenter: {
         void tick.y;
         void root.width;
@@ -40,10 +35,8 @@ Item {
     implicitWidth: 54 * s
     implicitHeight: trackH + (subLabel.length ? 52 : 44) * s
 
-    /**
-     * Nudge the value by a signed percentage (e.g. +1 / -1), clamped to 0..100%,
-     * emitting `moved` and `committed` so live hardware updates on each step.
-     */
+    // nudge by signed percent (+1 / -1), clamped 0..100. fires both `moved`
+    // and `committed` so hardware tracks every step live.
     function step(deltaPct) {
         const v = Math.max(0, Math.min(1, root.value + deltaPct / 100));
         root.moved(v);

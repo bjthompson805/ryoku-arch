@@ -1,10 +1,8 @@
 import QtQuick
 
-/**
- * Wheel-to-Flickable bridge for layer-shell surfaces, where the native
- * WheelHandler path is unreliable: a button-less MouseArea converts wheel
- * notches into clamped contentY steps on the target Flickable.
- */
+// wheel-to-Flickable bridge for layer-shell surfaces (native WheelHandler is
+// unreliable there). a button-less MouseArea turns wheel notches into clamped
+// contentY steps on the target Flickable.
 MouseArea {
     id: root
 

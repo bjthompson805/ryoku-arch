@@ -4,14 +4,11 @@ import Quickshell
 import Quickshell.Services.Notifications
 import "Singletons"
 
-/**
- * Toast content for the morphing pill body: icon tile, app eyebrow, summary
- * with critical ember dot, optional body text and action pills, dismiss glyph
- * on the right. Draws no background of its own; the pill body behind it
- * provides the washi material. Clicking the body emits openCenter(); dismiss
- * and action pills consume their clicks. Auto-expires via Notifs.expireAt
- * unless the notification is critical.
- */
+// toast content for the morphing pill body. icon tile, app eyebrow, summary
+// (+ critical ember dot), optional body, action pills, dismiss glyph on the
+// right. no background of its own -- the pill body provides the washi
+// material. body click -> openCenter(); dismiss + action pills swallow their
+// clicks. auto-expires via Notifs.expireAt unless critical.
 Item {
     id: root
 
@@ -26,11 +23,9 @@ Item {
 
     implicitHeight: Math.max(iconTile.height, col.implicitHeight)
 
-    /**
-     * Deadline is snapshotted once: binding the interval to Notifs.expireAt
-     * restarts the timer (and drifts the lifetime) every time an unrelated
-     * notification replaces the map.
-     */
+    // snapshot the deadline once. binding the interval to Notifs.expireAt
+    // restarts the timer (and drifts the lifetime) every time an unrelated
+    // notification replaces the map.
     property double deadline: 0
     Component.onCompleted: deadline = Notifs.expireAt[notif.id] || (Date.now() + 6000)
 

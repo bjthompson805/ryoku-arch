@@ -3,15 +3,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * Shared session flags persisted to a small JSON file and watched for external
- * change, so every Ryoku daemon (pill, sidebar) reads and writes the same
- * Do-Not-Disturb, Keep-Awake, and Game-Mode state live without a second notification server
- * or idle inhibitor. Toggling in one surface updates the others on the next file
- * event, and the state survives a daemon restart. keepAwakeSince is the epoch
- * millisecond Keep-Awake was last enabled (0 when off), so every surface reads
- * the same "how long" elapsed time.
- */
+// session flags in a little JSON file, watched for outside changes so every
+// daemon (pill, sidebar) shares one DND / Keep-Awake / Game-Mode state. no
+// extra notif server or idle inhibitor. flip in one surface, the rest catch
+// up on the next file event, and it survives a daemon restart.
+// keepAwakeSince = epoch ms Keep-Awake last turned on (0 when off), so every
+// surface reads the same "how long" elapsed.
 Singleton {
     id: root
 
@@ -20,9 +17,9 @@ Singleton {
     property alias keepAwakeSince: adapter.keepAwakeSince
     property alias gameMode: adapter.gameMode
 
-    // Stamp the start time when Keep-Awake turns on and clear it when off, so no
-    // toggle site has to track it. Guarded so a file reload (where the stamp is
-    // already set) never resets the running clock.
+    // stamp when Keep-Awake turns on, clear when off, so no toggle site has
+    // to track it. guarded so a file reload (stamp already set) doesn't
+    // reset the running clock.
     onKeepAwakeChanged: {
         if (keepAwake && !adapter.keepAwakeSince)
             adapter.keepAwakeSince = Date.now();
@@ -30,9 +27,9 @@ Singleton {
             adapter.keepAwakeSince = 0;
     }
 
-    // Game Mode pulls Do-Not-Disturb on so notifications never interrupt or break
-    // a fullscreen game's tearing / direct scanout, and restores the prior DND on
-    // exit so it never clobbers a user who keeps DND on independently of gaming.
+    // game mode pulls DND on so notifs can't break a fullscreen game's
+    // tearing / direct scanout, and restores the prior DND on exit, so
+    // users who keep DND on independently of gaming aren't clobbered.
     onGameModeChanged: {
         if (gameMode) {
             adapter.gameDndPrev = dnd;
@@ -48,12 +45,10 @@ Singleton {
         blockLoading: true
         watchChanges: true
         printErrors: false
-        // Atomic writes (temp + rename) so a SIGTERM during a shell refresh, or
-        // the pill and sidebar singletons writing at once, can never leave a torn
-        // half-written file that fails to parse on the next load, which would
-        // silently drop persisted Keep-Awake back to the default off.
+        // atomic writes (temp + rename): a SIGTERM during a shell refresh, or
+        // pill + sidebar writing at once, can't leave a half-written file that
+        // fails parse on next load and silently drops Keep-Awake back to off.
         atomicWrites: true
-
         onFileChanged: reload()
         onAdapterUpdated: writeAdapter()
 
@@ -67,8 +62,8 @@ Singleton {
         }
     }
 
-    // Seed the file only on a genuine first run (no content to load). Guard on
-    // the loaded text, not file.loaded, so a slow or failed load never overwrites
-    // a present file from defaults and wipes Keep-Awake across a refresh.
+    // seed only on a real first run (no content yet). guard on the loaded
+    // text, not file.loaded, so a slow/failed load never overwrites a present
+    // file from defaults and wipes Keep-Awake across a refresh.
     Component.onCompleted: if (!file.text()) file.writeAdapter();
 }

@@ -5,15 +5,14 @@ import QtQuick.Layouts
 import "Singletons"
 
 /**
- * 機 SYSTEM surface: a carbon trading-card specimen. The pill body holds a tall
- * collector card — parallax tilt on hover, a holographic radial wash and a
- * intro reveal. Top to bottom: the operator name + CODENAME · HOST subline
- * + a circular MEM% badge; a portrait window framing the 力 mark over a grid
- * texture, central glow and corner ornaments; a SYSTEM type line; a flavor box
- * (WM/SH · RES/PKG); RAM and disk wave meters; dual CPU | GPU columns and a
- * wave accent; an edition footer. All values come from SysInfo; every face is a
- * Theme token. Ame docks as a soul at the operator name. The card fills the
- * surface width and reports its height through implicitHeight.
+ * 機 SYSTEM surface = the trading-card specimen. tall collector card in the
+ * pill body, parallax tilt on hover, holo radial wash, intro reveal. layout
+ * top->bottom: operator name + CODENAME · HOST subline + circular MEM% badge,
+ * portrait window around the 力 mark (grid + glow + corners), SYSTEM type
+ * line, flavor box (WM/SH · RES/PKG), RAM + disk wave meters, dual CPU | GPU
+ * cols + a wave accent, edition footer. values from SysInfo, every face a
+ * Theme token. ame docks as a soul on the operator name. card fills surface
+ * width and reports implicitHeight.
  */
 PillSurface {
     id: root
@@ -25,11 +24,11 @@ PillSurface {
 
     implicitHeight: card.height
 
-    // Inner card padding and corner radius, on the surface's scale.
+    // inner card pad + corner radius, on the surface's scale.
     readonly property real pad: 18 * root.s
     readonly property real cardRadius: 16 * root.s
 
-    // ── Parallax tilt + foil shimmer state ──────────────────────────────────
+    // parallax tilt + foil shimmer state
     property real tiltX: 0
     property real tiltY: 0
     property real shimNX: 0.5
@@ -47,7 +46,7 @@ PillSurface {
     Behavior on shimNY { NumberAnimation { duration: 80 } }
     Behavior on hoverPct { NumberAnimation { duration: 300; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
 
-    // ── Intro reveal — replays each time the surface opens ──────────────────
+    // intro reveal, replays on every open
     property real showAnim: 0
     property real rowsAnim: 0
 
@@ -84,7 +83,7 @@ PillSurface {
         }
     }
 
-    // Ame docks at the operator name; depend on geometry like the sibling surfaces.
+    // ame docks at the operator name. depends on geometry, same as sibling surfaces.
     readonly property point heroPoint: {
         void root.width;
         void root.height;
@@ -94,12 +93,12 @@ PillSurface {
     ameForm: open ? "soul" : "off"
     amePoint: heroPoint
 
-    /** Build a Canvas-safe "rgba(...)" string from a Theme colour + alpha. */
+    /** Canvas-safe "rgba(...)" from a Theme colour + alpha. */
     function rgba(c, a) {
         return "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + "," + Math.round(c.b * 255) + "," + a + ")";
     }
 
-    // Holographic wash + glow tints, derived from Theme tokens.
+    // holo wash + glow tints, derived from Theme tokens.
     readonly property string holoTop: rgba(Theme.cream, 0.07)
     readonly property string holoLeft: rgba(Theme.dim, 0.08)
     readonly property string holoRight: rgba(Theme.brand, 0.05)
@@ -107,7 +106,7 @@ PillSurface {
     readonly property string gridTint: rgba(Theme.cream, 0.04)
     readonly property string foilRgb: Math.round(Theme.bright.r * 255) + "," + Math.round(Theme.bright.g * 255) + "," + Math.round(Theme.bright.b * 255)
 
-    // ── Card ────────────────────────────────────────────────────────────────
+    // ── card ───────────────────────────────────────────────────────────────
     Item {
         id: card
         anchors.left: parent.left
@@ -148,7 +147,7 @@ PillSurface {
                 GradientStop { position: 1.0; color: Theme.cardBot }
             }
 
-            // Holo wash — three soft radial tints in screen blend.
+            // holo wash: three soft radial tints, screen blend.
             Canvas {
                 anchors.fill: parent
                 property string h0: root.holoTop
@@ -173,7 +172,7 @@ PillSurface {
                 }
             }
 
-            // Foil sheen — follows the cursor while hovering.
+            // foil sheen, follows the cursor while hovering.
             Canvas {
                 anchors.fill: parent
                 property real nx: root.shimNX
@@ -203,7 +202,7 @@ PillSurface {
                 }
             }
 
-            // ── Content column ─────────────────────────────────────────────
+            // ── content column ─────────────────────────────────────────────
             Column {
                 id: content
                 anchors.left: parent.left
@@ -212,7 +211,7 @@ PillSurface {
                 anchors.margins: root.pad
                 spacing: 0
 
-                // Header: operator name + subline + MEM% badge.
+                // header = operator name + subline + MEM% badge.
                 Row {
                     width: parent.width
                     spacing: 10 * root.s
@@ -285,7 +284,7 @@ PillSurface {
 
                 Item { width: 1; height: 14 * root.s }
 
-                // Portrait window: framed 力 mark over grid + glow + corners.
+                // portrait window: 力 mark over grid + glow + corner ticks.
                 Rectangle {
                     width: parent.width
                     height: 180 * root.s
@@ -304,7 +303,7 @@ PillSurface {
                             GradientStop { position: 1.0; color: Theme.cardBot }
                         }
 
-                        // Grid texture.
+                        // grid texture.
                         Canvas {
                             anchors.fill: parent
                             property string tint: root.gridTint
@@ -331,7 +330,7 @@ PillSurface {
                             }
                         }
 
-                        // Central glow behind the mark.
+                        // central glow behind the mark.
                         Canvas {
                             anchors.fill: parent
                             property string glow: root.logoGlow
@@ -348,7 +347,7 @@ PillSurface {
                             }
                         }
 
-                        // The 力 mark as the card's emblem.
+                        // the 力 mark, card emblem.
                         Text {
                             anchors.centerIn: parent
                             text: "力"
@@ -358,7 +357,7 @@ PillSurface {
                             font.pixelSize: 104 * root.s
                         }
 
-                        // Corner ornaments.
+                        // corner ornaments.
                         Repeater {
                             model: 4
                             Rectangle {
@@ -381,7 +380,7 @@ PillSurface {
 
                 Item { width: 1; height: 12 * root.s }
 
-                // Type line: SYSTEM badge + hairline + distro · kernel.
+                // type line = SYSTEM badge + hairline + distro · kernel.
                 Row {
                     width: parent.width
                     spacing: 8 * root.s
@@ -429,7 +428,7 @@ PillSurface {
 
                 Item { width: 1; height: 10 * root.s }
 
-                // Flavor box: thin left accent bar + WM/SH · RES/PKG rows.
+                // flavor box: thin left accent bar + WM/SH · RES/PKG rows.
                 Rectangle {
                     width: parent.width
                     height: flavorCol.implicitHeight + 20 * root.s
@@ -518,8 +517,8 @@ PillSurface {
 
                 Item { width: 1; height: 12 * root.s }
 
-                // Memory + disk read-outs as Ryoku wave lines: label + value
-                // above, a dim wave with a bright crest filled to the percentage.
+                // memory + disk as Ryoku wave lines. label + value above,
+                // dim wave with a bright crest filled to the percentage.
                 component WaveStat: Column {
                     id: ws
                     property string label: ""
@@ -585,7 +584,7 @@ PillSurface {
 
                 Item { width: 1; height: 10 * root.s }
 
-                // Bottom stats: CPU | divider | GPU (with uptime).
+                // bottom stats: CPU | divider | GPU (with uptime).
                 Row {
                     width: parent.width
                     spacing: 12 * root.s
@@ -688,7 +687,7 @@ PillSurface {
 
                 Item { width: 1; height: 12 * root.s }
 
-                // Ryoku wave accent — a soft house signature closing the card.
+                // ryoku wave accent. soft house signature, closes the card.
                 WaveMeter {
                     width: parent.width
                     s: root.s
@@ -698,7 +697,7 @@ PillSurface {
 
                 Item { width: 1; height: 12 * root.s }
 
-                // Edition footer: edition string + accent dots + rarity.
+                // edition footer = edition string + accent dots + rarity.
                 RowLayout {
                     width: parent.width
                     spacing: 6 * root.s
@@ -740,7 +739,7 @@ PillSurface {
             }
         }
 
-        // Nested border overlays for the card edge.
+        // nested border overlays for the card edge.
         Rectangle {
             anchors.fill: parent
             radius: root.cardRadius
@@ -766,8 +765,8 @@ PillSurface {
         }
     }
 
-    // Hover tracker for tilt + foil. Sits above the card, untransformed, so the
-    // tilt never feeds back into the reading. Tracks only — no clicks, no close.
+    // hover tracker for tilt + foil. sits above the card, untransformed, so the
+    // tilt never feeds back into the reading. tracks only, no clicks/close.
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true

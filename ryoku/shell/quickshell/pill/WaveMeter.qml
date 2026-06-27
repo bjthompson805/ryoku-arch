@@ -3,12 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * A Ryoku wave used as a meter. The line runs the full width dim, with a bright
- * (brand) crest filled from the left up to `frac` of the width -- so the lit
- * length reads as the value. It travels gently while visible. Used for the RAM
- * and disk read-outs on the system card. Set `frac` (0..1) and a width.
- */
+// Ryoku wave used as a meter. line runs the full width dim, bright (brand)
+// crest fills left to `frac`-width -- lit length = value. travels gently while
+// visible. used for RAM + disk on the system card. set `frac` (0..1) and a width.
 Item {
     id: root
 

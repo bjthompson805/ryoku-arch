@@ -6,15 +6,13 @@ import Quickshell
 import "Singletons"
 import "lib/events.js" as EventsModel
 
-/**
- * Calendar surface content: header with month/year label and prev/next nav,
- * weekday headers and a day grid sized to exactly the rows the month needs.
- * Today gets a warm frame; weekend columns are dimmed and the leading/trailing
- * cells ghost the neighbouring months' day numbers. View date resets to the
- * real "today" (via SystemClock) every time the surface opens. implicitHeight
- * lets the pill shrink to the live row count, and todayX/todayY/todayVisible
- * expose today's cell centre for the flame lap.
- */
+// calendar surface content. header (month/year + prev/next), weekday strip,
+// day grid sized to exactly the rows the month needs. today gets a warm
+// frame, weekend columns are dimmed, leading/trailing cells ghost the
+// neighbour months' day numbers. view date snaps back to the real today (via
+// SystemClock) every open. implicitHeight tracks the live row count so the
+// pill shrinks with it; todayX/Y/Visible expose today's cell centre for the
+// flame lap.
 PillSurface {
     id: root
 

@@ -3,14 +3,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * Single owner of screen vibrance (nvibrant) and external-monitor brightness
- * (ddcutil) for the mixer. The persisted vibrance percent is the source of
- * truth: loaded and re-applied once at startup so the tint survives a reboot,
- * and every later set both pushes to nvibrant and writes back the state file.
- * DDC monitors come from `ddcutil detect` (one brightness fader each); the
- * setvcp/getvcp wire format lives here so every caller speaks it the same.
- */
+// owns screen vibrance (nvibrant) + external monitor brightness (ddcutil) for
+// the mixer. persisted vibrance % = source of truth: loaded and pushed once at
+// startup so the tint survives a reboot, every later set hits nvibrant AND
+// writes the state file back. ddc monitors come from `ddcutil detect` (one
+// fader each). setvcp/getvcp wire format lives here so every caller agrees.
 Singleton {
     id: root
 
@@ -18,17 +15,13 @@ Singleton {
 
     property int vibrance: 40
 
-    /**
-     * DDC-capable monitors from `ddcutil detect`: [{ bus, label }] with label
-     * taken from the DRM connector, falling back to the I2C bus number.
-     */
+    // ddc monitors from `ddcutil detect`: [{ bus, label }]. label = drm connector,
+    // else just the i2c bus number.
     property var ddcMonitors: []
 
-    /**
-     * Loads the persisted vibrance percent and applies it once, so the saved
-     * tint is restored on boot. Singletons init lazily, so a startup caller
-     * must reference this for the restore to fire.
-     */
+    // load saved vibrance % and apply once -> tint survives reboot. singletons
+    // init lazily, so something at startup has to actually touch this for the
+    // restore to fire.
     function restore() {
         var raw = vibState.text();
         var v = parseInt((raw || "40").trim());
@@ -37,10 +30,8 @@ Singleton {
             applyVibrance(root.vibrance);
     }
 
-    /**
-     * Sets the screen vibrance to `pct` percent: pushes it to nvibrant and
-     * persists it to the state file. `vibrance` mirrors the last set value.
-     */
+    // set vibrance to `pct`%: push to nvibrant, save to state. `vibrance` tracks
+    // the last value.
     function setVibrance(pct) {
         root.vibrance = Math.round(pct);
         applyVibrance(pct);
@@ -67,10 +58,7 @@ Singleton {
             String(pct), "--bus", bus, "--noverify"]);
     }
 
-    /**
-     * Parses a `ddcutil getvcp --brief` line, returning the current brightness
-     * percent or -1 when no value is present.
-     */
+    // pull current brightness % out of a `ddcutil getvcp --brief` line. -1 = none.
     function parseBrightness(text) {
         var m = text.match(/C\s+(\d+)\s+/);
         return m ? parseInt(m[1], 10) : -1;

@@ -4,24 +4,22 @@ import QtQuick
 import Ryoku.Blobs
 import "../Singletons"
 
-/**
- * A surface popout that grows out of a frame edge (left/right/top/bottom) on
- * hover and melts into the border through the SHARED blob field. It joins the
- * pill's `group` (the same BlobGroup as the frame border and the centre island),
- * so a popout reads as the frame swelling open at that edge, the same way the
- * pill does at top-centre. shell.qml unions `triggerX/Y/W/H` and `bodyX/Y/W/H`
- * into the overlay input mask.
- *
- * Opening is a curtain: the body grows inward from the border (a clip widens), so
- * the fixed-size content reveals edge-first without ever resizing. The close eases
- * cleanly into the border with no overshoot, so the body never re-grows under a
- * pointer that just left and sticks the popout open. The blob body, the neck into
- * the border, and the reveal all live here; each popup file only supplies its
- * content. `align` slides the body along the edge (start/center/end).
- *
- *   Popout { group: blobGroup; frameThickness: 16; radius: 16; smoothing: 30
- *            edge: "left"; openW: 220; openH: 200; Mixer {} }
- */
+// surface popout that grows out of a frame edge (left/right/top/bottom) on
+// hover and melts back into the border through the SHARED blob field. joins
+// the pill's `group` (same BlobGroup as the frame border + centre island), so
+// a popout reads as the frame swelling open at that edge, like the pill does
+// at top-centre. shell.qml unions `triggerX/Y/W/H` and `bodyX/Y/W/H` into the
+// overlay input mask.
+//
+// opening = a curtain: body grows inward from the border (a clip widens), so
+// the fixed-size content reveals edge-first without ever resizing. close eases
+// cleanly into the border with no overshoot, so the body never re-grows under
+// a pointer that just left and pins it open. blob body + neck into the border
+// + reveal all live here; each popup file only supplies its content. `align`
+// slides the body along the edge (start/center/end).
+//
+//   Popout { group: blobGroup; frameThickness: 16; radius: 16; smoothing: 30
+//            edge: "left"; openW: 220; openH: 200; Mixer {} }
 Item {
     id: root
 
@@ -44,18 +42,18 @@ Item {
     readonly property bool atBottom: edge === "bottom"
     readonly property bool vertical: atLeft || atRight   // body grows horizontally
     readonly property bool hovered: triggerHH.hovered || bodyHH.hovered
-    // Host gates this off while a centre surface is open or a window is
+    // host gates this off while a centre surface is open or a window is
     // fullscreen, so an edge hover never fights a modal surface.
     property bool active: true
     readonly property bool shouldOpen: active && (hovered || pinned)
 
-    // 0 = closed (flush into the border), 1 = open.
+    // 0 = closed (flush in border), 1 = open.
     property real prog: 0
 
     anchors.fill: parent
 
-    // Position along the edge (the cross-axis): start/center/end, with an inset
-    // so the body never sits flush in a corner.
+    // edge position (cross-axis): start/center/end, with an inset so the body
+    // never sits flush in a corner.
     readonly property real edgeInset: frameThickness + 12 * s
     function alignPos(span, sz) {
         return align === "start" ? edgeInset
@@ -65,7 +63,7 @@ Item {
     readonly property real alongX: alignPos(width, openW)
     readonly property real alongY: alignPos(height, openH)
 
-    // Body geometry in window coordinates; the body grows inward from the border.
+    // body geometry in window coords; grows inward from the border.
     readonly property real curW: vertical ? Math.max(0, openW * prog) : openW
     readonly property real curH: vertical ? openH : Math.max(0, openH * prog)
     readonly property real bodyX: atLeft ? frameThickness
@@ -77,11 +75,11 @@ Item {
     readonly property real bodyW: curW
     readonly property real bodyH: curH
 
-    // Hover trigger: the frame border itself is the activator - a thin strip of the
-    // frame beside the popout, exactly `frameThickness` deep (the same pixels the
-    // mixer/power popouts use). The strip spans the frame next to the body but is
-    // capped so it is a small, deliberate hot-spot on the frame rather than a tall
-    // invisible line that opens the popout before the pointer reaches the frame.
+    // hover trigger = the frame border itself: a thin strip of the frame next
+    // to the popout, `frameThickness` deep (same pixels the mixer/power popouts
+    // use). spans the frame next to the body but capped so it's a small,
+    // deliberate hot-spot, not a tall invisible line that opens before the
+    // pointer even hits the frame.
     readonly property real bandSpan: Math.min(vertical ? openH : openW, 220 * s)
     readonly property real triggerW: vertical ? frameThickness : bandSpan
     readonly property real triggerH: vertical ? bandSpan : frameThickness
@@ -117,10 +115,10 @@ Item {
         }
     ]
 
-    // Blob body: a BlobRect in the shared group, tracking the content clip and
-    // reaching a neck past it into the border so the smooth-min fuses them. The
-    // neck is clamped to the body's own extent so it retracts cleanly on close,
-    // and points back toward the edge the body grows from.
+    // blob body = a BlobRect in the shared group, tracking the content clip and
+    // reaching a neck past it into the border so smooth-min fuses them. neck
+    // clamped to the body's own extent so it retracts cleanly on close, and
+    // points back toward the edge the body grows from.
     BlobRect {
         readonly property real reach: root.frameThickness + root.smoothing
         readonly property real neckW: root.vertical ? Math.max(0, Math.min(reach, root.bodyW)) : 0
@@ -134,8 +132,8 @@ Item {
         implicitHeight: root.bodyH > 0 ? root.bodyH + neckH : 0
     }
 
-    // The content, full size, revealed by a widening clip anchored to the border
-    // side so the curtain reveals edge-first; the content never reflows.
+    // content at full size, revealed by a widening clip anchored to the border
+    // side -> curtain reveals edge-first; content never reflows.
     Item {
         id: bodyClip
         x: root.bodyX

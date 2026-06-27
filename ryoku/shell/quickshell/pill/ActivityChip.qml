@@ -1,12 +1,10 @@
 import QtQuick
 import "Singletons"
 
-/**
- * A single live-activity indicator: an accent label and an optional value/dot.
- * Status by default; set `clickable` to make it an entry point (the stash chip
- * uses this to open its surface). It collapses to zero width when `active` is
- * false so a strip of chips folds shut around whatever is currently live.
- */
+// one live-activity chip = accent label + optional value/dot. status by
+// default. `clickable` makes it an entry point (stash chip opens its surface
+// this way). width collapses to 0 when `active` is false -> the strip folds
+// shut around whatever's actually live.
 Item {
     id: root
 
@@ -53,8 +51,8 @@ Item {
             visible: root.dot
             width: 7 * root.s
             height: 7 * root.s
-            // The recording dot squares off into a stop icon on hover, so it reads
-            // as a clickable control that ends the recording.
+            // dot squares off into a stop icon on hover so it reads as a
+            // clickable control that ends the recording.
             radius: root.lit ? 1.5 * root.s : width / 2
             color: root.accent
             opacity: root.lit ? 1 : root.dotOpacity

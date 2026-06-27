@@ -3,10 +3,10 @@ import QtQuick
 import Quickshell
 
 /**
- * App/window icon resolution for Hyprland toplevels. A window's class often
- * differs from its icon-theme name, so match the class against a desktop entry
- * id first and fall back to a direct icon-theme lookup. Shared by every surface
- * that paints a window's icon (the minimized tray, the workspace switcher).
+ * app/window icon resolution for Hyprland toplevels. a window class often
+ * differs from its icon-theme name, so match the class to a desktop entry id
+ * first, fall back to a direct icon-theme lookup. shared by every surface
+ * that paints a window icon (minimized tray, ws switcher).
  */
 Singleton {
     function iconFor(t) {

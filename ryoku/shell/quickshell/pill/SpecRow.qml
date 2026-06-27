@@ -1,8 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// A dossier spec line: a mono label on the left, a hairline that eats the gap,
-// then the value on the right. The card's type-line motif, reused. Scales with `s`.
+// dossier spec line: mono label left, hairline eats the gap, value right.
+// the card's type-line motif, reused. scales with `s`.
 Row {
     id: sr
 

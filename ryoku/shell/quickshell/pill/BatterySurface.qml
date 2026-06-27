@@ -4,14 +4,11 @@ import QtQuick
 import QtQuick.Layouts
 import "Singletons"
 
-/**
- * 蓄 BATTERY surface: a carbon read-out for the laptop battery, in the Ryoku Hub
- * dossier language. The percentage is the hero over its state subline; a bold
- * Ryoku wave is the charge gauge; a 2x2 stat grid (rate / time / capacity /
- * health) reads off mono micro-labels and tabular figures beneath a hairline.
- * Charging warms the percentage, subline and wave to the flame tones. Exposes
- * `implicitHeight` from its content.
- */
+// 蓄 BATTERY surface = laptop battery, carbon dossier idiom. percentage as
+// hero over its state subline, bold Ryoku wave as the gauge, 2x2 stat grid
+// (rate / time / capacity / health) under a hairline with mono micro-labels
+// and tabular figures. charging warms the percentage, subline and wave to
+// flame tones. exposes implicitHeight from content.
 PillSurface {
     id: root
 
@@ -31,7 +28,7 @@ PillSurface {
         anchors.right: parent.right
         spacing: 0
 
-        // ── Header: 力 BATTERY + state ─────────────────────────────────────
+        // header: 力 BATTERY + state
         Item {
             width: parent.width
             height: 22 * root.s
@@ -74,7 +71,7 @@ PillSurface {
             }
         }
 
-        // ── Hero: percentage + state subline ──────────────────────────────
+        // hero: percentage + state subline
         Column {
             width: parent.width
             topPadding: 18 * root.s
@@ -106,7 +103,7 @@ PillSurface {
             }
         }
 
-        // ── Charge gauge: a bold Ryoku wave ───────────────────────────────
+        // charge gauge: a bold Ryoku wave
         Column {
             width: parent.width
             topPadding: 18 * root.s
@@ -155,7 +152,7 @@ PillSurface {
 
         Item { width: 1; height: 16 * root.s }
 
-        // ── Stat grid: rate · time · capacity · health ────────────────────
+        // stat grid: rate, time, capacity, health
         GridLayout {
             width: parent.width
             columns: 2
@@ -211,7 +208,7 @@ PillSurface {
             }
         }
 
-        // Breathing room under the grid.
+        // breathing room under the grid.
         Item { width: 1; height: 4 * root.s }
     }
 }

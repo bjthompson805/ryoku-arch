@@ -4,31 +4,26 @@ import QtQuick
 import QtQuick.Effects
 import "Singletons"
 
-/**
- * 飴 Ame, the shapeshifter. One molten-glass bead, the shell's only glowing
- * element. Idle it just breathes (2.5% scale over ~8s). No music/audio/physics
- * coupling; every motion is a fixed, scripted timeline.
- *
- * Travel: a form change runs the full shapeshift over `Motion.shapeshift` ms.
- * anticipation stretch, a remnant droplet pinching off at the origin, a
- * quadratic-bezier flight with a tapered streak, a three-droplet landing splash,
- * then an easeOutBack settle into the new form. The flight launches once and
- * tracks a moving target live (bezier endpoint, control point and heading
- * recomputed per frame), so anchors that slide with the pill's 320ms morph bend
- * the arc, no restart. Short-distance form change skips travel and plays the
- * settle in place. Same-form target moves (hover width, seam progress, mixer
- * focus hops, seeks) glide over `Motion.glide` ms, chasing the anchor, never
- * escalating to a flight.
- *
- * Forms: "rest" breathing bead, "caret" blinking launcher capsule, "seam" media
- * bead, "ring" calendar ring, "dock" plain bead (mixer/power/link), "off"
- * hidden. Entering "off" fades out over `Motion.fast` ms; leaving it snaps to
- * the current anchor and pops back with the settle, so toast/OSD handoffs don't
- * ghost-fly from stale positions. Body draws on a QtQuick Canvas: FrameAnimation
- * drives full-rate repaint only while the timeline, splash, remnant or a glide
- * is live; otherwise a Timer ticks the slow inner swirl at 12fps (30fps while
- * the caret blinks) to keep idle cost low for a 24/7 shell.
- */
+// 飴 ame: one molten-glass bead, only glowing thing in the shell. idle = breathe
+// (2.5% scale, ~8s). no music/audio/physics coupling, every motion is a fixed
+// scripted timeline.
+//
+// travel: form change runs the full shapeshift over Motion.shapeshift ms.
+// antic stretch -> remnant droplet pinches off at the origin -> quadratic
+// bezier flight with a tapered streak -> three-droplet splash -> easeOutBack
+// settle. flight launches once and re-aims live (endpoint, ctrl, heading
+// recomputed per frame) so anchors that slide with the pill's 320ms morph just
+// bend the arc, no restart. short hop skips travel, plays the settle in place.
+// same-form target moves (hover width, seam progress, mixer focus, seeks)
+// glide over Motion.glide ms, never escalating to a flight.
+//
+// forms = rest (breathing bead) | caret (blinking launcher capsule) | seam
+// (media bead) | ring (calendar) | dock (mixer/power/link) | off (hidden).
+// off fades over Motion.fast; leaving off snaps to current anchor and pops
+// back, so toast/OSD handoffs don't ghost-fly from stale positions. body =
+// QtQuick Canvas. FrameAnimation drives full-rate repaint only while busy
+// (timeline/splash/remnant/glide); otherwise a Timer ticks the slow inner
+// swirl at 12fps (30 while caret blinks). 24/7 shell, idle cost matters.
 Item {
     id: root
 
@@ -87,14 +82,11 @@ Item {
                         v * v * a.y + 2 * v * u * c.y + u * u * b.y);
     }
 
-    /**
-     * Recompute heading, distance and the perpendicular bezier control point
-     * for the current fromPoint->point pair. Called per frame during the antic
-     * and fly phases so a target that slides mid-flight bends the arc and the
-     * painted streak stays on the same curve as the bead. Arc side is latched
-     * in startFlight (arcFlip); re-deciding it per frame would mirror the whole
-     * curve in one frame when the target crosses the vertical through the origin.
-     */
+    // recompute heading, distance, perp bezier control point for fromPoint->point.
+    // called per frame during antic + fly so a sliding target bends the arc and
+    // the painted streak rides the same curve as the bead. arc side latches in
+    // startFlight (arcFlip); re-picking it per frame would mirror the whole
+    // curve in one frame when the target crosses the vertical through origin.
     function updateFlightGeo() {
         const dx = point.x - fromPoint.x;
         const dy = point.y - fromPoint.y;
@@ -130,11 +122,8 @@ Item {
             remnantAnim.restart();
     }
 
-    /**
-     * In-place transform: skip travel, replay only the settle window (splash +
-     * easeOutBack pop) so a nearby form change still reads as a shapeshift
-     * without a pointless flight.
-     */
+    // in-place: skip travel, replay the settle window only (splash + easeOutBack
+    // pop). nearby form change still reads as a shapeshift, no pointless flight.
     function startMorph(targetForm) {
         flightAnim.stop();
         activeForm = targetForm;
@@ -149,11 +138,9 @@ Item {
         glideAnim.restart();
     }
 
-    /**
-     * Wake from the hidden ("off") state. Re-shows start at the wake anchor: the
-     * bead condenses there, then flies to its target if far or pops in place if
-     * near. Positions from before the hidden period never leak in.
-     */
+    // wake from "off". re-show condenses at the wake anchor, then flies if far
+    // or pops in place if near. positions from before the hidden period never
+    // leak in.
     function appear() {
         stopGlide();
         remnantAnim.stop();
@@ -198,18 +185,15 @@ Item {
         }
     }
 
-    /**
-     * Coalesced decision point. form and point are sibling bindings in Pill
-     * whose change handlers fire mid-cascade in unspecified order. Deciding
-     * synchronously would read a stale partner value (a far form change sees
-     * dd≈0 against the not-yet-updated point and quietly degrades the flight to
-     * an in-place morph). Qt.callLater defers the decision until both bindings
-     * have settled, and collapses the per-frame handler bursts of a pill morph
-     * into one retarget per tick. lastTarget tracks the previous settled anchor
-     * so a mid-flight DISCRETE hop (mixer focus jump, seek snap) is told apart
-     * from a morph slide and handed to a glide rather than teleporting the
-     * airborne bead.
-     */
+    // coalesced decision. form + point are sibling bindings in Pill; their
+    // change handlers fire mid-cascade in unspecified order. deciding synchronously
+    // reads stale partner state (a far form change sees dd≈0 against the
+    // not-yet-updated point and silently degrades to an in-place morph).
+    // Qt.callLater waits for both bindings to settle and collapses the per-frame
+    // handler burst of a pill morph into one retarget per tick. lastTarget
+    // remembers the last settled anchor so a mid-flight DISCRETE hop (mixer focus,
+    // seek snap) is told apart from a morph slide and handed to a glide instead
+    // of teleporting the airborne bead.
     function decide() {
         if (form === "off") {
             if (hidden)
@@ -575,11 +559,9 @@ Item {
         }
     }
 
-    /**
-     * The blur layer allocates an FBO the size of the whole pill; while the bead
-     * is hidden (wallpaper strip, toast, plain hover) that's pure GPU tax on an
-     * empty canvas, so the layer only exists while something is drawn or fading.
-     */
+    // blur layer = FBO sized to the whole pill. while the bead is hidden (wallpaper
+    // strip, toast, plain hover) that's pure GPU tax on an empty canvas, so the
+    // layer only exists while something draws or fades.
     layer.enabled: opacity > 0.001 || busy
     layer.effect: MultiEffect {
         blurEnabled: true

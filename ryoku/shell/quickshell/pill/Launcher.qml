@@ -7,10 +7,10 @@ import "Singletons"
 import "lib/fuzzy.js" as Fuzzy
 
 /**
- * Launcher surface: search field over a ranked application list, drawn as one
- * of the pill's surfaces. Desktop entries are ranked by fuzzy match and prior
- * launch frequency (usage file shared with the standalone launcher), the
- * chosen entry executes directly.
+ * launcher surface = search field over a ranked app list, drawn as one of the
+ * pill surfaces. desktop entries ranked by fuzzy match + prior launch
+ * frequency (usage file shared with the standalone launcher). picked entry
+ * runs directly.
  */
 PillSurface {
     id: root
@@ -24,12 +24,10 @@ PillSurface {
     property int selectedIndex: 0
     property var usage: ({})
 
-    /**
-     * Window-coordinate position of the last hover event that was allowed to
-     * move the selection. Rows sliding under a stationary cursor during
-     * keyboard scrolling produce hover events at an unchanged window position,
-     * which must not steal the keyboard selection.
-     */
+    // window-coord position of the last hover allowed to move the selection.
+    // rows sliding under a stationary cursor during keyboard scroll fire
+    // hover events at an unchanged window pos: must not steal the keyboard
+    // selection.
     property point lastPointer: Qt.point(-1, -1)
 
     readonly property point caretPoint: {

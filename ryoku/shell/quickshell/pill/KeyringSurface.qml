@@ -4,16 +4,14 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-/**
- * The keyring password island, grown from the pill centre. It renders the GNOME
- * keyring prompt the ryoku-shell daemon receives as the system prompter: an
- * "unlock the keyring" password ask, the "choose a password for a new keyring"
- * ask (with a confirm field), or a plain confirm. The typed secret is handed to
- * the daemon (Keyring singleton) over the control socket, never as an argument.
- *
- * State lives in the Keyring singleton; this file only renders it and collects
- * input, matching the project's view/daemon split.
- */
+// keyring password island, grown from the pill centre. renders the GNOME
+// keyring prompt the ryoku-shell daemon receives as the system prompter:
+// "unlock the keyring" pw ask, "choose a pw for a new keyring" (with confirm
+// field), or a plain confirm. typed secret goes to the daemon (Keyring
+// singleton) over the control socket, never as an arg.
+//
+// state lives in Keyring; this only renders + collects input -- the project's
+// view/daemon split.
 PillSurface {
     id: root
 
@@ -69,8 +67,8 @@ PillSurface {
         function onOpened() { root.reset(); }
     }
 
-    // Enter/Escape for the confirm prompt (no text field to carry them); the
-    // password fields handle Enter themselves and let Escape bubble to the shell.
+    // enter/escape for the confirm prompt (no text field to carry them);
+    // the pw fields handle enter themselves and let escape bubble.
     Keys.onReturnPressed: root.trySubmit()
     Keys.onEnterPressed: root.trySubmit()
     Keys.onEscapePressed: root.requestClose()
@@ -138,7 +136,7 @@ PillSurface {
             wrapMode: Text.WordWrap
         }
 
-        // --- password (and optional confirm) fields -------------------------
+        // password (+ optional confirm) fields
         Rectangle {
             id: field1Box
             visible: root.isPassword
@@ -207,7 +205,7 @@ PillSurface {
             }
         }
 
-        // --- optional "remember / auto-unlock" choice -----------------------
+        // optional "remember / auto-unlock" choice
         Row {
             visible: Keyring.choiceLabel !== ""
             width: parent.width
@@ -261,7 +259,7 @@ PillSurface {
             }
         }
 
-        // --- warning (wrong password / mismatch) ----------------------------
+        // warning (wrong password / mismatch)
         Text {
             width: parent.width
             visible: root.warnText !== ""
@@ -272,7 +270,7 @@ PillSurface {
             wrapMode: Text.WordWrap
         }
 
-        // --- buttons --------------------------------------------------------
+        // buttons
         Row {
             width: parent.width
             spacing: 9 * root.s

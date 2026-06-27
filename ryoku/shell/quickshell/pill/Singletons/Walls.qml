@@ -3,22 +3,18 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * Wallpaper bridge: keeps a warm in-memory snapshot of ~/Pictures/Wallpapers so
- * the wallpaper strip opens instantly without shelling out on demand. A
- * refresh first runs the thumbnail script (generating missing 512px previews
- * and pruning ones whose source is gone), then re-lists the directory
- * newest-first and finally re-reads the state file ryoku-shell wallpaper maintains, so
- * `current` always names the wallpaper on screen. Thumbnails land before the
- * list so strip delegates never bind to a not-yet-existing file; a refresh
- * arriving while the pipeline runs sets `pending` and replays once the state
- * lands. Applying routes through ryoku-shell wallpaper so the picker shares the exact
- * transition, palette and state path with the random keybind.
- *
- * Entries are plain objects: { path, name, mtime, thumb } where path is the
- * absolute source file, mtime its modification time in epoch seconds and
- * thumb the absolute path of the cached preview png.
- */
+// wallpaper bridge: warm in-memory snapshot of ~/Pictures/Wallpapers so the
+// strip opens without shelling out. refresh = thumbnail script (generate
+// missing 512px previews, prune ones whose source vanished), then re-list
+// newest-first, then re-read the state file ryoku-shell wallpaper writes so
+// `current` always names what's on screen. thumbs land before the list so
+// strip delegates never bind to a not-yet-existing file. a refresh that
+// arrives mid-pipeline sets `pending` and replays once state lands. apply
+// goes through ryoku-shell wallpaper so the picker shares the transition,
+// palette and state path with the random keybind.
+//
+// entries = { path, name, mtime, thumb }. path absolute, mtime epoch sec,
+// thumb the cached preview png path.
 Singleton {
     id: root
 
@@ -40,13 +36,11 @@ Singleton {
         thumbProc.running = true;
     }
 
-    /**
-     * ryoku-shell wallpaper returns once the daemon has kicked off the transition
-     * (~150ms; the wave, palette and reload run in the background), but a pick
-     * landing while applyProc is still in flight would be dropped. The newest
-     * request is queued and replayed once the running call returns, so rapid
-     * iteration converges on the last pick.
-     */
+    // ryoku-shell wallpaper returns once the daemon has kicked off the
+    // transition (~150ms; wave + palette + reload run in the background).
+    // a pick landing while applyProc is still in flight would be dropped,
+    // so the newest one queues and replays on exit -- rapid clicks converge
+    // on the last pick.
     property string queuedApply: ""
 
     function apply(path) {

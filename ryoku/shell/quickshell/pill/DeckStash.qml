@@ -3,33 +3,28 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * Stash section of the 力 deck: a 4-column file board over ~/Downloads/Stash that
- * doubles as a LocalSend hub. The grid shows what is stashed (image files render
- * thumbnails, the rest a type glyph); hovering a tile opens, sends, or removes it,
- * and dragging files onto the section copies them in. The action bar sends the
- * whole stash or a typed note, pulls a copied link in, and shrinks or installs
- * what is here, while a compact Receive switch up top lets other devices push
- * files straight into the stash. Sending, receiving, and the long-running rail
- * jobs raise focused sheets over the grid; every state lives in the Stash
- * singleton. Headerless: the deck eyebrow ("Stash") sits above this Item.
- */
+// stash section of the 力 deck: a 4-col file board over ~/Downloads/Stash that
+// doubles as a LocalSend hub. grid = what's stashed (image -> thumb, rest -> a
+// type glyph), hover a tile to open/send/remove, drag files onto the section
+// to copy them in. action bar sends the whole stash or a typed note, pulls a
+// copied link in, shrinks or installs what's here. the compact Receive switch
+// up top lets other devices push files straight in. send/recv/long jobs raise
+// focused sheets over the grid; every state lives in the Stash singleton.
+// headerless: the deck eyebrow ("Stash") sits above this Item.
 Item {
     id: stash
 
-    // Scale + deck activity gate.
+    // scale + deck-activity gate.
     property real s: 1
     property bool active: true
 
-    // Reserved for any action that needs the deck dismissed (none here:
-    // the stash flows raise their own overlays inside this section).
+    // reserved (none here: stash flows raise their own overlays).
     signal requestClose()
 
-    // Fixed cell + grid height so implicitHeight never depends on the column
-    // width handed down by the deck (a width-driven height would form a loop
-    // with the deck's Math.max(left,right) sizing). Cell WIDTH stays dynamic
-    // (filled to `cols` columns) because that reads the laid-out grid width,
-    // which never flows back into implicitHeight.
+    // fixed cell + grid height so implicitHeight never depends on the column
+    // width handed down by the deck (width-driven height -> loop with the deck's
+    // Math.max(left,right)). cell WIDTH stays dynamic (filled to `cols`) because
+    // it reads the laid-out grid width, which never flows back into height.
     readonly property int cols: 4
     readonly property real cellH: 104 * s
     readonly property real gridH: cellH * 2
@@ -38,13 +33,13 @@ Item {
 
     implicitHeight: headH + 6 * s + 1 + 6 * s + gridH + 12 * s + actionsH
 
-    // An overlay (send / receive / task sheet) owns the body below the header.
+    // an overlay (send / recv / task sheet) owns the body below the header.
     readonly property bool sheetOpen: Stash.lsState !== "idle"
         || Stash.recvState !== "idle"
         || Stash.dlOpen
         || (Stash.task !== "" && Stash.taskState !== "idle")
 
-    // Dismiss whichever sub-screen sheet is open, driven by the header Back.
+    // dismiss whichever sub-sheet is open. driven by the header Back.
     function dismissSheet() {
         if (Stash.recvState !== "idle") Stash.stopReceive();
         else if (Stash.lsState !== "idle") Stash.cancelSend();
@@ -52,7 +47,7 @@ Item {
         else if (Stash.task !== "") Stash.dismissTask();
     }
 
-    // File-type category for the non-image tile glyph, by extension.
+    // file-type bucket for the non-image tile glyph, by extension.
     function catGlyph(ext) {
         var e = ext.toLowerCase();
         if (/^(zip|tar|gz|tgz|bz2|xz|7z|rar|zst)$/.test(e)) return "archive";
@@ -64,7 +59,7 @@ Item {
         return "file";
     }
 
-    // ── Header micro-row: count · Receive chip ──────────────────────────
+    // ── header micro-row: count · Receive chip ──────────────────────────
     Item {
         id: header
         anchors.top: parent.top
@@ -72,8 +67,8 @@ Item {
         anchors.right: parent.right
         height: stash.headH
 
-        // Back control + file count. Back appears only while a sub-screen is open
-        // and dismisses it; it sits just left of the count, like a breadcrumb.
+        // Back + file count. Back only while a sub-sheet is open; sits just
+        // left of the count, breadcrumb-style.
         Item {
             id: backBtn
             visible: stash.sheetOpen
@@ -142,8 +137,8 @@ Item {
             font.features: { "tnum": 1 }
         }
 
-        // Receive switch: flip it and other LocalSend devices can push files
-        // straight into the stash. Lit while listening, with a breathing dot.
+        // receive switch: flip it on and other LocalSend devices push files
+        // straight into the stash. lit while listening, dot breathes.
         Rectangle {
             id: recvChip
             anchors.right: parent.right
@@ -201,7 +196,7 @@ Item {
         }
     }
 
-    // Hairline under the header, like the dossier rules elsewhere.
+    // hairline under the header, matching the dossier rules elsewhere.
     Rectangle {
         id: headerRule
         anchors.top: header.bottom
@@ -212,7 +207,7 @@ Item {
         color: Theme.hair
     }
 
-    // ── File grid ───────────────────────────────────────────────────────
+    // ── file grid ───────────────────────────────────────────────────────
     Rectangle {
         id: content
         anchors.top: headerRule.bottom
@@ -227,7 +222,7 @@ Item {
         radius: 3 * stash.s
         clip: true
 
-        // Square spec grid behind the files: the hub Profile's drop-window texture.
+        // square spec grid behind the files (same texture as the hub Profile drop window).
         Canvas {
             anchors.fill: parent
             z: -2
@@ -333,7 +328,7 @@ Item {
                         Behavior on opacity { NumberAnimation { duration: Motion.fast } }
                     }
 
-                    // Type tag for non-image files, under the glyph.
+                    // type tag for non-image files, under the glyph.
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.verticalCenter: parent.verticalCenter
@@ -347,7 +342,7 @@ Item {
                         font.letterSpacing: 1 * stash.s
                     }
 
-                    // Legibility scrim under the name on image tiles.
+                    // scrim under the name on image tiles for legibility.
                     Rectangle {
                         anchors.left: parent.left
                         anchors.right: parent.right
@@ -387,7 +382,7 @@ Item {
                         onClicked: Stash.openFile(tile.filePath)
                     }
 
-                    // Hover actions, top-right: send and remove.
+                    // hover actions, top-right: send + remove.
                     Row {
                         anchors.top: parent.top
                         anchors.right: parent.right
@@ -457,7 +452,7 @@ Item {
                         }
                     }
 
-                    // Inline remove confirmation, in place of a modal.
+                    // inline remove confirm in place of a modal.
                     Column {
                         anchors.centerIn: parent
                         spacing: 8 * stash.s
@@ -529,7 +524,7 @@ Item {
             }
         }
 
-        // ── Empty / drop state ──────────────────────────────────────────
+        // ── empty / drop state ──────────────────────────────────────────
         Item {
             anchors.fill: parent
             z: -1
@@ -573,7 +568,7 @@ Item {
         }
     }
 
-    // Brand ring while a drag hovers the section, over the whole body.
+    // brand ring while a drag hovers the section, over the whole body.
     Rectangle {
         anchors.fill: parent
         radius: 3 * stash.s
@@ -584,7 +579,7 @@ Item {
         z: 5
     }
 
-    // ── Drag-and-drop intake ────────────────────────────────────────────
+    // ── drag-and-drop intake ────────────────────────────────────────────
     DropArea {
         id: dropArea
         anchors.fill: parent
@@ -595,7 +590,7 @@ Item {
         }
     }
 
-    // ── Action bar ──────────────────────────────────────────────────────
+    // ── action bar ──────────────────────────────────────────────────────
     StashActions {
         id: actions
         anchors.bottom: parent.bottom
@@ -612,7 +607,7 @@ Item {
         onInstall: Stash.requestInstall()
     }
 
-    // ── Sheets (send / receive / task) over the body ────────────────────
+    // ── sheets (send / recv / task) over the body ───────────────────────
     StashSendSheet {
         anchors.top: headerRule.bottom
         anchors.topMargin: 6 * stash.s

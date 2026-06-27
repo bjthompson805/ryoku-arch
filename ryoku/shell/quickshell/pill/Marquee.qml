@@ -1,11 +1,9 @@
 import QtQuick
 import "Singletons"
 
-/**
- * Single-line text that ping-pong scrolls when wider than the available width,
- * so long track and artist names stay readable. Caller sets the width (e.g.
- * via anchors) and `active` to gate the motion.
- */
+// single-line text that ping-pongs when it's wider than its space. long track
+// + artist names stay readable. caller sets width (anchors etc.) and `active`
+// gates the motion.
 Item {
     id: root
 
@@ -63,10 +61,10 @@ Item {
     Component.onCompleted: sync()
 
     /**
-     * Fully imperative start/stop: a `running` binding here would be severed
-     * by the first imperative stop() and leave the loop animating forever
-     * inside a hidden surface. Re-syncing on overflow changes also refreshes
-     * the captured from/to endpoints after a width change.
+     * fully imperative start/stop. a `running` binding gets severed by the
+     * first imperative stop() and would leave the loop running forever inside
+     * a hidden surface. re-syncing on overflow changes also refreshes the
+     * captured from/to after a width change.
      */
     function sync() {
         anim.stop();

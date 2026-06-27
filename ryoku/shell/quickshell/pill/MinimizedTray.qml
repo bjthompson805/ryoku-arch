@@ -4,10 +4,8 @@ import QtQuick
 import Quickshell.Hyprland
 import "Singletons"
 
-/**
- * Row of icon buttons for windows parked on Hyprland's `special:minimized`
- * workspace (Super+M). Clicking one moves it back to the focused workspace.
- */
+// row of icon buttons for windows parked on Hyprland's `special:minimized`
+// (Super+M). click sends a window back to the focused workspace.
 Row {
     id: root
 
@@ -15,11 +13,9 @@ Row {
     property string screenName: ""
     spacing: 8 * s
 
-    /**
-     * Resolve the workspace id to restore into: the active workspace of the
-     * monitor this pill lives on, so a window reappears on the screen the user
-     * clicked, falling back to the focused workspace.
-     */
+    // ws id to restore into = active ws of the monitor this pill lives on,
+    // so the window reappears on the screen the user clicked. falls back to
+    // the focused ws.
     function restoreWorkspace() {
         var ms = Hyprland.monitors.values;
         for (var i = 0; i < ms.length; i++)

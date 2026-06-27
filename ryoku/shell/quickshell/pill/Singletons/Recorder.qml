@@ -3,19 +3,17 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * Screen-recording state and control. Drives ryoku-cmd-screenrecord (gpu-screen-recorder,
- * falling back to wf-recorder on multi-GPU machines) and reconciles against the live
- * recorder process, so a failed launch or an external stop can't strand the UI. Pause
- * is optimistic and gpu-screen-recorder only (wf-recorder cannot pause). The activity
- * strip chip and the utilities Record card share this one source of truth.
- */
+// screen recording state + control. drives ryoku-cmd-screenrecord
+// (gpu-screen-recorder, falling back to wf-recorder on multi-GPU machines) and
+// reconciles against the live process, so a failed launch or an external stop
+// can't strand the UI. pause is optimistic, gsr only (wf-recorder can't pause).
+// the strip chip + the utilities Record card share this one source of truth.
 Singleton {
     id: root
 
     property bool active: false
     property bool paused: false
-    // Backend that owns the live recording: "gsr", "wf", or "" when idle.
+    // owning backend: "gsr" | "wf" | "" when idle.
     property string backend: ""
     readonly property bool canPause: backend === "gsr"
     property int startedAt: 0
@@ -23,8 +21,8 @@ Singleton {
     property real pulse: 1
     readonly property string elapsedText: fmt(elapsedSec)
 
-    // Full path: ~/.config/hypr/scripts is not on the shell's PATH, so a bare
-    // name would not resolve and recording would silently never start.
+    // full path: ~/.config/hypr/scripts isn't on the shell's PATH, a bare name
+    // wouldn't resolve and recording would silently never start.
     readonly property string script: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-screenrecord"
 
     function start(extraArgs) {
@@ -56,12 +54,12 @@ Singleton {
         NumberAnimation { to: 1.0; duration: 620; easing.type: Easing.InOutSine }
     }
 
-    // Reconcile against the live process: report the owning backend and clear
-    // stale state when nothing is recording. Pause stays optimistic while active.
+    // reconcile against the live process: surface the owning backend and clear
+    // stale state when nothing's recording. pause stays optimistic while active.
     Process {
         id: poll
-        // Match the full command line, not the comm name: Linux truncates comm to
-        // 15 chars so "gpu-screen-recorder" (19) never matches `pgrep -x`. The [g]
+        // match the full command line, not comm: Linux truncates comm to 15
+        // chars so "gpu-screen-recorder" (19) never matches `pgrep -x`. the [g]
         // bracket keeps this poll's own command from matching itself.
         command: ["sh", "-c", "if pgrep -f '(^|/)[g]pu-screen-recorder( |$)' >/dev/null 2>&1; then echo gsr; elif pgrep -f '(^|/)[w]f-recorder( |$)' >/dev/null 2>&1; then echo wf; else echo off; fi"]
         stdout: StdioCollector {
@@ -92,16 +90,16 @@ Singleton {
         onTriggered: if (!poll.running) poll.running = true
     }
 
-    // Confirm the recorder actually came up after a start, so a failed launch
-    // clears the optimistic running state instead of counting up forever.
+    // confirm the recorder actually came up after a start; a failed launch
+    // would otherwise leave the optimistic running state counting up forever.
     Timer {
         id: confirm
         interval: 2500
         onTriggered: poll.running = true
     }
 
-    // Elapsed increments (rather than recomputing from startedAt) so a pause
-    // freezes the clock and a resume continues it.
+    // increment, don't recompute from startedAt -- a pause freezes the clock
+    // and a resume continues it.
     Timer {
         interval: 1000
         running: root.active && !root.paused

@@ -1,20 +1,17 @@
 import QtQuick
 import "Singletons"
 
-/**
- * The live-activity island: the chips that ride beside the pill while their
- * state is live. Screen recording, a Discord voice call, and a WireGuard tunnel
- * are automatic status; the stash chip is an entry point that opens the file
- * stash. The strip folds shut to nothing when none of them is active.
- */
+// Live-activity island: chips that ride beside the pill while their state is
+// live. Recorder, voice call, and VPN are passive status; stash is a tap entry
+// to the file stash. Folds shut to nothing when none are active.
 Row {
     id: root
 
     property real s: 1
 
-    // The strip counts as island hover so an auto-hidden island stays revealed
-    // while the cursor is on its chips. A passive ancestor handler (like the
-    // pill's own) never blocks the chips' taps.
+    // Strip counts as island hover so an auto-hidden island stays revealed while
+    // the cursor is on a chip. A passive ancestor handler (like the pill's)
+    // doesn't swallow chip taps.
     property bool hovered: visible && stripHover.hovered
 
     signal requestSurface(string name)

@@ -5,13 +5,10 @@ import Quickshell.Io
 import Quickshell.Bluetooth
 import "Singletons"
 
-/**
- * Bluetooth drill-in for the link surface: back chevron, scan with 25s
- * auto-stop, adapter toggle, live device list. Known devices use the
- * Quickshell connect/disconnect calls; unpaired devices run a bluetoothctl
- * pair-trust-connect flow with an inline ember while running and a transient
- * failure line.
- */
+// bluetooth drill-in for the link surface. back chevron, scan with 25s
+// auto-stop, adapter toggle, live device list. known devices use Quickshell
+// connect/disconnect; unpaired = bluetoothctl pair-trust-connect with an
+// inline ember while running + a transient failure line.
 Item {
     id: root
 
@@ -23,11 +20,9 @@ Item {
     readonly property var adapter: (typeof Bluetooth !== "undefined" && Bluetooth) ? Bluetooth.defaultAdapter : null
     readonly property var devices: (typeof Bluetooth !== "undefined" && Bluetooth && Bluetooth.devices) ? Bluetooth.devices.values : []
 
-    /**
-     * BlueZ hands the cache out in arbitrary order; sort connected first,
-     * then paired, then named devices, nameless MACs last so a discovery scan
-     * doesn't churn the useful rows around.
-     */
+    // BlueZ hands the cache out in arbitrary order. sort connected first, then
+    // paired, then named, nameless MACs last -- keeps a discovery scan from
+    // churning the useful rows around.
     readonly property var devicesSorted: devices.slice().sort(function(a, b) {
         function rank(d) {
             if (!d) return 3;
@@ -66,10 +61,8 @@ Item {
         return Math.round(b);
     }
 
-    /**
-     * Click dispatch for a device row: disconnect when connected, connect when
-     * paired, otherwise run the bluetoothctl pair-trust-connect flow.
-     */
+    // row click: connected -> disconnect, paired -> connect, else run the
+    // bluetoothctl pair-trust-connect flow.
     function activateDevice(d) {
         if (!d)
             return;

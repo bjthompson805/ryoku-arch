@@ -4,9 +4,9 @@ import QtQuick
 import Quickshell.Hyprland
 import "Singletons"
 
-// Running-app dock for the expanded island: one icon per window on the focused
-// workspace of this pill's monitor, click to focus (hl.dsp.focus). Icons sit
-// dimmed and brighten on hover. Icon resolution mirrors MinimizedTray.
+// running-app dock for the expanded island. one icon per window on this
+// pill monitor's focused workspace, click = focus (hl.dsp.focus). dim by
+// default, bright on hover. icon resolution mirrors MinimizedTray.
 Row {
     id: root
 

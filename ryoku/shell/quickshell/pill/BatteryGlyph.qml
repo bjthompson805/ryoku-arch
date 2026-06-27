@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Shapes
 import "Singletons"
 
-// Battery cell glyph: a rounded body with a nub, filled to `frac` and tinted by
-// state (low = vermilion, charging = ember, otherwise neutral). A bolt overlays
-// while charging. Driven by the Battery singleton; every weight scales with `s`.
+// battery cell glyph: rounded body with a nub, filled to `frac` and tinted
+// by state (low = vermilion, charging = ember, else neutral). bolt overlay
+// while charging. driven by the Battery singleton; weights scale with `s`.
 Item {
     id: root
 
@@ -42,7 +42,7 @@ Item {
         }
     }
 
-    // Terminal nub.
+    // terminal nub.
     Rectangle {
         anchors.left: bodyRect.right
         anchors.leftMargin: 1 * root.s
@@ -53,7 +53,7 @@ Item {
         color: Qt.alpha(root.tint, 0.55)
     }
 
-    // Charging bolt, centred on the cell.
+    // charging bolt, centred on the cell.
     Shape {
         anchors.horizontalCenter: bodyRect.horizontalCenter
         anchors.verticalCenter: bodyRect.verticalCenter

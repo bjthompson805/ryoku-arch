@@ -3,12 +3,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-/**
- * SYSTEM info for the operator card. A single read-out from the ryoku-sysinfo
- * helper (one field per line) re-polled every 30 s; each line maps to a field
- * below, falling back to its placeholder when absent. The helper is dual-GPU
- * aware (sysGpu / sysGpu2) and supplies the install's stable random `codename`.
- */
+// SYSTEM info for the operator card. one read from ryoku-sysinfo (one field
+// per line), re-polled every 30s. each line maps to a field below, missing
+// = placeholder. helper is dual-GPU aware (sysGpu/sysGpu2) and ships the
+// install's stable random `codename`.
 Singleton {
     id: root
 

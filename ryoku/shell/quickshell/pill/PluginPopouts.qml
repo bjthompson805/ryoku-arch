@@ -7,12 +7,13 @@ import "Singletons"
 import "popouts"
 
 /**
- * Hosts every enabled plugin whose chosen host is a frame popout. Frame popouts
- * must fuse the frame's blob field, which is per-process and lives here in the
- * pill; so the pill renders them through the same Popout machinery as Mixer and
- * Power, supplying the plugin's content/Widget.qml at `full` density. Discovery
- * is the shared discover.sh (scan + merge plugins.json + enabled-only); a
- * placement change rewrites plugins.json and the daemon calls reload().
+ * hosts every enabled plugin whose chosen host = frame popout. frame popouts
+ * have to fuse the per-process frame blob field, which lives here in the
+ * pill, so the pill renders them through the same Popout machinery as Mixer
+ * and Power, supplying the plugin's content/Widget.qml at `full` density.
+ * discovery = the shared discover.sh (scan + merge plugins.json + enabled
+ * only); a placement change rewrites plugins.json and the daemon calls
+ * reload().
  *
  *   PluginPopouts { group: blobGroup; s: overlay.s; active: !surfaceOpen; ... }
  */
@@ -26,9 +27,9 @@ Item {
     property real radius: 16
     property real smoothing: 30
     property string pinnedId: ""
-    // Fired when a keybind/IPC-pinned popout should dismiss because the pointer
-    // left it (so a pinned popout closes like a hover-opened one). The pill clears
-    // its popout pin in response.
+    // fires when a keybind/IPC-pinned popout should dismiss because the pointer
+    // left it (pinned closes like a hover-opened one). pill clears its popout
+    // pin in response.
     signal unpinRequested()
 
     anchors.fill: parent
@@ -36,10 +37,10 @@ Item {
     property var plugins: []
     property alias repeater: popoutRepeater
 
-    // Input-mask geometry the pill grabs so hover opens the popout and its open
-    // body keeps catching input, like the built-in edge popouts. v1 binds the
-    // first frame popout (the common single-popout case); `first` updates when
-    // the set changes, and its trigger/body are live bindings on that instance.
+    // input-mask geometry the pill grabs so hover opens the popout and the
+    // open body keeps catching input, same as built-in edge popouts. v1 binds
+    // the first frame popout (the common single-popout case); `first` updates
+    // when the set changes, trigger/body are live bindings on that instance.
     readonly property var first: plugins.length > 0 ? popoutRepeater.itemAt(0) : null
     readonly property real maskTrigX: first ? first.triggerX : 0
     readonly property real maskTrigY: first ? first.triggerY : 0
@@ -93,12 +94,12 @@ Item {
             s: root.s
             active: root.active
             pinned: root.pinnedId === modelData.id
-            // A keybind/IPC-pinned popout dismisses once the pointer leaves it, so
-            // it closes like a hover-opened popout instead of staying open until the
-            // keybind is pressed again. The pointer gets a grace window to travel to
-            // the freshly-opened popout; once it has arrived (`_touched`), leaving
-            // for `_graceMs` clears the pin. The timer also catches a hover-leave
-            // event that a masked layer surface can otherwise miss.
+            // keybind/IPC-pinned popout dismisses once the pointer leaves it,
+            // so it closes like a hover-opened one instead of staying open
+            // until the keybind fires again. pointer gets a grace window to
+            // travel to the fresh popout; once it has arrived (`_touched`),
+            // leaving for `_graceMs` clears the pin. timer also catches a
+            // hover-leave a masked layer surface can otherwise miss.
             property bool _touched: false
             readonly property int _graceMs: 2500
             onHoveredChanged: {
@@ -114,10 +115,10 @@ Item {
                 interval: pop._touched ? 220 : pop._graceMs
                 onTriggered: if (pop.pinned && !pop.hovered) root.unpinRequested();
             }
-            // Body fits the content vertically: openH derives from the loaded
-            // content's intrinsic height plus inner padding, so there is no
-            // deadspace. Width is fixed (the content lays out to contentW) and the
-            // content is inset by `pad` so nothing sits flush against the edges.
+            // body fits content vertically. openH = loaded content's intrinsic
+            // height + inner pad, so no deadspace. width is fixed (content lays
+            // out to contentW); content is inset by `pad` so nothing sits flush
+            // against the edges.
             readonly property real pad: 16 * root.s
             readonly property real contentW: 360 * root.s
             readonly property real contentH: contentLoader.item ? contentLoader.item.implicitHeight : 420 * root.s
@@ -126,7 +127,7 @@ Item {
             hoverW: (place.framePopout && place.framePopout.hoverW) ? place.framePopout.hoverW * root.s : 0
             hoverH: (place.framePopout && place.framePopout.hoverH) ? place.framePopout.hoverH * root.s : 0
 
-            // Per-plugin service + content, instantiated from the plugin dir.
+            // per-plugin service + content, instantiated from the plugin dir.
             property var api: QtObject {
                 property var mainInstance: svcLoader.item
                 property var pluginSettings: (pop.place && pop.place.settings) ? pop.place.settings : {}

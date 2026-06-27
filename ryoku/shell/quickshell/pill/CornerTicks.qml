@@ -1,8 +1,7 @@
 import QtQuick
 import "Singletons"
 
-// Faint L-bracket registration ticks at the four corners, framing the panel like
-// an editorial specimen sheet. Purely decorative; sits behind the content.
+// Faint L-bracket ticks at the four corners. Pure decoration, sits behind content.
 Item {
     id: ticks
 

@@ -4,13 +4,11 @@ import QtQuick
 import Quickshell
 import "Singletons"
 
-/**
- * Tools section of the 力 deck: screen-capture helpers (Lens, Color, OCR, Mirror,
- * QR) as a flat tile strip with hairline dividers over a Ryoku wave signature.
- * Each tile runs a self-contained ~/.config/hypr/scripts helper and dismisses the
- * deck (via requestClose) so the action owns the whole screen. Keep-awake now
- * lives in the Utilities section, so the old Caffeine toggle is gone from here.
- */
+// tools section of the 力 deck: screen-capture helpers (Lens, Color, OCR,
+// Mirror, QR) as a flat tile strip with hairline dividers over a Ryoku wave.
+// each tile runs a self-contained ~/.config/hypr/scripts helper and closes
+// the deck (requestClose) so the action owns the whole screen. Keep-awake
+// moved to Utilities; the old Caffeine toggle is gone from here.
 Item {
     id: tools
 
@@ -32,9 +30,9 @@ Item {
     property string hovered: ""
     property var pendingArgv: null
 
-    // Tools grab the screen (slurp region, hyprpicker freeze); the deck holds
-    // exclusive focus and would be frozen into the pick. Close, let the morph
-    // settle, then launch.
+    // tools grab the screen (slurp region, hyprpicker freeze) and the deck
+    // holds exclusive focus -- it would be frozen into the pick. close, let
+    // the morph settle, then launch.
     function launch(argv) {
         tools.pendingArgv = argv;
         tools.requestClose();
@@ -123,7 +121,7 @@ Item {
                         onClicked: tools.launch(tile.modelData.argv)
                     }
 
-                    // Hairline divider to the next tile.
+                    // hairline divider to the next tile.
                     Rectangle {
                         visible: tile.index < tools.items.length - 1
                         width: 1

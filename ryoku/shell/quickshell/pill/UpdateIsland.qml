@@ -2,19 +2,17 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-/**
- * The update island: a compact chip on the top-right of the frame. It has three
- * faces, driven by the shared update state:
- *   available  a newer build is ready -> click opens the Hub's Updates section.
- *   running    an update is in progress -> a Ryoku wave fills with its progress.
- *   success    the update finished -> a Refresh shell affordance; click reloads.
- * It folds to nothing when there is no update and none is running.
- */
+// update island = compact chip, top-right of the frame. three faces driven by
+// the shared update state:
+//   available -> newer build ready, click opens Hub Updates.
+//   running   -> update in progress, a Ryoku wave fills with progress.
+//   success   -> finished, click = refresh the shell.
+// folds to nothing when nothing's available and nothing's running.
 Item {
     id: root
 
     property real s: 1
-    // The shell context allows showing it (no open surface/toast/osd over the pill).
+    // shell context allows showing it (no open surface / toast / osd over the pill).
     property bool active: true
 
     property bool hovered: false
@@ -69,7 +67,7 @@ Item {
         }
     }
 
-    // --- available: "Update  |  2026.06.20  +6" ----------------------------
+    // available: "Update  |  2026.06.20  +6"
     Row {
         id: availRow
         anchors.centerIn: body
@@ -151,7 +149,7 @@ Item {
         }
     }
 
-    // --- running: "Updating  ~~~~~~" (Ryoku wave fills with progress) -------
+    // running: "Updating  ~~~~~~" (Ryoku wave fills with progress)
     Row {
         id: runRow
         anchors.centerIn: body
@@ -184,7 +182,7 @@ Item {
         }
     }
 
-    // --- success: "Refresh shell" ------------------------------------------
+    // success: "Refresh shell"
     Row {
         id: doneRow
         anchors.centerIn: body

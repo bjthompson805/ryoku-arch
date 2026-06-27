@@ -4,11 +4,11 @@ import QtQuick
 import "Singletons"
 
 /**
- * The LocalSend receive sheet. While it is up the shell runs a LocalSend server
- * that announces itself on the LAN and drops anything pushed to it straight into
- * the stash. It shows the name other devices will see, a live tally of what has
- * arrived, and a Stop. The server and all of its state live in the Stash
- * singleton; this only renders the waiting room.
+ * LocalSend receive sheet. while it's up the shell runs a LocalSend server
+ * that announces on the LAN and drops anything pushed at it into the stash.
+ * shows the name other devices see, a live tally of what arrived, and a
+ * Stop. server + state live in the Stash singleton, this only paints the
+ * waiting room.
  */
 Rectangle {
     id: root
@@ -30,7 +30,7 @@ Rectangle {
         width: parent.width - 48 * root.s
         spacing: 14 * root.s
 
-        // Broadcasting halo around the receive glyph.
+        // broadcasting halo around the receive glyph.
         Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 64 * root.s
@@ -161,8 +161,8 @@ Rectangle {
         }
     }
 
-    // Incoming-transfer consent: the sender's prepare-upload is held server-side
-    // until Accept/Decline answers here. Nothing has transferred yet.
+    // incoming-transfer consent: sender's prepare-upload sits server-side until
+    // Accept/Decline answers here. nothing has transferred yet.
     Column {
         anchors.centerIn: parent
         anchors.verticalCenterOffset: -8 * root.s

@@ -1,9 +1,8 @@
 import QtQuick
 import "Singletons"
 
-// Flat horizontal switch in the deck idiom: a hairline-bordered track that fills
-// vermilion when on, with a sliding knob. Shared by the Keep-Awake and Game-Mode
-// rows in the Utilities section.
+// flat horizontal switch, deck idiom. hairline track that fills vermilion
+// when on, with a sliding knob. shared by Keep-Awake + Game-Mode rows.
 Rectangle {
     id: sw
 

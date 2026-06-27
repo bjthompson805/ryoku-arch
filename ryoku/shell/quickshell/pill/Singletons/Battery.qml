@@ -3,19 +3,17 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
 
-/**
- * Laptop-battery state for the pill, sourced from UPower's display device and
- * gated so a desktop without a battery reports `present` false (the hover
- * cluster and 蓄 surface stay hidden). Exposes percentage, charge state, a
- * signed draw/charge wattage, capacity and optional health, plus a formatted
- * time-to-empty/full string. `low` flags a discharging battery at or below 20%.
- */
+// laptop battery state for the pill, from UPower's display device. gated so a
+// desktop without a battery reports present=false (hover cluster + 蓄 surface
+// stay hidden). exposes pct, charge state, signed draw/charge wattage,
+// capacity, optional health, plus a formatted time-to-empty/full string. low
+// = discharging and <=20%.
 Singleton {
     id: root
 
     readonly property var dev: UPower.displayDevice
 
-    // The synthetic displayDevice omits Capacity (health); read it from the real
+    // synthetic displayDevice omits Capacity (health); pull it from the real
     // physical battery in the device list instead.
     readonly property var batDev: {
         var list = UPower.devices ? UPower.devices.values : [];

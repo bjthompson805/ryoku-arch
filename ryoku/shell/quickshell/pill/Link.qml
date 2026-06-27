@@ -8,10 +8,10 @@ import Quickshell.Bluetooth
 import "Singletons"
 
 /**
- * LINK surface: connectivity rows (auto-detected Network, Bluetooth) with WLAN
- * and Bluetooth drill-in subviews that cross-fade in place. Owns the `subview`
- * state machine and exposes `desiredW` and `back()` for the pill's morph and
- * Escape plumbing. Notifications live in their own INBOX surface.
+ * LINK surface = connectivity rows (auto-detected Network + Bluetooth) with
+ * WLAN/BT drill-in subviews that cross-fade in place. owns the `subview` state
+ * machine, exposes `desiredW` and `back()` for the pill's morph + Escape
+ * plumbing. notifications live in their own INBOX surface.
  */
 PillSurface {
     id: root
@@ -25,19 +25,14 @@ PillSurface {
 
     readonly property real desiredW: (subview === "wifi" ? 272 : subview === "bt" ? 286 : 330) * s
 
-    /**
-     * Row-soul focus registry. Each hoverable row reports itself here; the bead
-     * docks as a glowing seam at the left edge of the focused row and hides
-     * when nothing is focused. Only the main subview participates.
-     */
+    // row-soul focus registry. every hoverable row reports itself here; the
+    // bead docks as a glowing seam at the row's left edge, hidden when nothing
+    // is focused. only the main subview plays along.
     property Item focusRowItem: null
 
-    /**
-     * Sticky: once a row has been focused the seam stays parked on it when the
-     * pointer leaves, gliding to the next focused row instead of re-waking
-     * from the pill centre on every hover. Cleared only when the surface
-     * closes.
-     */
+    // sticky: once a row's been focused the seam stays parked when the pointer
+    // leaves, glides to the next focused row instead of waking from the pill
+    // centre every hover. cleared on close.
     function reportRowHover(item, hovered) {
         if (hovered)
             focusRowItem = item;
@@ -97,10 +92,8 @@ PillSurface {
 
     property string ethIp: ""
 
-    /**
-     * Pops one navigation level: drill-in back to main returns true, main
-     * returns false so the caller closes the surface instead.
-     */
+    // pops one nav level. drill-in -> main returns true; main returns false so
+    // the caller closes the surface.
     function back() {
         if (subview !== "main") {
             subview = "main";

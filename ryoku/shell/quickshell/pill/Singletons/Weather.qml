@@ -4,31 +4,28 @@ import Quickshell
 import Quickshell.Io
 import "../lib/weather.js" as Model
 
-/**
- * Live weather for the pill's hover glance and the calendar footer, served by
- * Open-Meteo (no API key). The location resolves once via a keyless IP lookup and
- * is cached at ~/.local/state/ryoku/weather-loc.json, so a restart skips the
- * round-trip for coordinates. This replaces the previous wttr.in scrape, which
- * was rate-limited and re-located on every poll. The public contract is
- * unchanged: `temp`, `condition`, `glyph`, `available`; `hourly`/`daily`/
- * `humidity`/`city` are exposed for richer panes. All parsing and the WMO-code ->
- * glyph/label mapping live in lib/weather.js (unit-tested under node); this
- * singleton only fetches and assigns. The temperature unit follows the locale
- * (Fahrenheit for US/LR/MM, Celsius elsewhere), matching the old IP-located feel.
- */
+// live weather for the pill's hover glance + the calendar footer. Open-Meteo,
+// no API key. location resolves once via a keyless IP lookup, cached at
+// ~/.local/state/ryoku/weather-loc.json so a restart skips the coord round-trip.
+// replaced the old wttr.in scrape (rate-limited, re-located on every poll).
+// public contract = temp / condition / glyph / available, unchanged. hourly /
+// daily / humidity / city for richer panes. all parsing + the WMO-code ->
+// glyph/label map live in lib/weather.js (unit-tested under node); this
+// singleton just fetches and assigns. unit follows the locale (F for US/LR/MM,
+// C elsewhere), matching the old IP-located feel.
 Singleton {
     id: root
 
     readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku"
     readonly property string unit: Model.unitFor(Quickshell.env("LC_MEASUREMENT") || Quickshell.env("LANG") || "")
 
-    // Public contract, identical to the previous wttr.in version.
+    // public contract, identical to the old wttr.in version.
     property string temp: ""
     property string condition: ""
     property string glyph: "cloud"
     property bool available: false
 
-    // Richer data, ready for an hourly/5-day pane.
+    // richer data, ready for an hourly / 5-day pane.
     property int tempNow: 0
     property int humidity: 0
     property bool isDay: true
@@ -78,7 +75,7 @@ Singleton {
         }
     }
 
-    // The state dir may not exist on a fresh profile; create it before writeLoc.
+    // fresh profile may not have the state dir; mkdir before writeLoc touches it.
     Process {
         command: ["mkdir", "-p", root.stateDir]
         running: true
