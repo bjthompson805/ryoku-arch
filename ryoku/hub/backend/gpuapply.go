@@ -145,13 +145,25 @@ func applyPlan(action, user, exe string, dryRun bool) error {
 	say := func(s string) { fmt.Println(planPrefix(dryRun) + s) }
 
 	if action == "enable" {
-		allPkgs := append(append([]string{}, corePassthroughPkgs...), extraPassthroughPkgs...)
-		say("install packages: " + strings.Join(allPkgs, " "))
+		say("install packages: " + strings.Join(corePassthroughPkgs, " "))
 		if !dryRun {
 			snapshot("ryoku gpu passthrough enable")
 			pacmanInstall(corePassthroughPkgs)
-			for _, p := range extraPassthroughPkgs {
-				pacmanInstall([]string{p}) // best-effort: [ryoku] repo / AUR; never blocks the core set
+		}
+		// Looking Glass + kvmfr are AUR on a plain Arch box (or [ryoku] on a Ryoku
+		// install). pacman only fetches them when they are in a repo; otherwise the
+		// user adds them with an AUR helper. Skip what is already installed so a
+		// re-run stays quiet instead of printing "target not found".
+		for _, p := range extraPassthroughPkgs {
+			switch {
+			case pkgInstalled(p):
+				say(p + ": already installed")
+			case dryRun:
+				say("install (from [ryoku] or the AUR): " + p)
+			case pkgInRepo(p):
+				pacmanInstall([]string{p})
+			default:
+				say(p + ": not in your repos. Install from the AUR: yay -S " + p)
 			}
 		}
 		kvmfrOK := dryRun || kvmfrModuleAvailable()
@@ -225,6 +237,11 @@ func etcRoot() string {
 func pacmanInstall(pkgs []string) {
 	run("pacman", append([]string{"-S", "--needed", "--noconfirm"}, pkgs...)...)
 }
+
+// pkgInstalled reports whether a package is locally installed; pkgInRepo whether it
+// is available from a configured pacman repo. Both stay quiet (output discarded).
+func pkgInstalled(p string) bool { return exec.Command("pacman", "-Q", p).Run() == nil }
+func pkgInRepo(p string) bool    { return exec.Command("pacman", "-Si", p).Run() == nil }
 
 func snapshot(desc string) {
 	if _, err := exec.LookPath("snapper"); err != nil {

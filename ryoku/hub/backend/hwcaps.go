@@ -238,7 +238,7 @@ func buildChecks(in capInputs, host, pass *GPU) (checks []Check, hardFail bool) 
 	if missing := toolingMissing(in.tooling); len(missing) == 0 {
 		add(Check{ID: "tooling", Level: "ok", Label: "Virtualization stack", Value: "installed"})
 	} else {
-		add(Check{ID: "tooling", Level: "warn", Label: "Virtualization stack", Value: "missing: " + strings.Join(missing, ", "), Hint: "Use Enable passthrough to install qemu, libvirt, OVMF, swtpm and Looking Glass."})
+		add(Check{ID: "tooling", Level: "warn", Label: "Virtualization stack", Value: "missing: " + strings.Join(missing, ", "), Hint: "Enable passthrough installs the core stack (qemu, libvirt, OVMF, swtpm); Looking Glass + kvmfr are AUR: yay -S looking-glass looking-glass-module-dkms."})
 	}
 	if in.tooling.libvirt {
 		if in.inLibvirtGroup {
