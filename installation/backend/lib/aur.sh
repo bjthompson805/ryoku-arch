@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Build the AUR package set in the freshly installed target. The base system has
-# no AUR helper, so this bootstraps yay (cloned from the AUR, with a GitHub
-# release binary as the fallback when the AUR is unreachable) and then installs
-# system/packages/aur.packages with it.
+# build the AUR set in the target. base system has no AUR helper, so we
+# bootstrap yay (clone from the AUR, fall back to the GitHub release binary
+# when the AUR is unreachable), then install system/packages/aur.packages.
 #
-# makepkg refuses to run as root, so the build runs as the unprivileged user via
-# runuser, with a temporary passwordless-sudo drop-in (removed at the end) so
-# makepkg/yay can drive pacman without a TTY prompt. The chroot is lent the live
-# resolv.conf for DNS while building, then that state is restored.
+# makepkg refuses to run as root, so the build runs as the unpriv user via
+# runuser, with a one-shot NOPASSWD sudo drop-in (removed at the end) so
+# makepkg/yay can drive pacman without a TTY prompt. chroot is lent the live
+# resolv.conf for DNS while building, then restored.
 #
-# Best-effort: when the install is offline or a build fails it logs a warning and
-# returns 0, so the install still completes (the user can bootstrap later). Runs
-# after the bootloader step while /mnt is still mounted; emits no @@RYOKU_STEP.
+# best-effort: offline install or a failed build = warn + return 0, so the
+# install still completes (user bootstraps later). runs after the bootloader
+# step while /mnt is still mounted; emits no @@RYOKU_STEP.
 
 ryoku_aur() {
   local u=$RYOKU_USERNAME
@@ -34,18 +33,18 @@ ryoku_aur() {
 
   log "AUR: bootstrapping yay and building ${#pkgs[@]} package(s); this can take several minutes"
 
-  # Temporary passwordless sudo so makepkg/yay can call pacman without a prompt.
+  # one-shot NOPASSWD sudo so makepkg/yay can call pacman without a prompt.
   printf '%s ALL=(ALL) NOPASSWD: ALL\n' "$u" >/mnt/etc/sudoers.d/99-ryoku-aur-build
   chmod 0440 /mnt/etc/sudoers.d/99-ryoku-aur-build
 
-  # The chroot needs working DNS to reach the AUR and GitHub. Only provide it
-  # when the target has none yet, and undo exactly that afterwards.
+  # chroot needs DNS to reach the AUR and GitHub. only set it when the
+  # target has none yet, and undo exactly that after.
   local made_resolv=0
   if [[ ! -e /mnt/etc/resolv.conf ]] && cp -L /etc/resolv.conf /mnt/etc/resolv.conf 2>/dev/null; then
     made_resolv=1
   fi
 
-  # 1. Bootstrap yay as the user. HOME is forced because runuser keeps root's env.
+  # 1. bootstrap yay as the user. HOME forced; runuser keeps root's env.
   if arch-chroot /mnt runuser -u "$u" -- env "HOME=/home/$u" "USER=$u" "LOGNAME=$u" bash -s <<'BOOTSTRAP'; then
 set -e
 command -v yay >/dev/null && exit 0
@@ -85,7 +84,7 @@ BOOTSTRAP
     log "AUR: warning, yay bootstrap failed; the AUR set was not installed"
   fi
 
-  # Restore the target's sudo and resolv.conf state.
+  # restore the target's sudo + resolv.conf state.
   rm -f /mnt/etc/sudoers.d/99-ryoku-aur-build
   if (( made_resolv == 1 )); then
     rm -f /mnt/etc/resolv.conf

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Wire up Btrfs snapshots in the installed system: a snapper "root" config for /,
-# automatic pre/post snapshots around pacman transactions (snap-pac, from the base
-# set), the snapper cleanup timer, and limine-snapper-sync so snapshots show up as
-# Limine boot entries. Runs after the AUR step (limine-snapper-sync is an AUR
-# package) so every piece is present; everything routes through the dry-run
-# wrappers and is gated on the @snapshots subvolume actually existing.
+# btrfs snapshots in the target = snapper "root" config for /, snap-pac
+# (auto pre/post around pacman), the cleanup timer, and limine-snapper-sync
+# (snapshots -> Limine entries). runs after the aur step so the aur piece
+# (limine-snapper-sync) is there. all via the dry-run wrappers. no
+# @snapshots subvol = no-op.
 
 ryoku_snapshots() {
   if [[ ${RYOKU_SUBVOL_SNAPSHOTS:-1} != 1 ]]; then
@@ -17,13 +16,11 @@ ryoku_snapshots() {
   ryoku_snap_services
 }
 
-# ryoku_snap_config writes the snapper "root" config directly. snapper's own
-# `create-config` talks to the snapperd D-Bus daemon, which is not running inside
-# the chroot, so we lay the file down ourselves. The @snapshots subvolume already
-# mounts at /.snapshots (filesystem.sh), so snapper only needs the config, the
-# registration in /etc/conf.d/snapper, and the right ownership/mode on /.snapshots.
-# Retention keeps ~10 numbered snapshots (the snap-pac / `ryoku update` pairs) and
-# disables timeline snapshots, which a desktop does not need.
+# drop the snapper "root" config by hand. `snapper create-config` wants
+# snapperd over D-Bus and there's no snapperd in a chroot. @snapshots is
+# already mounted at /.snapshots (filesystem.sh), so all we need is:
+# the file, /etc/conf.d/snapper registration, 750 root:root on the dir.
+# retention = ~10 numbered (snap-pac + update pairs), no timeline (desktop).
 ryoku_snap_config() {
   run mkdir -p /mnt/etc/snapper/configs
   write_file /mnt/etc/snapper/configs/root <<'EOF'
@@ -55,7 +52,7 @@ EMPTY_PRE_POST_CLEANUP="yes"
 EMPTY_PRE_POST_MIN_AGE="1800"
 EOF
 
-  # Register "root" so the snapper systemd timers and snap-pac act on it.
+  # register "root" so timers + snap-pac pick it up.
   write_file /mnt/etc/conf.d/snapper <<'EOF'
 ## Path: System/Snapper
 ## Type: string
@@ -64,15 +61,14 @@ EOF
 SNAPPER_CONFIGS="root"
 EOF
 
-  # snapper expects /.snapshots owned by root with mode 750.
+  # /.snapshots wants 750 root:root, snapper insists.
   run chmod 750 /mnt/.snapshots
   run chown root:root /mnt/.snapshots
 }
 
-# ryoku_snap_services enables the snapper cleanup timer (prunes per the retention
-# limits above) and limine-snapper-sync (publishes snapshots as Limine boot
-# entries). limine-snapper-sync ships in the AUR set, so it may be missing on an
-# offline install; enabling it is best-effort.
+# enable cleanup timer (prunes per the retention above) + limine-snapper-sync
+# (snapshots -> Limine entries). limine-snapper-sync is aur, offline installs
+# can be missing it, so the enable is best-effort.
 ryoku_snap_services() {
   log "enabling snapper-cleanup.timer"
   run arch-chroot /mnt systemctl enable snapper-cleanup.timer

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Install the generation-correct GPU drivers in the target. The per-vendor scripts
-# in system/hardware/drivers self-gate on the detected GPU (so running all of them
-# is safe), are idempotent, and call pacman directly as root inside the chroot.
-# Runs in the configure stage, after the base system and before the initramfs is
-# built, so kernel modules (for example nvidia-dkms) are present for mkinitcpio.
+# install the generation-correct GPU drivers in the target. the per-vendor
+# scripts in system/hardware/drivers self-gate on the detected GPU (so
+# running all of them is safe), are idempotent, and call pacman directly as
+# root inside the chroot. configure stage, after the base system, before
+# the initramfs so kernel modules (e.g. nvidia-dkms) are there for mkinitcpio.
 
 ryoku_drivers() {
 	log "installing GPU drivers for the detected hardware"

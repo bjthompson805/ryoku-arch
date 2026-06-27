@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Install the base system with pacstrap, then write the fstab. The package set is
-# system/packages/base.packages plus the per-profile section(s) of
-# system/packages/hardware.packages (microcode + GPU drivers) and the developer
+# Install the base system with pacstrap, then write fstab. package set =
+# system/packages/base.packages + the per-profile section(s) of
+# system/packages/hardware.packages (microcode + GPU drivers) + the developer
 # toolchains in system/packages/dev.packages.
 
-# read_section prints the package lines under [section] in an INI-style file,
-# skipping comments and blank lines, stopping at the next [section].
+# read_section: prints the package lines under [section] in an INI-style file,
+# skipping comments + blanks, stops at the next [section].
 read_section() {
   awk -v sec="[$2]" '
     $0 == sec { f = 1; next }
@@ -15,11 +15,11 @@ read_section() {
   ' "$1"
 }
 
-# ryoku_ensure_keyring makes sure the live pacman keyring is ready before pacstrap.
-# pacman-init.service builds it at boot, but it can still be running (or missing)
-# when the user reaches the install step, so wait for it to settle, then populate
-# if there are still no keys. Without this, pacstrap fails to verify packages
-# (public keyring not found / failed to install packages to new root).
+# ryoku_ensure_keyring: make sure the live pacman keyring is ready before
+# pacstrap. pacman-init.service builds it at boot but can still be running (or
+# missing) when the user hits the install step, so wait for it to settle, then
+# populate if the keyring is still empty. without this, pacstrap fails to verify
+# packages (public keyring not found / failed to install packages to new root).
 ryoku_ensure_keyring() {
   for _ in $(seq 1 60); do
     [[ "$(systemctl is-active pacman-init.service 2>/dev/null)" == activating ]] || break
@@ -55,7 +55,7 @@ ryoku_pacstrap() {
   done
   (( ${#hw[@]} )) && pkgs+=("${hw[@]}")
 
-  # Developer toolchains ship with every machine (Go, Node/npm, Rust, Python, mise).
+  # dev toolchains ship with every machine (Go, Node/npm, Rust, Python, mise).
   local dev_file="$RYOKU_REPO/system/packages/dev.packages"
   local -a dev=()
   [[ -f $dev_file ]] && mapfile -t dev < <(grep -vE '^[[:space:]]*(#|$)' "$dev_file")

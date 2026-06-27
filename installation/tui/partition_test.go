@@ -23,9 +23,9 @@ func segByFS(segs []part, fs string) (part, bool) {
 	return part{}, false
 }
 
-// Root is the rest of the disk after the ESP, and the swapfile is carved out of
-// it, so usable root must shrink by exactly the swap size and no "free" segment
-// should appear (the backend always gives root 100% of the remaining space).
+// root = everything past the ESP, swapfile carved out of it. so usable root
+// shrinks by exactly the swap size and no "free" segment appears (backend
+// always gives root 100% of the remaining space).
 func TestRootCarvesSwap(t *testing.T) {
 	m := model{diskG: 1000, espG: 1, swapG: 16}
 	if got := m.availRoot(); got != 999 {
@@ -45,7 +45,7 @@ func TestRootCarvesSwap(t *testing.T) {
 	}
 }
 
-// The reported bug: bumping swap must reduce the usable total.
+// the reported bug: bumping swap must reduce the usable total.
 func TestSwapReducesRoot(t *testing.T) {
 	m := model{diskG: 1000, espG: 1, swapG: 16}
 	before, _ := segByMount(m.layoutSegs(), "/")
@@ -59,7 +59,7 @@ func TestSwapReducesRoot(t *testing.T) {
 	}
 }
 
-// swapG = 0 means no swapfile, so no swap segment and root takes the whole rest.
+// swapG=0 -> no swapfile, no swap segment, root eats the whole rest.
 func TestNoSwapNoSegment(t *testing.T) {
 	m := model{diskG: 1000, espG: 1, swapG: 0}
 	if _, ok := segByFS(m.layoutSegs(), "swap"); ok {
@@ -83,7 +83,7 @@ func TestSwapCeil(t *testing.T) {
 	}
 }
 
-// Growing the ESP eats from the same pool, so an out-of-range swap is pulled back.
+// growing ESP eats from the same pool, so an out-of-range swap gets clamped back.
 func TestESPBumpClampsSwap(t *testing.T) {
 	m := model{diskG: 40, espG: 1, swapG: 30}
 	m.setRow("esp", 4) // availRoot 36 -> swapCeil 28
@@ -92,8 +92,8 @@ func TestESPBumpClampsSwap(t *testing.T) {
 	}
 }
 
-// alongsideModel builds an alongside (dual-boot) layout: a 256 GiB disk with the
-// given free region, optionally already holding an EFI System Partition to reuse.
+// alongsideModel: build a dual-boot layout. 256 GiB disk, given free region,
+// optionally already holding an ESP to reuse.
 func alongsideModel(freeG, swapG int, withESP bool) model {
 	m := model{picks: map[string]string{"disk": "alongside"}, diskG: 256, freeG: freeG, espG: 1, swapG: swapG}
 	if withESP {
@@ -104,8 +104,8 @@ func alongsideModel(freeG, swapG int, withESP bool) model {
 	return m
 }
 
-// Alongside installs root into the detected free region and reuses the ESP, so the
-// root is the free space (minus the swapfile carved from it), never the whole disk.
+// alongside drops root into the detected free region and reuses the ESP, so
+// root = free space minus the swapfile, never the whole disk.
 func TestAlongsideRootUsesFreeSpace(t *testing.T) {
 	m := alongsideModel(100, 16, true)
 	if got := m.availRoot(); got != 100 {
@@ -122,9 +122,8 @@ func TestAlongsideRootUsesFreeSpace(t *testing.T) {
 	}
 }
 
-// Alongside may proceed only with a reused ESP and enough contiguous free space
-// (matching the backend floor), so the TUI never hands the backend a layout it
-// will reject.
+// alongside is only allowed with a reused ESP + enough contiguous free space
+// (backend floor), so the TUI never hands the backend a layout it'd reject.
 func TestAlongsidePartReady(t *testing.T) {
 	if !alongsideModel(20, 0, true).partReady() {
 		t.Fatal("alongside with an ESP and 20GiB free should be ready")
@@ -137,17 +136,17 @@ func TestAlongsidePartReady(t *testing.T) {
 	}
 }
 
-// Alongside keeps the system base free of swap (matching the backend), so its
-// swapCeil leaves alongsideMinRootGiB rather than the 8 GiB a whole-disk leaves.
+// alongside keeps the system base swap-free (matching backend), so its swapCeil
+// leaves alongsideMinRootGiB instead of the 8 GiB a whole-disk leaves.
 func TestAlongsideSwapCeil(t *testing.T) {
 	if got := alongsideModel(40, 0, true).swapCeil(); got != 40-alongsideMinRootGiB {
 		t.Fatalf("alongside swapCeil = %d, want %d", got, 40-alongsideMinRootGiB)
 	}
 }
 
-// envHas reports whether the assembled installEnv carries an exact NAME=VALUE
-// line. The strategy is a literal contract with the backend, so loose substring
-// matching would let "RYOKU_DISK_STRATEGY=" match "RYOKU_DISK_STRATEGY=whole".
+// envHas: does installEnv carry an exact NAME=VALUE line. the strategy is a
+// literal contract with the backend; loose substring matching would let
+// "RYOKU_DISK_STRATEGY=" match "RYOKU_DISK_STRATEGY=whole".
 func envHas(env []string, want string) bool {
 	for _, e := range env {
 		if e == want {
@@ -157,10 +156,10 @@ func envHas(env []string, want string) bool {
 	return false
 }
 
-// envValue returns the value of an exact NAME=, or ("",false) if missing. The
-// distinction matters: a NAME with empty value is what we WANT the backend to
-// see when the TUI never recorded a pick (so it fails closed), and that is a
-// different state from the key being absent.
+// envValue: value of an exact NAME=, or ("",false) when missing. the distinction
+// matters: when the TUI never recorded a pick, the backend MUST see NAME with
+// an empty value (so it fails closed). that's a different state from the key
+// being absent.
 func envValue(env []string, name string) (string, bool) {
 	prefix := name + "="
 	for _, e := range env {
@@ -171,10 +170,10 @@ func envValue(env []string, name string) (string, bool) {
 	return "", false
 }
 
-// Regression for the dual-boot data-loss bug: the alongside pick must reach the
-// backend verbatim. A previous version of installEnv defaulted picks["disk"] to
-// "whole", which silently wiped the disk when the pick was set but somehow not
-// emitted. We assert the pick survives end to end.
+// regression for the dual-boot data-loss bug: alongside must reach the backend
+// verbatim. an older installEnv defaulted picks["disk"] to "whole", silently
+// wiping the disk when the pick was set but somehow not emitted. assert the
+// pick survives end to end.
 func TestAlongsidePickReachesEnv(t *testing.T) {
 	m := alongsideModel(100, 16, true)
 	env := m.installEnv()
@@ -186,10 +185,10 @@ func TestAlongsidePickReachesEnv(t *testing.T) {
 	}
 }
 
-// Regression for the fail-OPEN default that caused the user-reported data loss:
-// when no disk-strategy pick exists the env MUST carry the variable with an
-// empty value, so the backend's required-strategy guard aborts. Defaulting to
-// "whole" here was the silent wipe path.
+// regression for the fail-OPEN default that ate user data: when no
+// disk-strategy pick exists, env MUST carry the variable with an empty value
+// so the backend's required-strategy guard aborts. defaulting to "whole" here
+// was the silent wipe.
 func TestEmptyDiskStrategyDoesNotDefaultToWhole(t *testing.T) {
 	m := model{picks: map[string]string{}}
 	env := m.installEnv()
@@ -205,8 +204,8 @@ func TestEmptyDiskStrategyDoesNotDefaultToWhole(t *testing.T) {
 	}
 }
 
-// The explicit whole pick must also reach the backend verbatim, so users who
-// actually want a wipe still get one.
+// explicit whole must also reach the backend verbatim, so users who actually
+// want a wipe still get one.
 func TestWholePickReachesEnv(t *testing.T) {
 	m := model{picks: map[string]string{"disk": "whole"}}
 	env := m.installEnv()
@@ -215,8 +214,8 @@ func TestWholePickReachesEnv(t *testing.T) {
 	}
 }
 
-// partReady must refuse to advance past partitions when no disk strategy is
-// committed. Previously it returned true for "whole" OR any non-alongside value
+// partReady must refuse to advance past partitions with no disk strategy
+// committed. it used to return true for "whole" OR any non-alongside value
 // (including empty), so an uncommitted strategy slipped straight into Review
 // and on to the backend.
 func TestPartReadyRequiresCommittedStrategy(t *testing.T) {
@@ -234,10 +233,10 @@ func TestPartReadyRequiresCommittedStrategy(t *testing.T) {
 	}
 }
 
-// The disk-strategy picker pre-selects items[0], so a quick Enter commits the
-// first item. Listing alongside first turns a quick Enter into the safe option
-// (alongside is gated by free-space/ESP checks elsewhere); putting whole first
-// turned a quick Enter into a disk wipe.
+// disk-strategy picker pre-selects items[0], so a quick Enter commits the first
+// item. listing alongside first turns a fast Enter into the safe option
+// (alongside is gated by free-space / ESP checks elsewhere); whole first turned
+// a fast Enter into a disk wipe.
 func TestDiskStrategyFirstItemIsAlongside(t *testing.T) {
 	items := diskStrategies()
 	if len(items) == 0 {
@@ -248,10 +247,10 @@ func TestDiskStrategyFirstItemIsAlongside(t *testing.T) {
 	}
 }
 
-// Whole on a populated disk must NOT emit RYOKU_WIPE_CONFIRMED until the user
-// has typed "ERASE" and pressed enter on Review (wipeStage moves 0->1->2). With
-// no acknowledgement the env carries the empty token, and the backend's
-// ryoku_partition_whole aborts before any sgdisk runs.
+// whole on a populated disk must NOT emit RYOKU_WIPE_CONFIRMED until the user
+// has typed "ERASE" and hit enter on Review (wipeStage 0 -> 1 -> 2). with no
+// ack the env carries the empty token and ryoku_partition_whole aborts before
+// any sgdisk runs.
 func TestWholePopulatedWithoutConfirmEnvLacksToken(t *testing.T) {
 	m := model{
 		picks:    map[string]string{"disk": "whole"},
@@ -263,7 +262,7 @@ func TestWholePopulatedWithoutConfirmEnvLacksToken(t *testing.T) {
 	}
 }
 
-// Once the user typed ERASE and the wipeStage advanced to 2, the env must carry
+// once the user typed ERASE and wipeStage hit 2, env must carry
 // RYOKU_WIPE_CONFIRMED=1 so the backend proceeds.
 func TestWholePopulatedAfterConfirmEnvHasToken(t *testing.T) {
 	m := model{
@@ -276,9 +275,9 @@ func TestWholePopulatedAfterConfirmEnvHasToken(t *testing.T) {
 	}
 }
 
-// A blank disk + whole + no confirm must NOT emit RYOKU_WIPE_CONFIRMED. The
-// backend does not require the token on a blank disk, and the TUI must not
-// fabricate one either.
+// blank disk + whole + no confirm must NOT emit RYOKU_WIPE_CONFIRMED. backend
+// doesn't require the token on a blank disk, and the TUI must not fabricate
+// one either.
 func TestWholeBlankEnvOmitsToken(t *testing.T) {
 	m := model{picks: map[string]string{"disk": "whole"}}
 	if envHas(m.installEnv(), "RYOKU_WIPE_CONFIRMED=1") {
@@ -286,7 +285,7 @@ func TestWholeBlankEnvOmitsToken(t *testing.T) {
 	}
 }
 
-// diskPopulated derives from len(existing); the wipe gate keys off this.
+// diskPopulated = len(existing) > 0; the wipe gate keys off this.
 func TestDiskPopulatedReflectsExisting(t *testing.T) {
 	if (model{}).diskPopulated() {
 		t.Fatal("diskPopulated true on a model with no existing partitions")
@@ -296,10 +295,10 @@ func TestDiskPopulatedReflectsExisting(t *testing.T) {
 	}
 }
 
-// The user's typed acknowledgement is checked case-insensitively against
-// "ERASE"; this drives the Review onKey handler.
+// the typed ack is checked case-insensitively against "ERASE"; drives the
+// Review onKey handler.
 func TestEraseInputAccepts(t *testing.T) {
-	// strings.EqualFold matches "ERASE" / "erase" / "Erase" but not other tokens.
+	// EqualFold matches "ERASE" / "erase" / "Erase", nothing else.
 	for _, ok := range []string{"ERASE", "erase", "Erase"} {
 		if !strings.EqualFold(ok, "ERASE") {
 			t.Fatalf("strings.EqualFold(%q,\"ERASE\") should accept", ok)
@@ -312,8 +311,8 @@ func TestEraseInputAccepts(t *testing.T) {
 	}
 }
 
-// reviewWipeModel builds a model pre-positioned on the Review step with whole
-// picked on a populated disk, the state where the typed-confirm gate fires.
+// reviewWipeModel: model parked on Review with whole + populated disk, the
+// state where the typed-confirm gate fires.
 func reviewWipeModel() model {
 	flow := steps()
 	m := model{
@@ -331,8 +330,8 @@ func reviewWipeModel() model {
 	return m
 }
 
-// Enter on Yes for whole+populated must NOT start the install. It transitions
-// into the typed-confirm sub-stage; the install handoff is gated on the user
+// Enter on Yes for whole+populated must NOT start install. it advances into the
+// typed-confirm sub-stage; the actual install handoff is gated on the user
 // typing "ERASE".
 func TestReviewWipeGateEntersConfirmStage(t *testing.T) {
 	m := reviewWipeModel()
@@ -349,8 +348,8 @@ func TestReviewWipeGateEntersConfirmStage(t *testing.T) {
 	}
 }
 
-// Each keystroke during the typed-confirm sub-stage extends eraseInput; nothing
-// else (the Y/N toggle, the jump-to-step digit handler) fires while typing.
+// every keystroke during typed-confirm extends eraseInput; nothing else (Y/N
+// toggle, jump-to-step digit handler) fires while typing.
 func TestReviewWipeGateAcceptsEraseTyping(t *testing.T) {
 	m := reviewWipeModel()
 	m.wipeStage = 1
@@ -369,7 +368,7 @@ func TestReviewWipeGateAcceptsEraseTyping(t *testing.T) {
 	}
 }
 
-// Esc cancels the typed-confirm sub-stage and returns to the normal Y/N view.
+// Esc cancels the typed-confirm sub-stage, back to normal Y/N view.
 func TestReviewWipeGateEscCancels(t *testing.T) {
 	m := reviewWipeModel()
 	m.wipeStage, m.eraseInput = 1, "ERA"
@@ -383,8 +382,8 @@ func TestReviewWipeGateEscCancels(t *testing.T) {
 	}
 }
 
-// A bare Enter while typing with the wrong word stays in stage 1; only the
-// exact "ERASE" (case-insensitive) acknowledgement advances to stage 2.
+// bare Enter with the wrong word stays in stage 1; only the exact "ERASE"
+// (case-insensitive) ack advances to stage 2.
 func TestReviewWipeGateEnterWithoutEraseDoesNotLaunch(t *testing.T) {
 	m := reviewWipeModel()
 	m.wipeStage, m.eraseInput = 1, "DELETE"

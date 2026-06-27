@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Install and brand the Limine bootloader, build the initramfs, and enable the
-# services the desktop needs. Branding and templates come from system/boot/
-# (owned by the boot engineer); this step deploys them and fills in the dynamic
-# bits (the root cmdline, the encrypt/nvidia toggles) that are only known here.
+# Limine: install + brand, build the initramfs, enable the services the
+# desktop needs. branding + templates come from system/boot/ (owned by the
+# boot engineer); this step deploys them and fills in the dynamic bits
+# (root cmdline, encrypt/nvidia toggles) only known here.
 
 ryoku_bootloader() {
   CMDLINE=$(ryoku_cmdline)
@@ -23,7 +23,7 @@ ryoku_bootloader() {
     run arch-chroot /mnt mkinitcpio -P
   fi
 
-  # Detect an installed Windows on any drive and chainload it from the menu.
+  # any Windows on any drive: chainload it from the menu.
   ryoku_windows_entry
 
   ryoku_boot_install_efi
@@ -31,15 +31,15 @@ ryoku_bootloader() {
   run arch-chroot /mnt systemctl enable sddm.service NetworkManager.service
 }
 
-# chroot_has reports whether a command exists inside the target. Under dry-run it
-# is false so the flow takes the plain mkinitcpio path (no AUR hook in the base).
+# chroot_has: does $1 exist inside the target? dry-run = false, so the flow
+# takes the plain mkinitcpio path (no AUR hook in the base).
 chroot_has() {
   [[ -n ${RYOKU_DRYRUN:-} ]] && return 1
   arch-chroot /mnt command -v "$1" >/dev/null 2>&1
 }
 
-# ryoku_cmdline builds the root cmdline (without "quiet splash", which default.conf
-# appends): UUID root for plain installs, cryptdevice + mapper for LUKS.
+# cmdline (without "quiet splash"; default.conf appends it): UUID root for
+# plain installs, cryptdevice + mapper for LUKS.
 ryoku_cmdline() {
   local cmdline
   if [[ ${RYOKU_ENCRYPT:-} == 1 ]]; then
@@ -61,8 +61,8 @@ ryoku_boot_plymouth() {
   run arch-chroot /mnt plymouth-set-default-theme ryoku
 }
 
-# ryoku_boot_default_limine deploys /etc/default/limine and substitutes the
-# @@CMDLINE@@ token with the real root cmdline.
+# default_limine: write /etc/default/limine, swap @@CMDLINE@@ for the real
+# root cmdline.
 ryoku_boot_default_limine() {
   log "deploying /etc/default/limine"
   local src="$RYOKU_REPO/system/boot/limine/default.conf"
@@ -72,17 +72,17 @@ ryoku_boot_default_limine() {
   else
     content=$(ryoku_builtin_default_limine)
   fi
-  # Substitute only on the KERNEL_CMDLINE directive, leaving any @@CMDLINE@@ that
-  # appears in the surrounding comments intact.
+  # substitute only on the KERNEL_CMDLINE directive, so any @@CMDLINE@@
+  # sitting in the surrounding comments stays.
   content=$(printf '%s\n' "$content" | sed "/^KERNEL_CMDLINE\[default\]/ s|@@CMDLINE@@|$CMDLINE|")
   run mkdir -p /mnt/etc/default
   write_file /mnt/etc/default/limine <<<"$content"
 }
 
-# ryoku_boot_limine_conf writes /boot/limine/limine.conf. The branding header
-# comes from the repo (with its trailing placeholder entry stripped) or a built-in
-# fallback. With "with_entry" a plain linux-protocol entry is appended for the
-# mkinitcpio -P path; "branding_only" leaves entries to the limine hook.
+# limine_conf: write /boot/limine/limine.conf. branding header from the repo
+# (trailing placeholder entry stripped) or a built-in fallback. with_entry
+# appends a plain linux-protocol entry for the mkinitcpio -P path;
+# branding_only leaves entries to the limine hook.
 ryoku_boot_limine_conf() {
   local mode=$1
   local src="$RYOKU_REPO/system/boot/limine/limine.conf"
@@ -109,14 +109,13 @@ EOF
   } | write_file /mnt/boot/limine/limine.conf
 }
 
-# ryoku_windows_entry detects an installed Windows on any drive (not only the
-# reused ESP) and writes a uuid()-addressed Limine chainload entry for it, so a
-# dual-boot machine keeps a way back into Windows after Ryoku takes the boot
-# order. boot():/ only reaches Limine's own ESP, so a cross-drive Windows must be
-# referenced by its partition GUID; the shared system/boot helper does the scan.
-# Runs after the menu is generated so the entry is not regenerated away, and the
-# shipped post.d hook re-asserts it on later kernel updates. Skipped under dry-run
-# (it mounts partitions to probe).
+# windows_entry: find an installed Windows on ANY drive (not only the reused
+# ESP) and write a uuid()-addressed Limine chainload entry. dual-boot stays
+# bootable after Ryoku takes the boot order. boot():/ only reaches Limine's
+# own ESP, so a cross-drive Windows has to be referenced by its partition
+# GUID; the shared system/boot helper does the scan. runs AFTER the menu is
+# generated so the entry isn't regenerated away, and the shipped post.d hook
+# re-asserts it on later kernel updates. dry-run skips (probe mounts).
 ryoku_windows_entry() {
   local helper="$RYOKU_REPO/system/boot/limine/ryoku-windows-entry"
   local conf=/mnt/boot/limine/limine.conf
@@ -130,8 +129,8 @@ ryoku_windows_entry() {
   fi
 }
 
-# ryoku_boot_install_efi places the Limine EFI binary on the ESP (both the
-# limine/ path and the removable EFI/BOOT fallback) and registers a boot entry.
+# install_efi: drop the Limine EFI binary on the ESP (both limine/ and the
+# removable EFI/BOOT fallback) and register a boot entry.
 ryoku_boot_install_efi() {
   log "installing Limine EFI binary + boot entry"
   run mkdir -p /mnt/boot/EFI/BOOT /mnt/boot/EFI/limine
@@ -141,8 +140,8 @@ ryoku_boot_install_efi() {
   esp_partnum=$(part_num "$ESP_DEV"); : "${esp_partnum:=1}"
   run arch-chroot /mnt efibootmgr --create --disk "$RYOKU_DISK" --part "$esp_partnum" \
     --label Ryoku --loader '\EFI\limine\limine.efi' --unicode
-  # Boot the installed system on the next reboot even if the USB installer is still
-  # plugged in (firmware often prefers removable media otherwise).
+  # boot the installed system on the next reboot even if the USB installer
+  # is still in (firmware tends to prefer removable media otherwise).
   if [[ -z "${RYOKU_DRYRUN:-}" ]]; then
     local num
     num=$(efibootmgr 2>/dev/null | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\? Ryoku\b.*/\1/p' | head -1)

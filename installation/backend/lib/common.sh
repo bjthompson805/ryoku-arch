@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Shared helpers for ryoku-install: logging, the dry-run command wrapper, and a
-# few small utilities the step libraries lean on. Sourced, never run directly.
+# shared helpers for ryoku-install: logging, the dry-run wrapper, small utils
+# every step lib leans on. sourced, never run directly.
 
-# log writes a progress line to stdout. The TUI streams these into its scroll view.
+# log: progress line on stdout. the TUI streams these into its scroll view.
 log() { printf '  %s\n' "$*"; }
 
-# step prints a staged-progress sentinel the TUI watches for. ids in order:
+# step: staged-progress sentinel the TUI watches. ids, in order:
 # partition, filesystems, mount, pacstrap, configure, bootloader.
 step() { printf '@@RYOKU_STEP %s\n' "$1"; }
 
-# die aborts the install with a message on stderr and a non-zero exit.
+# die: abort with a stderr message + non-zero exit.
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
-# run executes a destructive/system command, or prints it (prefixed DRYRUN:)
-# when RYOKU_DRYRUN is set. Use for plain argv commands with no shell features.
+# run: execute a destructive/system command, or print it (prefixed DRYRUN:)
+# when RYOKU_DRYRUN is set. plain argv only, no shell features.
 run() {
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
     printf 'DRYRUN: %s\n' "$*"
@@ -22,8 +22,8 @@ run() {
   "$@"
 }
 
-# run_sh is run() for commands that need shell features (pipes, redirects).
-# Pass a single string; it is printed verbatim under dry-run, else run via bash.
+# run_sh: same as run() for commands needing shell bits (pipes, redirects).
+# pass a single string; printed verbatim under dry-run, else fed to bash -c.
 run_sh() {
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
     printf 'DRYRUN: %s\n' "$1"
@@ -32,8 +32,8 @@ run_sh() {
   bash -c "$1"
 }
 
-# run_secret runs a command that reads a secret on stdin, redacting it under
-# dry-run. Args: <label-for-dryrun> <command> [args...]; the secret is on stdin.
+# run_secret: command that reads a secret on stdin, redacted under dry-run.
+# args: <label-for-dryrun> <command> [args...], secret on stdin.
 run_secret() {
   local label=$1; shift
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
@@ -44,8 +44,8 @@ run_secret() {
   "$@"
 }
 
-# write_file writes stdin to a path. Under dry-run it prints the target and the
-# content instead of touching the filesystem. Parent dirs are not created here.
+# write_file: write stdin to a path. dry-run prints target + content and skips
+# the fs. parents are not created here.
 write_file() {
   local path=$1 content
   content=$(cat)
@@ -57,8 +57,8 @@ write_file() {
   printf '%s\n' "$content" >"$path"
 }
 
-# append_file appends stdin to a path. Under dry-run it prints the target and the
-# content instead of touching the filesystem. Parent dirs are not created here.
+# append_file: same as write_file but appends. dry-run prints target + content
+# and skips the fs. parents are not created here.
 append_file() {
   local path=$1 content
   content=$(cat)
@@ -70,8 +70,8 @@ append_file() {
   printf '%s\n' "$content" >>"$path"
 }
 
-# deploy_dir copies a source tree into a destination (dir-as-dir contents).
-# Missing sources are skipped with a note in real mode; under dry-run the
+# deploy_dir: copy a source tree into a destination (dir-as-dir contents).
+# missing sources -> skipped with a note in real mode; under dry-run the
 # intended copy is always printed.
 deploy_dir() {
   local src=$1 dst=$2
@@ -84,8 +84,8 @@ deploy_dir() {
   cp -rT "$src" "$dst"
 }
 
-# part_dev returns the Nth partition device for a disk, handling the nvme/mmc
-# 'p' separator (nvme0n1 -> nvme0n1p2) vs plain disks (vda -> vda2).
+# part_dev: Nth partition device for a disk. handles the nvme/mmc 'p' separator
+# (nvme0n1 -> nvme0n1p2) vs plain disks (vda -> vda2).
 part_dev() {
   local disk=$1 num=$2
   if [[ $disk == *[0-9] ]]; then
@@ -95,15 +95,15 @@ part_dev() {
   fi
 }
 
-# part_num returns the trailing partition number of a partition device
-# (nvme0n1p2 -> 2, sda2 -> 2, mmcblk0p1 -> 1). Inverse of part_dev, used to
+# part_num: trailing partition number of a partition device
+# (nvme0n1p2 -> 2, sda2 -> 2, mmcblk0p1 -> 1). inverse of part_dev, used to
 # register the right ESP partition with efibootmgr when its number is not 1.
 part_num() {
   [[ $1 =~ ([0-9]+)$ ]] && printf '%s' "${BASH_REMATCH[1]}"
 }
 
-# dev_uuid prints the UUID of a block device. Under dry-run the device does not
-# exist, so a readable placeholder is returned in its place.
+# dev_uuid: UUID of a block device. under dry-run the device doesn't exist, so
+# return a readable placeholder instead.
 dev_uuid() {
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
     printf '<UUID:%s>' "$1"

@@ -3,17 +3,17 @@
 #
 # ryoku-install: the Ryoku Arch install backend.
 #
-# Reads its answers from RYOKU_* environment variables (set by the installer TUI,
-# documented in installation/backend/README.md) and performs a direct Arch
-# install: partition, optional LUKS, format, mount, pacstrap, configure, Limine.
+# answers come from RYOKU_* env vars (the TUI sets them, full contract in
+# installation/backend/README.md). does a direct Arch install: partition,
+# optional LUKS, format, mount, pacstrap, configure, Limine.
 #
-# Progress is reported to the TUI with sentinel lines:
-#   @@RYOKU_STEP <id>   printed when a stage begins
-#   @@RYOKU_DONE        printed once after the last stage succeeds
-# Any failure exits non-zero (set -e) without printing @@RYOKU_DONE.
+# progress sentinels to the TUI:
+#   @@RYOKU_STEP <id>   stage begins
+#   @@RYOKU_DONE        printed once after the final stage succeeds
+# any failure exits non-zero (set -e) without @@RYOKU_DONE.
 #
-# Set RYOKU_DRYRUN=1 to print every destructive command (prefixed "DRYRUN: ")
-# instead of running it, so the whole flow can be exercised without a disk.
+# RYOKU_DRYRUN=1 prints every destructive command (prefixed "DRYRUN: ") instead
+# of running it, so the whole flow can be exercised without a real disk.
 
 set -euo pipefail
 
@@ -48,15 +48,15 @@ source "$LIB_DIR/aur.sh"
 # shellcheck source=lib/snapshots.sh
 source "$LIB_DIR/snapshots.sh"
 
-# Defaults for the optional parts of the contract.
+# defaults for the optional half of the contract.
 : "${RYOKU_HOSTNAME:=ryoku}"
 : "${RYOKU_USERNAME:=ryoku}"
 : "${RYOKU_KEYMAP:=us}"
 : "${RYOKU_LOCALE:=en_US.UTF-8}"
 : "${RYOKU_TIMEZONE:=UTC}"
 : "${RYOKU_PROFILE:=vm}"
-# Disk strategy is required: never default it. Defaulting to whole used to be a
-# silent wipe path when the TUI dropped the pick. Validation lives below.
+# disk strategy is required: do NOT default it. defaulting to whole was a silent
+# wipe path when the TUI dropped the pick. validation below.
 : "${RYOKU_DISK_STRATEGY:=}"
 : "${RYOKU_ESP_GIB:=1}"
 : "${RYOKU_SWAP_GIB:=0}"
@@ -65,7 +65,7 @@ source "$LIB_DIR/snapshots.sh"
 : "${RYOKU_SUBVOL_BACKUPS:=0}"
 : "${RYOKU_REPO:=/run/ryoku}"
 : "${RYOKU_ONLINE:=1}"
-# Normalize the env-only switches so set -u and shellcheck stay happy.
+# normalize the env-only switches so set -u + shellcheck stay quiet.
 : "${RYOKU_DISK:=}"
 : "${RYOKU_PASSWORD_HASH:=}"
 : "${RYOKU_ENCRYPT:=}"
@@ -74,7 +74,7 @@ source "$LIB_DIR/snapshots.sh"
 : "${RYOKU_REBOOT:=}"
 : "${RYOKU_DRYRUN:=}"
 
-# Required answers.
+# required answers.
 [[ -n $RYOKU_DISK ]] || die "RYOKU_DISK is required"
 [[ -n $RYOKU_PASSWORD_HASH ]] || die "RYOKU_PASSWORD_HASH is required"
 case $RYOKU_DISK_STRATEGY in

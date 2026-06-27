@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Format the partitions and lay out the Btrfs subvolumes, then mount everything
-# under /mnt. Two functions: ryoku_filesystems (mkfs + subvolume creation) runs
-# in the "filesystems" stage, ryoku_mount (mounts + swapfile) in the "mount"
-# stage. ESP_DEV and ROOT_DEV come from the disk/luks steps.
+# format the partitions, lay out the Btrfs subvolumes, mount it all under
+# /mnt. two entrypoints: ryoku_filesystems (mkfs + subvol create) in the
+# "filesystems" stage, ryoku_mount (mounts + swapfile) in the "mount" stage.
+# ESP_DEV / ROOT_DEV come from disk + luks.
 #
-# Subvolume layout (@ -> /, @log -> /var/log, @pkg -> /var/cache/pacman/pkg are
-# always created; @home, @snapshots, @backups follow the RYOKU_SUBVOL_* toggles,
-# and @swap is created when RYOKU_SWAP_GIB > 0 so the swapfile stays out of @):
+# subvolume layout. always: @ -> /, @log -> /var/log, @pkg ->
+# /var/cache/pacman/pkg. toggle-gated: @home, @snapshots, @backups
+# (RYOKU_SUBVOL_*). @swap iff RYOKU_SWAP_GIB > 0, so the swapfile stays out
+# of @:
 #   @ @home @log @pkg @snapshots @backups @swap
 
 RYOKU_BTRFS_OPTS="compress=zstd,noatime"
@@ -29,9 +30,9 @@ ryoku_filesystems() {
   run btrfs subvolume create /mnt/@pkg
   [[ ${RYOKU_SUBVOL_SNAPSHOTS:-1} == 1 ]] && run btrfs subvolume create /mnt/@snapshots
   [[ ${RYOKU_SUBVOL_BACKUPS:-0} == 1 ]] && run btrfs subvolume create /mnt/@backups
-  # A swapfile cannot live in @ (or any snapshotted subvolume): btrfs refuses to
-  # snapshot a subvolume that holds an active swapfile, which breaks snapper on
-  # every pacman transaction. Give it its own @swap subvolume.
+  # swapfile can't live in @ (or any snapshotted subvol): btrfs refuses to
+  # snapshot one with an active swapfile, which breaks snapper on every
+  # pacman transaction. its own @swap subvol.
   (( ${RYOKU_SWAP_GIB:-0} > 0 )) && run btrfs subvolume create /mnt/@swap
   run umount /mnt
 }
@@ -41,7 +42,7 @@ ryoku_mount() {
   log "mounting subvolumes under /mnt ($o)"
   run mount -o "$o,subvol=@" "$ROOT_DEV" /mnt
 
-  # Directories must exist on @ before their subvolumes mount over them.
+  # dirs must exist on @ before their subvols mount over them.
   run mkdir -p /mnt/var/log /mnt/var/cache/pacman/pkg /mnt/boot
   [[ ${RYOKU_SUBVOL_HOME:-1} == 1 ]] && run mkdir -p /mnt/home
   [[ ${RYOKU_SUBVOL_SNAPSHOTS:-1} == 1 ]] && run mkdir -p /mnt/.snapshots
@@ -62,9 +63,9 @@ ryoku_swapfile() {
     log "swap: none"
     return 0
   fi
-  # @swap is mounted separately so the swapfile never lands inside a snapshotted
-  # subvolume (see the subvolume creation above). mkswapfile sets NOCOW and the
-  # right permissions; genfstab picks up both the mount and the swap entry later.
+  # @swap is mounted separately so the swapfile never lands inside a
+  # snapshotted subvol (see above). mkswapfile sets NOCOW + the right perms;
+  # genfstab picks up both the mount and the swap entry later.
   log "swap: ${RYOKU_SWAP_GIB}GiB swapfile in @swap (kept out of snapshots)"
   run mkdir -p /mnt/swap
   run mount -o noatime,subvol=@swap "$ROOT_DEV" /mnt/swap

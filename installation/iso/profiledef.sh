@@ -3,11 +3,10 @@
 #
 # Ryoku live ISO profile (archiso, releng-based).
 #
-# The image boots straight into the Ryoku installer TUI on tty1 (autologin root
-# -> cage + foot -> ryoku-tui). The serial console (ttyS0) stays a plain root
-# shell for headless or recovery use. Generated payload (the prebuilt TUI, the
-# backend, and the repo) is baked into airootfs by build.sh at build time, not
-# committed here.
+# boots straight into the installer TUI on tty1 (autologin root -> cage + foot
+# -> ryoku-tui). serial console (ttyS0) stays a plain root shell for headless /
+# recovery. the prebuilt TUI + backend + repo get baked into airootfs by
+# build.sh, not committed here.
 
 iso_name="ryoku"
 iso_label="RYOKU_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"

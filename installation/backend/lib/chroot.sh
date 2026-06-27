@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Configure the freshly installed system: locale, console keymap, timezone,
-# hostname, the primary user, sudo, the initramfs HOOKS, and (when encrypting)
-# crypttab. Files that live under /mnt are written directly; anything that must
-# run in the target environment goes through arch-chroot.
+# configure the freshly installed system: locale, console keymap, timezone,
+# hostname, primary user, sudo, initramfs HOOKS, and (if encrypting) crypttab.
+# files under /mnt are written directly; anything that must run in the target
+# goes through arch-chroot.
 
 ryoku_configure() {
   ryoku_cfg_locale
@@ -39,9 +39,9 @@ ryoku_cfg_timezone() {
       printf 'DRYRUN: curl -fsSL https://ipinfo.io/timezone\n'
       tz='<auto-timezone>'
     else
-      # The configure stage runs with the network up, so geolocation resolves
-      # here even when the installer's timezone screen ran before Wi-Fi joined.
-      # Two providers for resilience; the first that returns a known zone wins.
+      # configure runs with the network up, so geolocation still resolves
+      # even when the installer's timezone screen ran before Wi-Fi joined.
+      # two providers for resilience; first known zone wins.
       local url
       for url in "https://ipinfo.io/timezone" "http://ip-api.com/line?fields=timezone"; do
         tz=$(curl -fsSL --max-time 10 "$url" 2>/dev/null | tr -d '[:space:]') || tz=""
@@ -75,9 +75,9 @@ EOF
 ryoku_cfg_user() {
   log "user: $RYOKU_USERNAME (wheel, shell /usr/bin/fish)"
   run arch-chroot /mnt useradd -m -G wheel -s /usr/bin/fish "$RYOKU_USERNAME"
-  # Set the same password on the user and root so both sudo (wheel) and su work
-  # with the password chosen at install. Hashes go in on stdin (chpasswd -e reads
-  # name:hash) and are never logged.
+  # same password on the user + root, so sudo (wheel) and su both work
+  # with what the installer collected. hashes go in on stdin (chpasswd -e
+  # reads name:hash) and never hit the logs.
   printf '%s:%s\n' "$RYOKU_USERNAME" "$RYOKU_PASSWORD_HASH" | run_secret \
     "arch-chroot /mnt chpasswd -e (user:hash via stdin)" \
     arch-chroot /mnt chpasswd -e
@@ -103,14 +103,14 @@ ryoku_cfg_initramfs() {
   else
     content='HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck)'
   fi
-  # The 'encrypt' hook is only needed for LUKS roots; drop it on the HOOKS line
-  # only (so it never touches the word "encrypted" in the comments above).
+  # 'encrypt' hook only matters for a LUKS root; strip it on the HOOKS line
+  # only, so the word "encrypted" anywhere in the comments above survives.
   [[ ${RYOKU_ENCRYPT:-} != 1 ]] && content=$(printf '%s\n' "$content" | sed -E '/^HOOKS=/ s/ encrypt\b//')
 
   run mkdir -p /mnt/etc/mkinitcpio.conf.d
   write_file /mnt/etc/mkinitcpio.conf.d/ryoku.conf <<<"$content"
 
-  # NVIDIA needs early KMS so the dGPU comes up before the display manager.
+  # NVIDIA needs early KMS so the dGPU is up before the display manager.
   if [[ $RYOKU_PROFILE == amd-nvidia ]]; then
     log "mkinitcpio MODULES drop-in for NVIDIA early KMS"
     write_file /mnt/etc/mkinitcpio.conf.d/nvidia.conf <<'EOF'

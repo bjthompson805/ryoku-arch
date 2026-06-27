@@ -1,29 +1,28 @@
 #!/usr/bin/env bash
-# Ryoku live installer session, started by /root/.zlogin on tty1.
+# Ryoku live installer session. /root/.zlogin on tty1 starts this.
 #
-# Runs the installer TUI inside cage (a minimal Wayland kiosk) and foot (a
-# truecolor terminal) so it renders with full 24-bit color and Nerd Font glyphs.
-# cage, foot, and the Nerd Font are baked into the ISO, so every machine gets the
-# full experience. The kernel VT (16 colors, no Nerd Font) is only used as a last
-# resort if Wayland cannot start at all, which needs a machine with no usable
-# DRM/KMS and is very rare.
+# runs the installer TUI inside cage (minimal wayland kiosk) + foot (truecolor
+# terminal) so it renders with 24-bit color and Nerd Font glyphs. cage + foot +
+# the Nerd Font are baked into the ISO. the kernel VT (16 colors, no Nerd Font)
+# is the last-resort fallback when wayland can't start at all -- needs a box
+# with no usable DRM/KMS, very rare.
 
 export RYOKU_REPO=/usr/share/ryoku
 export RYOKU_BACKEND=ryoku-install
-export COLORTERM=truecolor   # ask the TUI for 24-bit color; foot supports it
-export WLR_RENDERER=pixman             # software render: works on VMs and GPUs with no GL
-export WLR_RENDERER_ALLOW_SOFTWARE=1   # the live session ships no GPU driver yet; expected
+export COLORTERM=truecolor   # 24-bit color for the TUI (foot supports it)
+export WLR_RENDERER=pixman             # software render, fine on VMs / GPUs with no GL
+export WLR_RENDERER_ALLOW_SOFTWARE=1   # live session has no GPU driver yet
 
-# cage + wlroots log a harmless "renderer did not support importing dma-bufs" line
-# under software rendering. Send the session's diagnostics to a log so the console
-# stays clean; real failures are still captured there.
+# cage + wlroots log a harmless "renderer did not support importing dma-bufs"
+# under software rendering. send session diagnostics to a log so the console
+# stays clean; real failures still land there.
 run_full() {
 	cage -- foot -o term=xterm-256color -f 'JetBrainsMono Nerd Font:size=14' -e ryoku-tui >/var/log/ryoku-session.log 2>&1
 }
 
-# Try the full graphical TUI, relaunching on a crash so the console never drops to
-# a bare prompt mid-install. A clean quit ends the loop. After a few failed starts
-# we assume Wayland is unavailable and fall back to the TUI on the console.
+# try the graphical TUI, relaunch on crash so the console never drops to a bare
+# prompt mid-install. clean quit ends the loop. after a few failed starts assume
+# wayland is gone and fall back to the console TUI.
 tries=0
 while true; do
 	if run_full; then

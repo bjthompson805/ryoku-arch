@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
-# Install the Ryoku desktop into the freshly installed system from the signed
-# [ryoku] pacman repository, then materialize the per-user config. The desktop now
-# ships as packages (ryoku-keyring, ryoku-shell, ryoku-hub, ryoku-blobs, ryoku,
-# ryoku-desktop): the binaries, the hardware helper scripts, the Ryoku.Blobs QML
-# plugin, the GPU udev rule, and every ~/.config dotfile come from pacman, and
-# `ryoku materialize` lays the dotfiles down from /usr/share/ryoku/config. A few
-# user-data bits no package owns yet are still seeded from the repo payload here:
-# the brand assets and wallpaper collection (the shell reads them from $HOME) and
-# the ~/.npmrc prefix; the neovim default-editor registration and the qylock
-# lockscreen + SDDM theme are likewise still installed here. Runs in the "configure"
-# stage after chroot.sh, routes through the dry-run wrappers, and tolerates an
-# offline or partial install (the desktop set then arrives on the first
-# `ryoku update`).
+# install the Ryoku desktop from the signed [ryoku] pacman repo, then materialize
+# the per-user config. desktop = packages now (ryoku-keyring, ryoku-shell,
+# ryoku-hub, ryoku-blobs, ryoku, ryoku-desktop): binaries, hardware helper
+# scripts, the Ryoku.Blobs QML plugin, the GPU udev rule, every ~/.config
+# dotfile, all pacman. `ryoku materialize` then lays the dotfiles out from
+# /usr/share/ryoku/config.
+#
+# a few user-data bits no package owns yet are still seeded from the repo
+# payload here: brand assets + wallpapers (shell reads them from $HOME),
+# ~/.npmrc prefix, the nvim default-editor registration, qylock + the SDDM
+# theme. runs in the "configure" stage after chroot.sh, through the dry-run
+# wrappers, and tolerates offline / partial installs (the desktop set then
+# turns up on the first `ryoku update`).
 
 ryoku_deploy() {
   local u=$RYOKU_USERNAME
   local h="/mnt/home/$u"
   log "deploying the Ryoku desktop for user $u"
 
-  ryoku_deploy_repo            # [ryoku] stanza + mirrorlist + keyring trust (local)
-  ryoku_deploy_packages        # pacman -S the Ryoku desktop set (needs network)
-  ryoku_deploy_materialize "$u"  # ryoku materialize as the user
-  ryoku_deploy_seed "$h"       # unpackaged user-data: brand, wallpapers, ~/.npmrc
-  ryoku_deploy_editor "$h"     # neovim default-editor registration (unpackaged)
-  ryoku_deploy_chown "$u"      # own root-seeded files before the user-context steps
-  ryoku_deploy_qylock          # qylock writes user files as the now-owning user
+  ryoku_deploy_repo              # [ryoku] stanza + mirrorlist + keyring trust (local)
+  ryoku_deploy_packages          # pacman -S the desktop set (needs net)
+  ryoku_deploy_materialize "$u"  # `ryoku materialize` as the user
+  ryoku_deploy_seed "$h"         # unpackaged: brand, wallpapers, ~/.npmrc
+  ryoku_deploy_editor "$h"       # nvim default-editor reg (unpackaged)
+  ryoku_deploy_chown "$u"        # own root-seeded files before the user steps
+  ryoku_deploy_qylock            # qylock writes user files as the now-owning user
 }
 
-# deploy_file copies a single config file (mode 644), creating parent dirs.
+# deploy_file: one config file, mode 644, parents made.
 deploy_file() {
   local src=$1 dst=$2
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
@@ -39,22 +39,20 @@ deploy_file() {
   install -Dm644 "$src" "$dst"
 }
 
-# ryoku_deploy_repo prepares the target to install signed Ryoku packages: it adds
-# the [ryoku] repository to /mnt/etc/pacman.conf, copies the live ISO's known-good
-# mirrorlist into the target (the pacman-mirrorlist default ships every server
-# commented out, so the chroot's `pacman -Sy` would otherwise have no servers for
-# core/extra), and imports the Ryoku release signing key into the target keyring so
-# SigLevel=Required verifies. All of this is local, so it runs even on an offline
-# install, leaving the repo configured for a later `ryoku update`.
+# repo prep: add [ryoku] to /mnt/etc/pacman.conf, drop the live ISO's
+# known-good mirrorlist into the target (the default mirrorlist ships every
+# server commented out, so the chroot's `pacman -Sy` would otherwise have
+# zero servers for core/extra), and import the release signing key so
+# SigLevel=Required passes. all local, runs even offline; the repo stays
+# configured for the next `ryoku update`.
 ryoku_deploy_repo() {
   ryoku_repo_pacman_conf
   ryoku_repo_mirrorlist
   ryoku_repo_keyring
 }
 
-# ryoku_repo_pacman_conf appends the [ryoku] stanza to /mnt/etc/pacman.conf once.
-# The release bucket serves the stable channel under a /stable/ prefix, so the
-# Server carries it; the single-quoted heredoc keeps $arch literal for pacman.
+# pacman_conf: append [ryoku] once. release bucket lives under /stable/, so
+# Server carries the prefix; single-quoted heredoc keeps $arch literal.
 ryoku_repo_pacman_conf() {
   local conf=/mnt/etc/pacman.conf
   if [[ -z ${RYOKU_DRYRUN:-} ]] && grep -q '^\[ryoku\]' "$conf" 2>/dev/null; then
@@ -70,9 +68,8 @@ Server = https://repo.ryoku.dev/stable/$arch
 EOF
 }
 
-# ryoku_repo_mirrorlist copies the live mirrorlist into the target so the chroot's
-# `pacman -Sy` can refresh core/extra alongside [ryoku]. The live list is the one
-# the ISO pacstrapped with, so it is known-good.
+# mirrorlist: copy the live one over so the chroot's pacman -Sy can refresh
+# core/extra. live one is what the ISO pacstrapped with, so known-good.
 ryoku_repo_mirrorlist() {
   local src=/etc/pacman.d/mirrorlist dst=/mnt/etc/pacman.d/mirrorlist
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
@@ -84,12 +81,12 @@ ryoku_repo_mirrorlist() {
   cp "$src" "$dst"
 }
 
-# ryoku_repo_keyring imports the Ryoku release signing key into the target keyring
-# so pacman trusts [ryoku] before any signed package is fetched. The key material
-# ships in the repo payload (release/packages/ryoku-keyring). We seed the three
-# keyring files, run `pacman-key --populate ryoku` (which imports and locally signs
-# the key into the target trustdb), then remove the seeds so the ryoku-keyring
-# package can install them without a file conflict; the trustdb persists.
+# keyring: import the Ryoku release signing key into the target so pacman
+# trusts [ryoku] before any signed pkg is fetched. key material ships in
+# release/packages/ryoku-keyring. seed the three files, run pacman-key
+# --populate (imports + locally signs into the trustdb), then drop the seeds
+# so the ryoku-keyring package can install them without a file conflict.
+# trustdb sticks.
 ryoku_repo_keyring() {
   local kdir="$RYOKU_REPO/release/packages/ryoku-keyring"
   local kd=/mnt/usr/share/pacman/keyrings
@@ -106,12 +103,11 @@ ryoku_repo_keyring() {
   run rm -f "$kd/ryoku.gpg" "$kd/ryoku-trusted" "$kd/ryoku-revoked"
 }
 
-# ryoku_deploy_packages installs the Ryoku desktop set from [ryoku] in the chroot.
-# The chroot is lent the live resolv.conf for DNS (the target has none yet), exactly
-# like the AUR step; that state is restored afterwards. Needs network, so it is
-# skipped on an offline install. Online, a failure to install the set is fatal:
-# the desktop cannot work without it and there is no ryoku CLI left to recover
-# with, so the install stops loudly instead of booting a half-configured desktop.
+# packages: pacman -S the desktop set from [ryoku] inside the chroot. lends
+# the live resolv.conf for DNS (target has none yet), same trick as aur.sh;
+# restored after. needs net, so offline = skip. online, a failed install is
+# fatal: no desktop without it and no ryoku CLI left to recover, so we stop
+# loudly instead of booting a half-configured box.
 ryoku_deploy_packages() {
   local -a pkgs=(ryoku-keyring ryoku-shell ryoku-hub ryoku-blobs ryoku ryoku-desktop)
 
@@ -125,7 +121,7 @@ ryoku_deploy_packages() {
     return 0
   fi
 
-  # Lend the chroot DNS only when the target has none yet, and undo exactly that.
+  # lend the chroot DNS only when the target has none yet, then undo exactly that.
   local made_resolv=0
   if [[ ! -e /mnt/etc/resolv.conf ]] && cp -L /etc/resolv.conf /mnt/etc/resolv.conf 2>/dev/null; then
     made_resolv=1
@@ -152,11 +148,10 @@ ryoku_deploy_packages() {
   return 0
 }
 
-# ryoku_deploy_materialize lays the Ryoku base config (/usr/share/ryoku/config,
-# shipped by ryoku-desktop) into the user's ~/.config by running `ryoku materialize`
-# as the target user. HOME/USER/LOGNAME are forced because runuser keeps root's env,
-# the same pattern aur.sh uses. Skipped when the `ryoku` CLI is not installed (an
-# offline or partial package install).
+# materialize: lay the base config (/usr/share/ryoku/config, owned by
+# ryoku-desktop) into ~/.config by running `ryoku materialize` as the user.
+# HOME/USER/LOGNAME forced because runuser keeps root's env (same dance as
+# aur.sh). skipped when the `ryoku` CLI is absent (offline / partial pkgs).
 ryoku_deploy_materialize() {
   local u=$1
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
@@ -173,23 +168,22 @@ ryoku_deploy_materialize() {
     || log "materialize: warning, ryoku materialize failed (continuing)"
 }
 
-# ryoku_deploy_seed lays down the user-data no package owns yet and that
-# `ryoku materialize` (which is ~/.config-only) does not cover: the brand assets and
-# wallpaper collection the shell reads from $HOME, and the ~/.npmrc prefix. Seeded
-# from the repo payload; tolerates missing sources.
+# seed the user-data nothing else owns: brand assets + wallpapers (shell
+# reads them from $HOME), ~/.npmrc prefix. from the repo payload; missing
+# sources are fine.
 ryoku_deploy_seed() {
   local h=$1
   log "seeding brand assets, wallpapers, and ~/.npmrc into $h"
   deploy_dir "$RYOKU_REPO/ryoku/assets/brand" "$h/.local/share/ryoku/assets/brand"
-  # The shipped wallpaper collection seeds ~/Pictures/Wallpapers so a fresh install
-  # has a set to pick from; ryoku-shell sets a random one on first start.
+  # ship a wallpaper set so a fresh install has something to pick from;
+  # ryoku-shell picks one at random on first start.
   deploy_dir "$RYOKU_REPO/ryoku/assets/wallpapers" "$h/Pictures/Wallpapers"
   deploy_file "$RYOKU_REPO/ryoku/apps/npm/npmrc" "$h/.npmrc"
 }
 
-# ryoku_deploy_editor makes neovim the default text editor: the .desktop entry plus
-# the mimeapps defaults that route text files to it. Not packaged (ryoku-desktop
-# ships the nvim config under /usr/share/ryoku/config, but not this registration).
+# editor: make nvim the default text editor. .desktop entry + mimeapps
+# defaults. not packaged (ryoku-desktop ships the nvim config but not the
+# registration).
 ryoku_deploy_editor() {
   local h=$1
   log "registering neovim as the default text editor"
@@ -197,14 +191,14 @@ ryoku_deploy_editor() {
   deploy_file "$RYOKU_REPO/ryoku/apps/mimeapps.list" "$h/.config/mimeapps.list"
 }
 
-# ryoku_deploy_qylock installs the qylock lockscreen bundle and the SDDM clockwork
-# theme. Not yet packaged, so the bundle ships in the payload and its two installers
-# run in the chroot.
+# qylock: install the lockscreen bundle + the SDDM clockwork theme. not yet
+# packaged, so the bundle ships in the payload and its two installers run
+# in the chroot.
 ryoku_deploy_qylock() {
   log "deploying qylock bundle + SDDM clockwork theme"
   deploy_dir "$RYOKU_REPO/ryoku/lockscreen/qylock" /mnt/usr/share/ryoku/qylock
 
-  # Stage the two installers in the chroot, run them in the target, then remove.
+  # stage the two installers in the chroot, run, drop.
   run cp "$RYOKU_REPO/ryoku/lockscreen/sddm/setup" /mnt/root/ryoku-sddm-setup
   run cp "$RYOKU_REPO/ryoku/lockscreen/install-qylock" /mnt/root/ryoku-install-qylock
   run chmod 755 /mnt/root/ryoku-sddm-setup /mnt/root/ryoku-install-qylock
