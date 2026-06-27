@@ -230,6 +230,13 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `hyprland/scripts/stash-install.sh`: a `.deb`/`.rpm` whose desktop `Exec` is an
+  absolute path (every native package ships one, e.g. `/opt/Termius/termius-app`)
+  now resolves onto the extracted tree at that exact path. It used to rewrite the
+  `Exec` by searching the whole payload for the basename and taking the first hit,
+  which matched an unrelated same-named file when one sorted first: Termius ships
+  an `etc/cron.daily/termius-app` cron script, so the launcher ran the cron job and
+  the app never opened. Covered by `tests/stash-install.sh`.
 - `shell/deploy.sh`: the Hyprland config swap is now near-atomic, so a reload can
   never catch `hyprland.lua` missing. It built `~/.config/hypr` with `rm -rf` then
   `cp -a`, leaving a long window with no `hyprland.lua`; a manual reload or a fresh

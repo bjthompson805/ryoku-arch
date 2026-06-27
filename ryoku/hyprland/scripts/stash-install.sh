@@ -225,8 +225,17 @@ install_tar_desktop() {
   if [ -n "$oexec" ]; then
     tok=${oexec%% *}                                   # program token
     case "$oexec" in *" "*) rest=${oexec#* } ;; esac   # preserve %U/%F and flags
-    binbase=$(basename "$tok")
-    abs=$(find "$root" -type f -name "$binbase" 2>/dev/null | head -n1)
+    # An absolute Exec (a .deb/.rpm ships /opt/... or /usr/bin/...) maps straight
+    # onto the extracted FHS tree; prefer that exact file over a tree-wide basename
+    # search, which can match an unrelated same-named payload file (e.g. a cron
+    # job) that happens to sort first.
+    case "$tok" in
+      /*) [ -f "$root$tok" ] && abs="$root$tok" ;;
+    esac
+    if [ -z "$abs" ]; then
+      binbase=$(basename "$tok")
+      abs=$(find "$root" -type f -name "$binbase" 2>/dev/null | head -n1)
+    fi
     [ -z "$abs" ] && abs="$tok"                        # keep original if not bundled
   else
     abs=$(pick_executable "$root" "$fallback")

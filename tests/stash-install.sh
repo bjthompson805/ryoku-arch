@@ -123,6 +123,29 @@ if command -v ar >/dev/null 2>&1 && command -v bsdtar >/dev/null 2>&1; then
   STASH_DIR="$s5" run_stash
   check "$(cat "$work/pkexec.log")" "" "deb payload never escalated to pacman"
   present "$work/home/.local/share/applications/debapp.desktop" "deb payload extracted into a launcher entry"
+
+  # Case 5b: a .deb whose desktop Exec is an absolute /opt path must resolve to
+  # that exact binary, never a same-named decoy elsewhere in the payload. Termius
+  # ships an etc/cron.daily/termius-app cron script that sorts before opt/, so a
+  # tree-wide basename search picked the cron job and the app never launched.
+  s5b="$work/stash5b"; mkdir -p "$s5b"
+  dr2="$work/debroot2"; rm -rf "$dr2"
+  mkdir -p "$dr2/opt/realapp" "$dr2/etc/cron.daily" "$dr2/usr/share/applications"
+  printf '#!/bin/sh\necho real\n' >"$dr2/opt/realapp/realapp"; chmod +x "$dr2/opt/realapp/realapp"
+  printf '#!/bin/sh\necho cron\n' >"$dr2/etc/cron.daily/realapp"; chmod +x "$dr2/etc/cron.daily/realapp"
+  printf '[Desktop Entry]\nType=Application\nName=RealApp\nExec=/opt/realapp/realapp %%U\n' \
+    >"$dr2/usr/share/applications/realapp.desktop"
+  ( cd "$dr2" && tar -czf "$work/data.tar.gz" opt etc usr )
+  printf '2.0\n' >"$work/debian-binary"
+  ( cd "$work" && ar rc "$s5b/realapp.deb" debian-binary data.tar.gz )
+  : >"$work/pkexec.log"
+  STASH_DIR="$s5b" run_stash
+  ent="$work/home/.local/share/applications/realapp.desktop"
+  if grep -q "^Exec=.*/opt/realapp/realapp" "$ent" 2>/dev/null && ! grep -q "cron.daily" "$ent" 2>/dev/null; then
+    echo "  ok: absolute deb Exec resolves to the opt binary, not the cron decoy"
+  else
+    echo "::error::FAIL: deb Exec mis-resolved: $(grep '^Exec=' "$ent" 2>/dev/null)" >&2; fail=1
+  fi
 else
   echo "  skip: .deb extraction (ar or bsdtar absent)"
 fi
