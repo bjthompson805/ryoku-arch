@@ -13,7 +13,7 @@ on:
       release_stage:
         description: 'Public release stage'
         required: true
-        default: 'alpha'
+        default: 'beta'
         type: choice
         options:
           - alpha
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      RELEASE_STAGE: ${{ github.event.inputs.release_stage || 'alpha' }}
+      RELEASE_STAGE: ${{ github.event.inputs.release_stage || 'beta' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -376,7 +376,7 @@ jobs:
             --arg url "$run_url" \
             --arg repo "$GITHUB_REPOSITORY" \
             --arg tracking "${RYOKU_ISO_TRACKING_ID:-unknown}" \
-            --arg channel "${RYOKU_ISO_CHANNEL:-alpha}" \
+            --arg channel "${RYOKU_ISO_CHANNEL:-beta}" \
             --arg ref "${GITHUB_REF_NAME:-$GITHUB_SHA}" \
             --arg image "$image" \
             --arg brand_mark_url "$brand_mark_url" \
