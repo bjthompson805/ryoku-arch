@@ -17,3 +17,14 @@
 - `extras/`: the helpers behind the Hub's Extras section (`ryoku-extras-install`
   and the `ryoku-pkg-*` routing wrappers) that install, remove, and report the
   optional bundles from the `ryoku-extras` catalogue.
+
+### Fixed
+- `hardware/gpu/ryoku-gpu-detect`: GPU detection could hang indefinitely. It
+  reads NVIDIA VRAM from `nvidia-smi` (and model names from `lspci`), and a
+  runtime-suspended or wedged GPU can make `nvidia-smi` block forever, stalling
+  `ryoku-gpu detect` and every caller (including the Hub GPU page). The host
+  probes now run once, in parallel, under a hard `timeout` (8s default, override
+  with `RYOKU_GPU_PROBE_TIMEOUT`): a single pass covers every GPU, so the wait is
+  one window instead of one per card and the budget can be generous without
+  serialising. A probe that times out degrades to no VRAM/model rather than
+  hanging; the GPU is still detected and classified.

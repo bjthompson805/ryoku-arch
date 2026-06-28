@@ -49,6 +49,55 @@ hw_probe_ok() {
   [[ $DRM_ROOT == "/sys/class/drm" ]]
 }
 
+# Hard cap (seconds) for an optional host probe. A wedged or runtime-suspended
+# GPU can make nvidia-smi block for a long time or forever; without a cap that
+# stalls the whole detector and the Hub GPU page that waits on it. The probes run
+# in parallel (one window for every GPU), so this can be generous; raise it for a
+# slow cold GPU, lower it to fail faster.
+HW_PROBE_TIMEOUT="${RYOKU_GPU_PROBE_TIMEOUT:-8}"
+
+hw_run() {
+  # Run an optional host tool (nvidia-smi, lspci) under a hard timeout so a hung
+  # probe can never stall detection; fall back to a direct run only where the
+  # timeout binary is missing. Exit status is the tool's (124 on timeout) and
+  # callers already treat any failure as "no data".
+  if command -v timeout >/dev/null 2>&1; then
+    timeout -k 1 "$HW_PROBE_TIMEOUT" "$@"
+  else
+    "$@"
+  fi
+}
+
+# Filled once per gpu_records run by hw_probe_gather: the whole nvidia-smi VRAM
+# table and the whole lspci device list. The per-GPU lookups below read these
+# instead of spawning a probe per card.
+_nvidia_smi_csv=""
+_lspci_list=""
+
+hw_probe_gather() {
+  # Run the slow host probes once, concurrently, under the shared timeout, and
+  # cache their full output. nvidia-smi already reports every GPU in one call and
+  # lspci every device, so a single parallel pass covers any GPU count and costs
+  # one timeout window, not one per card.
+  _nvidia_smi_csv=""
+  _lspci_list=""
+  hw_probe_ok || return 0
+  local dir nf lf
+  dir="$(mktemp -d 2>/dev/null)" || return 0
+  nf="$dir/nvidia"; lf="$dir/lspci"
+  : >"$nf"; : >"$lf"
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    hw_run nvidia-smi --query-gpu=pci.bus_id,memory.total --format=csv,noheader,nounits >"$nf" 2>/dev/null &
+  fi
+  if command -v lspci >/dev/null 2>&1; then
+    hw_run lspci -D >"$lf" 2>/dev/null &
+  fi
+  wait
+  _nvidia_smi_csv="$(cat "$nf" 2>/dev/null || true)"
+  _lspci_list="$(cat "$lf" 2>/dev/null || true)"
+  rm -rf "$dir"
+}
+
 gpu_uint() {
   # Read a non-negative integer sysfs field for a card, defaulting to 0.
   local v
@@ -63,20 +112,19 @@ gpu_removable() {
 
 nvidia_vram_bytes() {
   # NVIDIA exposes no mem_info_vram_total (that's an amdgpu node), so sysfs
-  # reports 0. Recover the real size from nvidia-smi, keyed by PCI slot.
-  hw_probe_ok || { printf '0'; return; }
-  command -v nvidia-smi >/dev/null 2>&1 || { printf '0'; return; }
+  # reports 0. Recover the size from the cached nvidia-smi table, keyed by PCI
+  # slot. Empty when nvidia-smi was absent or did not answer in time.
   local bdf="${1#*:}" mib
-  mib="$(nvidia-smi --query-gpu=pci.bus_id,memory.total --format=csv,noheader,nounits 2>/dev/null \
+  mib="$(printf '%s\n' "$_nvidia_smi_csv" \
     | awk -F', *' -v s="$bdf" 'index(tolower($1), tolower(s)) {print $2; exit}')"
   [[ $mib =~ ^[0-9]+$ ]] && printf '%s' "$((mib * 1024 * 1024))" || printf '0'
 }
 
 gpu_model() {
-  # Best-effort human label for the table (empty when lspci is unavailable).
-  hw_probe_ok || return 0
-  command -v lspci >/dev/null 2>&1 || return 0
-  lspci -s "$1" 2>/dev/null | head -n1 \
+  # Human label from the cached lspci -D list (domain-qualified BDF, matching our
+  # slot). Empty when lspci was absent or did not answer.
+  printf '%s\n' "$_lspci_list" \
+    | awk -v s="$1" '$1 == s { print; exit }' \
     | sed -E 's/^[0-9a-fA-F:.]+ [^:]+: //; s/ \(rev [0-9a-fA-F]+\)$//'
 }
 
@@ -125,6 +173,7 @@ gpu_records() {
   # One TSV row per real DRM GPU, strongest first:
   #   weight <tab> class <tab> slot <tab> card <tab> driver <tab> vram <tab> connected <tab> model
   local path base slot driver vram vis removable connected conn st model
+  hw_probe_gather                            # one parallel pass: nvidia-smi + lspci, cached
   for path in "$DRM_ROOT"/card[0-9]*; do
     [[ -d $path ]] || continue
     base="$(basename "$path")"
