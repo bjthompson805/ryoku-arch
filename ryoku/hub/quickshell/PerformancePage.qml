@@ -23,6 +23,7 @@ Item {
         JsonAdapter {
             id: adapter
             property bool pauseWidgetsWhenCovered: false
+            property bool freezeVisualizerWhenIdle: false
         }
 
         Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
@@ -51,6 +52,21 @@ Item {
                     checked: adapter.pauseWidgetsWhenCovered
                     onToggled: c => {
                         adapter.pauseWidgetsWhenCovered = c;
+                        cfg.writeAdapter();
+                    }
+                }
+            }
+
+            SettingSection {
+                width: col.width
+                title: "VISUALISER"
+
+                ToggleRow {
+                    width: parent.width
+                    label: "Freeze the visualiser when no audio is playing"
+                    checked: adapter.freezeVisualizerWhenIdle
+                    onToggled: c => {
+                        adapter.freezeVisualizerWhenIdle = c;
                         cfg.writeAdapter();
                     }
                 }
