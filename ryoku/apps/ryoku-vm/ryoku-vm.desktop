@@ -2,9 +2,9 @@
 Type=Application
 Name=Ryoku VM
 GenericName=Virtual Machine
-Comment=Launch the Looking-Glass Windows VM with the discrete GPU
+Comment=Run your virtual machine in a window
 Exec=ryoku-vm
 Terminal=false
-Icon=computer
+Icon=ryoku-vm
 Categories=System;
-Keywords=vm;windows;virtual machine;looking glass;passthrough;gpu;
+Keywords=vm;virtual machine;qemu;linux;windows;

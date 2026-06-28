@@ -175,6 +175,29 @@
   shell's morph motion (a single sliding selection indicator in the rail).
 
 ### Changed
+- **GPU section, reworked for clarity.** The section now opens on the **Machine**
+  tab: a virtual machine runs in a QEMU window on the GPU that already drives the
+  display (named live from `gpu caps`), needs only QEMU, and offers a one-click
+  install when it is missing. The **Display** choice (Windowed or Passthrough) is
+  now explicit rather than inferred from the guest OS, so a Linux or Windows guest
+  can use either. The **Graphics** tab keeps the render-mode switch and folds GPU
+  passthrough into a clearly labelled advanced block, with the readiness dossier
+  behind a disclosure instead of filling the page. The specimen card drops the
+  passthrough verdict badge for a calm "renders on" headline and a free / drives
+  display tag per GPU. Messages name the actual GPUs throughout, so it is plain
+  that a windowed VM uses the discrete GPU and passthrough is a separate, optional
+  path. `gpu caps` gains `qemu` and `kvm` flags so the VM tab can tell "install
+  QEMU" apart from "virtualization is off in firmware".
+- Windowed VM presentation: the VM floats at a 1280x800 logical window, and the
+  guest is rendered at that window's PHYSICAL pixels (logical size times the
+  monitor scale, via virtio-gpu `xres`/`yres`), so on a fractionally-scaled
+  (HiDPI) display it maps 1:1 instead of the compositor upscaling and blurring it.
+  On a 1.6x screen the guest comes up at 2048x1280; `RYOKU_VM_SCALE` overrides the
+  detected scale. `zoom-to-fit` absorbs a manual resize and the menu bar starts
+  hidden (`Ctrl+Alt+M` toggles it). The Machine tab lists the in-window controls
+  (lock or release the cursor, fullscreen, menu bar, scaling, the QEMU monitor).
+  The app-launcher entry gains the Ryoku mark as its icon and accurate text
+  instead of a generic placeholder.
 - Add-ons: a plugin's `image` setting opens the system file chooser (via the
   desktop portal) on click, instead of a raw text field.
 - Store: the catalogue refresh moved to a single control to the left of the
@@ -225,6 +248,13 @@
   field `ryoku status --json` now publishes. "Up to date" shows when current.
 
 ### Fixed
+- **Enable passthrough now installs the AUR stack.** Looking Glass and the kvmfr
+  module are AUR-only, but the privileged `gpu apply enable` ran under pkexec and
+  only `pacman`-installed the official core, so it printed a `yay -S` hint and left
+  kvmfr absent: passthrough never turned on, even after a relogin. Enable now
+  builds the AUR pieces as the invoking user (the Hub launches it in a floating
+  terminal), then escalates for the system setup, and the plan reports honest
+  state instead of claiming an install it never performed.
 - Plugins: installing a plugin now fetches every file it declares, not just its
   entry points. `ensurePlugin` also pulls a `files` manifest array (helper QML and
   assets), so a multi-file plugin (one whose view imports a sibling component, or

@@ -86,3 +86,11 @@ hl.window_rule({
     size   = { 1600, 900 },
     center = true,
 })
+
+hl.window_rule({
+    name   = "float-ryoku-vm",
+    match  = { class = "[Qq]emu" },
+    float  = true,
+    size   = { 1280, 800 },
+    center = true,
+})

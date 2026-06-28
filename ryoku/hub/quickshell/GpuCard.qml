@@ -2,9 +2,10 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// GPU specimen card: the two GPUs and the passthrough verdict, in the Profile
-// idiom (warm carbon gradient, hairline border). read-only; fed by the `caps`
-// object from `ryoku-hub gpu caps`.
+// GPU specimen card: the machine's two GPUs and the one Ryoku draws on, in the
+// Profile idiom (warm carbon gradient, hairline border). read-only; fed by the
+// `caps` object from `ryoku-hub gpu caps`. the passthrough verdict lives in the
+// Graphics tab, not here -- this card is the calm hardware picture.
 Item {
     id: root
 
@@ -14,14 +15,15 @@ Item {
     implicitWidth: cardWidth
     implicitHeight: card.height
 
-    readonly property var verdictMeta: ({
-        "ready":         { "label": "PASSTHROUGH READY", "color": Theme.ok },
-        "needs-relogin": { "label": "RELOGIN TO ENABLE",  "color": Theme.ember },
-        "needs-reboot":  { "label": "REBOOT TO ENABLE",   "color": Theme.ember },
-        "needs-setup":   { "label": "PASSTHROUGH OFF",    "color": Theme.subtle },
-        "incapable":     { "label": "NOT CAPABLE",        "color": Theme.bad }
-    })
-    readonly property var verdict: root.verdictMeta[root.caps.verdict] || ({ "label": "DETECTING", "color": Theme.dim })
+    // the GPU wired to the display drives both the desktop and a windowed VM.
+    readonly property var renderGpu: {
+        var p = root.caps.passthrough, h = root.caps.host;
+        if (p && p.drivesDisplay)
+            return p;
+        if (h && h.drivesDisplay)
+            return h;
+        return h || p || null;
+    }
 
     component GpuLine: Row {
         id: line
@@ -63,8 +65,8 @@ Item {
                 elide: Text.ElideRight
             }
             Text {
-                text: line.gpu ? (line.gpu.vramMb + " MB · " + line.gpu.driver + (line.gpu.drivesDisplay ? " · display" : "")) : ""
-                color: Theme.dim
+                text: line.gpu ? (line.gpu.vramMb + " MB · " + line.gpu.driver + (line.gpu.drivesDisplay ? " · drives display" : " · free")) : ""
+                color: line.gpu && line.gpu.drivesDisplay ? Theme.subtle : Theme.dim
                 font.family: Theme.mono
                 font.pixelSize: 10
             }
@@ -102,32 +104,32 @@ Item {
                 font.letterSpacing: 2.4
             }
 
-            Rectangle {
+            // what Ryoku (and a windowed VM) renders on right now.
+            Column {
                 width: parent.width
-                height: 54
-                radius: 10
-                color: Qt.rgba(root.verdict.color.r, root.verdict.color.g, root.verdict.color.b, 0.10)
-                border.width: 1
-                border.color: Qt.rgba(root.verdict.color.r, root.verdict.color.g, root.verdict.color.b, 0.5)
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 10
-                    Rectangle {
-                        width: 9
-                        height: 9
-                        radius: 4.5
-                        color: root.verdict.color
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        text: root.verdict.label
-                        color: root.verdict.color
-                        font.family: Theme.mono
-                        font.pixelSize: 15
-                        font.weight: Font.Bold
-                        font.letterSpacing: 1.4
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                spacing: 3
+                Text {
+                    text: "RENDERS ON"
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 2
+                }
+                Text {
+                    width: parent.width
+                    text: root.renderGpu ? root.renderGpu.model : "Detecting…"
+                    color: Theme.bright
+                    font.family: Theme.font
+                    font.pixelSize: 21
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                Text {
+                    text: "The desktop and a windowed VM draw here"
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: 11
                 }
             }
 

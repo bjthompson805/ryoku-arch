@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,6 +58,8 @@ type Capability struct {
 	RamTotalMB  int     `json:"ramTotalMb"`
 	RamFreeMB   int     `json:"ramFreeMb"`
 	VmReady     bool    `json:"vmReady"` // qemu + kvm present: a plain (non-passthrough) VM can run
+	Qemu        bool    `json:"qemu"`    // qemu-desktop installed (a plain VM's only hard need)
+	Kvm         bool    `json:"kvm"`     // /dev/kvm present
 }
 
 // gpuRecord = one entry from `ryoku-gpu detect --json`.
@@ -136,6 +139,8 @@ func buildCapability(in capInputs) Capability {
 	c.Checks = checks
 	c.Enabled = len(toolingMissing(in.tooling)) == 0 && in.iommuOn
 	c.VmReady = in.tooling.qemu && in.kvm
+	c.Qemu = in.tooling.qemu
+	c.Kvm = in.kvm
 	c.Strategy, c.Verdict = decide(in, c.Host, c.Passthrough, hardFail)
 	return c
 }
@@ -143,7 +148,7 @@ func buildCapability(in capInputs) Capability {
 func gpuFromRecord(r gpuRecord, in capInputs) *GPU {
 	g := &GPU{
 		Slot:          r.Slot,
-		Model:         r.Model,
+		Model:         prettyModel(r.Model),
 		Driver:        r.Driver,
 		Class:         r.Class,
 		VramMB:        int(r.VRAM / 1024 / 1024),
@@ -165,6 +170,33 @@ func gpuFromRecord(r gpuRecord, in capInputs) *GPU {
 		g.GroupIsolated = !others
 	}
 	return g
+}
+
+// prettyModel turns a raw lspci device string into a clean product name for the
+// UI: prefer the bracketed marketing name (NVIDIA/Intel list it), else drop the
+// vendor company and the [AMD/ATI] tag, then trim Mobile/Max-Q and rev suffixes.
+// "NVIDIA Corporation AD107M [GeForce RTX 4060 Max-Q / Mobile]" -> "GeForce RTX 4060".
+var (
+	reModelBracket = regexp.MustCompile(`\[([^\]]*(?:GeForce|Radeon|RX|RTX|GTX|Arc|Iris|UHD|HD Graphics)[^\]]*)\]`)
+	reModelVendor  = regexp.MustCompile(`(?i)(NVIDIA Corporation|Advanced Micro Devices, Inc\.|Intel Corporation|\[AMD/ATI\])\s*`)
+	reModelRev     = regexp.MustCompile(`\s*\(rev [^)]*\)`)
+	reModelSuffix  = regexp.MustCompile(`(?i)\s*(Max-Q|Mobile|/ ?Mobile|/ ?Max-Q).*$`)
+)
+
+func prettyModel(s string) string {
+	orig := strings.TrimSpace(s)
+	out := orig
+	if m := reModelBracket.FindStringSubmatch(out); m != nil {
+		out = m[1]
+	} else {
+		out = reModelVendor.ReplaceAllString(out, "")
+	}
+	out = reModelRev.ReplaceAllString(out, "")
+	out = reModelSuffix.ReplaceAllString(out, "")
+	if out = strings.TrimSpace(out); out == "" {
+		return orig
+	}
+	return out
 }
 
 // pciPrefix drops the function digit. 0000:01:00.0 -> 0000:01:00.

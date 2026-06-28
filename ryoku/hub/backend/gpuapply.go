@@ -36,22 +36,80 @@ func runGpuApply(args []string) error {
 	if dryRun {
 		return applyPlan(action, invokingUser(), selfExe(), true)
 	}
+	if action == "enable" && os.Geteuid() != 0 {
+		// Looking Glass + the kvmfr module are AUR-only and build as the user
+		// (makepkg refuses root), so install them before escalating. the
+		// privileged half then finds kvmfr present and writes its module config.
+		installPassthroughAUR()
+	}
 	if os.Geteuid() != 0 {
 		return escalateApply(args)
 	}
 	return applyPlan(action, invokingUser(), selfExe(), false)
 }
 
-// escalateApply re-runs this binary as root via pkexec, preserving the invoking
-// user's id so the privileged half can set the right group membership and udev
-// owner (the lock.go greeter pattern).
+// escalateApply re-runs the gpu-apply subcommand as root via pkexec.
 func escalateApply(args []string) error {
+	return escalateSelf(append([]string{"gpu", "apply"}, args...)...)
+}
+
+// escalateSelf re-runs this binary as root via pkexec, preserving the invoking
+// user's id (PKEXEC_UID) so the privileged half acts on the right user -- set
+// group membership, own the udev node (the lock.go greeter pattern).
+func escalateSelf(args ...string) error {
 	exe := selfExe()
 	uid := strconv.Itoa(os.Getuid())
-	full := append([]string{"env", "PKEXEC_UID=" + uid, exe, "gpu", "apply"}, args...)
+	full := append([]string{"env", "PKEXEC_UID=" + uid, exe}, args...)
 	cmd := exec.Command("pkexec", full...)
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
 	return cmd.Run()
+}
+
+// installPassthroughAUR builds Looking Glass + the kvmfr module from the AUR as
+// the invoking user (makepkg refuses root). best-effort: a build failure leaves
+// a clear message and the rest of enable still runs, so caps honestly reports
+// what is still missing. needs a terminal for the helper's prompts.
+func installPassthroughAUR() {
+	missing := missingPkgs(extraPassthroughPkgs, pkgInstalled)
+	if len(missing) == 0 {
+		return
+	}
+	fmt.Println("Installing Looking Glass + the kvmfr module from the AUR (builds a kernel module; this can take a few minutes)...")
+	if err := aurInstall(missing); err != nil {
+		fmt.Printf("Could not build %s from the AUR: %v\n", strings.Join(missing, " "), err)
+		fmt.Println("Passthrough will stay off until they are installed; try: yay -S " + strings.Join(missing, " "))
+	}
+}
+
+// aurInstall hands packages to the Ryoku AUR wrapper, falling back to a raw
+// helper. inherits this terminal so makepkg/sudo can prompt.
+func aurInstall(pkgs []string) error {
+	if _, err := exec.LookPath("ryoku-pkg-aur-add"); err == nil {
+		return ttyRun("ryoku-pkg-aur-add", pkgs...)
+	}
+	for _, h := range []string{"yay", "paru"} {
+		if _, err := exec.LookPath(h); err == nil {
+			return ttyRun(h, append([]string{"-S", "--needed"}, pkgs...)...)
+		}
+	}
+	return fmt.Errorf("no AUR helper found (expected ryoku-pkg-aur-add, yay, or paru)")
+}
+
+func ttyRun(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return cmd.Run()
+}
+
+// missingPkgs returns the packages not yet installed, order preserved.
+func missingPkgs(pkgs []string, installed func(string) bool) []string {
+	var m []string
+	for _, p := range pkgs {
+		if !installed(p) {
+			m = append(m, p)
+		}
+	}
+	return m
 }
 
 func selfExe() string {
@@ -150,20 +208,16 @@ func applyPlan(action, user, exe string, dryRun bool) error {
 			snapshot("ryoku gpu passthrough enable")
 			pacmanInstall(corePassthroughPkgs)
 		}
-		// Looking Glass + kvmfr live in [ryoku] (or the AUR on plain Arch).
-		// pacman only fetches them when they're in a repo; otherwise the user pulls
-		// them with an AUR helper. skip what is already installed so a re-run stays
-		// quiet instead of printing "target not found".
+		// Looking Glass + the kvmfr module are AUR-only; runGpuApply builds them
+		// as the user before this privileged step, so here we only report state.
 		for _, p := range extraPassthroughPkgs {
 			switch {
 			case pkgInstalled(p):
-				say(p + ": already installed")
+				say(p + ": installed")
 			case dryRun:
-				say("install (from [ryoku] or the AUR): " + p)
-			case pkgInRepo(p):
-				pacmanInstall([]string{p})
+				say("build from the AUR (yay): " + p)
 			default:
-				say(p + ": not in your repos. Install from the AUR: yay -S " + p)
+				say(p + ": not installed -- AUR build skipped or failed; passthrough stays off until it is")
 			}
 		}
 		kvmfrOK := dryRun || kvmfrModuleAvailable()
@@ -188,7 +242,11 @@ func applyPlan(action, user, exe string, dryRun bool) error {
 			run("udevadm", "control", "--reload-rules")
 			run("virsh", "net-autostart", "default")
 		}
-		say("done. Log out and back in for group membership to take effect.")
+		if kvmfrOK {
+			say("done. Log out and back in for group membership to take effect.")
+		} else {
+			say("core stack installed, but Looking Glass / kvmfr are missing, so passthrough stays off. Install them, then run enable again.")
+		}
 		return nil
 	}
 

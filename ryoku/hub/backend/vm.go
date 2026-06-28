@@ -24,19 +24,19 @@ type VM struct {
 	RamMB     int    `json:"ramMb"`
 	DiskPath  string `json:"diskPath"`
 	DiskGB    int    `json:"diskGb"`
-	Display   string `json:"display"` // looking-glass
+	Display   string `json:"display"` // windowed | passthrough
 	GpuSlot   string `json:"gpuSlot"` // dGPU PCI slot to pass through
 }
 
 func defaultVM() VM {
 	return VM{
-		Name:     "ryoku-win11",
-		Guest:    "windows11",
+		Name:     "ryoku-vm",
+		Guest:    "linux",
+		Display:  "windowed",
 		Cores:    4,
 		RamMB:    8192,
 		DiskGB:   64,
-		Display:  "looking-glass",
-		DiskPath: filepath.Join(vmDataDir(), "ryoku-win11.qcow2"),
+		DiskPath: filepath.Join(vmDataDir(), "ryoku-vm.qcow2"),
 	}
 }
 
@@ -64,6 +64,11 @@ func loadVM() VM {
 	if b, err := os.ReadFile(vmConfigPath()); err == nil {
 		_ = json.Unmarshal(b, &v)
 	}
+	// legacy configs stored display="looking-glass"; the axis is now
+	// windowed|passthrough, so treat anything but passthrough as a plain window.
+	if v.Display != "passthrough" {
+		v.Display = "windowed"
+	}
 	return v
 }
 
@@ -81,8 +86,8 @@ func saveVM(v VM) error {
 	if v.DiskGB < 16 {
 		v.DiskGB = 16
 	}
-	if v.Display == "" {
-		v.Display = "looking-glass"
+	if v.Display != "passthrough" {
+		v.Display = "windowed"
 	}
 	if v.DiskPath == "" {
 		v.DiskPath = filepath.Join(vmDataDir(), v.Name+".qcow2")
@@ -100,7 +105,7 @@ func saveVM(v VM) error {
 
 func runVM(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("vm needs get|save|xml")
+		return fmt.Errorf("vm needs get|save|xml|setup|launch|stop|status")
 	}
 	switch args[0] {
 	case "get":
@@ -145,13 +150,31 @@ func runVM(args []string) error {
 		return vmStop(loadVM())
 	case "status":
 		return vmStatus()
+	case "setup":
+		return runVMSetup()
 	default:
 		return fmt.Errorf("unknown vm subcommand: %s", args[0])
 	}
 }
 
-// vmWantsPassthrough reports whether a VM should be handed the discrete GPU and
-// Looking Glass over libvirt. Only the Windows 11 guest is; Linux and other
-// guests run directly in QEMU (qemu.go) -- a native window, no GPU, no Looking
-// Glass, no libvirt, no MUX flip.
-func vmWantsPassthrough(v VM) bool { return v.Guest == "windows11" }
+// vmWantsPassthrough reports whether the VM is handed a whole GPU over libvirt
+// (Looking Glass) instead of running in a plain QEMU window. Driven by the VM's
+// Display choice, not its guest OS: a Linux or Windows guest can use either.
+func vmWantsPassthrough(v VM) bool { return v.Display == "passthrough" }
+
+// plainVMPkgs = everything a windowed (non-passthrough) VM needs: the emulator,
+// UEFI firmware, and host-GL acceleration for the virtio-gpu window. all
+// official-repo packages, so a plain pacman install (no AUR) is enough.
+var plainVMPkgs = []string{"qemu-desktop", "edk2-ovmf", "virglrenderer"}
+
+// runVMSetup installs the plain-VM stack. escalates once (pkexec) for pacman;
+// the Hub runs it in a floating terminal so the download stays visible.
+func runVMSetup() error {
+	if os.Geteuid() != 0 {
+		return escalateSelf("vm", "setup")
+	}
+	snapshot("ryoku vm setup")
+	pacmanInstall(plainVMPkgs)
+	fmt.Println("Done. QEMU is installed; launch your VM from Ryoku Settings > GPU > Machine.")
+	return nil
+}

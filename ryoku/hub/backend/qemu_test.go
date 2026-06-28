@@ -7,13 +7,14 @@ import (
 
 func TestQemuArgs(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir()) // contain any OVMF vars copy
+	t.Setenv("RYOKU_VM_SCALE", "1")        // deterministic guest resolution (no monitor scale)
 	v := VM{Name: "ryoku-vm", Guest: "linux", Cores: 4, RamMB: 8192, DiskPath: "/tmp/d.qcow2", IsoPath: "/isos/r.iso"}
 	args, err := qemuArgs(v)
 	if err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(args, " ")
-	for _, m := range []string{"-enable-kvm", "-machine q35,accel=kvm", "-display gtk", "/tmp/d.qcow2", "/isos/r.iso", "user,id=net0"} {
+	for _, m := range []string{"-enable-kvm", "-machine q35,accel=kvm", "-display gtk", "zoom-to-fit=on", "show-menubar=off", "xres=1280,yres=800", "/tmp/d.qcow2", "/isos/r.iso", "user,id=net0"} {
 		if !strings.Contains(joined, m) {
 			t.Errorf("qemuArgs missing %q in: %s", m, joined)
 		}
@@ -27,12 +28,34 @@ func TestQemuArgs(t *testing.T) {
 }
 
 func TestVMWantsPassthrough(t *testing.T) {
-	if !vmWantsPassthrough(VM{Guest: "windows11"}) {
-		t.Error("windows11 should pass through the dGPU")
+	if !vmWantsPassthrough(VM{Display: "passthrough"}) {
+		t.Error("passthrough display should hand a GPU to the VM over libvirt")
 	}
-	for _, g := range []string{"linux", "other", ""} {
-		if vmWantsPassthrough(VM{Guest: g}) {
-			t.Errorf("guest %q should run as a plain QEMU VM", g)
+	for _, d := range []string{"windowed", "", "spice"} {
+		if vmWantsPassthrough(VM{Display: d}) {
+			t.Errorf("display %q should run as a plain QEMU window", d)
+		}
+	}
+	// the guest OS must not decide passthrough on its own.
+	if vmWantsPassthrough(VM{Guest: "windows11", Display: "windowed"}) {
+		t.Error("a windowed Windows guest must run in a window, not passthrough")
+	}
+}
+
+func TestPhysicalRes(t *testing.T) {
+	cases := []struct {
+		scale        float64
+		wantW, wantH int
+	}{
+		{1.0, 1280, 800},
+		{1.6, 2048, 1280}, // HiDPI: guest matches the window's physical pixels
+		{2.0, 2560, 1600},
+		{0, 1280, 800}, // a bad scale falls back to 1.0
+	}
+	for _, c := range cases {
+		w, h := physicalRes(1280, 800, c.scale)
+		if w != c.wantW || h != c.wantH {
+			t.Errorf("physicalRes(1280,800,%v) = %dx%d, want %dx%d", c.scale, w, h, c.wantW, c.wantH)
 		}
 	}
 }

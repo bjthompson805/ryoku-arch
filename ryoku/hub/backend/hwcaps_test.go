@@ -222,3 +222,19 @@ func mkdirAll(t *testing.T, dir string) {
 		t.Fatal(err)
 	}
 }
+
+func TestPrettyModel(t *testing.T) {
+	cases := map[string]string{
+		"NVIDIA Corporation AD107M [GeForce RTX 4060 Max-Q / Mobile]":         "GeForce RTX 4060",
+		"Advanced Micro Devices, Inc. [AMD/ATI] Phoenix1":                     "Phoenix1",
+		"Intel Corporation Raptor Lake-S GT1 [UHD Graphics 770]":              "UHD Graphics 770",
+		"Advanced Micro Devices, Inc. [AMD/ATI] Navi 31 [Radeon RX 7900 XTX]": "Radeon RX 7900 XTX",
+		"GeForce RTX 4060": "GeForce RTX 4060",
+		"":                 "",
+	}
+	for in, want := range cases {
+		if got := prettyModel(in); got != want {
+			t.Errorf("prettyModel(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

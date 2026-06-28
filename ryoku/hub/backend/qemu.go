@@ -7,7 +7,9 @@ package main
 // (the Windows + dGPU case) still goes through libvirt in vmrun.go.
 
 import (
+	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,15 +50,68 @@ func qemuArgs(v VM) ([]string, error) {
 			"-drive", "if=pflash,format=raw,file="+vars)
 	}
 	// Host-GL virtio-gpu when virglrenderer is present; plain virtio-vga else.
+	// The guest renders at the window's PHYSICAL pixels (logical size times the
+	// monitor scale), so a fractionally-scaled (HiDPI) compositor shows it 1:1
+	// instead of upscaling and blurring it. zoom-to-fit covers a manual resize;
+	// the menu bar starts hidden (Ctrl+Alt+M toggles it).
+	gw, gh := guestRes()
+	res := fmt.Sprintf("xres=%d,yres=%d", gw, gh)
 	if pkgInstalled("virglrenderer") {
-		args = append(args, "-device", "virtio-vga-gl", "-display", "gtk,gl=on")
+		args = append(args, "-device", "virtio-vga-gl,"+res, "-display", "gtk,gl=on,zoom-to-fit=on,show-menubar=off")
 	} else {
-		args = append(args, "-device", "virtio-vga", "-display", "gtk")
+		args = append(args, "-device", "virtio-vga,"+res, "-display", "gtk,zoom-to-fit=on,show-menubar=off")
 	}
 	if v.IsoPath != "" {
 		args = append(args, "-drive", "file="+v.IsoPath+",media=cdrom", "-boot", "order=dc,menu=on")
 	}
 	return args, nil
+}
+
+// vmWinW, vmWinH = the VM window's logical size. MUST match the float-ryoku-vm
+// rule in ryoku/hyprland/modules/window_rules.lua: the guest is rendered at this
+// size times the monitor scale so its pixels map 1:1 to the window's physical
+// pixels (no compositor upscaling / blur on a HiDPI display).
+const vmWinW, vmWinH = 1280, 800
+
+// guestRes returns the guest framebuffer size: the VM window's physical pixels.
+func guestRes() (int, int) { return physicalRes(vmWinW, vmWinH, monitorScale()) }
+
+// physicalRes converts a logical size to physical pixels at the given scale.
+func physicalRes(w, h int, scale float64) (int, int) {
+	if scale <= 0 {
+		scale = 1
+	}
+	return int(math.Round(float64(w) * scale)), int(math.Round(float64(h) * scale))
+}
+
+// monitorScale reads the focused monitor's scale from Hyprland (RYOKU_VM_SCALE
+// overrides), or 1.0 when it can't be determined (no Hyprland, headless, tests).
+func monitorScale() float64 {
+	if v := os.Getenv("RYOKU_VM_SCALE"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
+			return f
+		}
+	}
+	out, err := exec.Command("hyprctl", "monitors", "-j").Output()
+	if err != nil {
+		return 1
+	}
+	var ms []struct {
+		Focused bool    `json:"focused"`
+		Scale   float64 `json:"scale"`
+	}
+	if json.Unmarshal(out, &ms) != nil {
+		return 1
+	}
+	for _, m := range ms {
+		if m.Focused && m.Scale > 0 {
+			return m.Scale
+		}
+	}
+	if len(ms) > 0 && ms[0].Scale > 0 {
+		return ms[0].Scale
+	}
+	return 1
 }
 
 // ensureOvmfVars gives the VM its own writable copy of the OVMF variable store
