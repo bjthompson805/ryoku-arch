@@ -224,9 +224,10 @@ func (d *daemon) keyringRespond(cmd, secret string) string {
 // pushPrompt: ship one prompt's fields to the pill island as JSON.
 func (p *prompter) pushPrompt(id int, ptype string, props map[string]interface{}) {
 	payload := map[string]interface{}{
-		"id":            id,
-		"type":          ptype,
-		"mon":           activeMonitor(),
+		"id":   id,
+		"type": ptype,
+		// keyring prompts are a cold path, so query the monitor fresh.
+		"mon":           queryActiveMonitor(),
 		"title":         strProp(props, "title"),
 		"message":       strProp(props, "message"),
 		"description":   strProp(props, "description"),

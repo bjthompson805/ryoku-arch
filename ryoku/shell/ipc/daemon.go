@@ -62,9 +62,12 @@ type daemon struct {
 	quit           chan struct{}
 	closed         bool
 	ln             net.Listener
-	voiceMu        sync.Mutex // serializes voice (Super+`) toggles
-	voiceOn        bool       // dictation active; guarded by voiceMu
-	prompter       *prompter  // GNOME keyring system prompter (nil when unavailable)
+	voiceMu        sync.Mutex    // serializes voice (Super+`) toggles
+	voiceOn        bool          // dictation active; guarded by voiceMu
+	prompter       *prompter     // GNOME keyring system prompter (nil when unavailable)
+	monMu          sync.Mutex    // guards activeMon
+	activeMon      string        // focused monitor, kept warm by watchHyprland
+	monFallback    func() string // monitor source when the cache is cold; tests swap it
 }
 
 func runDaemon() error {
@@ -142,6 +145,7 @@ func (d *daemon) bootstrap() {
 	d.prompter = startKeyringPrompter()
 	go d.paintWorker()
 	go d.ledsWorker()
+	go d.watchHyprland()
 	go func() {
 		d.wallMu.Lock()
 		defer d.wallMu.Unlock()
@@ -292,7 +296,7 @@ func (d *daemon) dispatch(line string) string {
 		d.ensure(config)
 		mon := ""
 		if needsMonitor(fn) {
-			mon = activeMonitor()
+			mon = d.activeMonitor()
 		}
 		return ipcCall(config, target, fn, mon)
 	}
@@ -335,7 +339,7 @@ func (d *daemon) dispatch(line string) string {
 			return "err plugin: missing id"
 		}
 		d.ensure("pill")
-		return ipcCallN("pill", "pill", "pluginPopout", activeMonitor(), args[0])
+		return ipcCallN("pill", "pill", "pluginPopout", d.activeMonitor(), args[0])
 	case "plugins":
 		// plugins reload -> the per-monitor PluginPopouts watch plugins.json and
 		// re-discover on change, so a Settings save retunes live; this is a no-op
@@ -362,7 +366,7 @@ func (d *daemon) voice() string {
 	if d.voiceOn {
 		d.ensure("pill")
 		toggleHandy()
-		return ipcCall("pill", "pill", "voiceShow", activeMonitor())
+		return ipcCall("pill", "pill", "voiceShow", d.activeMonitor())
 	}
 	toggleHandy()
 	return ipcCall("pill", "pill", "voiceHide", "")

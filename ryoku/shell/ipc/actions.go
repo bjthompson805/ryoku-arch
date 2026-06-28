@@ -67,8 +67,10 @@ func ipcCallN(config, target, fn string, args ...string) string {
 	return "err qs ipc " + config + "/" + fn + ": " + msg
 }
 
-// activeMonitor: name of the monitor holding the focused workspace.
-func activeMonitor() string {
+// queryActiveMonitor reads the focused monitor fresh from hyprctl. The daemon's
+// cached d.activeMonitor() is the keybind hot path; this is the cold fallback
+// and the one-shot seed the event watcher uses on connect.
+func queryActiveMonitor() string {
 	out, err := exec.Command("hyprctl", "activeworkspace", "-j").Output()
 	if err != nil {
 		return ""
