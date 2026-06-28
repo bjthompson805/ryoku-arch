@@ -25,27 +25,6 @@ func TestParseAudioActive(t *testing.T) {
 	}
 }
 
-func TestParseUnloadFlag(t *testing.T) {
-	cases := []struct {
-		name string
-		in   string
-		want bool
-	}{
-		{"true", `{"unloadVisualizerWhenSilent":true}`, true},
-		{"false", `{"unloadVisualizerWhenSilent":false}`, false},
-		{"other flag", `{"freezeVisualizerWhenIdle":true}`, false},
-		{"absent", `{}`, false},
-		{"malformed", `not json`, false},
-		{"empty", ``, false},
-		{"wrong type", `{"unloadVisualizerWhenSilent":"yes"}`, false},
-	}
-	for _, c := range cases {
-		if got := parseUnloadFlag([]byte(c.in)); got != c.want {
-			t.Errorf("%s: parseUnloadFlag = %v, want %v", c.name, got, c.want)
-		}
-	}
-}
-
 func newGateDaemon() *daemon {
 	return &daemon{
 		proc:     map[string]*exec.Cmd{},

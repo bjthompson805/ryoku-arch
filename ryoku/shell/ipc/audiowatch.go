@@ -2,10 +2,7 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -34,33 +31,9 @@ func audioActive() bool {
 	return parseAudioActive(string(out))
 }
 
-// parseUnloadFlag reads the unloadVisualizerWhenSilent opt-in from a
-// performance.json body. Anything malformed or absent means off (the default
-// keeps the visualiser loaded).
-func parseUnloadFlag(b []byte) bool {
-	var m map[string]any
-	if json.Unmarshal(b, &m) != nil {
-		return false
-	}
-	v, _ := m["unloadVisualizerWhenSilent"].(bool)
-	return v
-}
-
-func unloadVisualizerWhenSilent() bool {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return false
-		}
-		dir = filepath.Join(home, ".config")
-	}
-	b, err := os.ReadFile(filepath.Join(dir, "ryoku", "performance.json"))
-	if err != nil {
-		return false
-	}
-	return parseUnloadFlag(b)
-}
+// unloadVisualizerWhenSilent is the opt-in that frees the visualiser's memory
+// while the desktop is silent. Off by default; perfFlag lives in widgetwatch.go.
+func unloadVisualizerWhenSilent() bool { return perfFlag("unloadVisualizerWhenSilent") }
 
 // watchAudio parks the visualiser process after a grace period of silence (only
 // when the opt-in is on) and brings it back the moment audio returns. It rides

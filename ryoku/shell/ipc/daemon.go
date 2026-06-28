@@ -58,6 +58,7 @@ type daemon struct {
 	wallMu         sync.Mutex           // serializes the wallpaper hot path (pick + transition)
 	paintSig       chan struct{}        // coalescing wake for the palette/border worker
 	ledsSig        chan struct{}        // coalescing wake for the OpenRGB worker
+	widgetSig      chan struct{}        // coalescing wake for the widget-occupancy gate
 	lastTransition int                  // index of the last transition preset; guarded by wallMu
 	quit           chan struct{}
 	closed         bool
@@ -86,13 +87,14 @@ func runDaemon() error {
 	}
 
 	d := &daemon{
-		sup:      map[string]bool{},
-		proc:     map[string]*exec.Cmd{},
-		paintSig: make(chan struct{}, 1),
-		ledsSig:  make(chan struct{}, 1),
-		quit:     make(chan struct{}),
-		gateWant: map[string]bool{},
-		gateWake: map[string]chan struct{}{},
+		sup:       map[string]bool{},
+		proc:      map[string]*exec.Cmd{},
+		paintSig:  make(chan struct{}, 1),
+		ledsSig:   make(chan struct{}, 1),
+		widgetSig: make(chan struct{}, 1),
+		quit:      make(chan struct{}),
+		gateWant:  map[string]bool{},
+		gateWake:  map[string]chan struct{}{},
 	}
 	d.ln = ln
 
@@ -152,6 +154,7 @@ func (d *daemon) bootstrap() {
 	go d.ledsWorker()
 	go d.watchHyprland()
 	go d.watchAudio()
+	go d.widgetGateWorker()
 	go func() {
 		d.wallMu.Lock()
 		defer d.wallMu.Unlock()

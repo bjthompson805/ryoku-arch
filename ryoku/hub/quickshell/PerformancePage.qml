@@ -26,6 +26,7 @@ Item {
             property bool freezeVisualizerWhenIdle: false
             property bool freezePillWhenIdle: false
             property bool unloadVisualizerWhenSilent: false
+            property bool unloadWidgetsWhenCovered: false
         }
 
         Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
@@ -54,6 +55,16 @@ Item {
                     checked: adapter.pauseWidgetsWhenCovered
                     onToggled: c => {
                         adapter.pauseWidgetsWhenCovered = c;
+                        cfg.writeAdapter();
+                    }
+                }
+
+                ToggleRow {
+                    width: parent.width
+                    label: "Unload desktop widgets to free memory when windows cover every screen (they reappear on an empty desktop)"
+                    checked: adapter.unloadWidgetsWhenCovered
+                    onToggled: c => {
+                        adapter.unloadWidgetsWhenCovered = c;
                         cfg.writeAdapter();
                     }
                 }

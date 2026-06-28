@@ -11,8 +11,10 @@
   sound), unload the visualiser entirely when silent to free its ~190 MB of
   GPU/scene-graph memory (the daemon parks the process after a 30s silence grace
   and brings it back on audio, gated so a probe failure never drops the surface),
-  freeze the pill bead's idle swirl, and pause the desktop widgets' animation
-  while windows cover them. The visualiser also runs `cava` only while audio
+  freeze the pill bead's idle swirl, pause the desktop widgets' animation while
+  windows cover them, and unload the widgets entirely once every screen is
+  covered to free their ~250-400 MB (reloaded the moment an empty desktop
+  returns). The visualiser also runs `cava` only while audio
   actually plays (default on), so a silent desktop no longer samples at 60fps for
   nothing.
 - `hyprland/scripts/ryoku-cmd-game-mode` + `system/hardware/network` +
