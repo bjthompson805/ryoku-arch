@@ -2,9 +2,10 @@ package main
 
 // qemu.go: launch a plain (non-passthrough) VM directly in QEMU with a native
 // GTK window -- the window IS the VM. No libvirt, no Looking Glass, no kvmfr;
-// just qemu, plus OVMF for UEFI and virglrenderer for GL when present (a SeaBIOS
-// / software-GL fallback keeps it working with only qemu installed). Passthrough
-// (the Windows + dGPU case) still goes through libvirt in vmrun.go.
+// just qemu, plus OVMF for UEFI when installed (SeaBIOS legacy boot otherwise).
+// The guest renders through 2D virtio-vga (no host GL), so the window behaves
+// the same on any GPU. Passthrough (Windows + dGPU) still goes through libvirt
+// in vmrun.go.
 
 import (
 	"encoding/json"
@@ -16,12 +17,30 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
-const (
-	ovmfCodePath = "/usr/share/edk2/x64/OVMF_CODE.4m.fd"
-	ovmfVarsPath = "/usr/share/edk2/x64/OVMF_VARS.4m.fd"
-)
+// ovmfPairs: UEFI firmware CODE + matching VARS template, by install location.
+// Probed in order so the VM finds OVMF across edk2 package layouts and distros
+// rather than assuming one path. None present -> SeaBIOS legacy boot.
+var ovmfPairs = [][2]string{
+	{"/usr/share/edk2/x64/OVMF_CODE.4m.fd", "/usr/share/edk2/x64/OVMF_VARS.4m.fd"},
+	{"/usr/share/edk2/x64/OVMF_CODE.fd", "/usr/share/edk2/x64/OVMF_VARS.fd"},
+	{"/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd", "/usr/share/edk2-ovmf/x64/OVMF_VARS.4m.fd"},
+	{"/usr/share/edk2-ovmf/x64/OVMF_CODE.fd", "/usr/share/edk2-ovmf/x64/OVMF_VARS.fd"},
+	{"/usr/share/OVMF/x64/OVMF_CODE.4m.fd", "/usr/share/OVMF/x64/OVMF_VARS.4m.fd"},
+	{"/usr/share/OVMF/OVMF_CODE.fd", "/usr/share/OVMF/OVMF_VARS.fd"},
+}
+
+// ovmfPaths returns the first installed CODE+VARS firmware pair (ok=false if none).
+func ovmfPaths() (code, vars string, ok bool) {
+	for _, p := range ovmfPairs {
+		if fileExists(p[0]) && fileExists(p[1]) {
+			return p[0], p[1], true
+		}
+	}
+	return "", "", false
+}
 
 // qemuArgs builds the qemu-system-x86_64 command line for a plain VM.
 func qemuArgs(v VM) ([]string, error) {
@@ -38,29 +57,31 @@ func qemuArgs(v VM) ([]string, error) {
 		"-device", "qemu-xhci",
 		"-device", "usb-tablet",
 	}
-	// UEFI when OVMF is installed; otherwise QEMU's built-in SeaBIOS boots the
-	// (hybrid) ISO over legacy BIOS.
-	if fileExists(ovmfCodePath) {
-		vars, err := ensureOvmfVars(v)
+	// UEFI when OVMF is installed (any known location); otherwise QEMU's built-in
+	// SeaBIOS boots the (hybrid) ISO over legacy BIOS.
+	if code, varsTmpl, ok := ovmfPaths(); ok {
+		vars, err := ensureOvmfVars(v, varsTmpl)
 		if err != nil {
 			return nil, err
 		}
 		args = append(args,
-			"-drive", "if=pflash,format=raw,readonly=on,file="+ovmfCodePath,
+			"-drive", "if=pflash,format=raw,readonly=on,file="+code,
 			"-drive", "if=pflash,format=raw,file="+vars)
 	}
-	// Host-GL virtio-gpu when virglrenderer is present; plain virtio-vga else.
-	// The guest renders at the window's PHYSICAL pixels (logical size times the
-	// monitor scale), so a fractionally-scaled (HiDPI) compositor shows it 1:1
-	// instead of upscaling and blurring it. zoom-to-fit covers a manual resize;
-	// the menu bar starts hidden (Ctrl+Alt+M toggles it).
+	// 2D virtio-gpu in a native GTK window, deliberately WITHOUT host GL (no
+	// gl=on). QEMU's GTK GL path leans on the host GPU's EGL stack and is brittle
+	// under Wayland, so a GL window that opened on one GPU failed to start on
+	// another: exactly the hardware-specific trap to avoid. 2D virtio-vga needs no
+	// host GL, so the window behaves identically on AMD, NVIDIA and Intel and
+	// shows a picture for every guest, installers included. 3D belongs to the
+	// passthrough path. The guest renders at the window's PHYSICAL pixels (logical
+	// size times the monitor scale) so a HiDPI compositor shows it 1:1 instead of
+	// upscaling; zoom-to-fit covers a manual resize; the menu bar starts hidden
+	// (Ctrl+Alt+M toggles it).
 	gw, gh := guestRes()
-	res := fmt.Sprintf("xres=%d,yres=%d", gw, gh)
-	if pkgInstalled("virglrenderer") {
-		args = append(args, "-device", "virtio-vga-gl,"+res, "-display", "gtk,gl=on,zoom-to-fit=on,show-menubar=off")
-	} else {
-		args = append(args, "-device", "virtio-vga,"+res, "-display", "gtk,zoom-to-fit=on,show-menubar=off")
-	}
+	args = append(args,
+		"-device", fmt.Sprintf("virtio-vga,xres=%d,yres=%d", gw, gh),
+		"-display", "gtk,zoom-to-fit=on,show-menubar=off")
 	if v.IsoPath != "" {
 		args = append(args, "-drive", "file="+v.IsoPath+",media=cdrom", "-boot", "order=dc,menu=on")
 	}
@@ -116,7 +137,7 @@ func monitorScale() float64 {
 
 // ensureOvmfVars gives the VM its own writable copy of the OVMF variable store
 // (UEFI boot entries), seeded from the system template on first use.
-func ensureOvmfVars(v VM) (string, error) {
+func ensureOvmfVars(v VM, template string) (string, error) {
 	dst := filepath.Join(vmDataDir(), v.Name+"_VARS.fd")
 	if fileExists(dst) {
 		return dst, nil
@@ -124,7 +145,7 @@ func ensureOvmfVars(v VM) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return "", err
 	}
-	data, err := os.ReadFile(ovmfVarsPath)
+	data, err := os.ReadFile(template)
 	if err != nil {
 		return "", err
 	}
@@ -143,12 +164,47 @@ func qemuLaunch(v VM) error {
 	if err != nil {
 		return err
 	}
+	logPath := filepath.Join(vmDataDir(), v.Name+".log")
+	logf, err := os.Create(logPath)
+	if err != nil {
+		return err
+	}
+	defer logf.Close()
 	cmd := exec.Command("qemu-system-x86_64", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Stdout, cmd.Stderr = logf, logf
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	return os.WriteFile(qemuPidPath(v), []byte(strconv.Itoa(cmd.Process.Pid)), 0o644)
+	if err := os.WriteFile(qemuPidPath(v), []byte(strconv.Itoa(cmd.Process.Pid)), 0o644); err != nil {
+		return err
+	}
+	// QEMU fails fast on a bad device, firmware or display. Give it a moment; if
+	// it already exited, surface the log tail instead of a silent, windowless
+	// "launch" the user cannot diagnose.
+	time.Sleep(900 * time.Millisecond)
+	if !qemuRunning(v) {
+		tail := lastLines(readFileString(logPath), 12)
+		if strings.TrimSpace(tail) == "" {
+			tail = "QEMU exited immediately with no output."
+		}
+		return fmt.Errorf("the VM failed to start:\n%s", tail)
+	}
+	return nil
+}
+
+func readFileString(p string) string {
+	b, _ := os.ReadFile(p)
+	return string(b)
+}
+
+// lastLines keeps the final n lines of s, for a compact error tail.
+func lastLines(s string, n int) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
 }
 
 func qemuPid(v VM) int {

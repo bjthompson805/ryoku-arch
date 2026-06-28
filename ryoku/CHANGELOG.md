@@ -214,3 +214,12 @@
   enable aborts the same way instead of writing config over a failed install. The
   Machine tab also re-checks on its own while the install runs, so it advances
   without a manual Recheck.
+- `hub/backend` (`vm`, qemu) + `hub/quickshell/GpuPage`: a windowed VM failed to
+  start on some machines and left a window that could not be closed. It rendered
+  through host GL (`virtio-vga-gl` + `gtk,gl=on`), whose EGL path is brittle under
+  Wayland and depends on the host GPU, so it opened on one GPU and failed to start
+  on another. It now uses 2D `virtio-vga` in a plain GTK window: no host GL,
+  identical on AMD, NVIDIA and Intel, and a picture for every guest (installers
+  included). OVMF firmware is detected across edk2 layouts instead of one
+  hardcoded path, and a launch that dies is reported with QEMU's log tail (and the
+  VM is detected as running, so Stop works) instead of a silent "failed to start".

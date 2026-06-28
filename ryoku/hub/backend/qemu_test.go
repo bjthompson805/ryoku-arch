@@ -20,7 +20,7 @@ func TestQemuArgs(t *testing.T) {
 		}
 	}
 	// a plain VM must never get passthrough / Looking Glass devices.
-	for _, bad := range []string{"vfio-pci", "ivshmem", "kvmfr", "looking-glass"} {
+	for _, bad := range []string{"vfio-pci", "ivshmem", "kvmfr", "looking-glass", "gl=on", "virtio-vga-gl"} {
 		if strings.Contains(joined, bad) {
 			t.Errorf("qemuArgs unexpectedly contains %q", bad)
 		}

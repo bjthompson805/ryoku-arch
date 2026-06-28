@@ -162,10 +162,11 @@ func runVM(args []string) error {
 // Display choice, not its guest OS: a Linux or Windows guest can use either.
 func vmWantsPassthrough(v VM) bool { return v.Display == "passthrough" }
 
-// plainVMPkgs = everything a windowed (non-passthrough) VM needs: the emulator,
-// UEFI firmware, and host-GL acceleration for the virtio-gpu window. all
-// official-repo packages, so a plain pacman install (no AUR) is enough.
-var plainVMPkgs = []string{"qemu-desktop", "edk2-ovmf", "virglrenderer"}
+// plainVMPkgs = everything a windowed (non-passthrough) VM needs: the emulator
+// and UEFI firmware. Both official-repo, so a plain pacman install (no AUR) is
+// enough. No virglrenderer: the window uses 2D virtio-vga, not host GL (qemu.go),
+// so it stays GPU-agnostic.
+var plainVMPkgs = []string{"qemu-desktop", "edk2-ovmf"}
 
 // runVMSetup installs the plain-VM stack. escalates once (pkexec) for pacman;
 // the Hub runs it in a floating terminal so the download stays visible.
