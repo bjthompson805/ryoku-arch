@@ -87,6 +87,14 @@ kitty
 mpv
 nautilus
 
+# Virtual machines (Ryoku Settings > GPU > Machine): a windowed VM runs in QEMU
+# on the host GPU. edk2-ovmf is the UEFI firmware and virglrenderer the host-GL
+# acceleration; the optional GPU-passthrough stack (Looking Glass) installs on
+# demand from Ryoku Settings.
+qemu-desktop
+edk2-ovmf
+virglrenderer
+
 # Shell + CLI
 bash-completion
 bat

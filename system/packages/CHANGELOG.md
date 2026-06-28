@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: add the windowed-VM stack (`qemu-desktop`, `edk2-ovmf`,
+  `virglrenderer`) so a VM launches from Ryoku Settings > GPU > Machine out of the
+  box. The GPU-passthrough extras (Looking Glass, kvmfr) stay AUR and on demand.
 - Cursor themes: ship a curated set of modern XCursor themes the Ryoku Settings
   picker offers, beyond the Bibata family. `base.packages` adds `vimix-cursors`
   (official repo, flat modern); `aur.packages` adds `phinger-cursors` (clean
