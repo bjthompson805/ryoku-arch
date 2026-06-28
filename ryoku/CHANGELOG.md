@@ -199,3 +199,10 @@
   caps call now runs under a hard timeout (its own process group, killed on
   expiry so an orphaned probe can't hold the pipe open), and the page surfaces a
   failed or timed-out probe with a Retry instead of an endless spinner.
+- `shell/deploy.sh` + `hub/backend` (`gpu caps`): a dev deploy installed
+  `ryoku-hub` but not `ryoku-gpu`/`ryoku-gpu-detect`, so the hub called a stale
+  detector that predates `detect --json` and prints its table; the parser then
+  failed with a cryptic "invalid character 'C'". Deploy now installs the GPU
+  detector alongside the hub (fixing both the GPU page and autostart pinning),
+  and `gpu caps` reports an out-of-date `ryoku-gpu` plainly instead of leaking
+  the parser error. Retry clears the prior failure so it visibly re-checks.

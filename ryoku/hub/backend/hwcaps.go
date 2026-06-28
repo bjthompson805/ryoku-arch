@@ -448,6 +448,16 @@ func gpuRecordsFromTool() ([]gpuRecord, error) {
 		}
 		return nil, err
 	}
+	// An out-of-date ryoku-gpu predates `detect --json` and prints its table
+	// instead, which is not JSON. Say so plainly rather than leaking a cryptic
+	// "invalid character 'C'" from the parser.
+	if s := strings.TrimSpace(string(out)); s == "" || s[0] != '[' {
+		head := s
+		if len(head) > 80 {
+			head = head[:80]
+		}
+		return nil, fmt.Errorf("%s detect --json did not return JSON (out-of-date %s?): %q", bin, bin, head)
+	}
 	var recs []gpuRecord
 	if err := json.Unmarshal(out, &recs); err != nil {
 		return nil, err

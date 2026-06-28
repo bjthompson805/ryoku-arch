@@ -67,6 +67,7 @@ Item {
     }
 
     function reload() {
+        page.capsError = "";    // re-checking: clear the old failure so Retry shows progress, not a frozen error
         capsProc.running = true;
         vmProc.running = true;
         modeProc.running = true;

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -257,5 +258,22 @@ func TestGpuRecordsFromToolTimeout(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Fatalf("gpuRecordsFromTool blocked for %s; the timeout did not fire", elapsed)
+	}
+}
+
+func TestGpuRecordsFromToolRejectsNonJSON(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "ryoku-gpu")
+	// an out-of-date ryoku-gpu ignores --json and prints its CARD table.
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho 'CARD    PCI    CLASS'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RYOKU_GPU_BIN", bin)
+	_, err := gpuRecordsFromTool()
+	if err == nil {
+		t.Fatal("expected an error for non-JSON detector output")
+	}
+	if !strings.Contains(err.Error(), "did not return JSON") {
+		t.Fatalf("error = %q, want it to flag the out-of-date detector", err)
 	}
 }
