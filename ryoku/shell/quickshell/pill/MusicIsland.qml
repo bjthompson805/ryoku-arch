@@ -100,6 +100,7 @@ Item {
                     id: art
                     anchors.fill: parent
                     source: root.artUrl
+                    sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                 }

@@ -185,6 +185,7 @@ Item {
                 id: cover
                 anchors.fill: parent
                 source: root.shownArtUrl
+                sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: true
