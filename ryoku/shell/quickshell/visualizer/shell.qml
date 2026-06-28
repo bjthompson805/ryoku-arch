@@ -25,11 +25,13 @@ ShellRoot {
         function overlay(mon: string): void { root.raised = !root.raised; if (root.raised) Config.setEnabled(true); }
     }
 
-    // run cava only while the visualiser is live on the desktop.
+    // run cava only while the visualiser is enabled AND audio is actually
+    // playing, so a quiet desktop spins no analyser. the idle wave (synthetic)
+    // still breathes when enabled, so this changes no visible behaviour.
     Binding {
         target: Spectrum
         property: "active"
-        value: root.enabled
+        value: root.enabled && AudioActivity.playing
     }
 
     // configured band count; changing it restarts cava with the new bars.
