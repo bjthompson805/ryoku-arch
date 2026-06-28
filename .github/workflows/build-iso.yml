@@ -123,7 +123,7 @@ jobs:
             -e HOST_GID="$(id -g)" \
             archlinux:latest \
             bash -euo pipefail -c '
-              # refresh the keyring first: a stale base image can't verify
+              # refresh the keyring first: a stale base image cannot verify
               # packages signed by newly-added packager keys and the upgrade
               # aborts. then full upgrade + install (never a partial -Sy alone).
               pacman -Sy --noconfirm archlinux-keyring
