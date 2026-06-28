@@ -182,9 +182,10 @@
   now explicit rather than inferred from the guest OS, so a Linux or Windows guest
   can use either. The **Graphics** tab keeps the render-mode switch and folds GPU
   passthrough into a clearly labelled advanced block, with the readiness dossier
-  behind a disclosure instead of filling the page. The specimen card drops the
-  passthrough verdict badge for a calm "renders on" headline and a free / drives
-  display tag per GPU. Messages name the actual GPUs throughout, so it is plain
+  behind a disclosure instead of filling the page. The specimen card is a sibling
+  of the Profile card (carbon, holographic wash, cursor foil, parallax tilt, the
+  Ryoku wave): a VRAM badge, the render GPU as the hero, and both GPUs in a dossier
+  box with a DISPLAY/FREE marker. Messages name the actual GPUs throughout, so it is plain
   that a windowed VM uses the discrete GPU and passthrough is a separate, optional
   path. `gpu caps` gains `qemu` and `kvm` flags so the VM tab can tell "install
   QEMU" apart from "virtualization is off in firmware".
