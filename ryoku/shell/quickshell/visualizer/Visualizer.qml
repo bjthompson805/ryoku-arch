@@ -45,11 +45,12 @@ Item {
     property string wavePath: ""
     // sounding = playing now, or just stopped and still easing down.
     readonly property bool sounding: Spectrum.energy > 0.04 || root.activity > 0.02
-    // anything to animate at all? silent + settled + idle wave off -> ticker
-    // stops cold (0 CPU on a quiet desktop) until sound returns. the opt-in
-    // freeze drops the idle wave too, so a silent desktop is fully still.
+    // the idle wave runs unless the user opted to freeze the visualiser while
+    // silent; then a quiet desktop drops to zero CPU, like idle wave off.
     readonly property bool idleFrozen: Performance.freezeVisualizerWhenIdle && !AudioActivity.playing
-    readonly property bool animating: root.sounding || (Config.idleWave && !root.idleFrozen) || root.maxLevel > 0.004
+    readonly property bool wantIdleWave: Config.idleWave && !root.idleFrozen
+    // anything to animate at all? silent, settled, and no wave -> ticker stops.
+    readonly property bool animating: root.sounding || root.wantIdleWave || root.maxLevel > 0.004
 
     function srcIndex(i) {
         if (!root.mirror)
@@ -90,12 +91,12 @@ Item {
         var goal = Spectrum.energy > 0.04 ? 1 : 0;
         var aK = 1 - Math.exp(-dt / (goal > root.activity ? 0.05 : 1.1));
         root.activity += (goal - root.activity) * aK;
-        if (Config.idleWave)
+        if (root.wantIdleWave)
             root.idlePhase += dt * (Math.PI * 2 / 6);
 
         var n = root.bands;
         var prev = root.levels;
-        var idleAmt = Config.idleWave ? (1 - root.activity) : 0;
+        var idleAmt = root.wantIdleWave ? (1 - root.activity) : 0;
         var out = new Array(n);
         for (var i = 0; i < n; i++) {
             var target = root.activity * root.rawLevel(i) + idleAmt * root.idleLevel(i);
@@ -111,7 +112,7 @@ Item {
                 mx = out[j];
         root.maxLevel = mx;
         if (root.style === "wave") {
-            var show = Config.idleWave || mx > 0.003;
+            var show = root.wantIdleWave || mx > 0.003;
             if (show || root.waveOn) {
                 root.wavePath = root.buildWavePath();
                 root.waveOn = show;
@@ -127,7 +128,7 @@ Item {
         var v = (dl && i < dl.length) ? dl[i] : 0;
         // min sliver fades with the spectrum when idle wave is off, so a
         // silent desktop clears fully instead of leaving a thin line.
-        var minH = 2 * root.ui * (Config.idleWave ? 1 : root.activity);
+        var minH = 2 * root.ui * (root.wantIdleWave ? 1 : root.activity);
         return Math.max(minH, root.maxBarH * v);
     }
     function barY(len) {
@@ -152,7 +153,7 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: root.maxBarH * 0.7
-        opacity: (Config.idleWave ? 0.08 : 0) + 0.34 * root.activity
+        opacity: (root.wantIdleWave ? 0.08 : 0) + 0.34 * root.activity
         gradient: Gradient {
             GradientStop { position: 0.0; color: "transparent" }
             GradientStop { position: 1.0; color: Qt.alpha(Wallust.accent, 0.5) }
