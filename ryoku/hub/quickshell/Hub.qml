@@ -37,7 +37,8 @@ Rectangle {
         { "key": "windowrules", "name": "Window Rules",    "icon": "window",   "group": "Advanced" },
         { "key": "layerrules",  "name": "Layer Rules",     "icon": "window",   "group": "Advanced" },
         { "key": "autostart",   "name": "Autostart",       "icon": "rocket",   "group": "Advanced" },
-        { "key": "environment", "name": "Environment",     "icon": "variable", "group": "Advanced" }
+        { "key": "environment", "name": "Environment",     "icon": "variable", "group": "Advanced" },
+        { "key": "performance", "name": "Performance",     "icon": "rocket",   "group": "Advanced" }
     ]
 
     readonly property var pageMeta: ({
@@ -58,7 +59,8 @@ Rectangle {
         "gpu":         { "title": "GPU", "subtitle": "Run a virtual machine, and choose which GPU Ryoku renders on. A VM runs in a window on your GPU with just QEMU; GPU passthrough is an optional advanced path." },
         "updates":     { "title": "Updates", "subtitle": "Updates pending for your Ryoku system." },
         "store":       { "title": "Store", "subtitle": "Browse and install shell plugins and extras bundles for the Ryoku desktop." },
-        "addons":      { "title": "Add-ons", "subtitle": "Your installed plugins. Open one to change its settings, enable it, or remove it." }
+        "addons":      { "title": "Add-ons", "subtitle": "Your installed plugins. Open one to change its settings, enable it, or remove it." },
+        "performance": { "title": "Performance", "subtitle": "Opt-in tweaks that trade a little eye-candy for lower CPU, GPU, and memory use on modest hardware." }
     })
 
     function known(s) {
@@ -150,6 +152,7 @@ Rectangle {
         case "gpu":         return [hypr + "/gpu.lua", hypr + "/user.lua"];
         case "shell":       return [ryoku + "/shell.json", ryoku + "/visualizer.json"];
         case "widgets":     return [ryoku + "/widgets.json"];
+        case "performance": return [ryoku + "/performance.json"];
         default:            return [];
         }
     }
@@ -246,6 +249,7 @@ Rectangle {
         case "gpu": return gpuComp;
         case "store": return storeComp;
         case "addons": return addonsComp;
+        case "performance": return performanceComp;
         default: return shellComp;
         }
     }
@@ -269,6 +273,7 @@ Rectangle {
     Component { id: addonsComp; AddonsPage {} }
     Component { id: connectionsComp; ConnectionsPage {} }
     Component { id: gpuComp; GpuPage {} }
+    Component { id: performanceComp; PerformancePage {} }
 
     Item {
         id: closeBtn

@@ -1,0 +1,60 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls
+import Quickshell
+import Quickshell.Io
+import "Singletons"
+
+// Performance: opt-in tweaks that trade a little eye-candy for lower CPU, GPU,
+// and memory use on modest hardware. Everything here is off by default and
+// writes ~/.config/ryoku/performance.json, which the shell components watch
+// live, so a toggle takes effect with no reload.
+Item {
+    id: page
+
+    FileView {
+        id: cfg
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/performance.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+
+        JsonAdapter {
+            id: adapter
+            property bool pauseWidgetsWhenCovered: false
+        }
+
+        Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
+    }
+
+    Flickable {
+        anchors.fill: parent
+        anchors.margins: 4
+        contentHeight: col.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar {}
+
+        Column {
+            id: col
+            width: parent.width
+            spacing: 26
+
+            SettingSection {
+                width: col.width
+                title: "DESKTOP WIDGETS"
+
+                ToggleRow {
+                    width: parent.width
+                    label: "Pause clock and weather animation while windows cover the desktop"
+                    checked: adapter.pauseWidgetsWhenCovered
+                    onToggled: c => {
+                        adapter.pauseWidgetsWhenCovered = c;
+                        cfg.writeAdapter();
+                    }
+                }
+            }
+        }
+    }
+}
