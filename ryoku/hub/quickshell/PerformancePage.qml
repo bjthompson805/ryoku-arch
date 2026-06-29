@@ -5,10 +5,10 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-// Performance: opt-in tweaks that trade a little eye-candy for lower CPU, GPU,
-// and memory use on modest hardware. Everything here is off by default and
-// writes ~/.config/ryoku/performance.json, which the shell components watch
-// live, so a toggle takes effect with no reload.
+// Performance: tweaks that trade a little eye-candy for lower CPU, GPU, and
+// memory use. Writes ~/.config/ryoku/performance.json, watched live (no reload).
+// Most are opt-in (off); the visualiser freeze defaults on -- its idle animation
+// leaks memory while it runs, and a silent visualiser has nothing to show anyway.
 Item {
     id: page
 
@@ -23,7 +23,7 @@ Item {
         JsonAdapter {
             id: adapter
             property bool pauseWidgetsWhenCovered: false
-            property bool freezeVisualizerWhenIdle: false
+            property bool freezeVisualizerWhenIdle: true
             property bool freezePillWhenIdle: false
             property bool unloadVisualizerWhenSilent: false
             property bool unloadWidgetsWhenCovered: false

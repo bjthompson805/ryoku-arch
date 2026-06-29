@@ -3,9 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Opt-in performance toggles, shared through ~/.config/ryoku/performance.json
-// (the Performance section in Ryoku Settings writes it). Off by default, so the
-// visualiser keeps its idle wave unless a user opts into freezing it.
+// Performance toggles, shared through ~/.config/ryoku/performance.json (the
+// Performance section in Ryoku Settings writes it). The visualiser freezes when
+// silent by default -- its idle animation otherwise leaks on this Qt/NVIDIA stack.
 Singleton {
     id: root
 
@@ -19,7 +19,7 @@ Singleton {
 
         JsonAdapter {
             id: adapter
-            property bool freezeVisualizerWhenIdle: false
+            property bool freezeVisualizerWhenIdle: true
         }
     }
 }
