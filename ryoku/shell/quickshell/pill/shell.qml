@@ -154,8 +154,44 @@ ShellRoot {
             root.close();
             return;
         }
+        root.captureReturn(surface);
         root.openMon = mon;
         root.openSurface = surface;
+    }
+
+    // the window that held keyboard focus before a focus surface grabbed it.
+    // closing the surface drops the layer's Exclusive grab to None, but Hyprland
+    // leaves the keyboard on the released layer -- the window stays "active" yet
+    // can't type until a real focus change. captured on open, restored on close.
+    property string returnAddr: ""
+
+    // address of the currently keyboard-focused window (focusHistoryID 0).
+    function focusedWindowAddr() {
+        var tl = Hyprland.toplevels.values;
+        for (var i = 0; i < tl.length; i++) {
+            var o = tl[i] ? tl[i].lastIpcObject : null;
+            if (o && o.focusHistoryID === 0)
+                return o.address || "";
+        }
+        return "";
+    }
+
+    // remember the focused window when the first focus surface opens (voice never
+    // grabs the keyboard, so it needs no handback).
+    function captureReturn(surface) {
+        if (surface !== "voice" && root.openSurface === "")
+            root.returnAddr = root.focusedWindowAddr();
+    }
+
+    // hand keyboard focus back to the window the surface stole it from. a plain
+    // refocus is a no-op (Hyprland still considers it active), so bounce off the
+    // next window to force the keyboard off the released layer, then focus back.
+    // the brief sleep lets the intermediate focus change register before the
+    // focus-back -- the sequence verified to actually recover keyboard input.
+    function restoreFocus(addr) {
+        Quickshell.execDetached(["sh", "-c",
+            "hyprctl dispatch 'hl.dsp.window.cycle_next()'; sleep 0.05; "
+            + "hyprctl dispatch 'hl.dsp.focus({ window = \"address:" + addr + "\" })'"]);
     }
 
     function close() {
@@ -164,11 +200,16 @@ ShellRoot {
         // daemon-driven hide clears Keyring first, so dismiss() is a no-op.
         if (root.openSurface === "keyring")
             Keyring.dismiss();
+        var ret = root.returnAddr;
+        root.returnAddr = "";
         root.openMon = "";
         root.openSurface = "";
+        if (ret !== "")
+            root.restoreFocus(ret);
     }
 
     function show(mon, surface) {
+        root.captureReturn(surface);
         root.openMon = mon;
         root.openSurface = surface;
     }

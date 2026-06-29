@@ -197,6 +197,17 @@
   audio), and the pill bead and WaveMeter are held static at rest. Anything the
   user is actively watching (music spectrum, weather on an empty desktop) animates
   as before; only the idle case, with nothing to show, holds still.
+- `shell/quickshell/pill`: opening a pill surface that grabs the keyboard (the
+  control deck, launcher, clipboard, calendar, ...) and closing it left the
+  previously focused window un-typeable. The pill is one always-mapped layer that
+  toggles its keyboard focus Exclusive while a surface is open and None when it
+  closes; Hyprland leaves the keyboard on the released layer (the window still
+  reports as active, so a plain refocus is a no-op) until a real focus change.
+  On close the shell now hands focus back to the active window by bouncing off the
+  next window and refocusing it. A launched app still wins (it maps and grabs
+  focus via focus_on_activate after the handback). Verified live with synthetic
+  keystrokes: typing is dead after closing the deck without the fix and restored
+  with it, and the launcher still focuses the app it launched.
 - `hub/backend/qemu`: a windowed VM booted to the UEFI shell / PXE ("failed to
   load Boot0002 ... Not Found", then "Start PXE over IPv4") instead of the
   installer ISO, even with the ISO correctly attached. OVMF boots by its own
