@@ -308,10 +308,12 @@ Item {
         }
     }
 
-    // idle swirl/breath ticker. opt-in freeze stops it so a quiet pill is a
-    // static bead at zero CPU; interaction still animates via FrameAnimation.
+    // the resting bead is static by default: its 12fps Canvas swirl ran 24/7 and
+    // leaked memory through QtQuick's Canvas (GBs over a day's uptime). it still
+    // animates during morphs/flights (FrameAnimation, while busy) and while an
+    // interactive surface is open; only the idle "rest" glow is held still.
     Timer {
-        running: root.visible && !root.busy && !Performance.freezePillWhenIdle
+        running: root.visible && !root.busy && root.activeForm !== "rest" && !Performance.freezePillWhenIdle
         interval: root.blinking ? 33 : 83
         repeat: true
         onTriggered: {
