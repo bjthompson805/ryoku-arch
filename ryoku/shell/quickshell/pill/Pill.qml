@@ -352,7 +352,9 @@ Item {
         heat: 0
         wake: pill.wakePoint
         wickDir: -1
-        form: pill.ameSurface ? pill.ameSurface.ameForm : "off"
+        // bead removed: never renders. the anchor machinery (ameSurface/soulPoint)
+        // is left dormant to avoid destabilizing the untested hover/morph wiring.
+        form: "off"
         point: pill.ameSurface
             ? Qt.point(pill.ameSurface.x + pill.ameSurface.amePoint.x,
                        pill.ameSurface.y + pill.ameSurface.amePoint.y)
