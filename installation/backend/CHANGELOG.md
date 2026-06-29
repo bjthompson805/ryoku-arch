@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Fixed
+- The installer no longer wipes the disk before it can fetch packages.
+  `pacstrap` resolves mirror hostnames, but a live box can have a default route
+  (so the TUI reports "online") and still no working resolver, so the install
+  partitioned the disk and then died at "Could not resolve host". A new
+  `ryoku_ensure_dns` runs in preflight, before any disk write: it verifies name
+  resolution, drops in public resolvers (1.1.1.1, 9.9.9.9, 8.8.8.8) when the live
+  resolver is empty, and on a genuinely offline box aborts with the disk
+  untouched instead of stranding a wiped disk at pacstrap. Covered by
+  `tests/install-dns.sh`.
+- `RYOKU_REPO` now defaults to `/usr/share/ryoku`, where `build.sh` bakes the
+  repo payload, instead of the stale `/run/ryoku`. A backend launched without the
+  installer session's export (a manual run, or the serial console's plain shell)
+  read `/run/ryoku`, which does not exist, and died at "missing package list"
+  only after the disk was already wiped. Preflight now also checks the payload
+  (`system/packages/base.packages`) up front, so a missing or mispointed payload
+  aborts before the wipe with the disk intact.
 - `lib/mirrors.sh` ranks the package mirrors before pacstrap so a user far from
   the shipped mirrors no longer stalls the install. The static list leads with a
   CDN mirror, but a user that CDN routes badly still hit "failed retrieving

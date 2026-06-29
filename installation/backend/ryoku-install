@@ -65,7 +65,7 @@ source "$LIB_DIR/snapshots.sh"
 : "${RYOKU_SUBVOL_SNAPSHOTS:=1}"
 : "${RYOKU_SUBVOL_HOME:=1}"
 : "${RYOKU_SUBVOL_BACKUPS:=0}"
-: "${RYOKU_REPO:=/run/ryoku}"
+: "${RYOKU_REPO:=/usr/share/ryoku}"
 : "${RYOKU_ONLINE:=1}"
 # normalize the env-only switches so set -u + shellcheck stay quiet.
 : "${RYOKU_DISK:=}"
@@ -90,6 +90,7 @@ main() {
   log "Ryoku install: disk=$RYOKU_DISK host=$RYOKU_HOSTNAME user=$RYOKU_USERNAME profile=$RYOKU_PROFILE"
 
   ryoku_preflight
+  ryoku_ensure_dns
 
   step partition
   ryoku_partition

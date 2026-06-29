@@ -14,7 +14,9 @@
 #      *.nmconnection) into the target, preserving the 600 root:root perms NM
 #      requires. otherwise the credentials evaporate on reboot.
 #
-# runs in the "configure" stage. everything routes through the dry-run wrappers.
+# ryoku_network runs in the "configure" stage; ryoku_ensure_dns runs at
+# preflight, before the disk is touched. everything routes through the dry-run
+# wrappers.
 
 ryoku_network() {
   log "persisting NetworkManager configuration into the target"
@@ -59,4 +61,48 @@ ryoku_network_connections() {
   chmod 600 "$dst"/*.nmconnection
   chown root:root "$dst"/*.nmconnection
   log "carried over ${#files[@]} saved network profile(s)"
+}
+
+# ryoku_ensure_dns: pacstrap and the desktop set resolve mirror hostnames, but a
+# live box can have a route (so the TUI's reachability check passes) and still no
+# working resolver -- NetworkManager over iwd may not populate /etc/resolv.conf,
+# and the install then dies at pacstrap with "Could not resolve host" AFTER the
+# disk is wiped. Verify name resolution; if it is broken, drop in public
+# resolvers and re-test; on a genuinely offline box abort HERE, before the disk
+# is touched, instead of stranding a wiped disk. Runs at preflight, before
+# partitioning. RYOKU_RESOLV_CONF overrides the resolver file (tests only).
+ryoku_ensure_dns() {
+  if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+    log "dns: would verify name resolution and write fallback resolvers (1.1.1.1, 9.9.9.9, 8.8.8.8) if it fails"
+    return 0
+  fi
+  [[ ${RYOKU_ONLINE:-1} == 1 ]] || { log "dns: offline install, skipping the resolver check"; return 0; }
+
+  if ryoku_dns_works; then
+    log "dns: name resolution works"
+    return 0
+  fi
+
+  local resolv=${RYOKU_RESOLV_CONF:-/etc/resolv.conf}
+  log "dns: cannot resolve mirror hostnames; writing fallback resolvers to $resolv"
+  rm -f -- "$resolv" 2>/dev/null || true
+  printf 'nameserver 1.1.1.1\nnameserver 9.9.9.9\nnameserver 8.8.8.8\n' >"$resolv"
+
+  if ryoku_dns_works; then
+    log "dns: name resolution restored with the fallback resolvers"
+    return 0
+  fi
+  die "no working DNS: cannot resolve package mirrors even with public resolvers. Connect to a working network (the Wi-Fi step, or plug in Ethernet) and retry. The disk has not been touched yet."
+}
+
+# ryoku_dns_works: can the system resolver turn a hostname into an address? uses
+# the same nsswitch path pacman and curl take, so it reflects what pacstrap will
+# see. tries more than one host so a single dead domain does not read as a dead
+# resolver. RYOKU_DNS_PROBE_HOSTS overrides the probe set (tests only).
+ryoku_dns_works() {
+  local host
+  for host in ${RYOKU_DNS_PROBE_HOSTS:-archlinux.org geo.mirror.pkgbuild.com}; do
+    getent hosts "$host" >/dev/null 2>&1 && return 0
+  done
+  return 1
 }
