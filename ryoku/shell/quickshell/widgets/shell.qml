@@ -41,15 +41,17 @@ ShellRoot {
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Bottom
             WlrLayershell.namespace: "ryoku-widgets"
-            // None on purpose. a full-screen Bottom layer that holds kb focus
-            // keeps it on an EMPTY workspace (nothing above to steal it), so
-            // the next-opened window stays unfocused until you move the mouse
-            // or hit a focus bind. pointer is unaffected: layer-shell routes
-            // clicks by input region, not kb interactivity (the visualiser
-            // relies on the same fact), so drag + the right-click menu still
-            // fire. a plugin tile that needs kb grabs its own focused item
-            // rather than holding the whole surface.
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            // None while nothing on this layer wants the keyboard, so this
+            // full-screen Bottom layer never holds focus on an empty workspace
+            // (which would otherwise leave the next-opened window unfocused).
+            // A plugin tile's focused text field bumps `kbWanted`; the layer
+            // then grabs the keyboard (the same exclusive grab the pill uses for
+            // its launcher) so the field can be typed in, and releases it the
+            // moment the field blurs. pointer input is unaffected either way -
+            // layer-shell routes clicks by input region, not kb interactivity -
+            // so drag and the right-click menu always fire.
+            property int kbWanted: 0
+            WlrLayershell.keyboardFocus: kbWanted > 0 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
             anchors { top: true; left: true; right: true; bottom: true }
 
@@ -65,6 +67,27 @@ ShellRoot {
             function placementOf(id) {
                 const p = win.desktopPlugins.find(pp => pp.id === id);
                 return (p && p.placement && p.placement.desktopWidget) || {};
+            }
+
+            // the Repeater below is keyed by this id list, not by `desktopPlugins`
+            // directly: any placement write (drag, resize, settings) rewrites
+            // plugins.json and Registry reparses to a brand-new array, so binding
+            // the Repeater to that array would tear down and rebuild every tile -
+            // and its service - on every move, throwing away the open search and
+            // page. the id list only changes when a plugin is enabled or
+            // disabled, so moving a tile keeps its delegate and its live service.
+            property var desktopPluginIds: []
+            function syncDesktopIds() {
+                const ids = win.desktopPlugins.map(p => p.id);
+                const same = ids.length === win.desktopPluginIds.length
+                    && ids.every((id, i) => id === win.desktopPluginIds[i]);
+                if (!same)
+                    win.desktopPluginIds = ids;
+            }
+            Component.onCompleted: win.syncDesktopIds()
+            Connections {
+                target: Registry
+                function onPluginsChanged() { win.syncDesktopIds(); }
             }
 
             // right-click empty desktop = global menu. sits behind the widgets
@@ -123,61 +146,71 @@ ShellRoot {
             // Lock right after a drag can't stomp an in-flight write on
             // `persist`.
             Repeater {
-                model: win.desktopPlugins
+                model: win.desktopPluginIds
                 delegate: PluginDesktopSlot {
                     id: slot
-                    required property var modelData
-                    readonly property var place: modelData.placement
-                    pluginId: modelData.id
-                    locked: (place.desktopWidget && place.desktopWidget.locked === true) || false
-                    scaleCfg: (place.desktopWidget && place.desktopWidget.scale) || 0.85
-                    freeX: (place.desktopWidget && place.desktopWidget.x !== undefined) ? place.desktopWidget.x : 80
-                    freeY: (place.desktopWidget && place.desktopWidget.y !== undefined) ? place.desktopWidget.y : 80
-                    bg: (place.desktopWidget && place.desktopWidget.bg) ? place.desktopWidget.bg : ((modelData.manifest && modelData.manifest.defaults && modelData.manifest.defaults.desktopWidget && modelData.manifest.defaults.desktopWidget.bg) || "card")
-                    radius: (place.desktopWidget && place.desktopWidget.radius) || 26
+                    required property string modelData
+                    readonly property string pid: modelData
+                    // live registry entry for this id, re-resolved whenever
+                    // Registry reloads. placement (x/y/scale/bg) updates here
+                    // without rebuilding the delegate, because the model is the
+                    // stable id list, not the per-write plugin array.
+                    readonly property var entry: Registry.plugins.find(p => p.id === slot.pid) || null
+                    readonly property var dw: (entry && entry.placement && entry.placement.desktopWidget) || ({})
+                    readonly property string dir: entry ? entry.dir : ""
 
-                    // drag commit: write new free pos. ryoku-plugins-place
-                    // merges into plugins.json, the Registry's file-watch
-                    // retunes every surface.
+                    pluginId: slot.pid
+                    locked: slot.dw.locked === true
+                    scaleCfg: slot.dw.scale || 0.85
+                    freeX: slot.dw.x !== undefined ? slot.dw.x : 80
+                    freeY: slot.dw.y !== undefined ? slot.dw.y : 80
+                    bg: slot.dw.bg ? slot.dw.bg : ((entry && entry.manifest && entry.manifest.defaults && entry.manifest.defaults.desktopWidget && entry.manifest.defaults.desktopWidget.bg) || "card")
+                    radius: slot.dw.radius || 26
+
                     onMoved: (x, y) => {
-                        persist.command = ["ryoku-plugins-place", modelData.id, "desktopWidget", "" + x, "" + y];
+                        persist.command = ["ryoku-plugins-place", slot.pid, "desktopWidget", "" + x, "" + y];
                         persist.running = true;
                     }
-
-                    // resize commit: scale + pinned top-left + current locked
-                    // flag, so a partial write never drops siblings.
                     onResized: (sc) => {
-                        const dw = (slot.place && slot.place.desktopWidget) || {};
-                        const x = (dw.x !== undefined) ? dw.x : Math.round(slot.x);
-                        const y = (dw.y !== undefined) ? dw.y : Math.round(slot.y);
-                        const lk = (dw.locked === true);
-                        persist.command = ["ryoku-plugins-place", modelData.id, "desktopWidget",
+                        const x = (slot.dw.x !== undefined) ? slot.dw.x : Math.round(slot.x);
+                        const y = (slot.dw.y !== undefined) ? slot.dw.y : Math.round(slot.y);
+                        const lk = (slot.dw.locked === true);
+                        persist.command = ["ryoku-plugins-place", slot.pid, "desktopWidget",
                             "" + x, "" + y, "" + sc, "" + lk];
                         persist.running = true;
                     }
-
                     onMenuRequested: (mx, my, id) => {
-                        const dw = win.placementOf(id);
-                        pluginMenu.openFor(id, dw.locked === true, mx, my,
-                            slot.modelData.manifest, slot.modelData.placement);
+                        pluginMenu.openFor(id, slot.dw.locked === true, mx, my,
+                            slot.entry ? slot.entry.manifest : null,
+                            slot.entry ? slot.entry.placement : null);
                     }
+
+                    // when the content exposes `editing` (a focused text field),
+                    // the wallpaper layer grabs the keyboard for as long as it
+                    // stays true. the flag falls back to false if the content is
+                    // ever torn down, so the grab can't leak.
+                    readonly property bool editing: !!(item && item.editing)
+                    onEditingChanged: win.kbWanted += editing ? 1 : -1
+                    Component.onDestruction: if (editing) win.kbWanted -= 1
 
                     property var api: QtObject {
                         property var mainInstance: svc.item
-                        property var pluginSettings: (slot.place && slot.place.settings) ? slot.place.settings : ({})
-                        property string pluginDir: slot.modelData.dir
+                        property var pluginSettings: (slot.entry && slot.entry.placement && slot.entry.placement.settings) ? slot.entry.placement.settings : ({})
+                        property string pluginDir: slot.dir
                         function saveSettings() {}
                     }
 
                     Loader {
                         id: svc
-                        source: "file://" + modelData.dir + "/service/Main.qml"
+                        active: slot.dir.length > 0
+                        source: slot.dir.length > 0 ? "file://" + slot.dir + "/service/Main.qml" : ""
                         onLoaded: if (item) item.pluginApi = slot.api
                     }
 
-                    contentUrl: "file://" + slot.modelData.dir + "/content/Widget.qml"
+                    contentUrl: slot.dir.length > 0 ? "file://" + slot.dir + "/content/Widget.qml" : ""
                     configure: (it) => {
                         it.pluginApi = slot.api;
+                        it.screen = win.screen;
                         it.density = "compact";
                         it.s = 1;
                         it.widthBudget = 360;
