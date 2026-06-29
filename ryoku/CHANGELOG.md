@@ -4,8 +4,8 @@
 
 ### Added
 - `hub/quickshell/PerformancePage` + `shell/quickshell/{visualizer,pill,widgets}`:
-  a **Performance Optimizations** section in Ryoku Settings, opt-in tweaks for
-  modest hardware that are all off by default and written to
+  a **Performance Optimizations** section in Ryoku Settings, tweaks for modest
+  hardware (most off by default; the visualiser freeze defaults on) and written to
   `~/.config/ryoku/performance.json` (watched live, no reload). Freeze the
   visualiser when no audio plays (it stops drawing at zero CPU and resumes on
   sound), unload the visualiser entirely when silent to free its ~190 MB of
@@ -189,6 +189,14 @@
   `shell/fish` (with its non-brand greeting) was dropped for `ryoku/apps/fish`.
 
 ### Fixed
+- `shell/quickshell/{visualizer,pill}`: a memory leak on this Qt 6.11 / NVIDIA
+  stack where any continuously-animating element grows RSS without bound (a plain
+  rotating rectangle leaks ~0.9 MB/min and never settles; a frozen visualiser
+  stays flat at ~188 MB). The always-on idle animations were the cause, so the
+  visualiser idle wave now freezes when silent by default (resuming instantly on
+  audio), and the pill bead and WaveMeter are held static at rest. Anything the
+  user is actively watching (music spectrum, weather on an empty desktop) animates
+  as before; only the idle case, with nothing to show, holds still.
 - `hub/backend/qemu`: a windowed VM booted to the UEFI shell / PXE ("failed to
   load Boot0002 ... Not Found", then "Start PXE over IPv4") instead of the
   installer ISO, even with the ISO correctly attached. OVMF boots by its own
