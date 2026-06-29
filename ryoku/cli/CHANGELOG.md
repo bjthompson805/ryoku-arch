@@ -13,6 +13,14 @@
   one-line answer back-channel). Standalone `ryoku doctor` stays recommend-only.
 
 ### Fixed
+- `doctor` gains an "SDDM greeter theme" reconciler. Picking a lockscreen skin in
+  Ryoku Settings copies it into the SDDM greeter dir; a catalogue skin downloaded
+  into a 0700 user-owned temp dir was copied verbatim, so the unprivileged `sddm`
+  greeter could not read `/usr/share/sddm/themes/ryoku` and SDDM fell back to its
+  embedded theme on every boot. The reconciler normalizes that one fixed dir to
+  root-owned and world-readable (`a+rX`) when it has drifted, healing boxes that
+  picked a skin before the `ryoku-hub` fix. Idempotent and quiet on a healthy box.
+  Covered by `doctor_test.go`.
 - `ryoku update` reconciles a checkout that diverged from its channel instead of
   dead-ending. A box that ever deployed `unstable-dev` sits on commits
   `origin/main` lacks, so the fast-forward failed and the Hub kept showing the

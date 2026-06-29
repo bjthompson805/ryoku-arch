@@ -398,3 +398,27 @@ func TestReconcileCursorThemeNotDesktop(t *testing.T) {
 		t.Fatalf("off a Hyprland desktop the cursor check must be ok, got %q: %s", r.status.label(), r.detail)
 	}
 }
+
+// The sddm greeter (neither owner nor group member of the theme) reads it only
+// through the world bits, and the dir must be root-owned. The broken case the
+// reconciler heals is a catalogue skin left 0700 user-owned by an old `cp -a`.
+func TestGreeterThemeHealthy(t *testing.T) {
+	cases := []struct {
+		name     string
+		uid      uint32
+		dir, qml os.FileMode
+		want     bool
+	}{
+		{"root-owned, world-readable (fresh install)", 0, 0o755, 0o644, true},
+		{"user-owned 0700 catalogue skin (the bug)", 1000, 0o700, 0o644, false},
+		{"user-owned but world-readable: still wrong owner", 1000, 0o755, 0o644, false},
+		{"root-owned but dir not traversable by other", 0, 0o700, 0o644, false},
+		{"root-owned but Main.qml not world-readable", 0, 0o755, 0o600, false},
+		{"root-owned group-only: sddm is other, not group", 0, 0o750, 0o640, false},
+	}
+	for _, c := range cases {
+		if got := greeterThemeHealthy(c.uid, c.dir, c.qml); got != c.want {
+			t.Errorf("%s: greeterThemeHealthy(%d, %o, %o) = %v, want %v", c.name, c.uid, c.dir, c.qml, got, c.want)
+		}
+	}
+}

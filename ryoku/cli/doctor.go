@@ -95,6 +95,7 @@ func reconcilers() []reconciler {
 		{"ryoku package channel", reconcileRyokuChannel},
 		{"desktop session components", reconcileSessionComponents},
 		{"cursor theme", reconcileCursorTheme},
+		{"SDDM greeter theme", reconcileGreeterTheme},
 		{"Hyprland config integrity", reconcileHyprlandConfig},
 		{"ryoku shell daemon", reconcileShellDaemon},
 		{"failed services", reconcileFailedUnits},
@@ -753,6 +754,54 @@ func reconcileCursorTheme(_ bool) recResult {
 	}
 	return warnRes("Ryoku's Bibata cursor themes are missing; the cursor picker has only fallbacks").
 		withFix("ryoku-pkg-aur-add bibata-cursor-theme-bin")
+}
+
+// ---- reconciler: SDDM greeter theme readable ---------------------------------
+
+const greeterThemeDir = "/usr/share/sddm/themes/ryoku"
+
+// greeterThemeHealthy: can the unprivileged `sddm` greeter read the theme? sddm
+// is neither the owner nor a group member, so readability rides on the world
+// bits -- the theme dir needs o+rx and Main.qml o+r. root ownership is required
+// too, so a regular user can't swap the QML the login screen loads.
+func greeterThemeHealthy(ownerUID uint32, dirPerm, mainPerm os.FileMode) bool {
+	return ownerUID == 0 && dirPerm&0o005 == 0o005 && mainPerm&0o004 != 0
+}
+
+// reconcileGreeterTheme keeps the SDDM greeter theme readable by the sddm user.
+// `ryoku-hub lock set` copies the picked skin into the fixed greeter dir; a skin
+// pulled from the catalogue downloads into an os.MkdirTemp dir (always 0700,
+// user-owned), so an older `cp -a` left the greeter unreadable to sddm and SDDM
+// silently fell back to its embedded theme on every boot. installGreeter now
+// normalizes on write; this backports the fix to boxes that already picked a
+// skin. only ever touches the one fixed Ryoku greeter dir.
+func reconcileGreeterTheme(checkOnly bool) recResult {
+	di, err := os.Stat(greeterThemeDir)
+	if err != nil {
+		return okRes("no Ryoku greeter theme installed")
+	}
+	mi, err := os.Stat(filepath.Join(greeterThemeDir, "Main.qml"))
+	if err != nil {
+		return okRes("no Ryoku greeter theme installed")
+	}
+	st, ok := di.Sys().(*syscall.Stat_t)
+	if !ok {
+		return okRes("greeter theme ownership not checkable")
+	}
+	if greeterThemeHealthy(st.Uid, di.Mode().Perm(), mi.Mode().Perm()) {
+		return okRes("greeter theme readable by the sddm greeter")
+	}
+	fix := fmt.Sprintf("sudo chown -R root:root %s && sudo chmod -R a+rX %s", greeterThemeDir, greeterThemeDir)
+	if checkOnly {
+		return wouldRes("greeter theme unreadable by the sddm greeter; SDDM falls back to its default").withFix(fix)
+	}
+	if err := run("sudo", "chown", "-R", "root:root", greeterThemeDir); err != nil {
+		return failRes("could not fix greeter theme ownership: %v", err).withFix(fix)
+	}
+	if err := run("sudo", "chmod", "-R", "a+rX", greeterThemeDir); err != nil {
+		return failRes("could not fix greeter theme permissions: %v", err).withFix(fix)
+	}
+	return fixedRes("normalized greeter theme so the sddm greeter can read it")
 }
 
 // ---- reconciler: ryoku shell daemon ------------------------------------------
