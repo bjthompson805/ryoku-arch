@@ -3,9 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// Ryoku wave used as a meter. line runs the full width dim, bright (brand)
-// crest fills left to `frac`-width -- lit length = value. travels gently while
-// visible. used for RAM + disk on the system card. set `frac` (0..1) and a width.
+// Ryoku wave used as a meter: dim line full-width, bright (brand) crest fills
+// left to `frac` -- lit length = value. held static; its idle Canvas ripple
+// repainted ~25fps forever and leaked memory. RAM + disk on the system card.
 Item {
     id: root
 
@@ -22,7 +22,6 @@ Item {
     Canvas {
         id: canvas
         anchors.fill: parent
-        property real phase: 0
 
         onPaint: {
             const ctx = getContext("2d");
@@ -39,7 +38,7 @@ Item {
             ctx.strokeStyle = Qt.alpha(Theme.brand, 0.18);
             ctx.beginPath();
             for (let x = 0; x <= w; x += 1.5) {
-                const y = mid + root.amp * Math.sin(x * k + phase);
+                const y = mid + root.amp * Math.sin(x * k);
                 if (x === 0)
                     ctx.moveTo(x, y);
                 else
@@ -51,23 +50,13 @@ Item {
                 ctx.strokeStyle = Theme.brand;
                 ctx.beginPath();
                 for (let x = 0; x <= fill; x += 1.5) {
-                    const y = mid + root.amp * Math.sin(x * k + phase);
+                    const y = mid + root.amp * Math.sin(x * k);
                     if (x === 0)
                         ctx.moveTo(x, y);
                     else
                         ctx.lineTo(x, y);
                 }
                 ctx.stroke();
-            }
-        }
-
-        Timer {
-            interval: 40
-            running: root.visible
-            repeat: true
-            onTriggered: {
-                canvas.phase = (canvas.phase + 0.09) % 6.28318;
-                canvas.requestPaint();
             }
         }
 
