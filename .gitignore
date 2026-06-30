@@ -7,6 +7,7 @@
 /ryoku/hub/backend/ryoku-hub
 /ryoku/cli/ryoku
 /ryoku/cli/ryoku-cli
+/ryoku/apps/ryovm/fetch/ryovm-fetch
 /ryoku/shell/plugin/build/
 /ryoku/shell/plugin/dist/
 /release/repo/out/
@@ -35,3 +36,6 @@
 # Local development plans and specs: kept local (or under ~/Work), never committed.
 /docs/superpowers/plans/
 /docs/superpowers/specs/
+
+# Developer scratch: local reports and working notes, never part of Ryoku.
+/local/
