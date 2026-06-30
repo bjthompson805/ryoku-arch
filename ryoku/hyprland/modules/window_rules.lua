@@ -72,6 +72,14 @@ hl.window_rule({
 })
 
 hl.window_rule({
+    name   = "float-wallhaven",
+    match  = { title = "^(Wallhaven)$" },
+    float  = true,
+    size   = { 1180, 760 },
+    center = true,
+})
+
+hl.window_rule({
     name   = "float-ryoku-extras",
     match  = { class = "ryoku-extras" },
     float  = true,

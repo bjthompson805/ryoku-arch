@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Engine for the Wallhaven app: search and download from wallhaven.cc, plus a
+# palette verb that prints an image's wallust scheme to stdout without touching
+# the live theme (for the preview). WALLHAVEN_API_KEY raises limits, unlocks NSFW.
+set -euo pipefail
+
+api="https://wallhaven.cc/api/v1"
+dest="$HOME/Pictures/Wallpapers"
+key="${WALLHAVEN_API_KEY:-}"
+
+auth=()
+[ -n "$key" ] && auth=(-H "X-API-Key: $key")
+
+cmd="${1:-}"; shift || true
+
+case "$cmd" in
+search)
+	query=""; page=1; top_range=""; ratios=""; purity=""; as_json=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--query) query="$2"; shift 2 ;;
+		--page) page="$2"; shift 2 ;;
+		--top-range) top_range="$2"; shift 2 ;;
+		--ratios) ratios="$2"; shift 2 ;;
+		--purity) purity="$2"; shift 2 ;;
+		--json) as_json=1; shift ;;
+		*) shift ;;
+		esac
+	done
+	params=(-G "$api/search" --data-urlencode "page=$page")
+	if [ -n "$top_range" ]; then
+		params+=(--data-urlencode "sorting=toplist" --data-urlencode "topRange=$top_range")
+	else
+		params+=(--data-urlencode "sorting=date_added")
+	fi
+	[ -n "$query" ] && params+=(--data-urlencode "q=$query")
+	[ -n "$ratios" ] && params+=(--data-urlencode "ratios=$ratios")
+	[ -n "$purity" ] && params+=(--data-urlencode "purity=$purity")
+	resp="$(curl -fsSL "${auth[@]}" "${params[@]}")"
+	if [ "$as_json" = 1 ]; then
+		jq -c '.data[] | {
+			id: .id,
+			path: .path,
+			thumb: .thumbs.small,
+			resolution: .resolution,
+			name: .id,
+			wallhaven_url: .url
+		}' <<<"$resp"
+	else
+		jq -r '.data[].path' <<<"$resp"
+	fi
+	;;
+download)
+	id="${1:?id required}"; url="${2:?url required}"
+	mkdir -p "$dest"
+	ext="${url##*.}"; [ "${#ext}" -gt 5 ] && ext="jpg"
+	out="$dest/wallhaven-$id.$ext"
+	curl -fsSL "${auth[@]}" "$url" -o "$out"
+	printf '%s\n' "$out"
+	;;
+palette)
+	url="${1:?image url required}"
+	tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+	img="$tmp/img"
+	curl -fsSL "${auth[@]}" "$url" -o "$img"
+	# Skip templates, sequences and hooks and point the cache at the scratch
+	# dir, so generating the scheme never disturbs the running desktop.
+	XDG_CACHE_HOME="$tmp/cache" wallust run "$img" -T -s -q --no-hooks --print-scheme
+	;;
+*)
+	echo "usage: ryoku-wallhaven search --query <q> --page <n> [--top-range <r>] [--ratios <r>] --json | download <id> <url> | palette <url>" >&2
+	exit 2
+	;;
+esac
