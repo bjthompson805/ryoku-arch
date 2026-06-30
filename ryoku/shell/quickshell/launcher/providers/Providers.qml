@@ -4,6 +4,7 @@ import "apps"
 import "calc"
 import "clipboard"
 import "files"
+import "media/mpris"
 import "packages"
 import "snippets"
 import "web"
@@ -19,6 +20,7 @@ Item {
     Calc {}
     Clipboard {}
     Files {}
+    Mpris {}
     Packages {}
     Snippets {}
     Web {}
