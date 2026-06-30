@@ -14,12 +14,14 @@ Item {
     property string modeLabel: ""   // e.g. "FILE", "PKG", "CALC"; "" at root
     property int resultCount: 0
     property int totalCount: 0
+    property bool gridActive: false
     readonly property alias input: field
 
     signal moved(int delta)
     signal accepted()
     signal dismissed()
     signal keyPressed(var event)
+    signal gridToggled()
 
     height: Metrics.searchHeight * s
 
@@ -100,12 +102,50 @@ Item {
     Text {
         id: counter
         anchors.verticalCenter: parent.verticalCenter
-        anchors.right: parent.right
-        anchors.rightMargin: Metrics.padOuter * root.s
+        anchors.right: gridBtn.left
+        anchors.rightMargin: 10 * root.s
         text: root.text.length ? (root.resultCount + " / " + root.totalCount) : ""
         color: Theme.faint
         font.family: Theme.font
         font.pixelSize: 10 * root.s
         font.features: { "tnum": 1 }
+    }
+
+    // all-apps toggle: a 3x3 tile glyph (drawn, not a font, so it can't tofu).
+    // Vermilion when the grid is open or hovered. Clears any query and shows the
+    // alphabetical grid; click again to close.
+    Rectangle {
+        id: gridBtn
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right: parent.right
+        anchors.rightMargin: (Metrics.padOuter - 6) * root.s
+        width: 30 * root.s
+        height: 30 * root.s
+        radius: Metrics.radiusGlyph * root.s
+        color: gridArea.containsMouse || root.gridActive ? Theme.frameBg : "transparent"
+
+        Grid {
+            anchors.centerIn: parent
+            columns: 3
+            rowSpacing: 3 * root.s
+            columnSpacing: 3 * root.s
+            Repeater {
+                model: 9
+                Rectangle {
+                    width: 3.5 * root.s
+                    height: 3.5 * root.s
+                    radius: 1 * root.s
+                    color: gridArea.containsMouse || root.gridActive ? Theme.vermLit : Theme.iconDim
+                }
+            }
+        }
+
+        MouseArea {
+            id: gridArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.gridToggled()
+        }
     }
 }

@@ -128,10 +128,19 @@ Item {
         resultCount: root.results.length
         totalCount: root.totalCount
         modeLabel: root.modeLabel
+        gridActive: root.gridMode
         onTextChanged: { root.query = text; list.selectedIndex = 0; }
         onMoved: (d) => { if (panel.open) panel.move(d); else if (root.gridMode) appGrid.move(d * root.gridColumnsForMove); else list.move(d); }
         onAccepted: { if (panel.open) panel.run(); else if (root.gridMode) appGrid.activate(); else list.activate(); }
         onDismissed: { if (panel.open) panel.open = false; else if (root.allApps) root.allApps = false; else root.requestClose(); }
+        onGridToggled: {
+            if (root.gridMode) {
+                root.allApps = false;
+            } else {
+                search.clear();
+                root.allApps = true;
+            }
+        }
         onKeyPressed: (e) => {
             if (e.key === Qt.Key_K && (e.modifiers & Qt.ControlModifier)) {
                 if (root.selectedActions.length > 0)

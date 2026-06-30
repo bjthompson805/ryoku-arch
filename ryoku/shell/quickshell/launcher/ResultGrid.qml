@@ -65,6 +65,68 @@ Flickable {
         width: grid.width
         spacing: 8 * grid.s
 
+        // inir-style header: a drawn 3x3 mark, the title in the accent, the
+        // "alphabetical index" subtitle, and the app count on the right.
+        Item {
+            width: column.width
+            height: 34 * grid.s
+
+            Rectangle {
+                id: mark
+                anchors.left: parent.left
+                anchors.leftMargin: 6 * grid.s
+                anchors.verticalCenter: parent.verticalCenter
+                width: 26 * grid.s
+                height: 26 * grid.s
+                radius: Metrics.radiusGlyph * grid.s
+                color: Theme.frameBg
+                Grid {
+                    anchors.centerIn: parent
+                    columns: 3
+                    rowSpacing: 3 * grid.s
+                    columnSpacing: 3 * grid.s
+                    Repeater {
+                        model: 9
+                        Rectangle {
+                            width: 3.5 * grid.s
+                            height: 3.5 * grid.s
+                            radius: 1 * grid.s
+                            color: Theme.vermLit
+                        }
+                    }
+                }
+            }
+            Column {
+                anchors.left: mark.right
+                anchors.leftMargin: 11 * grid.s
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 0
+                Text {
+                    text: "All apps"
+                    color: Theme.verm
+                    font.family: Theme.font
+                    font.pixelSize: Metrics.fontSection * grid.s
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    text: "Alphabetical index"
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: Metrics.fontEyebrow * grid.s
+                }
+            }
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 6 * grid.s
+                anchors.verticalCenter: parent.verticalCenter
+                text: grid.entries.length + " apps"
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Metrics.fontEyebrow * grid.s
+                font.features: { "tnum": 1 }
+            }
+        }
+
         Repeater {
             model: grid.sections.length
 
