@@ -96,6 +96,9 @@ Item {
 
     implicitWidth: cardW
     implicitHeight: search.height + divider.height + contentH + Metrics.padOuter * 2 * s
+    // height as if at rest (no results/tabs). The window anchors the card top off
+    // this so typing grows the body downward while the search row stays put.
+    readonly property real restingHeight: search.height + divider.height + restH + Metrics.padOuter * 2 * s
 
     Behavior on implicitHeight {
         NumberAnimation { duration: Motion.morph; easing.type: Motion.easeMorph; easing.bezierCurve: Motion.morphCurve }

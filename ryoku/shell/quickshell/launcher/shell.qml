@@ -108,7 +108,9 @@ ShellRoot {
                 id: launcher
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
-                anchors.topMargin: Math.round((parent.height - implicitHeight) * 0.32)
+                // off resting height, not the live one, so growing results push the
+                // body down while the search row holds its position.
+                anchors.topMargin: Math.round((parent.height - launcher.restingHeight) * 0.32)
                 s: win.s
                 shown: win.shown
                 onRequestClose: root.hide()
