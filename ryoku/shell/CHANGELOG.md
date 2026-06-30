@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Added
+- `quickshell/launcher` a standalone command palette (`Super + Space`), a full
+  rebuild of the old pill app-list, dropped from the pill so it has room for a
+  Raycast/Alfred-class feature set. A daemon-supervised, kept-warm Quickshell
+  component (`ryoku-shell launcher`) with provider folders under `providers/`:
+  apps, calculator (qalc), system actions (`/`), clipboard (`;`), windows, web
+  (`?` + bangs), files (fd), snippets + quicklinks, packages (GPK), MPRIS
+  now-playing, Spotify catalog (`s:`, Web API via `ryoku-shell spotify`),
+  YouTube Music (`@`, yt-dlp + mpv), and a rofi-script/dmenu protocol provider for
+  third-party scripts. Two-tier UX (root search + `Ctrl+K` action panel), an
+  all-apps grid (`Ctrl+A`), and a now-playing detail with the wavy seekbar.
+  Ranking and protocol logic are `lib/*.js` with `node` tests. Documented in
+  `docs/launcher.md`. Blur via the `launcher` layer rule in
+  `hyprland/modules/decoration.lua`; the `launcher` verb moves from the pill to
+  the standalone component in `ipc/daemon.go`. Adds `ryoku-cmd-songrec`.
 - `deploy.sh` installs the Ryoku VM launcher icon (the brand mark) into the user
   icon theme, so the **Ryoku VM** app entry shows the logo instead of a blank tile.
 - `quickshell/pill` Control Deck: a **Game Mode** row in Utilities, a labeled
