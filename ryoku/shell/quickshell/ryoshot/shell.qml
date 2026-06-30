@@ -416,12 +416,15 @@ ShellRoot {
         id: saveDialog
         stdout: StdioCollector { id: saveOut }
         function open() {
-            command = ["kdialog", "--getsavefilename", root.savedAuto, "*.png"];
+            command = ["sh", "-c",
+                "zenity --file-selection --save --filename=\"$1\" --file-filter='PNG | *.png' 2>/dev/null"
+                + " || kdialog --getsavefilename \"$1\" '*.png' 2>/dev/null",
+                "_", root.savedAuto];
             running = true;
         }
         onExited: (code) => {
             var chosen = saveOut.text.trim();
-            console.log("ryoshot: kdialog exit " + code + " path=" + JSON.stringify(chosen));
+            console.log("ryoshot: save-dialog exit " + code + " path=" + JSON.stringify(chosen));
             if (code === 0 && chosen.length > 0) {
                 if (chosen !== root.savedAuto) copyFileProc.run(root.savedAuto, chosen);
                 else Qt.quit();

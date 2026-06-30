@@ -286,6 +286,18 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `quickshell/ryoshot`: the screenshot key (`Super + S`) silently stopped working
+  after a **Save** from the toolbar. Save grabbed the shot to the auto-path, then
+  ran `kdialog` to pick a destination - but `kdialog` is a KDE tool that Ryoku
+  (Hyprland) does not ship, so the `Process` failed to *start*, and a process that
+  never starts never fires `onExited`. `dialogMode` stayed `true` forever; the
+  per-monitor overlays are `visible: !dialogMode`, so the surface went invisible
+  while the instance stayed alive holding `/tmp/ryoshot.lock`. The keybind's
+  `flock -n` then turned every later `Super + S` into a silent no-op. The save
+  picker now runs through `sh -c "zenity ... || kdialog ..."` (zenity is already a
+  dep; kdialog kept as fallback), matching `ryovm`'s `ImportDialog`. Because the
+  `sh` wrapper always starts, `onExited` always fires, so a missing or cancelled
+  picker drops `dialogMode` and returns to the editor instead of wedging.
 - `quickshell/pill`: an app launched from the pill launcher (notably
   Discord/Electron and Vivaldi/Chromium) sometimes came up un-typeable until you
   moved it to another monitor or reopened it. The pill is a full-screen
