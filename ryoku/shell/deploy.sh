@@ -141,6 +141,20 @@ cp -a "$here/quickshell/." "$cfg/quickshell/"
 mkdir -p "$cfg/quickshell/hub"
 cp -a "$here/../hub/quickshell/." "$cfg/quickshell/hub/"
 
+# First-party GUI apps: each ryoku/apps/<name>/quickshell ships as qs -c <name>,
+# launched from a keybind and a .desktop entry. Drop in a new app dir and it ships.
+appshare="${XDG_DATA_HOME:-$HOME/.local/share}"
+for appdir in "$here"/../apps/*/; do
+  [[ -d "${appdir}quickshell" ]] || continue
+  appname="$(basename "$appdir")"
+  mkdir -p "$cfg/quickshell/$appname"
+  cp -a "${appdir}quickshell/." "$cfg/quickshell/$appname/"
+  for b in "${appdir}bin/"*; do [[ -f "$b" ]] && install -m755 "$b" "$bindir/$(basename "$b")"; done
+  for d in "${appdir}"*.desktop; do [[ -f "$d" ]] && install -Dm644 "$d" "$appshare/applications/$(basename "$d")"; done
+  install -Dm644 "$here/../assets/brand/logo-mark.svg" "$appshare/icons/hicolor/scalable/apps/$appname.svg"
+  say "installed app $appname -> $cfg/quickshell/$appname"
+done
+
 # Pause Hyprland's config auto-reload so the hypr swap below never exposes a
 # missing hyprland.lua (which would trip emergency mode).
 if (( hypr_live )); then
