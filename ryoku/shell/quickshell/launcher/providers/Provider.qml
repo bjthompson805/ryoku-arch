@@ -1,0 +1,23 @@
+import QtQuick
+
+// Base contract every launcher provider implements. A provider answers a query
+// with result rows; the dispatcher routes a prefixed query to the matching
+// provider and fans an unprefixed one across the default set.
+//
+// query(text) returns an array of result objects:
+//   { title, subtitle, icon, type, score, actions: [{ name, icon, execute }],
+//     view? }
+// Lower score ranks higher. `prefix` is one char ("=", ";", "/", ...) or "".
+// `defaultProvider` includes the provider in the unprefixed fan-out.
+QtObject {
+    id: provider
+
+    property string providerId: ""
+    property string prefix: ""
+    property bool defaultProvider: true
+
+    // Override in a concrete provider. Default is no results.
+    function query(text) {
+        return [];
+    }
+}
