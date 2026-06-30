@@ -19,6 +19,9 @@ Singleton {
     readonly property real gapTab:    16
 
     readonly property real radiusWindow: 16
+    // rest card: one step inside the window radius (and the Hyprland window
+    // rounding of 16) so nested corners read as concentric, not arbitrary.
+    readonly property real radiusCard:   12
     readonly property real radiusRow:    9
     readonly property real radiusTag:    6
     readonly property real radiusGlyph:  9

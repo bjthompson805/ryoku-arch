@@ -2,25 +2,23 @@ import QtQuick
 import Quickshell
 import "Singletons"
 
-// Zero-query home: a single card with the time, the date, and a greeting that
-// shifts with the hour. Shown when the search field is empty, the way the inir
-// rest screen reads before you type.
+// Zero-query home: one filled card. The clock sits on the left (mono numerals
+// with a vermilion colon), a weather glance on the right fills what was dead
+// space. Mixed-case date + greeting; corner radius steps one inside the window so
+// nested corners read concentric. No accent bar.
 Item {
     id: root
 
     property real s: 1
-    implicitHeight: 74 * s
+    implicitHeight: 86 * s
 
     readonly property var now: clock.date
     readonly property string hh: Qt.formatTime(now, "HH")
     readonly property string mm: Qt.formatTime(now, "mm")
-    readonly property string meta: {
-        var loc = Qt.locale("en_US");
-        var wd = loc.toString(now, "ddd").toUpperCase();
-        var dt = loc.toString(now, "MMM d").toUpperCase();
+    readonly property string date: Qt.locale("en_US").toString(now, "dddd, MMM d")
+    readonly property string greeting: {
         var h = now.getHours();
-        var g = h < 5 ? "GOOD NIGHT" : h < 12 ? "GOOD MORNING" : h < 18 ? "GOOD AFTERNOON" : "GOOD EVENING";
-        return wd + "  \u00b7  " + dt + "  \u00b7  " + g;
+        return h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
     }
 
     SystemClock {
@@ -28,61 +26,85 @@ Item {
         precision: SystemClock.Minutes
     }
 
-    // left accent rule: the vermilion brand bar the time hangs off, so the rest
-    // screen reads as an intentional masthead, not a boxed card.
     Rectangle {
-        id: rule
-        anchors.left: parent.left
-        anchors.leftMargin: Metrics.padRow * root.s
-        anchors.verticalCenter: parent.verticalCenter
-        width: 3 * root.s
-        height: 52 * root.s
-        radius: 1.5 * root.s
-        color: Theme.verm
-    }
+        anchors.fill: parent
+        radius: Metrics.radiusCard * root.s
+        color: Theme.frameBg
+        border.width: 1
+        border.color: Theme.hair
 
-    Row {
-        id: timeRow
-        anchors.left: rule.right
-        anchors.leftMargin: 14 * root.s
-        anchors.top: parent.top
-        anchors.topMargin: 10 * root.s
-        spacing: 0
+        Column {
+            anchors.left: parent.left
+            anchors.leftMargin: 16 * root.s
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3 * root.s
 
-        Text {
-            text: root.hh
-            color: Theme.bright
-            font.family: Theme.mono
-            font.pixelSize: 38 * root.s
-            font.weight: Font.Medium
-            font.features: { "tnum": 1 }
+            Row {
+                spacing: 0
+                Text {
+                    text: root.hh
+                    color: Theme.bright
+                    font.family: Theme.mono
+                    font.pixelSize: 34 * root.s
+                    font.weight: Font.Medium
+                    font.features: { "tnum": 1 }
+                }
+                Text {
+                    text: ":"
+                    color: Theme.verm
+                    font.family: Theme.mono
+                    font.pixelSize: 34 * root.s
+                    font.weight: Font.Medium
+                }
+                Text {
+                    text: root.mm
+                    color: Theme.bright
+                    font.family: Theme.mono
+                    font.pixelSize: 34 * root.s
+                    font.weight: Font.Medium
+                    font.features: { "tnum": 1 }
+                }
+            }
+            Text {
+                text: root.greeting
+                color: Theme.subtle
+                font.family: Theme.font
+                font.pixelSize: Metrics.fontSubtitle * root.s
+            }
         }
-        Text {
-            text: ":"
-            color: Theme.verm
-            font.family: Theme.mono
-            font.pixelSize: 38 * root.s
-            font.weight: Font.Medium
-        }
-        Text {
-            text: root.mm
-            color: Theme.bright
-            font.family: Theme.mono
-            font.pixelSize: 38 * root.s
-            font.weight: Font.Medium
-            font.features: { "tnum": 1 }
-        }
-    }
 
-    Text {
-        anchors.left: rule.right
-        anchors.leftMargin: 15 * root.s
-        anchors.top: timeRow.bottom
-        anchors.topMargin: 2 * root.s
-        text: root.meta
-        color: Theme.faint
-        font.family: Theme.mono
-        font.pixelSize: Metrics.fontEyebrow * root.s
-        font.letterSpacing: 1.5
+        // weather glance, or just the date until weather resolves, so the right
+        // column is never empty.
+        Column {
+            anchors.right: parent.right
+            anchors.rightMargin: 16 * root.s
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3 * root.s
+
+            Text {
+                anchors.right: parent.right
+                text: Weather.available ? Weather.temp : root.date
+                color: Theme.bright
+                font.family: Theme.font
+                font.pixelSize: Weather.available ? 22 * root.s : 13 * root.s
+                font.weight: Weather.available ? Font.Medium : Font.Normal
+            }
+            Text {
+                anchors.right: parent.right
+                visible: Weather.available
+                text: Weather.condition + (Weather.city.length ? "  \u00b7  " + Weather.city : "")
+                color: Theme.subtle
+                font.family: Theme.font
+                font.pixelSize: Metrics.fontSubtitle * root.s
+            }
+            Text {
+                anchors.right: parent.right
+                visible: Weather.available
+                text: root.date
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Metrics.fontEyebrow * root.s
+            }
+        }
     }
 }
