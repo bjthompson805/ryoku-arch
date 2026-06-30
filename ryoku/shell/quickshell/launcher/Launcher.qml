@@ -16,6 +16,7 @@ Item {
     property bool shown: false
     property string query: ""
     property bool allApps: false
+    property bool help: false
 
     signal requestClose()
 
@@ -88,7 +89,8 @@ Item {
     readonly property real gridH: 380 * s
     readonly property real tabsH: actionBrowse ? tabs.implicitHeight + 6 * s : 0
     readonly property real restH: rest.implicitHeight + (hasMedia ? nowPlaying.implicitHeight + Metrics.padRow * s : 0)
-    readonly property real bodyH: gridMode ? gridH
+    readonly property real bodyH: help ? helpPanel.implicitHeight
+        : gridMode ? gridH
         : (resting ? restH
         : (results.length > 0 ? listH
         : (searching ? loading.height : empty.height)))
@@ -128,13 +130,14 @@ Item {
         if (shown) {
             root.query = "";
             root.allApps = false;
+            root.help = false;
             search.clear();
             list.selectedIndex = 0;
             panel.open = false;
             Qt.callLater(search.focusField);
         }
     }
-    onQueryChanged: { panel.open = false; if (query.length > 0) root.allApps = false; }
+    onQueryChanged: { panel.open = false; if (query.length > 0) { root.allApps = false; root.help = false; } }
 
     Squircle {
         anchors.fill: parent
@@ -156,10 +159,11 @@ Item {
         totalCount: root.totalCount
         modeLabel: root.modeLabel
         gridActive: root.gridMode
+        helpActive: root.help
         onTextChanged: { root.query = text; list.selectedIndex = 0; }
         onMoved: (d) => { if (panel.open) panel.move(d); else if (root.gridMode) appGrid.move(d * root.gridColumnsForMove); else list.move(d); }
         onAccepted: { if (panel.open) panel.run(); else if (root.gridMode) appGrid.activate(); else list.activate(); }
-        onDismissed: { if (panel.open) panel.open = false; else if (root.allApps) root.allApps = false; else root.requestClose(); }
+        onDismissed: { if (panel.open) panel.open = false; else if (root.help) root.help = false; else if (root.allApps) root.allApps = false; else root.requestClose(); }
         onGridToggled: {
             if (root.gridMode) {
                 root.allApps = false;
@@ -167,6 +171,10 @@ Item {
                 search.clear();
                 root.allApps = true;
             }
+        }
+        onHelpToggled: {
+            root.help = !root.help;
+            if (root.help) { search.clear(); root.allApps = false; }
         }
         onKeyPressed: (e) => {
             if (e.key === Qt.Key_K && (e.modifiers & Qt.ControlModifier)) {
@@ -212,7 +220,19 @@ Item {
 
     RestDashboard {
         id: rest
-        visible: root.resting && !root.allApps
+        visible: root.resting && !root.allApps && !root.help
+        anchors.top: divider.bottom
+        anchors.topMargin: Metrics.padRow * root.s
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: Metrics.padOuter * root.s
+        anchors.rightMargin: Metrics.padOuter * root.s
+        s: root.s
+    }
+
+    HelpPanel {
+        id: helpPanel
+        visible: root.help
         anchors.top: divider.bottom
         anchors.topMargin: Metrics.padRow * root.s
         anchors.left: parent.left
@@ -224,7 +244,7 @@ Item {
 
     NowPlaying {
         id: nowPlaying
-        visible: root.resting && !root.allApps && root.hasMedia
+        visible: root.resting && !root.allApps && !root.help && root.hasMedia
         anchors.top: rest.bottom
         anchors.topMargin: Metrics.padRow * root.s
         anchors.left: parent.left

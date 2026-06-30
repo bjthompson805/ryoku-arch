@@ -15,6 +15,7 @@ Item {
     property int resultCount: 0
     property int totalCount: 0
     property bool gridActive: false
+    property bool helpActive: false
     readonly property alias input: field
 
     signal moved(int delta)
@@ -22,6 +23,7 @@ Item {
     signal dismissed()
     signal keyPressed(var event)
     signal gridToggled()
+    signal helpToggled()
 
     height: Metrics.searchHeight * s
 
@@ -66,6 +68,9 @@ Item {
             if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
                 root.accepted();
                 e.accepted = true;
+            } else if (e.key === Qt.Key_F1) {
+                root.helpToggled();
+                e.accepted = true;
             } else if (e.key === Qt.Key_Escape) {
                 root.dismissed();
                 e.accepted = true;
@@ -102,13 +107,43 @@ Item {
     Text {
         id: counter
         anchors.verticalCenter: parent.verticalCenter
-        anchors.right: gridBtn.left
+        anchors.right: helpBtn.left
         anchors.rightMargin: 10 * root.s
         text: root.text.length ? (root.resultCount + " / " + root.totalCount) : ""
         color: Theme.faint
         font.family: Theme.font
         font.pixelSize: 10 * root.s
         font.features: { "tnum": 1 }
+    }
+
+    // help toggle: a plain "?" (ASCII, never tofu). Opens the cheat-sheet panel;
+    // click again to close.
+    Rectangle {
+        id: helpBtn
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right: gridBtn.left
+        anchors.rightMargin: 4 * root.s
+        width: 30 * root.s
+        height: 30 * root.s
+        radius: Metrics.radiusGlyph * root.s
+        color: helpArea.containsMouse || root.helpActive ? Theme.frameBg : "transparent"
+
+        Text {
+            anchors.centerIn: parent
+            text: "?"
+            color: helpArea.containsMouse || root.helpActive ? Theme.vermLit : Theme.iconDim
+            font.family: Theme.font
+            font.pixelSize: 15 * root.s
+            font.weight: Font.DemiBold
+        }
+
+        MouseArea {
+            id: helpArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.helpToggled()
+        }
     }
 
     // all-apps toggle: a 3x3 tile glyph (drawn, not a font, so it can't tofu).
