@@ -8,6 +8,7 @@ import "media/mpris"
 import "media/spotify"
 import "media/ytmusic"
 import "packages"
+import "script"
 import "snippets"
 import "web"
 import "windows"
@@ -26,6 +27,7 @@ Item {
     Spotify {}
     YtMusic {}
     Packages {}
+    Script {}
     Snippets {}
     Web {}
     Windows {}
