@@ -1,5 +1,6 @@
 import QtQuick
 import "apps"
+import "calc"
 import "web"
 
 // Instantiates every launcher provider so each registers itself with the
@@ -7,5 +8,6 @@ import "web"
 // dispatcher discovers it by registration, never by an edit to the routing.
 Item {
     Apps {}
+    Calc {}
     Web {}
 }

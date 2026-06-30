@@ -15,6 +15,9 @@ QtObject {
     property string providerId: ""
     property string prefix: ""
     property bool defaultProvider: true
+    // when true and not a default provider, the dispatcher still includes this
+    // provider in the fan-out for a numeric-looking query (e.g. the calculator).
+    property bool numericFallback: false
 
     // Override in a concrete provider. Default is no results.
     function query(text) {

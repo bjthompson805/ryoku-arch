@@ -27,8 +27,16 @@ Singleton {
         return Dispatch.routePrefix(text, root.prefixes);
     }
 
-    // Merged, score-sorted, capped result rows for the current query.
+    // Bumped by async providers when a background query resolves; the launcher's
+    // results binding reads it so a late result (qalc, fd, gpk, music) repaints
+    // without the user retyping.
+    property int revision: 0
+    function notifyAsync() { root.revision++; }
+
+    // Merged, score-sorted, capped result rows for the current query. Reads
+    // `revision` so async caches re-pull on resolve.
     function results(text, limit) {
+        void root.revision;
         var r = Dispatch.routePrefix(text, root.prefixes);
         var rows = [];
         if (r.provider) {
@@ -39,6 +47,8 @@ Singleton {
             for (var id in root.registry) {
                 var prov = root.registry[id];
                 if (prov && prov.defaultProvider)
+                    rows = rows.concat(prov.query(r.query));
+                else if (prov && prov.numericFallback && Dispatch.looksNumeric(r.query))
                     rows = rows.concat(prov.query(r.query));
             }
             rows.sort(function (a, b) {
