@@ -19,14 +19,25 @@ Item {
     readonly property color cCyan:   Wallhaven.col(6, "#6f9aa0")
     readonly property color cAccent: cBlue
 
-    // wallpaper backdrop. the larger thumb keeps the preview crisp, not upscaled.
+    // wallpaper backdrop. a quick thumb shows instantly; the full image fades in
+    // on top at a capped decode size, so the preview is crisp, never upscaled.
     Image {
         anchors.fill: parent
         asynchronous: true
         cache: true
         fillMode: Image.PreserveAspectCrop
-        sourceSize: Qt.size(Math.ceil(width * 1.3), Math.ceil(height * 1.3))
+        sourceSize: Qt.size(Math.ceil(width), Math.ceil(height))
         source: Wallhaven.selected ? (Wallhaven.selected.large || Wallhaven.selected.thumb) : ""
+    }
+    Image {
+        anchors.fill: parent
+        asynchronous: true
+        cache: true
+        fillMode: Image.PreserveAspectCrop
+        sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
+        source: Wallhaven.selected ? Wallhaven.selected.path : ""
+        opacity: status === Image.Ready ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.medium } }
     }
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.16) }
 
