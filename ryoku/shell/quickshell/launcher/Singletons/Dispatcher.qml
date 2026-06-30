@@ -15,7 +15,7 @@ Singleton {
         if (!provider || !provider.providerId)
             return;
         root.registry[provider.providerId] = provider;
-        if (provider.prefix && provider.prefix.length === 1) {
+        if (provider.prefix && provider.prefix.length >= 1) {
             var p = root.prefixes;
             p[provider.prefix] = provider.providerId;
             root.prefixes = p;

@@ -37,6 +37,11 @@ func main() {
 		}
 		return
 	}
+	// spotify runs client-local: it talks to the Spotify Web API directly, not
+	// the daemon socket.
+	if args[0] == "spotify" {
+		os.Exit(runSpotify(args[1:]))
+	}
 	if err := sendCommand(strings.Join(args, " ")); err != nil {
 		fmt.Fprintln(os.Stderr, "ryoku-shell:", err)
 		os.Exit(1)

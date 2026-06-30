@@ -1,12 +1,19 @@
-// Search-text routing: a leading prefix char selects a provider and is stripped
-// from the query; anything else fans out to the default providers. Pure logic so
+// Search-text routing: a leading prefix (one or more chars) selects a provider
+// and is stripped from the query; anything else fans out to the default
+// providers. Longest prefix wins, so "s:" beats a hypothetical "s". Pure logic so
 // the dispatcher's routing is unit-tested without a running shell.
 
 function routePrefix(text, prefixes) {
     var s = String(text == null ? "" : text);
-    var head = s.charAt(0);
-    if (head && prefixes && Object.prototype.hasOwnProperty.call(prefixes, head))
-        return { provider: prefixes[head], query: s.slice(1).replace(/^\s+/, "") };
+    if (prefixes) {
+        var best = "";
+        for (var p in prefixes) {
+            if (p.length > 0 && s.indexOf(p) === 0 && p.length > best.length)
+                best = p;
+        }
+        if (best.length > 0)
+            return { provider: prefixes[best], query: s.slice(best.length).replace(/^\s+/, "") };
+    }
     return { provider: null, query: s };
 }
 

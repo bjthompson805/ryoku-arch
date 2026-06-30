@@ -10,7 +10,7 @@ function eq(actual, expected, msg) {
     else { failed++; console.log("FAIL " + msg + "\n  expected " + e + "\n  got      " + a); }
 }
 
-const prefixes = { "=": "calc", ";": "clipboard", ":": "emoji", "/": "actions", "$": "shell", "?": "web", ">": "apps" };
+const prefixes = { "=": "calc", ";": "clipboard", ":": "emoji", "/": "actions", "$": "shell", "?": "web", ">": "apps", "s:": "spotify", "@": "ytmusic" };
 
 eq(routePrefix("=2+2", prefixes), { provider: "calc", query: "2+2" }, "math prefix routes and strips");
 eq(routePrefix(";link", prefixes), { provider: "clipboard", query: "link" }, "clipboard prefix routes");
@@ -20,6 +20,9 @@ eq(routePrefix("firefox", prefixes), { provider: null, query: "firefox" }, "no p
 eq(routePrefix("", prefixes), { provider: null, query: "" }, "empty text is default with empty query");
 eq(routePrefix("= 2 + 2", prefixes), { provider: "calc", query: "2 + 2" }, "prefix strips a following space");
 eq(routePrefix("?", prefixes), { provider: "web", query: "" }, "bare prefix routes with empty query");
+eq(routePrefix("s:daft punk", prefixes), { provider: "spotify", query: "daft punk" }, "multi-char prefix routes and strips");
+eq(routePrefix("settings", prefixes), { provider: null, query: "settings" }, "a word starting with s is not the spotify prefix");
+eq(routePrefix("@lofi", prefixes), { provider: "ytmusic", query: "lofi" }, "single-char @ prefix routes");
 
 eq(looksNumeric("2+2"), true, "leading digit looks numeric");
 eq(looksNumeric("3 * 4"), true, "leading digit with spaces looks numeric");
