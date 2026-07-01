@@ -21,6 +21,7 @@ Item {
     property string view: "grid"      // grid | detail
     property var sel: ({})            // selected { id, dir, manifest, placement }
     property string busyId: ""
+    property var catalog: []          // available versions, from the Store catalogue
 
     readonly property string shellDir: Quickshell.env("RYOKU_SHELL_DIR")
     readonly property string script: (shellDir && shellDir.length > 0)
@@ -28,6 +29,35 @@ Item {
         : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/plugins/discover.sh"
 
     function refresh() { listProc.running = false; listProc.running = true; }
+    function loadCatalog() { catProc.running = false; catProc.running = true; }
+    function catalogEntry(id) {
+        for (var i = 0; i < page.catalog.length; i++) if (page.catalog[i].id === id) return page.catalog[i];
+        return null;
+    }
+    // semver compare: 1 if a>b, 0 equal, -1 if a<b. missing parts = 0.
+    function cmpSemver(a, b) {
+        var pa = String(a || "0").split(".").map(function (n) { return parseInt(n, 10) || 0; });
+        var pb = String(b || "0").split(".").map(function (n) { return parseInt(n, 10) || 0; });
+        for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+            var x = pa[i] || 0, y = pb[i] || 0;
+            if (x !== y) return x < y ? -1 : 1;
+        }
+        return 0;
+    }
+    // an installed plugin -> the newer catalogue version, or "" when up to date
+    // / unknown. Drives the Update button beside Remove.
+    function updateFor(pl) {
+        var inst = (pl && pl.manifest && pl.manifest.version) ? pl.manifest.version : "";
+        var ce = page.catalogEntry(pl ? pl.id : "");
+        var avail = ce ? (ce.version || "") : "";
+        if (!inst || !avail) return "";
+        return page.cmpSemver(avail, inst) > 0 ? avail : "";
+    }
+    function install(id) {
+        page.busyId = id;
+        installProc.command = ["ryoku-hub", "extras", "plugin", id];
+        installProc.running = true;
+    }
     function reselect() {
         if (!page.sel || !page.sel.id) return;
         for (var i = 0; i < page.plugins.length; i++)
@@ -52,7 +82,7 @@ Item {
         rmProc.running = true;
     }
 
-    Component.onCompleted: page.refresh()
+    Component.onCompleted: { page.refresh(); page.loadCatalog(); }
 
     Process {
         id: listProc
@@ -68,6 +98,14 @@ Item {
     Process { id: placeProc; onExited: page.refresh() }
     Process { id: settingsProc; onExited: page.refresh() }
     Process { id: rmProc; onExited: { page.busyId = ""; page.view = "grid"; page.refresh(); } }
+    Process {
+        id: catProc
+        command: ["ryoku-hub", "extras", "plugincatalog"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { page.catalog = (JSON.parse(text || "{}").plugins) || []; } catch (e) { page.catalog = []; } }
+        }
+    }
+    Process { id: installProc; onExited: { page.busyId = ""; page.refresh(); page.loadCatalog(); } }
 
     ShowcaseBackdrop { anchors.fill: parent; visible: page.view === "grid" }
 
@@ -254,33 +292,74 @@ Item {
                         font.pixelSize: 22
                         font.weight: Font.DemiBold
                     }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (page.sel.manifest && page.sel.manifest.version) ? ("v" + page.sel.manifest.version) : ""
+                        visible: text !== ""
+                        color: Theme.faint
+                        font.family: Theme.mono
+                        font.pixelSize: 13
+                        font.weight: Font.Medium
+                    }
                 }
                 HoverHandler { id: backHov; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: page.view = "grid" }
 
                 // remove.
-                Rectangle {
+                Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    height: 30
-                    width: rmLabel.implicitWidth + 22
-                    radius: 8
-                    color: "transparent"
-                    border.width: 1
-                    border.color: rmHov.hovered ? Theme.bad : Theme.line
-                    Behavior on border.color { ColorAnimation { duration: Theme.quick } }
-                    Text {
-                        id: rmLabel
-                        anchors.centerIn: parent
-                        text: "REMOVE"
-                        color: rmHov.hovered ? Theme.bad : Theme.dim
-                        font.family: Theme.mono
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 1.5
+                    spacing: 10
+
+                    // UPDATE: only when the catalogue has a newer version.
+                    Rectangle {
+                        visible: page.updateFor(page.sel) !== ""
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: 30
+                        width: updLabel.implicitWidth + 22
+                        radius: 8
+                        color: updHov.hovered ? Theme.frameBg : "transparent"
+                        border.width: 1
+                        border.color: Theme.ember
+                        opacity: page.busyId === page.sel.id ? 0.6 : 1
+                        Behavior on color { ColorAnimation { duration: Theme.quick } }
+                        Text {
+                            id: updLabel
+                            anchors.centerIn: parent
+                            text: page.busyId === page.sel.id ? "UPDATING" : ("UPDATE " + page.updateFor(page.sel))
+                            color: Theme.ember
+                            font.family: Theme.mono
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 1.5
+                        }
+                        HoverHandler { id: updHov; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { enabled: page.busyId === ""; onTapped: page.install(page.sel.id) }
                     }
-                    HoverHandler { id: rmHov; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: page.removePlugin(page.sel.id) }
+
+                    // REMOVE.
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: 30
+                        width: rmLabel.implicitWidth + 22
+                        radius: 8
+                        color: "transparent"
+                        border.width: 1
+                        border.color: rmHov.hovered ? Theme.bad : Theme.line
+                        Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+                        Text {
+                            id: rmLabel
+                            anchors.centerIn: parent
+                            text: "REMOVE"
+                            color: rmHov.hovered ? Theme.bad : Theme.dim
+                            font.family: Theme.mono
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 1.5
+                        }
+                        HoverHandler { id: rmHov; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: page.removePlugin(page.sel.id) }
+                    }
                 }
             }
 
