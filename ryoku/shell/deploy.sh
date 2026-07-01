@@ -167,6 +167,12 @@ for appdir in "$here"/../apps/*/; do
   say "installed app $appname -> $cfg/quickshell/$appname"
 done
 
+# Nautilus stash actions (a nautilus-python extension). Installs ship it system-wide
+# from the ryoku-desktop package; the dev loop drops it in the user extensions dir.
+install -Dm644 "$here/../apps/nautilus/ryoku-stash-menu.py" \
+  "$appshare/nautilus-python/extensions/ryoku-stash-menu.py"
+say "installed nautilus stash menu -> $appshare/nautilus-python/extensions"
+
 # Pause Hyprland's config auto-reload so the hypr swap below never exposes a
 # missing hyprland.lua (which would trip emergency mode).
 if (( hypr_live )); then

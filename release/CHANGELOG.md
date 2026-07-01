@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `ryoku-desktop` ships the Nautilus stash menu extension
+  (`ryoku/apps/nautilus/ryoku-stash-menu.py`) to
+  `/usr/share/nautilus-python/extensions/`, so the file-manager Install / Compress
+  / LocalSend actions load for every user with no per-user materialize step.
 - `ryoku-desktop` ships the first-party GUI apps (`ryovm`, `ryowalls`) via a
   generic apps loop: each `apps/<name>/quickshell` config, its `bin/` and Go
   helpers (e.g. `ryovm-fetch`), its `.desktop`, and its `logo.svg` as the launcher

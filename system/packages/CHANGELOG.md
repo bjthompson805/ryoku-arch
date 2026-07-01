@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: add `nautilus-python`, which runs the Ryoku stash actions
+  (Install, Compress, Send with LocalSend) in the Nautilus right-click menu.
 - `base.packages`: ship the launcher's three missing tools so its features work
   on a fresh install: `libqalculate` (the calculator's qalc backend for units,
   currency, %, and functions), `mpv-mpris` (exposes the YouTube Music mpv stream

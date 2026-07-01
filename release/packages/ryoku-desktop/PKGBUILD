@@ -78,6 +78,7 @@ optdepends=(
   'wtype: voice-dictation typing on Wayland (Handy)'
   'mpv: webcam mirror and media playback'
   'nautilus: graphical file manager'
+  'nautilus-python: Ryoku stash actions in the Nautilus right-click menu'
   'chromium: web browser'
   'qemu-desktop: GPU-passthrough VM (Ryoku Settings > GPU)'
   'libvirt: VM management for the passthrough VM'
@@ -199,6 +200,13 @@ package() {
   # a plugin's host/position into ~/.config/ryoku/plugins.json.
   install -Dm755 "$_repo/ryoku/shell/quickshell/plugins/ryoku-plugins-place" \
     "$pkgdir/usr/bin/ryoku-plugins-place"
+
+  # Nautilus stash actions: a nautilus-python extension that adds the deck's
+  # install/compress/LocalSend actions to the file-manager right-click menu.
+  # Loaded for every user from the system extensions dir, so it needs no
+  # per-user materialize.
+  install -Dm644 "$_repo/ryoku/apps/nautilus/ryoku-stash-menu.py" \
+    "$pkgdir/usr/share/nautilus-python/extensions/ryoku-stash-menu.py"
 
   # GPU primary-renderer udev rule: boot-stable /dev/dri/ryoku-gpu-* symlinks
   # that ryoku-gpu pins via AQ_DRM_DEVICES. vendor location = active on boot,

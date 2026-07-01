@@ -1,7 +1,28 @@
 # nautilus
 
-The file manager. There is no config file to ship: Nautilus stores its settings
-in dconf (GSettings), and it reads the standard home folders directly.
+The file manager. Nautilus keeps its settings in dconf (GSettings) and reads the
+standard home folders directly, so there is no settings file to ship. What we do
+ship is one extension: the Ryoku stash actions on the right-click menu (below).
+
+## Stash actions
+
+`ryoku-stash-menu.py` is a `nautilus-python` extension that puts the control
+deck's stash actions on the right-click menu, so a file picked in the file
+manager installs, shrinks, or sends the same way a file dropped in the stash
+does. The heavy lifting is the same `hypr/scripts` helpers the deck calls:
+
+- **Install with Ryoku** on an AppImage, tarball, Arch/`.deb`/`.rpm` package, or
+  Flatpak bundle runs `stash-install.sh`. It passes `RYOKU_STASH_KEEP=1`, since a
+  file you right-clicked is yours to keep, not a redundant stash copy to clear.
+- **Compress with Ryoku** on a video or image runs `stash-compress.sh`, writing
+  the shrunk copy beside the original.
+- **Send with LocalSend** on a single file runs `ryoku-shell stash-send`, which
+  opens the deck's LocalSend picker for that file.
+
+`ryoku-desktop` installs it to `/usr/share/nautilus-python/extensions/`, loaded
+for every user, so `nautilus-python` is the only dependency. Nautilus loads
+extensions at startup, so a fresh install picks it up on the next `nautilus`
+launch (`nautilus -q` to restart a running one).
 
 ## Home folders
 

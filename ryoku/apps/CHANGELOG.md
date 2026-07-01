@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `nautilus/` a Ryoku stash menu in the file-manager right-click: a
+  `nautilus-python` extension (`ryoku-stash-menu.py`) that adds **Install with
+  Ryoku** (installable files), **Compress with Ryoku** (media), and **Send with
+  LocalSend** (a single file), handing the picked file to the control deck's own
+  `stash-install.sh` / `stash-compress.sh` and the deck's LocalSend picker so it
+  behaves exactly like a stash drop. Install passes `RYOKU_STASH_KEEP=1`, since a
+  file you right-clicked is yours to keep, not a redundant stash copy.
 - `kitty/` terminal config (`kitty.conf`) plus a default `current-theme.conf` in
   the Ryoku dark palette.
 - `fastfetch/` branded readout (`config.jsonc`) and the `ryoku-fastfetch` launcher

@@ -358,6 +358,14 @@ func needsMonitor(fn string) bool {
 	return fn != "hide"
 }
 
+// stashSendPath pulls the file out of a "stash-send <file>" line. The path can
+// hold spaces, so it's the whole remainder after the verb, not a split field.
+// ok is false when no path was given.
+func stashSendPath(line string) (path string, ok bool) {
+	path = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "stash-send"))
+	return path, path != ""
+}
+
 // dispatch turns one command line into actions and returns "ok" or "err ...".
 func (d *daemon) dispatch(line string) string {
 	fields := strings.Fields(line)
@@ -429,6 +437,16 @@ func (d *daemon) dispatch(line string) string {
 			return "ok"
 		}
 		return "err plugins: unknown action"
+	case "stash-send":
+		// stash-send <file> -> open the deck's LocalSend picker on that file.
+		// Send goes straight to the qs client: its argv keeps a spaced path
+		// intact where the pill's space-joined socket line would not.
+		path, ok := stashSendPath(line)
+		if !ok {
+			return "err stash-send: missing file"
+		}
+		d.ensure("pill")
+		return ipcCallN("pill", "pill", "stashSend", d.activeMonitor(), path)
 	default:
 		return "err unknown command: " + cmd
 	}

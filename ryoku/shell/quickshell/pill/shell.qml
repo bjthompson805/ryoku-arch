@@ -258,6 +258,13 @@ ShellRoot {
         function wallpaper(mon: string): void { root.toggleSurface(mon, "wallpaper"); }
         function sysinfo(mon: string): void { root.toggleSurface(mon, "sysinfo"); }
         function stash(mon: string): void { root.toggleSurface(mon, "stash"); }
+        // stash-send <file>: open the stash and jump straight to its LocalSend
+        // picker for the given file, so the file manager can hand a file to the
+        // deck's send flow. show() (not toggle) so it never closes an open deck.
+        function stashSend(mon: string, file: string): void {
+            root.show(mon, "stash");
+            Stash.openSendPicker(file);
+        }
         function toolkit(mon: string): void { root.toggleSurface(mon, "toolkit"); }
         function utilities(mon: string): void { root.toggleSurface(mon, "utilities"); }
         function workspaces(mon: string): void { root.toggleSurface(mon, "workspaces"); }
