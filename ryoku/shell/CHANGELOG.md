@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `ipc`: a new `ryoku-shell stash-send <file>` command opens the control deck's
+  LocalSend picker on that file (a new pill `stashSend` IpcHandler that shows the
+  stash and calls `openSendPicker`), so the Nautilus stash menu can hand a file to
+  the deck's send flow instead of reinventing device discovery. The path is the
+  raw remainder of the command line and goes through the qs client, so a path with
+  spaces survives intact; `stashSendPath` is unit-tested. `deploy.sh` also drops
+  the `ryoku-stash-menu.py` Nautilus extension into the user extensions dir for the
+  dev loop.
 - `quickshell/launcher` RyoTunes gains **shuffle** and **gapless prefetch**. A
   shuffle toggle in the now-playing transport (lit when on) reorders the queue via
   mpv's own `playlist-shuffle`/`playlist-unshuffle` (history and prev/next stay
@@ -269,6 +277,17 @@
   palette stays static.
 
 ### Changed
+- `quickshell/launcher`: the rest card's clock/date strip is reworked from a flat
+  slab into a day-wave scene. The clock and greeting read over a filled wave
+  horizon that encodes the day itself: the stretch behind the sun glows the accent
+  (the day so far), the stretch ahead stays faint (what is left), and a sun by day
+  or a carved crescent moon by night rides the ridge at the current time. It is the
+  same fill-is-elapsed grammar as the NowPlaying seekbar below it, so the resting
+  card and the playing card read as one family instead of the clock reading as a
+  foreign box. The old 力 seal is dropped, a recessed `cardBot` surface with a top
+  sheen replaces the lighter floating fill, the colon breathes like the other clock
+  faces, and the wave drifts only while the palette is shown so an idle launcher
+  costs nothing.
 - `ipc/`: the daemon is the single owner of `wallust`. A palette-only `wallpaper
   repaint` re-derives colours with no image transition, and the hub calls it
   instead of running wallust itself. Shell chrome (pill, island, widgets,
