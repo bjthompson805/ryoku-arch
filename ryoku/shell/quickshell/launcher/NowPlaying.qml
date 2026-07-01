@@ -335,6 +335,9 @@ Item {
             anchors.bottomMargin: 12 * root.s
             spacing: 2 * root.s
 
+            // shuffle only for our own radio queue; lit when on. Other players
+            // expose no reorder, so it stays hidden for them.
+            TransportBtn { s: root.s; glyph: "shuffle"; visible: root.ours; active: root.ours; lit: Radio.shuffled; onTap: Radio.toggleShuffle() }
             TransportBtn { s: root.s; glyph: "prev"; active: root.canPrev; onTap: root.player.previous() }
             TransportBtn { s: root.s; glyph: root.playing ? "pause" : "play"; active: root.canPlay; onTap: root.player.togglePlaying() }
             TransportBtn { s: root.s; glyph: "next"; active: root.canNext; onTap: root.player.next() }
@@ -458,6 +461,9 @@ Item {
         property real s: 1
         property string glyph: ""
         property bool active: true
+        // lit = a persistent on-state (shuffle enabled), drawn in the accent so
+        // the toggle reads as engaged, distinct from the momentary hover halo.
+        property bool lit: false
         signal tap()
 
         implicitWidth: 26 * s
@@ -468,7 +474,8 @@ Item {
             "play":  "M8 5l11 7-11 7z",
             "pause": "M8 5h3v14H8z M13 5h3v14h-3z",
             "next":  "M6 5l9 7-9 7z M16 5h2v14h-2z",
-            "prev":  "M18 5l-9 7 9 7z M6 5h2v14H6z"
+            "prev":  "M18 5l-9 7 9 7z M6 5h2v14H6z",
+            "shuffle": "M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
         })
 
         Rectangle {
@@ -494,7 +501,7 @@ Item {
 
                 ShapePath {
                     strokeColor: "transparent"
-                    fillColor: Theme.bright
+                    fillColor: btn.lit ? Theme.vermLit : Theme.bright
                     capStyle: ShapePath.RoundCap
                     joinStyle: ShapePath.RoundJoin
                     PathSvg { path: btn.paths[btn.glyph] || "" }

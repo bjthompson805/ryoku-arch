@@ -34,7 +34,10 @@ The launcher surface (the `@` provider, the now-playing card) is documented in
 - **Real transport.** `mpv-mpris` publishes the stream as a first-class MPRIS
   player, so the now-playing card's Next/Prev and the media keys step the radio
   queue like any other player, the card shows an up-next peek, and the wavy
-  seekbar is draggable to scrub (it seeks any player, not just ours).
+  seekbar is draggable to scrub (it seeks any player, not just ours). A **shuffle**
+  toggle (lit when on) reorders the queue via mpv's own shuffle, and mpv prefetches
+  the next track as the current one ends so playback is **gapless** without eating
+  bandwidth mid-song on a slow link.
 - **One control plane for every source.** The active player owns the full card;
   every other controllable player (a paused browser tab, Spotify) extends beneath
   it as a slim one-line strip (cover, title, a play button). Playing a YouTube
@@ -60,7 +63,11 @@ pure JavaScript with `node` tests; the QML renders and drives processes.
   `mpv` is on, observes `playlist-pos` to follow the current track and `core-idle`
   to know when it is buffering, fetches and appends radio continuations as the
   tail approaches, and exposes the current cover/title/artist, the up-next entry,
-  and the buffering flag for the card. Also the shared authority on players:
+  and the buffering flag for the card. `toggleShuffle()` drives mpv's
+  `playlist-shuffle`/`unshuffle` then re-syncs the queue from mpv's reordered
+  playlist (by videoId) so metadata stays correct; mpv runs with
+  `--prefetch-playlist=yes` for a gapless next track. Also the shared authority on
+  players:
   `realPlayers()` (the `playerctld` proxy dropped and deduped by `dbusName`),
   `isOurPlayer()`, `pauseOthers()` (take-over), and the fade-yield. IPC writes are
   queued and flushed on connect, so a radio append that resolves before the socket

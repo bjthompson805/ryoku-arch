@@ -46,6 +46,11 @@ Singleton {
     // it never ticks in silence, especially on a slow connection.
     property bool buffering: false
 
+    // Whether the playlist is shuffled. Toggled from the card; mpv owns the actual
+    // reorder (playlist-shuffle/unshuffle, which keeps history and prev/next), and
+    // we re-sync our queue from mpv's playlist afterward so covers/titles stay right.
+    property bool shuffled: false
+
     // Bumped on every play() so a radio fetch that resolves after the user picked
     // a different track is discarded instead of polluting the new queue.
     property int session: 0
@@ -128,6 +133,9 @@ Singleton {
     // Start mpv on `url`, or swap the running mpv to it over IPC (no audio gap).
     // The playlist is cleared so radio/playlist tracks refill from a clean slate.
     function startOrReplace(url) {
+        // a fresh play rebuilds mpv's playlist, which drops mpv's shuffle state;
+        // keep our flag in step so the button never lies.
+        root.shuffled = false;
         if (playProc.running && mpvSock.connected) {
             root.mpvCmd(["loadfile", url, "replace"]);
             root.mpvCmd(["playlist-clear"]);
@@ -212,6 +220,28 @@ Singleton {
         seedProc.running = true;
     }
 
+    // Extract the 11-char videoId from a watch URL (for mapping mpv's playlist
+    // entries back to our track objects after a shuffle).
+    function videoIdFromUrl(url) {
+        var m = String(url || "").match(/v=([A-Za-z0-9_-]{11})/);
+        return m ? m[1] : "";
+    }
+
+    // Toggle shuffle on the current queue. mpv does the reorder (keeping history
+    // and prev/next intact) and we re-sync our queue from its new playlist order
+    // (the SYNC request below), so the card's cover/title stay correct.
+    readonly property int syncReqId: 42
+    function toggleShuffle() {
+        if (!root.active)
+            return;
+        root.shuffled = !root.shuffled;
+        root.mpvCmd([root.shuffled ? "playlist-shuffle" : "playlist-unshuffle"]);
+        // request the reordered playlist tagged with syncReqId; the reply handler
+        // in onMpvLine rebuilds our queue to match mpv's new order.
+        if (mpvSock.connected)
+            mpvSock.write(JSON.stringify({ command: ["get_property", "playlist"], request_id: root.syncReqId }) + "\n");
+    }
+
     // Stop for good: kill mpv and clear. Used on explicit stop / launcher exit.
     function stop() {
         root.queue = [];
@@ -252,6 +282,10 @@ Singleton {
         command: ["mpv", "--no-video", "--no-terminal", "--force-window=no",
             "--audio-display=no", "--idle=yes", "--volume=100",
             "--cache=yes", "--network-timeout=20",
+            // open the next queue entry only as the current one nears its end
+            // (initial connect + ytdl resolve, not an early full download), so the
+            // next track starts gaplessly without stealing bandwidth mid-song.
+            "--prefetch-playlist=yes",
             "--input-ipc-server=" + root.ipcSocket,
             "--ytdl-format=bestaudio/best", firstUrl]
         onStarted: sockDial.start()
@@ -321,6 +355,27 @@ Singleton {
             }
         } else if (msg && msg.event === "property-change" && msg.name === "core-idle") {
             root.buffering = (msg.data === true);
+        } else if (msg && msg.request_id === root.syncReqId && msg.data) {
+            // reply to the shuffle's playlist request: rebuild our queue to mpv's
+            // new order by mapping each entry's videoId back to our track object,
+            // and set the index from the entry mpv marks `current`.
+            var byId = {};
+            for (var i = 0; i < root.queue.length; i++)
+                byId[root.queue[i].id] = root.queue[i];
+            var q = [];
+            var cur = root.index;
+            for (var j = 0; j < msg.data.length; j++) {
+                var t = byId[root.videoIdFromUrl(msg.data[j].filename)];
+                if (t) {
+                    q.push(t);
+                    if (msg.data[j].current)
+                        cur = q.length - 1;
+                }
+            }
+            if (q.length > 0) {
+                root.queue = q;
+                root.index = cur;
+            }
         }
     }
 

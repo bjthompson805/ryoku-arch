@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `quickshell/launcher` RyoTunes gains **shuffle** and **gapless prefetch**. A
+  shuffle toggle in the now-playing transport (lit when on) reorders the queue via
+  mpv's own `playlist-shuffle`/`playlist-unshuffle` (history and prev/next stay
+  intact); the engine re-syncs its queue from mpv's new order by videoId so the
+  card's cover/title stay correct. mpv now runs with `--prefetch-playlist=yes`, so
+  it opens the next queue entry only as the current one nears its end (initial
+  connect + `yt-dlp` resolve, not an early full download) - the next track starts
+  gaplessly without stealing bandwidth mid-song, safe on slow connections.
 - `quickshell/launcher` RyoTunes plays **pasted YouTube / YouTube Music links**,
   including playlists and mixes. Pasting a link (with or without the `@` prefix)
   offers a one-tap "Play": a bare track link seeds its radio, a playlist or mix
