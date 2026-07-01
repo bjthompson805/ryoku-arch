@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { parseRadio, radioBody, radioPlaylistId } = require("./radio.js");
+const { parseRadio, radioBody, radioPlaylistId } = require("./ytmusic.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {

@@ -85,10 +85,17 @@ Provider {
         if (ytmusic.cache[t])
             return cached.map(ytmusic.rowFor);   // exact hit: no refetch
         ytmusic.pendingQuery = t;
+        // Mark busy on the next tick (not during this binding eval) so the
+        // launcher shows its spinner the instant a cold search starts, instead of
+        // flashing "No matches" for the debounce window. Deferred to avoid
+        // mutating dispatcher state mid-results-eval.
+        Qt.callLater(ytmusic.markBusy);
         debounce.restart();
         // prefix hit: show the widest cached prefix's rows while we refine.
         return cached ? cached.map(ytmusic.rowFor) : [];
     }
+
+    function markBusy() { Dispatcher.setBusy("ytmusic", true); }
 
     Timer {
         id: debounce

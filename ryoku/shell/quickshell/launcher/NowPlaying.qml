@@ -31,8 +31,18 @@ Item {
     // Our own YT Music radio stream owns this player: trust the Radio engine's
     // exact square cover and clean title/artist over mpv's stream guesses.
     readonly property bool ours: Radio.isOurs(player)
+    // Our stream is loading and not yet audible: show a buffering hint and hold
+    // the seekbar so it never advances in silence. Gated on `playing` (MPRIS
+    // intends to play) so a user-pause, which also makes mpv core-idle, never
+    // misreads as buffering.
+    readonly property bool buffering: root.ours && Radio.buffering && root.playing
+    // Our engine's clean title wins. Otherwise the player's own title, but a raw
+    // "watch?v=..."/bare-id stream title (an mpv still resolving, or an orphan) is
+    // suppressed to a neutral label rather than shown as a URL.
+    readonly property string rawTitle: hasPlayer && player.trackTitle ? player.trackTitle : ""
+    readonly property bool rawIsUrl: rawTitle.indexOf("watch?v=") === 0 || /^[A-Za-z0-9_-]{11}$/.test(rawTitle)
     readonly property string title: ours && Radio.title.length ? Radio.title
-        : (hasPlayer && player.trackTitle ? player.trackTitle : "Nothing playing")
+        : (rawTitle.length > 0 && !rawIsUrl ? rawTitle : "Nothing playing")
     readonly property string artist: ours && Radio.artist.length ? Radio.artist
         : (hasPlayer ? Theme.joinArtists(player.trackArtists, player.trackArtist) : "")
     readonly property string artUrl: hasPlayer && player.trackArtUrl ? player.trackArtUrl : ""
@@ -53,6 +63,12 @@ Item {
     readonly property bool canPlay: hasPlayer && player.canTogglePlaying
     readonly property bool canNext: hasPlayer && player.canGoNext
     readonly property bool canPrev: hasPlayer && player.canGoPrevious
+    // Scrub-to-seek: canSeek gates it (the player allows a seek and has a known
+    // length); while dragging, the fill follows the cursor and the elapsed label
+    // previews the target, committed to player.position on release.
+    readonly property bool canSeek: hasPlayer && player.canSeek && lengthSec > 0
+    property bool scrubbing: false
+    property real scrubFrac: 0
 
     // "m:ss" for the elapsed and total labels.
     function fmt(sec) {
@@ -261,7 +277,7 @@ Item {
 
             Text {
                 width: parent.width
-                text: root.ours ? "力 RYOTUNES RADIO" : "力 NOW PLAYING"
+                text: root.buffering ? "力 BUFFERING\u2026" : (root.ours ? "力 RYOTUNES RADIO" : "力 NOW PLAYING")
                 color: Theme.vermLit
                 font.family: Theme.font
                 font.pixelSize: Metrics.fontEyebrow * root.s
@@ -304,7 +320,7 @@ Item {
         // Quickshell pattern (see pill Media.qml).
         Timer {
             interval: 500
-            running: root.visible && root.playing
+            running: root.visible && root.playing && !root.buffering
             repeat: true
             onTriggered: if (root.player) root.player.positionChanged();
         }
@@ -329,7 +345,7 @@ Item {
             anchors.left: cover.right
             anchors.leftMargin: 14 * root.s
             anchors.verticalCenter: transport.verticalCenter
-            text: root.fmt(root.positionSec)
+            text: root.fmt(root.scrubbing ? root.scrubFrac * root.lengthSec : root.positionSec)
             color: Theme.faint
             font.family: Theme.mono
             font.pixelSize: Metrics.fontEyebrow * root.s
@@ -361,9 +377,34 @@ Item {
             height: 12 * root.s
 
             property real phase: 0
-            property real drawFrac: root.frac
-            Behavior on drawFrac { NumberAnimation { duration: 480; easing.type: Easing.Linear } }
+            // While scrubbing the fill snaps to the cursor (no glide); otherwise it
+            // eases between the 500ms position polls so playback advances smoothly.
+            property real drawFrac: root.scrubbing ? root.scrubFrac : root.frac
+            Behavior on drawFrac { enabled: !root.scrubbing; NumberAnimation { duration: 480; easing.type: Easing.Linear } }
             onDrawFracChanged: requestPaint()
+
+            // Scrub-to-seek: press or drag anywhere on the bar to preview a target,
+            // commit it to the player's position on release. A generous vertical
+            // hit area makes the thin bar easy to grab. Only when the player can
+            // seek; otherwise the bar stays a pure indicator.
+            MouseArea {
+                anchors.fill: parent
+                anchors.topMargin: -8 * root.s
+                anchors.bottomMargin: -8 * root.s
+                enabled: root.canSeek
+                cursorShape: root.canSeek ? Qt.PointingHandCursor : Qt.ArrowCursor
+                preventStealing: true
+                function fracAt(x) { return Math.max(0, Math.min(1, x / seek.width)); }
+                onPressed: (m) => { root.scrubbing = true; root.scrubFrac = fracAt(m.x); }
+                onPositionChanged: (m) => { if (root.scrubbing) root.scrubFrac = fracAt(m.x); }
+                onReleased: (m) => {
+                    if (!root.scrubbing) return;
+                    var target = fracAt(m.x) * root.lengthSec;
+                    if (root.player) root.player.position = target;
+                    root.scrubbing = false;
+                }
+                onCanceled: root.scrubbing = false
+            }
 
             onPaint: {
                 var ctx = getContext("2d");

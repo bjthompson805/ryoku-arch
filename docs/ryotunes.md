@@ -27,7 +27,15 @@ The launcher surface (the `@` provider, the now-playing card) is documented in
   station) and keeps appending as the queue drains, so free music never stops.
 - **Real transport.** `mpv-mpris` publishes the stream as a first-class MPRIS
   player, so the now-playing card's Next/Prev and the media keys step the radio
-  queue like any other player, and the card shows an up-next peek.
+  queue like any other player, the card shows an up-next peek, and the wavy
+  seekbar is draggable to scrub (it seeks any player, not just ours).
+- **One control plane for every source.** The active player owns the full card;
+  every other controllable player (a paused browser tab, Spotify) extends beneath
+  it as a slim one-line strip (cover, title, a play button). Playing a YouTube
+  track **takes over** (pauses the others so audio never stacks); tapping a strip
+  switches back to that source. The card is sticky, so pausing it never makes it
+  jump to a different player, and it shows a **buffering** state with a frozen
+  seekbar so a slow load never ticks in silence.
 - **System-audio synergy.** Whatever is already playing (Spotify, a browser video,
   any app) can seed a station: the now-playing row's **YT Radio** verb reads the
   current track's title/artist and starts an endless YouTube Music radio from it.
@@ -43,28 +51,36 @@ pure JavaScript with `node` tests; the QML renders and drives processes.
 - `quickshell/launcher/Singletons/Radio.qml` the engine (singleton). Owns one
   persistent `mpv` (audio only, `--idle=yes`) driven over its JSON IPC socket via
   Quickshell's native `Socket` (no `socat`). Keeps the ordered queue and the index
-  `mpv` is on, observes `playlist-pos` to follow the current track, fetches and
-  appends radio continuations as the tail approaches, and exposes the current
-  cover/title/artist plus the up-next entry for the card. Costs nothing at rest:
-  nothing runs until the first play.
-- `quickshell/launcher/providers/media/ytmusic/`
-  - `ytmusic.js` builds the InnerTube search body and parses the
-    `musicResponsiveListItemRenderer` shelf into tracks (title, artist, album,
-    duration, hi-res square cover); `parseFlat` keeps the `yt-dlp` NDJSON shape for
-    the offline fallback. Pure, node-tested (`ytmusic.test.mjs`).
-  - `radio.js` builds the `/next` continuation body and parses the
-    `playlistPanelVideoRenderer` queue into the same track shape. Pure, node-tested
-    (`radio.test.mjs`).
-  - `YtMusic.qml` the `@` search provider: InnerTube `curl` + prefix cache +
-    `yt-dlp` fallback, rows carry the cover, play hands off to `Radio`.
+  `mpv` is on, observes `playlist-pos` to follow the current track and `core-idle`
+  to know when it is buffering, fetches and appends radio continuations as the
+  tail approaches, and exposes the current cover/title/artist, the up-next entry,
+  and the buffering flag for the card. Also the shared authority on players:
+  `realPlayers()` (the `playerctld` proxy dropped and deduped by `dbusName`),
+  `isOurPlayer()`, `pauseOthers()` (take-over), and the fade-yield. IPC writes are
+  queued and flushed on connect, so a radio append that resolves before the socket
+  is up is never dropped. Kills any orphan `mpv` on startup so a restart mid-play
+  never leaves an unmanaged stream. Costs nothing at rest: nothing runs until the
+  first play.
+- `quickshell/launcher/providers/media/ytmusic/ytmusic.js` builds the InnerTube
+  search body and parses the `musicResponsiveListItemRenderer` shelf into tracks
+  (title, artist, album, duration, hi-res square cover); `parseFlat` keeps the
+  `yt-dlp` NDJSON shape for the offline fallback; `radioBody`/`parseRadio` build
+  and parse the `/next` continuation into the same track shape. Search and radio
+  live in one file (QML has no `require`, so a split module could not share the
+  helpers), pure and node-tested (`ytmusic.test.mjs`, `radio.test.mjs`).
+- `quickshell/launcher/providers/media/ytmusic/YtMusic.qml` the `@` search
+  provider: InnerTube `curl` + prefix cache + `yt-dlp` fallback, rows carry the
+  cover, play hands off to `Radio`.
+- `quickshell/launcher/MediaSources.qml` the slim strips under the card: one row
+  per other real player (from `Radio.realPlayers()`), tap to switch source.
 - `quickshell/launcher/providers/media/mpris/Mpris.qml` the now-playing row for any
   player, plus the **YT Radio** verb that calls `Radio.playFromText(...)`.
 - `quickshell/launcher/NowPlaying.qml` the card: when `Radio.isOurs(player)` it
-  shows the engine's exact cover, clean title/artist, and the up-next peek;
+  shows the engine's exact cover, clean title/artist, up-next, and buffering;
   otherwise it renders the active MPRIS player and its cover (or the iTunes
-  fallback).
+  fallback), suppressing a raw `watch?v=` stream title.
 - `quickshell/launcher/providers/media/albumart.js` the iTunes fallback for
-  players with no art, now stripping video noise (`(Official Video)`, `[HD]`,
+  players with no art, stripping video noise (`(Official Video)`, `[HD]`,
   `feat. ...`) from the title first for a better match. Node-tested.
 
 ## Data flow
@@ -72,18 +88,19 @@ pure JavaScript with `node` tests; the QML renders and drives processes.
 ```
 @query -> YtMusic.query
   -> prefix-cache hit shows rows now
-  -> debounce -> curl InnerTube /search -> ytmusic.parse -> rows{icon: cover}
+  -> debounce -> curl InnerTube /search -> parse -> rows{icon: cover}
        (empty -> yt-dlp flat fallback)
 
 play(track) -> Radio.play
-  -> mpv loadfile (reuse running mpv over IPC, else cold-start)
-  -> curl InnerTube /next -> radio.parseRadio -> loadfile append * (queue grows)
+  -> pauseOthers (take over)  -> mpv loadfile (reuse over IPC, else cold-start)
+  -> curl InnerTube /next -> parseRadio -> loadfile append * (queue grows)
 
-mpv IPC playlist-pos event -> Radio.index -> card cover / up-next follow
-                           -> tail near? extendRadio (append more)
+mpv IPC playlist-pos -> Radio.index -> card cover / up-next follow
+           core-idle -> Radio.buffering -> card buffering + frozen seekbar
+                     -> tail near? extendRadio (append more)
 
-another player starts -> fade mpv volume -> pause (yield)
-
+another player starts (past grace) -> fade mpv volume -> pause (yield)
+tap a source strip -> resume it, pause the rest
 MPRIS row "YT Radio" -> Radio.playFromText -> curl /search -> play first hit
 ```
 

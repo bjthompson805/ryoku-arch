@@ -27,19 +27,30 @@ Item {
     // no toggle path can leave both drawing over each other.
     readonly property bool gridMode: resting && allApps && !help
 
-    // active media player for the rest-state now-playing card.
+    // Sticky active player for the card. Proxy-free (Radio.realPlayers drops
+    // playerctld and dedupes). A currently-playing source always wins; otherwise
+    // the last-shown player is held, so PAUSING the card never makes it jump to a
+    // different source (the old "pause and YT takes over" bug). onActivePlayerChanged
+    // records the shown player so a later pause has something to hold.
+    property string primaryDbus: ""
     readonly property var activePlayer: {
-        var list = Mpris.players.values;
+        var list = Radio.realPlayers();
+        void Mpris.players.values;
         if (!list || list.length === 0)
             return null;
         for (var i = 0; i < list.length; i++)
-            if (list[i] && list[i].isPlaying)
+            if (list[i].isPlaying)
                 return list[i];
-        for (var j = 0; j < list.length; j++)
-            if (list[j] && list[j].canControl && list[j].trackTitle)
-                return list[j];
+        if (root.primaryDbus.length > 0)
+            for (var j = 0; j < list.length; j++)
+                if (String(list[j].dbusName || "") === root.primaryDbus)
+                    return list[j];
+        for (var k = 0; k < list.length; k++)
+            if (list[k].canControl && list[k].trackTitle)
+                return list[k];
         return list[0];
     }
+    onActivePlayerChanged: if (activePlayer) root.primaryDbus = String(activePlayer.dbusName || "");
     readonly property bool hasMedia: activePlayer !== null
     // route the current query once; everything keys off the matched prefix so the
     // mode chip, the tabs, and the find delegation stay consistent.
@@ -95,7 +106,9 @@ Item {
     readonly property real listH: visibleCount * (Metrics.rowHeight + Metrics.gapRow) * s + sectionCount * Metrics.sectionH * s
     readonly property real gridH: 380 * s
     readonly property real tabsH: actionBrowse ? tabs.implicitHeight + 6 * s : 0
-    readonly property real restH: rest.implicitHeight + (hasMedia ? nowPlaying.implicitHeight + Metrics.padRow * s : 0)
+    readonly property real restH: rest.implicitHeight
+        + (hasMedia ? nowPlaying.implicitHeight + Metrics.padRow * s : 0)
+        + (hasMedia && mediaSources.sources.length > 0 ? mediaSources.implicitHeight + 6 * s : 0)
     // Extra body slice for the instant-answer panel; padRow separates it from
     // the Search fallback row that stays underneath so Enter still targets it.
     readonly property real answerH: answerMode ? answerPanel.implicitHeight + Metrics.padRow * s : 0
@@ -156,6 +169,16 @@ Item {
         color: Theme.cardTop
         borderColor: Theme.border
         borderWidth: 1
+    }
+
+    // Absorb clicks on the card body so they never fall through to the shell's
+    // click-out scrim (which hides the launcher). The interactive children
+    // (search row, result rows, transport, source strips) are declared after
+    // this and sit on top, so they still receive their own clicks first; this
+    // only swallows clicks that land on empty card space.
+    MouseArea {
+        anchors.fill: parent
+        onClicked: {}
     }
 
     SearchRow {
@@ -278,6 +301,21 @@ Item {
         anchors.rightMargin: Metrics.padOuter * root.s
         s: root.s
         player: root.activePlayer
+    }
+
+    // Slim strips for the other media players, extending under the card so both
+    // sources read as one compact stack. Only when resting with media present.
+    MediaSources {
+        id: mediaSources
+        visible: root.resting && !root.allApps && !root.help && root.hasMedia
+        anchors.top: nowPlaying.bottom
+        anchors.topMargin: 6 * root.s
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: Metrics.padOuter * root.s
+        anchors.rightMargin: Metrics.padOuter * root.s
+        s: root.s
+        activePlayer: root.activePlayer
     }
 
     ResultGrid {

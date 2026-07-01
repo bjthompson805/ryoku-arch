@@ -13,13 +13,19 @@
   end: a new engine (`Singletons/Radio.qml`) streams it with a persistent `mpv`
   driven over its JSON IPC socket (Quickshell native `Socket`, no `socat`) and
   auto-extends an **endless YouTube Music radio** (the `/next` continuation),
-  which `mpv-mpris` exposes so the card's Next/Prev, the media keys, and an
-  up-next peek drive the queue. The MPRIS now-playing row gains a **YT Radio**
-  verb that seeds an endless station from whatever is already playing (a browser
-  video, any app), and our stream yields to other audio by fading out and pausing
-  instead of a hard kill. Parsers are `providers/media/ytmusic/{ytmusic,radio}.js`
-  with `node` tests; the iTunes cover fallback (`albumart.js`) now strips video
-  noise (`(Official Video)`, `[HD]`, `feat.`) for a better match. Documented in
+  which `mpv-mpris` exposes so the card's Next/Prev, the media keys, an up-next
+  peek, and **scrub-to-seek** (drag the wavy bar) drive the queue. Playing a track **takes over**: other players (a
+  browser tab, Spotify) pause so audio never stacks, and the now-playing card
+  **extends into a slim strip per other player** (`MediaSources.qml`) so both
+  sources stay visible and one tap switches between them. The card is sticky
+  (pausing it never makes it jump to another source) and shows a **buffering**
+  state with a frozen seekbar so a slow load never ticks in silence. The MPRIS
+  now-playing row gains a **YT Radio** verb that seeds an endless station from
+  whatever is already playing; our stream yields to other audio by fading out and
+  pausing (not a hard kill). Search + radio parsing live in one node-tested file
+  (`providers/media/ytmusic/ytmusic.js`, so QML resolves the shared helpers with
+  no `require`); the iTunes cover fallback (`albumart.js`) strips video noise
+  (`(Official Video)`, `[HD]`, `feat.`) for a better match. Documented in
   `docs/ryotunes.md`. No new packages.
 - `quickshell/launcher` removed the built-in Spotify catalog provider (`s:`) and
   its `ryoku-shell spotify` Web API backend (never released). Spotify stays a

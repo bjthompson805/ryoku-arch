@@ -214,6 +214,89 @@ function parseFlat(text) {
     return out;
 }
 
+// --- Radio continuation (the /next endpoint) ---
+// Merged here (not a sibling file) because QML has no `require`: a separate
+// module could not pull in the shared helpers above, so every radio track parsed
+// empty. One file, one set of helpers, works in both QML and node.
+
+// A track's radio playlist id: "RDAMVM" + the seed videoId (its auto station).
+function radioPlaylistId(videoId) {
+    return "RDAMVM" + String(videoId == null ? "" : videoId);
+}
+
+// Body for the continuation POST. isAudioOnly trims video-only entries.
+function radioBody(videoId) {
+    return JSON.stringify({
+        context: { client: { clientName: "WEB_REMIX", clientVersion: "1.20240101.01.00", hl: "en", gl: "US" } },
+        videoId: String(videoId == null ? "" : videoId),
+        playlistId: radioPlaylistId(videoId),
+        isAudioOnly: true
+    });
+}
+
+// Collect playlistPanelVideoRenderer entries in queue order.
+function collectPanelRenderers(obj) {
+    var out = [];
+    var stack = [obj];
+    while (stack.length) {
+        var o = stack.pop();
+        if (!o || typeof o !== "object")
+            continue;
+        if (o.playlistPanelVideoRenderer)
+            out.push(o.playlistPanelVideoRenderer);
+        var keys = Object.keys(o);
+        for (var i = keys.length - 1; i >= 0; i--) {
+            var v = o[keys[i]];
+            if (v && typeof v === "object")
+                stack.push(v);
+        }
+    }
+    return out;
+}
+
+// One radio renderer -> track, or null without a videoId. lengthText is explicit;
+// the byline carries artist/album. Radio art is served up to w544 already.
+function radioTrackFromRenderer(r) {
+    var videoId = r.videoId || "";
+    var title = runsText(r.title && r.title.runs);
+    if (!videoId || !title)
+        return null;
+    var meta = splitByline(runsText(r.longBylineText && r.longBylineText.runs));
+    var lengthLabel = runsText(r.lengthText && r.lengthText.runs);
+    var thumbs = ((r.thumbnail || {}).thumbnails) || [];
+    var cover = thumbs.length ? hiResCover(thumbs[thumbs.length - 1].url) : "";
+    return {
+        id: videoId,
+        title: title,
+        artist: meta.artist,
+        album: meta.album,
+        duration: clockToSec(lengthLabel),
+        durationLabel: lengthLabel,
+        cover: cover
+    };
+}
+
+// Parse a `/next` response into a de-duplicated track queue. Malformed/empty -> [].
+function parseRadio(text) {
+    var obj;
+    try {
+        obj = JSON.parse(String(text == null ? "" : text));
+    } catch (e) {
+        return [];
+    }
+    var renderers = collectPanelRenderers(obj);
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < renderers.length; i++) {
+        var t = radioTrackFromRenderer(renderers[i]);
+        if (t && !seen[t.id]) {
+            seen[t.id] = 1;
+            out.push(t);
+        }
+    }
+    return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { parse, parseFlat, innertubeBody, hiResCover, clockToSec, fmtDuration, splitByline, runsText, SONGS_PARAMS };
+    module.exports = { parse, parseFlat, innertubeBody, hiResCover, clockToSec, fmtDuration, splitByline, runsText, SONGS_PARAMS, parseRadio, radioBody, radioPlaylistId };
 }

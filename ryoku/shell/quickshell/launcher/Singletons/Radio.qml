@@ -4,7 +4,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
 import "../providers/media/ytmusic/ytmusic.js" as YtMusic
-import "../providers/media/ytmusic/radio.js" as RadioApi
 
 // The YouTube Music radio engine: one persistent mpv (audio only) driven over its
 // JSON IPC socket, playing a queue that auto-extends with YouTube Music radio so
@@ -36,30 +35,89 @@ Singleton {
     readonly property string artist: current ? (current.artist || "") : ""
     readonly property string upNext: next ? (next.title || "") : ""
 
+    // True while mpv is loading/buffering our stream and not yet producing sound
+    // (mpv's core-idle). The card shows a buffering hint and holds the seekbar so
+    // it never ticks in silence, especially on a slow connection.
+    property bool buffering: false
+
     // Bumped on every play() so a radio fetch that resolves after the user picked
     // a different track is discarded instead of polluting the new queue.
     property int session: 0
     property bool extending: false
 
-    // Whether the given MPRIS player is our own mpv stream. mpv-mpris identifies
-    // as "mpv"; combined with `active` this tells NowPlaying to trust our hint.
-    function isOurs(player) {
-        return player && String(player.identity || "").toLowerCase() === "mpv" && root.active;
+    // playerctld is a PROXY that mirrors whatever is active (its identity copies
+    // the real player's), so it must never be shown or counted, or it double-lists
+    // the active source. Identify it by dbusName; everything else is a real player.
+    function isProxy(p) {
+        return p && String(p.dbusName || "").indexOf("playerctld") !== -1;
     }
 
-    // Some OTHER player (Spotify, a browser, an app) is producing sound. We yield
-    // to it so two streams never stack.
-    function otherPlaying() {
+    // Real controllable players: the proxy removed and deduped by dbusName, so the
+    // card and the strip never show the same source twice. Shared by Launcher and
+    // MediaSources so both agree on what exists.
+    function realPlayers() {
         var list = Mpris.players.values;
+        var out = [];
         if (!list)
-            return false;
+            return out;
+        var seen = {};
         for (var i = 0; i < list.length; i++) {
             var p = list[i];
-            if (p && p.isPlaying && String(p.identity || "").toLowerCase() !== "mpv")
-                return true;
+            if (!p || root.isProxy(p))
+                continue;
+            var key = String(p.dbusName || p.identity || i);
+            if (seen[key])
+                continue;
+            seen[key] = 1;
+            out.push(p);
         }
+        return out;
+    }
+
+    // Whether a player is our own mpv stream (never the proxy mirroring it).
+    function isOurPlayer(p) {
+        return p && !root.isProxy(p) && String(p.identity || "").toLowerCase() === "mpv";
+    }
+
+    // Our stream AND it owns playback now: NowPlaying trusts our cover/title then.
+    function isOurs(player) {
+        return root.isOurPlayer(player) && root.active;
+    }
+
+    // Some OTHER real player (a browser, Spotify) is producing sound.
+    function otherPlaying() {
+        var list = root.realPlayers();
+        for (var i = 0; i < list.length; i++)
+            if (list[i].isPlaying && !root.isOurPlayer(list[i]))
+                return true;
         return false;
     }
+
+    // Our own mpv stream is the one currently playing (gates the yield timer).
+    function ourMprisPlaying() {
+        var list = root.realPlayers();
+        for (var i = 0; i < list.length; i++)
+            if (root.isOurPlayer(list[i]) && list[i].isPlaying)
+                return true;
+        return false;
+    }
+
+    // Take over the airwaves: pause every other real player so our stream owns
+    // audio instead of stacking on a browser tab. Called on an explicit play.
+    function pauseOthers() {
+        var list = root.realPlayers();
+        for (var i = 0; i < list.length; i++) {
+            var p = list[i];
+            if (p.isPlaying && !root.isOurPlayer(p) && p.canPause)
+                p.pause();
+        }
+    }
+
+    // Timestamp of the last explicit take-over. The yield timer ignores other
+    // players for a grace window after this, so pausing them in play() is never
+    // mistaken for "another player started" and bounced straight back.
+    property double tookOverAt: 0
+    readonly property int yieldGraceMs: 4000
 
     // Play a track now and seed an endless radio from it. Reuses a running mpv
     // (no audio gap) via IPC; cold-starts mpv otherwise.
@@ -67,13 +125,19 @@ Singleton {
         if (!track || !track.id)
             return;
         root.session++;
+        root.buffering = true;
         root.queue = [track];
         root.index = 0;
+        // take over: pause whatever else is playing and open the grace window so
+        // the yield timer does not treat that same audio as a reason to bow out.
+        root.tookOverAt = Date.now();
+        root.pauseOthers();
         var url = "https://music.youtube.com/watch?v=" + track.id;
         if (playProc.running && mpvSock.connected) {
             // clean the playlist down to just this track, then let radio refill.
             root.mpvCmd(["loadfile", url, "replace"]);
             root.mpvCmd(["playlist-clear"]);
+            root.mpvCmd(["set_property", "volume", 100]);
             root.mpvCmd(["set_property", "pause", false]);
         } else {
             playProc.firstUrl = url;
@@ -98,15 +162,32 @@ Singleton {
     function stop() {
         root.queue = [];
         root.index = 0;
+        root.buffering = false;
         mpvSock.connected = false;
         playProc.running = false;
         killProc.running = true;
     }
 
-    // Send one JSON command line to mpv's IPC socket.
+    // Send one JSON command to mpv's IPC socket, or queue it until the socket
+    // connects. Radio appends resolve seconds after mpv launches, often before
+    // the socket is up; without this buffer those writes were silently dropped
+    // (the bug that left the queue at one track).
+    property var pending: []
     function mpvCmd(cmdArray) {
-        if (mpvSock.connected)
-            mpvSock.write(JSON.stringify({ command: cmdArray }) + "\n");
+        var line = JSON.stringify({ command: cmdArray }) + "\n";
+        if (mpvSock.connected) {
+            mpvSock.write(line);
+        } else {
+            var q = root.pending;
+            q.push(line);
+            root.pending = q;
+        }
+    }
+    function flushPending() {
+        var q = root.pending;
+        root.pending = [];
+        for (var i = 0; i < q.length; i++)
+            mpvSock.write(q[i]);
     }
 
     // The persistent audio mpv. `--idle=yes` keeps it alive when the queue drains
@@ -116,13 +197,15 @@ Singleton {
         property string firstUrl: ""
         command: ["mpv", "--no-video", "--no-terminal", "--force-window=no",
             "--audio-display=no", "--idle=yes", "--volume=100",
+            "--cache=yes", "--network-timeout=20",
             "--input-ipc-server=" + root.ipcSocket,
-            "--ytdl-format=bestaudio", firstUrl]
+            "--ytdl-format=bestaudio/best", firstUrl]
         onStarted: sockDial.start()
         onExited: {
             mpvSock.connected = false;
             sockDial.stop();
             root.queue = [];
+            root.buffering = false;
         }
     }
 
@@ -133,8 +216,8 @@ Singleton {
         repeat: true
         property int tries: 0
         onTriggered: {
-            if (mpvSock.connected) { stop(); tries = 0; return; }
-            if (++tries > 60) { stop(); tries = 0; return; }
+            if (mpvSock.connected) { sockDial.stop(); tries = 0; return; }
+            if (++tries > 60) { sockDial.stop(); tries = 0; return; }
             mpvSock.connected = true;
         }
     }
@@ -142,11 +225,19 @@ Singleton {
     Socket {
         id: mpvSock
         path: root.ipcSocket
-        onConnectedChanged: {
+        // the `connected` property notifies via connectionStateChanged, NOT
+        // connectedChanged; using the wrong signal left the dial churning and
+        // dropped every queued write. On connect: stop dialing, observe the
+        // playlist position, and flush the appends buffered while disconnected.
+        onConnectionStateChanged: {
             if (connected) {
                 sockDial.stop();
-                // observe the playlist position so the card follows radio tracks.
-                root.mpvCmd(["observe_property", 1, "playlist-pos"]);
+                mpvSock.write(JSON.stringify({ command: ["observe_property", 1, "playlist-pos"] }) + "\n");
+                // core-idle is true while mpv is loading/buffering and NOT actually
+                // producing sound; observing it lets the card show a buffering state
+                // and freeze the seekbar instead of ticking silently on a slow load.
+                mpvSock.write(JSON.stringify({ command: ["observe_property", 2, "core-idle"] }) + "\n");
+                root.flushPending();
             }
         }
         parser: SplitParser {
@@ -171,6 +262,8 @@ Singleton {
                 if (root.queue.length - pos <= 3 && !root.extending)
                     root.extendRadio();
             }
+        } else if (msg && msg.event === "property-change" && msg.name === "core-idle") {
+            root.buffering = (msg.data === true);
         }
     }
 
@@ -192,7 +285,7 @@ Singleton {
         property string body: ""
         function fetch(videoId, sess) {
             forSession = sess;
-            body = RadioApi.radioBody(videoId);
+            body = YtMusic.radioBody(videoId);
             running = false;
             running = true;
         }
@@ -206,7 +299,7 @@ Singleton {
                 root.extending = false;
                 if (radioProc.forSession !== root.session)
                     return;
-                var tracks = RadioApi.parseRadio(this.text);
+                var tracks = YtMusic.parseRadio(this.text);
                 var have = {};
                 for (var i = 0; i < root.queue.length; i++)
                     have[root.queue[i].id] = 1;
@@ -245,13 +338,22 @@ Singleton {
         }
     }
 
-    // Graceful yield: when another player starts, fade our volume down and pause
-    // (not kill), so hand-off is smooth and the user can resume from the card.
+    // Graceful yield: once another player starts *after* our take-over grace
+    // window, fade our volume down and pause (not kill) so audio never stacks and
+    // the user can resume us from the sources strip. Gated on our own mpv actually
+    // playing, so it fires once (pausing clears the condition) and never fights.
     Timer {
         interval: 1000
         repeat: true
         running: playProc.running
-        onTriggered: if (root.otherPlaying() && !fade.running) fade.begin();
+        onTriggered: {
+            if (fade.running)
+                return;
+            if (Date.now() - root.tookOverAt < root.yieldGraceMs)
+                return;
+            if (root.ourMprisPlaying() && root.otherPlaying())
+                fade.begin();
+        }
     }
 
     Timer {
@@ -281,5 +383,10 @@ Singleton {
             "rm -f " + root.ipcSocket + "; true"]
     }
 
+    // Kill any orphan mpv from a previous launcher instance on startup: a daemon
+    // restart or crash SIGTERMs the old qs before Component.onDestruction can run,
+    // leaving an mpv playing that the new Radio has no queue for (it would show a
+    // raw "watch?v=..." title with no cover). Clean slate so state always matches.
+    Component.onCompleted: killProc.running = true
     Component.onDestruction: killProc.running = true
 }
