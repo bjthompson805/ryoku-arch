@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- `quickshell/launcher` RyoTunes plays **pasted YouTube / YouTube Music links**,
+  including playlists and mixes. Pasting a link (with or without the `@` prefix)
+  offers a one-tap "Play": a bare track link seeds its radio, a playlist or mix
+  link (`?list=...`) queues the whole playlist through the same InnerTube `/next`
+  path. Played playlists are **cached** (`Singletons/Playlists.qml`, an LRU under
+  the cache dir) and shown as a **力 SAVED PLAYLISTS** chip row under the
+  now-playing stack (`SavedPlaylists.qml`), so the full playlist replays instantly
+  with one tap and no network round-trip. Link parsing and the playlist-aware
+  radio body are in `providers/media/ytmusic/ytmusic.js` (node-tested); the
+  provider surfaces unprefixed links via a `urlFallback` gate
+  (`lib/dispatch.js` `looksYtUrl`). Documented in `docs/ryotunes.md`.
 - `quickshell/launcher` **RyoTunes**, YouTube Music as the built-in free-music
   source. The `@` provider now searches YouTube Music's keyless InnerTube API
   (`curl`) instead of `yt-dlp`, returning proper songs with clean title/artist/

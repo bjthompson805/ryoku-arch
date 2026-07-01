@@ -224,14 +224,45 @@ function radioPlaylistId(videoId) {
     return "RDAMVM" + String(videoId == null ? "" : videoId);
 }
 
-// Body for the continuation POST. isAudioOnly trims video-only entries.
-function radioBody(videoId) {
-    return JSON.stringify({
+// Pull the videoId and playlistId out of a pasted YouTube / YouTube Music link.
+// Handles watch?v=, youtu.be/<id>, music.youtube.com, and playlist?list= forms,
+// with an optional &list=. Returns { videoId, playlistId } (either may be "") or
+// null when the text is not a YouTube URL, so the caller can treat a paste as a
+// link to play instead of a search term.
+function parseYtUrl(text) {
+    var s = String(text == null ? "" : text).trim();
+    if (!/^https?:\/\/(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\//i.test(s))
+        return null;
+    var videoId = "";
+    var playlistId = "";
+    var mShort = s.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+    if (mShort)
+        videoId = mShort[1];
+    var mV = s.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+    if (mV)
+        videoId = mV[1];
+    var mList = s.match(/[?&]list=([A-Za-z0-9_-]+)/);
+    if (mList)
+        playlistId = mList[1];
+    if (!videoId && !playlistId)
+        return null;
+    return { videoId: videoId, playlistId: playlistId };
+}
+
+// Body for the continuation POST. isAudioOnly trims video-only entries. With an
+// explicit playlistId (a pasted playlist/mix link) that playlist is queued as-is;
+// otherwise the videoId seeds its auto radio station.
+function radioBody(videoId, playlistId) {
+    var vid = String(videoId == null ? "" : videoId);
+    var pl = String(playlistId == null ? "" : playlistId) || radioPlaylistId(vid);
+    var body = {
         context: { client: { clientName: "WEB_REMIX", clientVersion: "1.20240101.01.00", hl: "en", gl: "US" } },
-        videoId: String(videoId == null ? "" : videoId),
-        playlistId: radioPlaylistId(videoId),
+        playlistId: pl,
         isAudioOnly: true
-    });
+    };
+    if (vid)
+        body.videoId = vid;
+    return JSON.stringify(body);
 }
 
 // Collect playlistPanelVideoRenderer entries in queue order.
@@ -298,5 +329,5 @@ function parseRadio(text) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { parse, parseFlat, innertubeBody, hiResCover, clockToSec, fmtDuration, splitByline, runsText, SONGS_PARAMS, parseRadio, radioBody, radioPlaylistId };
+    module.exports = { parse, parseFlat, innertubeBody, hiResCover, clockToSec, fmtDuration, splitByline, runsText, SONGS_PARAMS, parseRadio, radioBody, radioPlaylistId, parseYtUrl };
 }

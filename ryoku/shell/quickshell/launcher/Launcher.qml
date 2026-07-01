@@ -109,6 +109,7 @@ Item {
     readonly property real restH: rest.implicitHeight
         + (hasMedia ? nowPlaying.implicitHeight + Metrics.padRow * s : 0)
         + (hasMedia && mediaSources.sources.length > 0 ? mediaSources.implicitHeight + 6 * s : 0)
+        + (savedPlaylists.visible ? savedPlaylists.implicitHeight + 8 * s : 0)
     // Extra body slice for the instant-answer panel; padRow separates it from
     // the Search fallback row that stays underneath so Enter still targets it.
     readonly property real answerH: answerMode ? answerPanel.implicitHeight + Metrics.padRow * s : 0
@@ -141,6 +142,14 @@ Item {
     }
 
     Providers { id: providers }
+
+    // Persist a resolved playlist/mix link to the cache. Driven here (not inside
+    // the Radio singleton) because a singleton importing its own qmldir to reach
+    // a sibling singleton is unreliable; the view layer imports Singletons cleanly.
+    Connections {
+        target: Radio
+        function onPlaylistResolved(playlistId, tracks) { Playlists.save(playlistId, tracks); }
+    }
 
     Binding {
         target: providers.actions
@@ -294,11 +303,14 @@ Item {
         id: nowPlaying
         visible: root.resting && !root.allApps && !root.help && root.hasMedia
         anchors.top: rest.bottom
-        anchors.topMargin: Metrics.padRow * root.s
+        anchors.topMargin: visible ? Metrics.padRow * root.s : 0
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.leftMargin: Metrics.padOuter * root.s
         anchors.rightMargin: Metrics.padOuter * root.s
+        // collapse when hidden so the strip/saved rows below chain flush against
+        // the rest card instead of leaving the card's fixed height as a gap.
+        height: visible ? implicitHeight : 0
         s: root.s
         player: root.activePlayer
     }
@@ -307,15 +319,30 @@ Item {
     // sources read as one compact stack. Only when resting with media present.
     MediaSources {
         id: mediaSources
-        visible: root.resting && !root.allApps && !root.help && root.hasMedia
+        visible: root.resting && !root.allApps && !root.help && root.hasMedia && sources.length > 0
         anchors.top: nowPlaying.bottom
-        anchors.topMargin: 6 * root.s
+        anchors.topMargin: visible ? 6 * root.s : 0
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: Metrics.padOuter * root.s
+        anchors.rightMargin: Metrics.padOuter * root.s
+        height: visible ? implicitHeight : 0
+        s: root.s
+        activePlayer: root.activePlayer
+    }
+
+    // Saved-playlist chips, replayable with one tap. Shown at rest whenever any
+    // playlist is cached, even with nothing currently playing.
+    SavedPlaylists {
+        id: savedPlaylists
+        visible: root.resting && !root.allApps && !root.help && Playlists.items.length > 0
+        anchors.top: mediaSources.bottom
+        anchors.topMargin: visible ? 8 * root.s : 0
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.leftMargin: Metrics.padOuter * root.s
         anchors.rightMargin: Metrics.padOuter * root.s
         s: root.s
-        activePlayer: root.activePlayer
     }
 
     ResultGrid {

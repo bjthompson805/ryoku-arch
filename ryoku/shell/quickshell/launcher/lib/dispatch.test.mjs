@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { routePrefix, looksNumeric } = require("./dispatch.js");
+const { routePrefix, looksNumeric, looksYtUrl } = require("./dispatch.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {
@@ -67,5 +67,11 @@ eq(looksNumeric("edit"), false, "edit is not the e constant (word boundary guard
 eq(looksNumeric("logout"), false, "logout is not log (word boundary guard)");
 eq(looksNumeric("--flag"), false, "double dash is not numeric");
 eq(looksNumeric("-flag"), false, "dash then letter is not numeric");
+
+eq(looksYtUrl("https://www.youtube.com/watch?v=abc&list=RDabc"), true, "youtube watch link is a yt url");
+eq(looksYtUrl("https://music.youtube.com/playlist?list=PLx"), true, "music.youtube playlist link is a yt url");
+eq(looksYtUrl("https://youtu.be/abc"), true, "youtu.be short link is a yt url");
+eq(looksYtUrl("daft punk"), false, "plain text is not a yt url");
+eq(looksYtUrl("https://example.com/watch?v=x"), false, "non-youtube url is not a yt url");
 if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 console.log("\nAll tests PASSED");

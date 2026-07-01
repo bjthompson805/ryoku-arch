@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { parseRadio, radioBody, radioPlaylistId } = require("./ytmusic.js");
+const { parseRadio, radioBody, radioPlaylistId, parseYtUrl } = require("./ytmusic.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {
@@ -31,6 +31,18 @@ eq(radioPlaylistId("JhulBGMA7G4"), "RDAMVMJhulBGMA7G4", "radio playlist id is RD
 ok(radioBody("JhulBGMA7G4").indexOf("RDAMVMJhulBGMA7G4") !== -1, "body carries the radio playlist");
 eq(JSON.parse(radioBody("vid")).isAudioOnly, true, "body requests audio-only");
 eq(JSON.parse(radioBody("vid")).videoId, "vid", "body carries seed videoId");
+// explicit playlist (a pasted link) is queued as-is, not turned into a radio
+eq(JSON.parse(radioBody("vid", "RDABC")).playlistId, "RDABC", "explicit playlist id used verbatim");
+eq(JSON.parse(radioBody("vid", "")).playlistId, "RDAMVMvid", "empty playlist falls back to auto radio");
+ok(!("videoId" in JSON.parse(radioBody("", "PLxyz"))), "playlist-only body omits videoId");
+
+// parseYtUrl: pasted links -> { videoId, playlistId } or null
+eq(parseYtUrl("https://www.youtube.com/watch?v=DM-HSJCLaNc&list=RDDM-HSJCLaNc&start_radio=1"), { videoId: "DM-HSJCLaNc", playlistId: "RDDM-HSJCLaNc" }, "watch link with radio list");
+eq(parseYtUrl("https://music.youtube.com/watch?v=JhulBGMA7G4"), { videoId: "JhulBGMA7G4", playlistId: "" }, "bare music watch link");
+eq(parseYtUrl("https://youtu.be/wU26xVT_vBU?si=x"), { videoId: "wU26xVT_vBU", playlistId: "" }, "youtu.be short link");
+eq(parseYtUrl("https://www.youtube.com/playlist?list=PLabc123"), { videoId: "", playlistId: "PLabc123" }, "playlist-only link");
+eq(parseYtUrl("daft punk"), null, "plain text is not a url");
+eq(parseYtUrl("https://example.com/watch?v=nope"), null, "non-youtube url is null");
 
 // full radio parse against a faithful (minimized) /next fixture
 const radioFixture = radioResponse([

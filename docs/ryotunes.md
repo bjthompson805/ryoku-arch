@@ -25,6 +25,12 @@ The launcher surface (the `@` provider, the now-playing card) is documented in
 - **Endless radio.** Playing a track does not stop at the end of that track: the
   engine seeds a YouTube Music radio from it (the `/next` continuation, a ~50-track
   station) and keeps appending as the queue drains, so free music never stops.
+- **Paste a link, play a playlist.** A pasted YouTube / YouTube Music URL (with or
+  without the `@` prefix) becomes a one-tap play: a bare track link seeds its
+  radio, a playlist or mix link (`?list=...`) queues the whole playlist through the
+  same `/next` path. Played playlists are cached and shown as a **SAVED PLAYLISTS**
+  chip row under the now-playing stack, so the full playlist replays instantly with
+  one tap and no network round-trip; the `×` on a chip forgets it.
 - **Real transport.** `mpv-mpris` publishes the stream as a first-class MPRIS
   player, so the now-playing card's Next/Prev and the media keys step the radio
   queue like any other player, the card shows an up-next peek, and the wavy
@@ -65,12 +71,24 @@ pure JavaScript with `node` tests; the QML renders and drives processes.
   search body and parses the `musicResponsiveListItemRenderer` shelf into tracks
   (title, artist, album, duration, hi-res square cover); `parseFlat` keeps the
   `yt-dlp` NDJSON shape for the offline fallback; `radioBody`/`parseRadio` build
-  and parse the `/next` continuation into the same track shape. Search and radio
-  live in one file (QML has no `require`, so a split module could not share the
-  helpers), pure and node-tested (`ytmusic.test.mjs`, `radio.test.mjs`).
+  and parse the `/next` continuation into the same track shape; `parseYtUrl` pulls
+  the videoId/playlistId out of a pasted link, and `radioBody(videoId, playlistId)`
+  queues an explicit playlist verbatim. Search, radio, and link parsing live in one
+  file (QML has no `require`, so a split module could not share the helpers), pure
+  and node-tested (`ytmusic.test.mjs`, `radio.test.mjs`).
 - `quickshell/launcher/providers/media/ytmusic/YtMusic.qml` the `@` search
   provider: InnerTube `curl` + prefix cache + `yt-dlp` fallback, rows carry the
-  cover, play hands off to `Radio`.
+  cover, play hands off to `Radio`; a pasted link (`urlFallback`, gated by
+  `lib/dispatch.js` `looksYtUrl`) short-circuits to a "Play" row that calls
+  `Radio.playUrl`.
+- `quickshell/launcher/Singletons/Playlists.qml` the saved-playlist cache: an LRU
+  of resolved playlist/mix links (id, label, cover, track list) as JSON under the
+  cache dir. `Radio` emits `playlistResolved` when a link's playlist lands and the
+  launcher persists it here (a singleton reaching a sibling singleton via its own
+  qmldir is unreliable, so the save is driven from the view layer).
+- `quickshell/launcher/SavedPlaylists.qml` the chip row under the now-playing
+  stack: recent saved playlists, tap to `Radio.playCached` (instant, no network),
+  `×` to forget.
 - `quickshell/launcher/MediaSources.qml` the slim strips under the card: one row
   per other real player (from `Radio.realPlayers()`), tap to switch source.
 - `quickshell/launcher/providers/media/mpris/Mpris.qml` the now-playing row for any
@@ -102,6 +120,11 @@ mpv IPC playlist-pos -> Radio.index -> card cover / up-next follow
 another player starts (past grace) -> fade mpv volume -> pause (yield)
 tap a source strip -> resume it, pause the rest
 MPRIS row "YT Radio" -> Radio.playFromText -> curl /search -> play first hit
+
+paste link -> YtMusic linkRow -> Radio.playUrl(parseYtUrl)
+  -> play seed now -> curl /next(playlistId) -> parseRadio -> queue = playlist
+  -> playlistResolved -> Playlists.save (cache)
+tap SAVED PLAYLISTS chip -> Radio.playCached(cached tracks)  [instant, no network]
 ```
 
 ## Requirements and limits

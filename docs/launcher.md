@@ -48,7 +48,7 @@ the dispatcher discovers it by registration, never by an edit to the routing.
 | snippets | (default) | text expander (`{date}`/`{clipboard}`/`{selection}`/`{cursor}`) + quicklinks (`{query}`) |
 | packages | `install`/`remove`/`search` | GPK across every package manager |
 | mpris | (default, media words) | now-playing + transport for any player, plus **YT Radio** (seed a YouTube Music radio from whatever is playing) |
-| ytmusic | `@` | YouTube Music search (InnerTube) + endless radio playback (mpv) |
+| ytmusic | `@`, pasted YT link | YouTube Music search (InnerTube), pasted track/playlist/mix links, endless radio playback (mpv), saved playlists |
 | script | per-script keyword | run rofi-script / dmenu scripts |
 
 Ranking and protocol logic live as testable JavaScript in `lib/` and each

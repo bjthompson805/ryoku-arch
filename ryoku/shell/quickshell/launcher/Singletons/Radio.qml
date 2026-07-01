@@ -20,6 +20,12 @@ Singleton {
 
     readonly property string ipcSocket: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-ytmusic-mpv.sock"
 
+    // Emitted when a pasted playlist/mix link finishes resolving, with its id and
+    // full track list. Launcher (which imports Singletons cleanly) persists it to
+    // the Playlists cache; a singleton importing its own qmldir is unreliable, so
+    // the save is driven from the view layer instead.
+    signal playlistResolved(string playlistId, var tracks)
+
     // The play queue (picked track + radio continuation) and the index mpv is on.
     // `current`/`next` drive the now-playing cover and the up-next peek.
     property var queue: []
@@ -119,6 +125,23 @@ Singleton {
     property double tookOverAt: 0
     readonly property int yieldGraceMs: 4000
 
+    // Start mpv on `url`, or swap the running mpv to it over IPC (no audio gap).
+    // The playlist is cleared so radio/playlist tracks refill from a clean slate.
+    function startOrReplace(url) {
+        if (playProc.running && mpvSock.connected) {
+            root.mpvCmd(["loadfile", url, "replace"]);
+            root.mpvCmd(["playlist-clear"]);
+            root.mpvCmd(["set_property", "volume", 100]);
+            root.mpvCmd(["set_property", "pause", false]);
+        } else {
+            playProc.firstUrl = url;
+            playProc.running = false;
+            playProc.running = true;
+        }
+    }
+
+    function watchUrl(id) { return "https://music.youtube.com/watch?v=" + id; }
+
     // Play a track now and seed an endless radio from it. Reuses a running mpv
     // (no audio gap) via IPC; cold-starts mpv otherwise.
     function play(track) {
@@ -132,19 +155,50 @@ Singleton {
         // the yield timer does not treat that same audio as a reason to bow out.
         root.tookOverAt = Date.now();
         root.pauseOthers();
-        var url = "https://music.youtube.com/watch?v=" + track.id;
-        if (playProc.running && mpvSock.connected) {
-            // clean the playlist down to just this track, then let radio refill.
-            root.mpvCmd(["loadfile", url, "replace"]);
-            root.mpvCmd(["playlist-clear"]);
-            root.mpvCmd(["set_property", "volume", 100]);
-            root.mpvCmd(["set_property", "pause", false]);
-        } else {
-            playProc.firstUrl = url;
-            playProc.running = false;
-            playProc.running = true;
-        }
+        root.startOrReplace(root.watchUrl(track.id));
         radioProc.fetch(track.id, root.session);
+    }
+
+    // Play a pasted YouTube / YouTube Music link. A link with a playlist (a mix or
+    // a real playlist) queues that whole playlist; a bare track link seeds its auto
+    // radio, same as picking a search result. With a videoId we start playback
+    // immediately and fill the queue when /next lands; a playlist-only link waits
+    // for the first track. Playlist links are saved for instant replay later.
+    function playUrl(url) {
+        var parsed = YtMusic.parseYtUrl(url);
+        if (!parsed)
+            return false;
+        root.session++;
+        root.buffering = true;
+        root.tookOverAt = Date.now();
+        root.pauseOthers();
+        if (parsed.videoId) {
+            // start now on the seed track; the queue fills when the playlist lands.
+            root.queue = [{ id: parsed.videoId, title: "", artist: "", album: "", cover: "", durationLabel: "" }];
+            root.index = 0;
+            root.startOrReplace(root.watchUrl(parsed.videoId));
+        } else {
+            root.queue = [];
+            root.index = 0;
+        }
+        radioProc.fetchPlaylist(parsed.videoId, parsed.playlistId, root.session, parsed.playlistId.length > 0);
+        return true;
+    }
+
+    // Instant replay of a saved playlist from cache: no network, the queue is the
+    // stored track list and mpv starts on the first track right away.
+    function playCached(tracks) {
+        if (!tracks || tracks.length === 0)
+            return;
+        root.session++;
+        root.buffering = true;
+        root.tookOverAt = Date.now();
+        root.pauseOthers();
+        root.queue = tracks.slice();
+        root.index = 0;
+        root.startOrReplace(root.watchUrl(tracks[0].id));
+        for (var i = 1; i < tracks.length; i++)
+            root.mpvCmd(["loadfile", root.watchUrl(tracks[i].id), "append"]);
     }
 
     // Seed radio from a free-text "artist title" (the MPRIS "YT Radio" verb):
@@ -259,7 +313,10 @@ Singleton {
             var pos = msg.data;
             if (typeof pos === "number" && pos >= 0) {
                 root.index = pos;
-                if (root.queue.length - pos <= 3 && !root.extending)
+                // don't kick an extend while any fetch is in flight: a playlist
+                // link starts with a 1-track queue, and an eager extend here would
+                // clobber the playlist fetch (and never cache it).
+                if (root.queue.length - pos <= 3 && !root.extending && !radioProc.running)
                     root.extendRadio();
             }
         } else if (msg && msg.event === "property-change" && msg.name === "core-idle") {
@@ -277,15 +334,27 @@ Singleton {
         radioProc.fetch(root.queue[root.queue.length - 1].id, root.session);
     }
 
-    // Radio continuation fetch: POST InnerTube /next, parse the queue, append the
-    // tracks new to us (skipping dupes) to both our queue and mpv's playlist.
+    // Continuation / playlist fetch: POST InnerTube /next. In "extend" mode it
+    // appends the auto-radio tail (dedup) as the queue drains; in "playlist" mode
+    // it loads a pasted playlist/mix as the whole queue and saves it for replay.
     Process {
         id: radioProc
         property int forSession: 0
         property string body: ""
+        property string mode: "extend"
+        property string savePlaylistId: ""
         function fetch(videoId, sess) {
+            mode = "extend";
             forSession = sess;
             body = YtMusic.radioBody(videoId);
+            running = false;
+            running = true;
+        }
+        function fetchPlaylist(videoId, playlistId, sess, save) {
+            mode = "playlist";
+            forSession = sess;
+            savePlaylistId = save ? playlistId : "";
+            body = YtMusic.radioBody(videoId, playlistId);
             running = false;
             running = true;
         }
@@ -300,6 +369,22 @@ Singleton {
                 if (radioProc.forSession !== root.session)
                     return;
                 var tracks = YtMusic.parseRadio(this.text);
+                if (radioProc.mode === "playlist") {
+                    if (tracks.length === 0) {
+                        root.buffering = false;
+                        return;
+                    }
+                    var startedVid = root.queue.length > 0 ? root.queue[0].id : "";
+                    if (!(startedVid && tracks[0].id === startedVid))
+                        root.startOrReplace(root.watchUrl(tracks[0].id));
+                    for (var k = 1; k < tracks.length; k++)
+                        root.mpvCmd(["loadfile", root.watchUrl(tracks[k].id), "append"]);
+                    root.queue = tracks;
+                    root.index = 0;
+                    if (radioProc.savePlaylistId.length > 0)
+                        root.playlistResolved(radioProc.savePlaylistId, tracks);
+                    return;
+                }
                 var have = {};
                 for (var i = 0; i < root.queue.length; i++)
                     have[root.queue[i].id] = 1;
@@ -310,7 +395,7 @@ Singleton {
                         continue;
                     have[t.id] = 1;
                     q.push(t);
-                    root.mpvCmd(["loadfile", "https://music.youtube.com/watch?v=" + t.id, "append"]);
+                    root.mpvCmd(["loadfile", root.watchUrl(t.id), "append"]);
                 }
                 root.queue = q;
             }

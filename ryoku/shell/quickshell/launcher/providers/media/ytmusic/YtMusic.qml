@@ -19,6 +19,10 @@ Provider {
     providerId: "ytmusic"
     prefix: "@"
     defaultProvider: false
+    // Surface unprefixed too, but only for a pasted YouTube link (Dispatcher gates
+    // this on Dispatch.looksYtUrl), so `@` still owns text search while a link you
+    // paste anywhere becomes a one-tap "Play" without needing the prefix.
+    urlFallback: true
 
     property bool available: false
     property string pendingQuery: ""
@@ -75,10 +79,33 @@ Provider {
         };
     }
 
+    // A pasted YouTube / YT Music link becomes one "Play" row: a playlist/mix link
+    // queues the whole playlist, a bare track link seeds its radio. No network at
+    // list time; Radio.playUrl resolves it on play.
+    function linkRow(url, parsed) {
+        var isList = parsed.playlistId.length > 0;
+        return {
+            id: "ytm:link:" + url,
+            title: isList ? "Play this playlist" : "Play this track",
+            subtitle: "YouTube link  \u00b7  " + (isList ? "queues the full playlist" : "starts a radio"),
+            icon: "",
+            type: "YT Music",
+            score: -1,
+            actions: [
+                { name: "Play", icon: "", execute: function () { Radio.playUrl(url); } },
+                { name: "Open", icon: "", execute: function () { Qt.openUrlExternally(url); } }
+            ]
+        };
+    }
+
     function query(text) {
         if (!ytmusic.available)
             return [];
         var t = (text || "").trim();
+        // A pasted link short-circuits search: offer to play it directly.
+        var parsed = YtMusic.parseYtUrl(t);
+        if (parsed)
+            return [ytmusic.linkRow(t, parsed)];
         if (t.length < 2)
             return [];
         var cached = ytmusic.cacheLookup(t);

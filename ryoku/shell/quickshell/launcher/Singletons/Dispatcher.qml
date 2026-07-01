@@ -67,6 +67,8 @@ Singleton {
                     rows = rows.concat(prov.query(r.query));
                 else if (prov && prov.numericFallback && Dispatch.looksNumeric(r.query))
                     rows = rows.concat(prov.query(r.query));
+                else if (prov && prov.urlFallback && Dispatch.looksYtUrl(r.query))
+                    rows = rows.concat(prov.query(r.query));
             }
             rows.sort(function (a, b) {
                 return (a.score || 0) - (b.score || 0);
