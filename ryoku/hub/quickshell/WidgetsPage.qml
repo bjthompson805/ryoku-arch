@@ -21,7 +21,9 @@ Item {
         "clockBg", "clockRadius", "dateShow", "dateDesign",
         "weatherEnabled", "weatherDesign", "weatherUnit", "weatherScope", "weatherAnimate",
         "weatherScale", "weatherAnchor", "weatherX", "weatherY", "weatherLocked", "weatherOpacity",
-        "weatherBg", "weatherRadius"
+        "weatherBg", "weatherRadius",
+        "calEnabled", "calDesign", "calAccent", "calWeekStart", "calScale",
+        "calAnchor", "calX", "calY", "calLocked", "calOpacity", "calBg", "calRadius"
     ]
 
     // mirror of the widgets' canonical defaults (widgets Singletons/Config.qml),
@@ -34,7 +36,10 @@ Item {
         "weatherEnabled": true, "weatherDesign": "card", "weatherUnit": "C", "weatherScope": "today",
         "weatherAnimate": true, "weatherScale": 1.0, "weatherAnchor": "top-right",
         "weatherX": 72, "weatherY": 64, "weatherLocked": false, "weatherOpacity": 1.0, "weatherBg": "glass",
-        "weatherRadius": 26
+        "weatherRadius": 26,
+        "calEnabled": false, "calDesign": "month", "calAccent": "wallust", "calWeekStart": "mon",
+        "calScale": 1.0, "calAnchor": "bottom-right", "calX": 72, "calY": 64, "calLocked": false,
+        "calOpacity": 1.0, "calBg": "glass", "calRadius": 26
     })
 
     readonly property var anchorOptions: [
@@ -78,6 +83,18 @@ Item {
         property real weatherOpacity: 1.0
         property string weatherBg: "glass"
         property int weatherRadius: 26
+        property bool calEnabled: false
+        property string calDesign: "month"
+        property string calAccent: "wallust"
+        property string calWeekStart: "mon"
+        property real calScale: 1.0
+        property string calAnchor: "bottom-right"
+        property int calX: 72
+        property int calY: 64
+        property bool calLocked: false
+        property real calOpacity: 1.0
+        property string calBg: "glass"
+        property int calRadius: 26
     }
 
     function sameVal(a, b) { return String(a) === String(b); }
@@ -206,6 +223,18 @@ Item {
             property real weatherOpacity: 1.0
             property string weatherBg: "glass"
             property int weatherRadius: 26
+            property bool calEnabled: false
+            property string calDesign: "month"
+            property string calAccent: "wallust"
+            property string calWeekStart: "mon"
+            property real calScale: 1.0
+            property string calAnchor: "bottom-right"
+            property int calX: 72
+            property int calY: 64
+            property bool calLocked: false
+            property real calOpacity: 1.0
+            property string calBg: "glass"
+            property int calRadius: 26
         }
     }
 
@@ -226,7 +255,7 @@ Item {
         id: tabs
         anchors.left: parent.left
         anchors.top: parent.top
-        model: [{ "key": "clock", "label": "Clock" }, { "key": "weather", "label": "Weather" }]
+        model: [{ "key": "clock", "label": "Clock" }, { "key": "weather", "label": "Weather" }, { "key": "calendar", "label": "Calendar" }]
         current: page.group
         onSelected: (k) => page.group = k
     }
@@ -273,7 +302,7 @@ Item {
             id: loader
             width: flick.width - 12
             height: item ? item.implicitHeight : 0
-            sourceComponent: page.group === "clock" ? clockTab : weatherTab
+            sourceComponent: page.group === "clock" ? clockTab : (page.group === "weather" ? weatherTab : calendarTab)
             onLoaded: { if (item) { item.opacity = 0; fade.restart(); } }
         }
 
@@ -527,6 +556,135 @@ Item {
                         NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "X"; unit: "px"; from: 0; to: 5000; value: draft.weatherX; onModified: (v) => page.edit("weatherX", v) }
                         NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "Y"; unit: "px"; from: 0; to: 5000; value: draft.weatherY; onModified: (v) => page.edit("weatherY", v) }
                         ToggleRow { width: parent.width; label: "Lock on desktop"; checked: draft.weatherLocked; onToggled: (v) => page.edit("weatherLocked", v) }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- calendar tab ------------------------------------------------------
+    Component {
+        id: calendarTab
+        Column {
+            id: calCol
+            spacing: 22
+
+            Rectangle {
+                width: calCol.width
+                height: 260
+                radius: 16
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#191320" }
+                    GradientStop { position: 1.0; color: "#241a16" }
+                }
+                border.width: 1
+                border.color: Theme.line
+                clip: true
+
+                CalendarPreview {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    opacity: draft.calEnabled ? 1 : 0.32
+                    design: draft.calDesign
+                    accentChoice: draft.calAccent
+                    weekStart: draft.calWeekStart
+                }
+
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 12
+                    width: calTag.width + 18
+                    height: 20
+                    radius: 6
+                    color: Qt.rgba(0, 0, 0, 0.4)
+                    Text {
+                        id: calTag
+                        anchors.centerIn: parent
+                        text: draft.calEnabled ? "LIVE PREVIEW" : "DISABLED"
+                        color: Theme.dim
+                        font.family: Theme.mono
+                        font.pixelSize: 10
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 2
+                    }
+                }
+            }
+
+            Text {
+                width: calCol.width
+                text: "Notes you leave on a day sync with the pill's calendar, and back."
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+
+            Row {
+                id: calRow
+                width: calCol.width
+                spacing: 56
+                readonly property real colW: (width - spacing) / 2
+
+                Column {
+                    width: calRow.colW
+                    spacing: 30
+
+                    SettingSection {
+                        width: parent.width
+                        title: "WIDGET"
+                        ToggleRow { width: parent.width; label: "Enabled"; checked: draft.calEnabled; onToggled: (v) => page.edit("calEnabled", v) }
+                        Dropdown {
+                            width: parent.width; label: "Design"
+                            options: [{ "key": "month", "label": "Month" }, { "key": "minimal", "label": "Minimal" }, { "key": "agenda", "label": "Agenda" }, { "key": "week", "label": "Week" }, { "key": "heat", "label": "Heatmap" }]
+                            current: draft.calDesign
+                            onChosen: (k) => page.edit("calDesign", k)
+                        }
+                        ChoiceRow {
+                            width: parent.width; label: "Accent"
+                            options: [{ "key": "wallust", "label": "Wallust" }, { "key": "brand", "label": "Brand" }, { "key": "mono", "label": "Mono" }]
+                            current: draft.calAccent
+                            onChosen: (k) => page.edit("calAccent", k)
+                        }
+                    }
+
+                    SettingSection {
+                        width: parent.width
+                        title: "WEEK"
+                        ChoiceRow {
+                            width: parent.width; label: "Starts on"
+                            options: [{ "key": "mon", "label": "Monday" }, { "key": "sun", "label": "Sunday" }]
+                            current: draft.calWeekStart
+                            onChosen: (k) => page.edit("calWeekStart", k)
+                        }
+                    }
+                }
+
+                Column {
+                    width: calRow.colW
+                    spacing: 30
+
+                    SettingSection {
+                        width: parent.width
+                        title: "SIZE & SHAPE"
+                        SliderRow { width: parent.width; label: "Size"; from: 0.5; to: 2.5; step: 0.05; decimals: 2; value: draft.calScale; onModified: (v) => page.edit("calScale", v) }
+                        ChoiceRow {
+                            width: parent.width; label: "Background"
+                            options: [{ "key": "none", "label": "None" }, { "key": "card", "label": "Card" }, { "key": "glass", "label": "Glass" }]
+                            current: draft.calBg
+                            onChosen: (k) => page.edit("calBg", k)
+                        }
+                        NumberField { visible: draft.calBg !== "none"; width: parent.width; label: "Corner radius"; unit: "px"; from: 0; to: 60; value: draft.calRadius; onModified: (v) => page.edit("calRadius", v) }
+                        SliderRow { width: parent.width; label: "Opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.calOpacity; onModified: (v) => page.edit("calOpacity", v) }
+                    }
+
+                    SettingSection {
+                        width: parent.width
+                        title: "PLACEMENT"
+                        Dropdown { width: parent.width; label: "Anchor"; options: page.anchorOptions; current: draft.calAnchor; onChosen: (k) => page.edit("calAnchor", k) }
+                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "X"; unit: "px"; from: 0; to: 5000; value: draft.calX; onModified: (v) => page.edit("calX", v) }
+                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "Y"; unit: "px"; from: 0; to: 5000; value: draft.calY; onModified: (v) => page.edit("calY", v) }
+                        ToggleRow { width: parent.width; label: "Lock on desktop"; checked: draft.calLocked; onToggled: (v) => page.edit("calLocked", v) }
                     }
                 }
             }
