@@ -71,6 +71,11 @@ func applyScheme(mode string) error {
 		st.Scheme = mode
 		st.FollowWallpaper = false
 		saveThemeState(st)
+		// borders read the master: regen so the fixed border colours pin now,
+		// not only on the next appearance save.
+		if err := writeGeneratedLua(loadOverrides()); err != nil {
+			return err
+		}
 		writePalette(pal)
 	default:
 		return fmt.Errorf("unknown scheme %q (want follow|light|dark)", mode)
