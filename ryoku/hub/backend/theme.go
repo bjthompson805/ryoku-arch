@@ -92,14 +92,6 @@ func themeStatePath() string {
 	return filepath.Join(base, "ryoku", "theme.json")
 }
 
-func wallpaperStatePath() string {
-	base := os.Getenv("XDG_STATE_HOME")
-	if base == "" {
-		base = filepath.Join(os.Getenv("HOME"), ".local", "state")
-	}
-	return filepath.Join(base, "ryoku-wallpaper")
-}
-
 // loadThemeState defaults FollowWallpaper=true on a missing/blank file (the
 // shipped behaviour: colours track the wallpaper).
 func loadThemeState() themeState {
@@ -189,13 +181,18 @@ func applyTheme(slug string) error {
 	return nil
 }
 
-// setFollowWallpaper flips the colour source and reapplies the palette for the
-// active theme.
+// setFollowWallpaper flips the single colour-source master (theme.json), then
+// regenerates settings.lua so borders follow the new master and reapplies the
+// palette for the active theme.
 func setFollowWallpaper(follow bool) error {
 	st := loadThemeState()
 	st.FollowWallpaper = follow
 	st.Scheme = ""
 	saveThemeState(st)
+	// borders read the master: regen settings.lua now that it changed.
+	if err := writeGeneratedLua(loadOverrides()); err != nil {
+		return err
+	}
 	hasPalette := false
 	dir := ""
 	if st.Slug != "" {
@@ -211,13 +208,13 @@ func setFollowWallpaper(follow bool) error {
 }
 
 // applyPalette writes the wallust dsts every consumer reads. follow-wallpaper
-// (or a theme with no palette) re-derives them via wallust; otherwise the
+// (or a theme with no palette) re-derives them via the daemon; otherwise the
 // theme's fixed palette is written and the wallpaper lock keeps it.
 func applyPalette(dir string, follow, hasPalette bool) {
 	if follow || !hasPalette || dir == "" {
-		if pic := currentWallpaper(); pic != "" {
-			_ = exec.Command("wallust", "run", pic).Run()
-		}
+		// the daemon owns wallust: repaint re-derives the palette for the
+		// current wallpaper (honouring the per-image tune), no image transition.
+		_ = exec.Command("ryoku-shell", "wallpaper", "repaint").Run()
 		return
 	}
 	pal, err := loadPalette(filepath.Join(dir, "colors.json"))
@@ -262,14 +259,6 @@ func renderKitty(p map[string]string) string {
 		fmt.Fprintf(&b, "%s %s\n", key, p[key])
 	}
 	return b.String()
-}
-
-func currentWallpaper() string {
-	b, err := os.ReadFile(wallpaperStatePath())
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
 }
 
 func mustJSON(v any) []byte {

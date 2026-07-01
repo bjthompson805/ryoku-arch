@@ -57,11 +57,12 @@ func applyScheme(mode string) error {
 		st.Scheme = ""
 		st.FollowWallpaper = true
 		saveThemeState(st)
-		// through ryoku-shell so the derive honours the ryowalls palette tune,
-		// matching a normal wallpaper change instead of a bare wallust run.
-		if pic := currentWallpaper(); pic != "" {
-			_ = exec.Command("ryoku-shell", "wallpaper", "set", pic).Run()
+		// borders read the master: regen so they follow the wallpaper again.
+		if err := writeGeneratedLua(loadOverrides()); err != nil {
+			return err
 		}
+		// the daemon derives (honouring the per-image tune); no re-animation.
+		_ = exec.Command("ryoku-shell", "wallpaper", "repaint").Run()
 	case "light", "dark":
 		pal, err := loadScheme(mode)
 		if err != nil {
