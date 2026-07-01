@@ -54,7 +54,6 @@ Item {
         if (p === ">") return "PACKAGE";
         if (p === "=") return "CALC";
         if (p === ";") return "CLIPBOARD";
-        if (p === "s:") return "SPOTIFY";
         if (p === "@") return "YT MUSIC";
         if (p === "?") return "WEB";
         return "";
@@ -67,7 +66,7 @@ Item {
         && routed.query.length > 0
         && providers.web && providers.web.answer && providers.web.answer.available
     // tabs + hint row are browsing aids: show them only for a bare "/" (the
-    // action catalog), not once the user types "/play" — then the results take
+    // action catalog), not once the user types "/play"; then the results take
     // the space and nothing clips.
     readonly property bool actionBrowse: actionMode && routed.query.length === 0
     // an async provider is resolving the current query and nothing has come back
@@ -82,7 +81,7 @@ Item {
     readonly property int visibleRows: 8
     readonly property int visibleCount: Math.min(results.length, visibleRows)
     // each distinct type group draws an 18px section header, so the list must be
-    // tall enough for the rows AND their headers — otherwise the last row clips
+    // tall enough for the rows AND their headers, otherwise the last row clips
     // (the subtitle vanishes and the action verb sits wrong).
     readonly property int sectionCount: {
         var n = 0, prev = null;

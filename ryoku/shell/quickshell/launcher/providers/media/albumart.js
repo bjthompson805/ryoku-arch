@@ -4,12 +4,29 @@
 // to 600x600 for a cover-sized image. Pure so parse/URL logic is node-tested
 // without invoking curl. Consumed by NowPlaying.qml.
 
-// Build the search URL for "artist title". Both fields are trimmed; if the
-// combined term is empty (no artist, no title) return "" so callers can skip
-// the fetch instead of hammering the API with a blank query.
+// Strip common YouTube/video noise from a title so the iTunes match lands on the
+// actual song: bracketed tags ((Official Video), [HD], (Lyrics), (Audio)...), a
+// trailing " - ..." or "feat./ft." credit, and collapsed whitespace. Applied to
+// the fallback lookup for non-YT-Music players (browsers), where titles carry
+// this cruft; YT Music's own stream supplies a clean square cover directly.
+function cleanTitle(s) {
+    return String(s == null ? "" : s)
+        .replace(/\([^)]*\)/g, " ")
+        .replace(/\[[^\]]*\]/g, " ")
+        .replace(/\s[-\u2013]\s.*$/i, " ")
+        .replace(/\s(?:feat\.?|ft\.?|featuring)\s.*$/i, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+// Build the search URL for "artist title". Both fields are trimmed and the title
+// is noise-stripped; if the combined term is empty (no artist, no title) return
+// "" so callers can skip the fetch. If stripping empties the title (all tags),
+// fall back to the raw title so the lookup still has something to match.
 function searchUrl(artist, title) {
     var a = String(artist == null ? "" : artist).trim();
-    var t = String(title == null ? "" : title).trim();
+    var rawT = String(title == null ? "" : title).trim();
+    var t = cleanTitle(rawT) || rawT;
     var term = (a && t) ? (a + " " + t) : (a || t);
     if (term.length === 0)
         return "";
@@ -41,5 +58,5 @@ function parseArt(rawJson) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { searchUrl, parseArt };
+    module.exports = { searchUrl, parseArt, cleanTitle };
 }

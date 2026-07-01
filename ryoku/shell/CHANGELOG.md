@@ -3,14 +3,35 @@
 ## Unreleased
 
 ### Added
+- `quickshell/launcher` **RyoTunes**, YouTube Music as the built-in free-music
+  source. The `@` provider now searches YouTube Music's keyless InnerTube API
+  (`curl`) instead of `yt-dlp`, returning proper songs with clean title/artist/
+  album and **square album art inline** (shown in the row and on the now-playing
+  card, no second cover lookup), markedly faster than the old search; a prefix
+  cache makes refining a query feel instant, and `yt-dlp` flat search stays as a
+  fallback when InnerTube is unreachable. Playing a track no longer stops at its
+  end: a new engine (`Singletons/Radio.qml`) streams it with a persistent `mpv`
+  driven over its JSON IPC socket (Quickshell native `Socket`, no `socat`) and
+  auto-extends an **endless YouTube Music radio** (the `/next` continuation),
+  which `mpv-mpris` exposes so the card's Next/Prev, the media keys, and an
+  up-next peek drive the queue. The MPRIS now-playing row gains a **YT Radio**
+  verb that seeds an endless station from whatever is already playing (a browser
+  video, any app), and our stream yields to other audio by fading out and pausing
+  instead of a hard kill. Parsers are `providers/media/ytmusic/{ytmusic,radio}.js`
+  with `node` tests; the iTunes cover fallback (`albumart.js`) now strips video
+  noise (`(Official Video)`, `[HD]`, `feat.`) for a better match. Documented in
+  `docs/ryotunes.md`. No new packages.
+- `quickshell/launcher` removed the built-in Spotify catalog provider (`s:`) and
+  its `ryoku-shell spotify` Web API backend (never released). Spotify stays a
+  fully detected MPRIS player: the now-playing card controls it and the YT Radio
+  verb can seed free music from it.
 - `quickshell/launcher` a standalone command palette (`Super + Space`), a full
   rebuild of the old pill app-list, dropped from the pill so it has room for a
   Raycast/Alfred-class feature set. A daemon-supervised, kept-warm Quickshell
   component (`ryoku-shell launcher`) with provider folders under `providers/`:
   apps, calculator (qalc), system actions (`/`), clipboard (`;`), windows, web
   (`?` + bangs), files (fd), snippets + quicklinks, packages (GPK), MPRIS
-  now-playing, Spotify catalog (`s:`, Web API via `ryoku-shell spotify`),
-  YouTube Music (`@`, yt-dlp + mpv), and a rofi-script/dmenu protocol provider for
+  now-playing, YouTube Music (`@`), and a rofi-script/dmenu protocol provider for
   third-party scripts. Two-tier UX (root search + `Ctrl+K` action panel), an
   all-apps grid (`Ctrl+A`), and a now-playing detail with the wavy seekbar.
   Ranking and protocol logic are `lib/*.js` with `node` tests. Documented in

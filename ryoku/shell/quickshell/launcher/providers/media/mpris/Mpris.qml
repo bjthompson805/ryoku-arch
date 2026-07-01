@@ -40,6 +40,17 @@ Provider {
     function nowPlayingRow() {
         var p = mpris.player;
         var artist = Theme.joinArtists(p.trackArtists, p.trackArtist);
+        var acts = [
+            { name: p.isPlaying ? "Pause" : "Play", icon: "", execute: function () { if (p.canTogglePlaying) p.togglePlaying(); } },
+            { name: "Next", icon: "", execute: function () { if (p.canGoNext) p.next(); } },
+            { name: "Previous", icon: "", execute: function () { if (p.canGoPrevious) p.previous(); } }
+        ];
+        // Bridge system audio -> free music: seed an endless YouTube Music radio
+        // from whatever is playing (a browser video, Spotify, any app). Skipped
+        // when our own YT stream is the player, where it would just restart radio.
+        if (String(p.identity || "").toLowerCase() !== "mpv" && p.trackTitle && p.trackTitle.length) {
+            acts.push({ name: "YT Radio", icon: "", execute: function () { Radio.playFromText((p.trackTitle || "") + " " + artist); } });
+        }
         return {
             id: "mpris:now",
             title: p.trackTitle && p.trackTitle.length ? p.trackTitle : "Now playing",
@@ -47,11 +58,7 @@ Provider {
             icon: "",
             type: "Now Playing",
             score: 2,
-            actions: [
-                { name: p.isPlaying ? "Pause" : "Play", icon: "", execute: function () { if (p.canTogglePlaying) p.togglePlaying(); } },
-                { name: "Next", icon: "", execute: function () { if (p.canGoNext) p.next(); } },
-                { name: "Previous", icon: "", execute: function () { if (p.canGoPrevious) p.previous(); } }
-            ]
+            actions: acts
         };
     }
 

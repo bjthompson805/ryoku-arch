@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const { searchUrl, parseArt } = require("./albumart.js");
+const { searchUrl, parseArt, cleanTitle } = require("./albumart.js");
 
 let failed = 0;
 function eq(actual, expected, msg) {
@@ -24,6 +24,20 @@ eq(searchUrl("Solo Artist", ""),
    "empty title still queries by artist");
 eq(searchUrl("", ""), "", "both empty yields empty URL");
 eq(searchUrl(null, undefined), "", "null/undefined treated as empty");
+
+// noise-stripping: video/browser titles carry cruft that wrecks the iTunes match
+eq(cleanTitle("One More Time (Official Video)"), "One More Time", "parenthetical tag stripped");
+eq(cleanTitle("Creep [HD]"), "Creep", "bracket tag stripped");
+eq(cleanTitle("Blinding Lights (Official Music Video) [4K]"), "Blinding Lights", "multiple tags stripped");
+eq(cleanTitle("Get Lucky feat. Pharrell Williams"), "Get Lucky", "feat. credit stripped");
+eq(cleanTitle("Daft Punk - Around the World"), "Daft Punk", "dash-separated tail stripped");
+eq(cleanTitle("Plain Title"), "Plain Title", "clean title untouched");
+eq(searchUrl("The Weeknd", "Blinding Lights (Official Video)"),
+   "https://itunes.apple.com/search?term=" + encodeURIComponent("The Weeknd Blinding Lights") + "&entity=song&limit=1",
+   "searchUrl strips title noise before querying");
+eq(searchUrl("", "(Lyrics)"),
+   "https://itunes.apple.com/search?term=" + encodeURIComponent("(Lyrics)") + "&entity=song&limit=1",
+   "a title that is all noise falls back to the raw title, not empty");
 
 const goodBody = JSON.stringify({
     resultCount: 1,

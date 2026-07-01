@@ -14,10 +14,12 @@ import "lib/spectrum.js" as SpectrumWave
 // by Launcher.qml. The FrameAnimation that drives the wave repaints only while
 // playing and visible, so an idle launcher costs nothing. Transport buttons dim
 // from the player's can* flags so the card degrades gracefully (streams/ads).
-// When the player supplies no trackArtUrl (mpv/yt-dlp streams, some browsers)
-// we fetch a cover from the keyless iTunes Search API by "artist title", once
-// per track; the music-note fallback stands in while the lookup is in flight or
-// if it turns up nothing.
+// Cover art: when our own YouTube Music radio (Singletons/Radio.qml) owns the
+// player, the card shows that engine's exact square art, clean title/artist, and
+// an up-next peek, with no lookup. For any other player with no trackArtUrl (some
+// browsers) it fetches a cover from the keyless iTunes Search API by "artist
+// title" (noise-stripped), once per track; the music-note fallback stands in
+// while the lookup is in flight or if it turns up nothing.
 Item {
     id: root
 
@@ -26,8 +28,13 @@ Item {
 
     readonly property bool hasPlayer: player !== null && player !== undefined
     readonly property bool playing: hasPlayer && player.isPlaying
-    readonly property string title: hasPlayer && player.trackTitle ? player.trackTitle : "Nothing playing"
-    readonly property string artist: hasPlayer ? Theme.joinArtists(player.trackArtists, player.trackArtist) : ""
+    // Our own YT Music radio stream owns this player: trust the Radio engine's
+    // exact square cover and clean title/artist over mpv's stream guesses.
+    readonly property bool ours: Radio.isOurs(player)
+    readonly property string title: ours && Radio.title.length ? Radio.title
+        : (hasPlayer && player.trackTitle ? player.trackTitle : "Nothing playing")
+    readonly property string artist: ours && Radio.artist.length ? Radio.artist
+        : (hasPlayer ? Theme.joinArtists(player.trackArtists, player.trackArtist) : "")
     readonly property string artUrl: hasPlayer && player.trackArtUrl ? player.trackArtUrl : ""
     // Empty when the player already has art, when there is no player, or when
     // the title is a placeholder; keyed on artist+title so a track change is
@@ -35,10 +42,11 @@ Item {
     readonly property string fetchKey: hasPlayer && title.length > 0 && title !== "Nothing playing" ? (artist + "|" + title) : ""
     property string fetchedArt: ""
     property string lastFetchKey: ""
-    // Player art wins when present; the fetched cover fills in when it is not.
-    // Both Image sources and the fallback glyph read this so the veil, bleed,
-    // and cover switch in lockstep.
-    readonly property string effectiveArt: artUrl.length > 0 ? artUrl : fetchedArt
+    // Our exact square cover wins when our stream owns playback; otherwise the
+    // player's own art, then the fetched iTunes cover. Both Image sources and the
+    // fallback glyph read this so the veil, bleed, and cover switch in lockstep.
+    readonly property string effectiveArt: root.ours && Radio.cover.length > 0 ? Radio.cover
+        : (artUrl.length > 0 ? artUrl : fetchedArt)
     readonly property real positionSec: hasPlayer ? player.position : 0
     readonly property real lengthSec: hasPlayer && player.length > 0 ? player.length : 0
     readonly property real frac: lengthSec > 0 ? Math.max(0, Math.min(1, positionSec / lengthSec)) : 0
@@ -69,7 +77,9 @@ Item {
         }
         if (fetchKey !== lastFetchKey) {
             fetchedArt = "";
-            if (artUrl.length === 0)
+            // our stream carries its own square cover, and other players that
+            // expose art need no lookup; only fetch when neither is true.
+            if (artUrl.length === 0 && !(root.ours && Radio.cover.length > 0))
                 artDebounce.restart();
             else
                 artDebounce.stop();
@@ -251,7 +261,7 @@ Item {
 
             Text {
                 width: parent.width
-                text: "力 NOW PLAYING"
+                text: root.ours ? "力 RYOTUNES RADIO" : "力 NOW PLAYING"
                 color: Theme.vermLit
                 font.family: Theme.font
                 font.pixelSize: Metrics.fontEyebrow * root.s
@@ -274,6 +284,18 @@ Item {
                 font.pixelSize: Metrics.fontSubtitle * root.s
                 elide: Text.ElideRight
                 visible: root.artist.length > 0
+            }
+            // up-next peek: only when our radio owns playback and has a follower,
+            // so the card reads as a live station, not a single track.
+            Text {
+                width: parent.width
+                text: "UP NEXT  \u00b7  " + Radio.upNext
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Metrics.fontEyebrow * root.s
+                font.letterSpacing: 0.5
+                elide: Text.ElideRight
+                visible: root.ours && Radio.upNext.length > 0
             }
         }
 

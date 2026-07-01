@@ -5,7 +5,6 @@ import "calc"
 import "clipboard"
 import "find"
 import "media/mpris"
-import "media/spotify"
 import "media/ytmusic"
 import "packages"
 import "script"
@@ -24,7 +23,6 @@ Item {
     Clipboard {}
     Find {}
     Mpris {}
-    Spotify {}
     YtMusic {}
     Packages {}
     Script {}

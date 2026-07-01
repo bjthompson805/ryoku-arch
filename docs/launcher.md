@@ -3,9 +3,10 @@
 The launcher is the Ryoku command palette: a standalone, centered overlay
 summoned with `Super + Space`. It searches and launches apps, calculates, runs
 system actions, manages clipboard and snippets, switches windows, searches the
-web, finds files, installs packages, and controls and searches music (Spotify and
-YouTube Music). It is a full rebuild of the old pill app-list, dropped from the
-pill so it has the room a Raycast/Alfred-class palette needs.
+web, finds files, installs packages, controls any media player, and searches and
+plays free music from YouTube Music. It is a full rebuild of the old pill
+app-list, dropped from the pill so it has the room a Raycast/Alfred-class palette
+needs.
 
 It lives in `ryoku/shell/quickshell/launcher/`, a Quickshell component supervised
 by the `ryoku-shell` daemon (a peer of `pill`/`sidebar`), kept warm so it opens
@@ -46,9 +47,8 @@ the dispatcher discovers it by registration, never by an edit to the routing.
 | files | (default, 3+ chars) | fd file search, open or reveal |
 | snippets | (default) | text expander (`{date}`/`{clipboard}`/`{selection}`/`{cursor}`) + quicklinks (`{query}`) |
 | packages | `install`/`remove`/`search` | GPK across every package manager |
-| mpris | (default, media words) | now-playing + transport for any player |
-| spotify | `s:` | Spotify catalog search + play (Web API) |
-| ytmusic | `@` | YouTube Music search + play (yt-dlp + mpv) |
+| mpris | (default, media words) | now-playing + transport for any player, plus **YT Radio** (seed a YouTube Music radio from whatever is playing) |
+| ytmusic | `@` | YouTube Music search (InnerTube) + endless radio playback (mpv) |
 | script | per-script keyword | run rofi-script / dmenu scripts |
 
 Ranking and protocol logic live as testable JavaScript in `lib/` and each
@@ -57,32 +57,35 @@ per-provider parsers), each with a `.test.mjs` run by `node`.
 
 ## Music
 
-The launcher is the *quick* music path: search a track and play it inline. The
-full music experience, a play queue with YouTube Music radio auto-extend,
-playlists, playlist import, and source switching, lives in the RyoTunes deck
-(`Super+M`); see `docs/ryotunes.md`. Both share the same daemon-owned backend.
+YouTube Music is Ryoku's built-in free-music source, and the launcher is its
+front door: search a track and it plays inline, then keeps going as an endless
+radio. The engine and the full behaviour (queue, radio auto-extend, the
+system-audio bridge) are documented in `docs/ryotunes.md`; this is the launcher
+surface for it.
 
-- **Spotify**: the MPRIS provider controls the running Spotify client (play,
-  pause, skip, now-playing) with zero setup. Catalog search, library, and queueing
-  go through the Spotify Web API via `ryoku-shell spotify` (PKCE OAuth, token under
-  `$XDG_STATE_HOME/ryoku`). Connect once with
-  `ryoku-shell spotify auth <client-id>` (a Spotify developer app with the redirect
-  `http://127.0.0.1:15298/callback`); playback commands need Premium.
-- **YouTube Music**: the `@` prefix searches with yt-dlp and streams the picked
-  track with mpv (audio only); `mpv-mpris` exposes that mpv over D-Bus so the
-  now-playing card and the MPRIS transport verbs control it just like any other
-  player. Needs yt-dlp and mpv (with mpv-mpris); the provider hides itself when
-  they are absent. A signed-in default browser lifts the rate limit through
-  `--cookies-from-browser`. The stream yields automatically: while it plays it
-  watches MPRIS and stops the moment another player (Spotify, a browser tab, any
-  app) starts, so two streams never overlap.
+- **YouTube Music** (`@`): searches YouTube Music's keyless InnerTube API with
+  curl and shows proper songs (clean title/artist/album and square album art in
+  the row, no second cover lookup). A prefix cache makes refining a query feel
+  instant; if InnerTube is unreachable it falls back to a yt-dlp flat search so
+  results never disappear. Picking a track hands off to the RyoTunes engine
+  (`Singletons/Radio.qml`): mpv streams it (audio only) and an endless YouTube
+  Music radio auto-extends behind it. Needs yt-dlp and mpv (with mpv-mpris); the
+  provider hides itself when they are absent. A signed-in default browser lifts
+  yt-dlp's rate limit through `--cookies-from-browser`.
+- **Any player** (mpris): the now-playing row controls whatever is playing
+  (Spotify, a browser tab, an app) with play/pause/next/prev. When it is not our
+  own stream it also offers **YT Radio**, which seeds an endless YouTube Music
+  radio from that track's title and artist, so any system audio turns into free
+  music. Our stream yields to other players by fading out and pausing, so two
+  streams never stack.
 - The now-playing card on the rest screen shows album art, title/artist, elapsed
-  and total time, and the signature wavy seekbar (a sine that animates only while
-  playing); the fill advances off a 500ms MPRIS position poll. A live cava wave
-  sweeps behind it while a track plays, gated so the analyser runs only while the
-  launcher is open and something is playing. When the player exposes no cover (an
-  mpv or yt-dlp stream, some browsers), the card fetches one from the keyless
-  iTunes Search API by artist and title.
+  and total time, an up-next peek while our radio plays, and the signature wavy
+  seekbar (a sine that animates only while playing); the fill advances off a
+  500ms MPRIS position poll. A live cava wave sweeps behind it while a track
+  plays, gated so the analyser runs only while the launcher is open and something
+  is playing. When our radio owns playback the card uses its exact square cover;
+  for another player with no cover (some browsers) it fetches one from the
+  keyless iTunes Search API by artist and title (noise-stripped for a better hit).
 
 ## Extending it
 

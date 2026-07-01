@@ -12,12 +12,11 @@ Item {
 
     readonly property var searchRows: [
         { k: "type",   d: "apps, open windows, quick math" },
-        { k: "/",      d: "actions — lock, screenshot, media, settings" },
+        { k: "/",      d: "actions: lock, screenshot, media, settings" },
         { k: "/file",  d: "find files (also /folder /image /video)" },
-        { k: ">",      d: "packages — >install, >remove, >search" },
+        { k: ">",      d: "packages: >install, >remove, >search" },
         { k: "=",      d: "calculator" },
         { k: ";",      d: "clipboard history" },
-        { k: "s:",     d: "Spotify search" },
         { k: "@",      d: "YouTube Music search" },
         { k: "?",      d: "web search (supports !bangs)" }
     ]

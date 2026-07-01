@@ -1,20 +1,18 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
-import Quickshell.Services.Mpris
 import "../../../Singletons"
 import "ytmusic.js" as YtMusic
 import "../.."
 
-// YouTube Music provider: searches YouTube with yt-dlp and streams the picked
-// track with mpv (audio only) over an IPC socket, the mpv-mpris pipeline. Routed
-// by a dedicated prefix so a plain query never forks yt-dlp. Search is async +
-// cached; playback spawns mpv (reaped on the next play, on hide, or when another
-// media player starts). Availability-gated on yt-dlp + mpv. Browser cookies
-// (--cookies-from-browser) lift the rate limit when a default browser is signed
-// in. mpv-mpris makes the stream a first-class MPRIS player, so the now-playing
-// card and transport control it like any other; it also yields the moment a
-// different player (Spotify, a browser tab) starts, so two streams never overlap.
+// YouTube Music search provider (`@` prefix): searches YouTube Music's keyless
+// InnerTube API with curl and parses proper songs (clean title/artist/album +
+// square album art inline), so results are song-grade and covers are free. A
+// prefix cache makes refining a query feel instant; when InnerTube is
+// unreachable it falls back to yt-dlp flat search so results never disappear.
+// Playing a track hands off to the Radio engine (Singletons/Radio.qml), which
+// streams it with mpv and auto-extends an endless YouTube Music radio; this
+// provider owns no player. Routed by a dedicated prefix so a plain query never
+// forks a search. Availability-gated on yt-dlp + mpv (needed for playback).
 Provider {
     id: ytmusic
 
@@ -23,72 +21,55 @@ Provider {
     defaultProvider: false
 
     property bool available: false
-    property string cachedQuery: ""
-    property var cachedRows: []
     property string pendingQuery: ""
-    property string pendingVideoId: ""
-    property string pendingTitle: ""
 
-    readonly property string ipcSocket: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/ryoku-ytmusic-mpv.sock"
-    readonly property string browser: Quickshell.env("BROWSER") || "firefox"
+    // Prefix-LRU cache: query -> rows. Keeps the last few resolved searches so
+    // that refining ("daft" -> "daft punk") shows the widest cached prefix's rows
+    // immediately while the network refine runs. Bounded so memory stays flat.
+    property var cache: ({})
+    property var cacheOrder: []
+    readonly property int cacheMax: 16
 
-    // Kill any previous mpv, wait for the socket to disappear, then start the
-    // new stream. Sequencing kill -> play through killProc.onExited avoids the
-    // race where an immediate spawn beat pkill and inherited (or was killed
-    // alongside) the outgoing process, leaving a zombie or a dangling socket.
-    function play(track) {
-        pendingVideoId = track.id;
-        pendingTitle = track.title;
-        playProc.running = false;
-        killProc.running = false;
-        killProc.running = true;
-    }
-
-    // Stop our stream for good: clear the pending track first so killProc's
-    // onExited does not treat this as a track change and respawn mpv.
-    function stop() {
-        pendingVideoId = "";
-        pendingTitle = "";
-        playProc.running = false;
-        killProc.running = false;
-        killProc.running = true;
-    }
-
-    // Whether some OTHER media player (Spotify, a browser tab, an app) is
-    // playing right now. mpv-mpris publishes our own stream with identity
-    // "mpv", so anything else playing means the user started different audio
-    // and we should yield instead of stacking two streams.
-    function otherPlaying() {
-        var list = Mpris.players.values;
-        if (!list)
-            return false;
-        for (var i = 0; i < list.length; i++) {
-            var p = list[i];
-            if (p && p.isPlaying && String(p.identity || "").toLowerCase() !== "mpv")
-                return true;
+    function cachePut(q, rows) {
+        var c = ytmusic.cache;
+        if (!c[q])
+            ytmusic.cacheOrder.push(q);
+        c[q] = rows;
+        while (ytmusic.cacheOrder.length > ytmusic.cacheMax) {
+            var evict = ytmusic.cacheOrder.shift();
+            delete c[evict];
         }
-        return false;
+        ytmusic.cache = c;
     }
 
-    // While our mpv streams, watch for another player taking over and bow out.
-    // Runs only during playback (playProc.running), so it costs nothing at rest.
-    Timer {
-        interval: 1000
-        repeat: true
-        running: playProc.running
-        onTriggered: if (ytmusic.otherPlaying()) ytmusic.stop();
+    // Exact hit, else the longest cached query that is a prefix of `q` (its rows
+    // are a good instant stand-in while the exact search resolves).
+    function cacheLookup(q) {
+        if (ytmusic.cache[q])
+            return ytmusic.cache[q];
+        var best = null, bestLen = -1;
+        for (var i = 0; i < ytmusic.cacheOrder.length; i++) {
+            var k = ytmusic.cacheOrder[i];
+            if (q.indexOf(k) === 0 && k.length > bestLen) {
+                best = ytmusic.cache[k];
+                bestLen = k.length;
+            }
+        }
+        return best;
     }
 
     function rowFor(track) {
         return {
             id: "ytm:" + track.id,
             title: track.title,
-            subtitle: (track.artist ? track.artist : "YouTube Music") + (track.durationLabel ? "  " + track.durationLabel : ""),
-            icon: "",
+            subtitle: (track.artist ? track.artist : "YouTube Music")
+                + (track.album ? "  \u00b7  " + track.album : "")
+                + (track.durationLabel ? "  \u00b7  " + track.durationLabel : ""),
+            icon: track.cover || "",
             type: "YT Music",
             score: 0,
             actions: [
-                { name: "Play", icon: "", execute: function () { ytmusic.play(track); } },
+                { name: "Play", icon: "", execute: function () { Radio.play(track); } },
                 { name: "Open", icon: "", execute: function () { Qt.openUrlExternally("https://music.youtube.com/watch?v=" + track.id); } }
             ]
         };
@@ -100,11 +81,13 @@ Provider {
         var t = (text || "").trim();
         if (t.length < 2)
             return [];
-        if (t === ytmusic.cachedQuery)
-            return ytmusic.cachedRows.map(ytmusic.rowFor);
+        var cached = ytmusic.cacheLookup(t);
+        if (ytmusic.cache[t])
+            return cached.map(ytmusic.rowFor);   // exact hit: no refetch
         ytmusic.pendingQuery = t;
         debounce.restart();
-        return [];
+        // prefix hit: show the widest cached prefix's rows while we refine.
+        return cached ? cached.map(ytmusic.rowFor) : [];
     }
 
     Timer {
@@ -113,6 +96,7 @@ Provider {
         repeat: false
         onTriggered: {
             searchProc.term = ytmusic.pendingQuery;
+            Dispatcher.setBusy("ytmusic", true);
             searchProc.running = false;
             searchProc.running = true;
         }
@@ -124,54 +108,47 @@ Provider {
         onExited: (code) => { ytmusic.available = (code === 0); }
     }
 
+    // Primary search: InnerTube WEB_REMIX /search. One big JSON object, so it is
+    // collected whole and parsed once. Empty results fall through to yt-dlp.
     Process {
         id: searchProc
-        onRunningChanged: Dispatcher.setBusy("ytmusic", running)
+        property string term: ""
+        command: ["curl", "-s", "--max-time", "12",
+            "https://music.youtube.com/youtubei/v1/search?prettyPrint=false",
+            "-H", "Content-Type: application/json",
+            "-H", "User-Agent: Mozilla/5.0",
+            "--data-raw", YtMusic.innertubeBody(term)]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var rows = YtMusic.parse(this.text);
+                if (rows.length > 0) {
+                    ytmusic.cachePut(searchProc.term, rows);
+                    Dispatcher.setBusy("ytmusic", false);
+                    Dispatcher.notifyAsync();
+                } else {
+                    // InnerTube empty/unreachable: try the yt-dlp fallback.
+                    fallbackProc.term = searchProc.term;
+                    fallbackProc.out = "";
+                    fallbackProc.running = false;
+                    fallbackProc.running = true;
+                }
+            }
+        }
+    }
+
+    // Fallback: yt-dlp flat search (NDJSON), only when InnerTube yields nothing.
+    Process {
+        id: fallbackProc
         property string term: ""
         property string out: ""
         command: ["yt-dlp", "ytsearch12:" + term, "--flat-playlist", "-j", "--no-warnings"]
         stdout: SplitParser {
-            onRead: line => ytmusic.searchAppend(line)
+            onRead: line => fallbackProc.out += line + "\n"
         }
-        onStarted: searchProc.out = ""
         onExited: {
-            ytmusic.cachedQuery = searchProc.term;
-            ytmusic.cachedRows = YtMusic.parse(searchProc.out);
+            ytmusic.cachePut(fallbackProc.term, YtMusic.parseFlat(fallbackProc.out));
+            Dispatcher.setBusy("ytmusic", false);
             Dispatcher.notifyAsync();
-        }
-    }
-
-    function searchAppend(line) {
-        searchProc.out += line + "\n";
-    }
-
-    Process {
-        id: playProc
-        property string videoId: ""
-        property string title: ""
-        command: ["mpv", "--no-video", "--force-window=no", "--audio-display=no",
-            "--input-ipc-server=" + ytmusic.ipcSocket,
-            "--ytdl-format=bestaudio",
-            "--force-media-title=" + title,
-            "https://music.youtube.com/watch?v=" + videoId]
-    }
-
-    Process {
-        id: killProc
-        // pkill only signals: poll until the process is really gone (up to ~1s)
-        // before removing the socket, so playProc never lands on a stale one.
-        command: ["sh", "-c",
-            "pkill -f 'mpv.*ryoku-ytmusic-mpv\\.sock' 2>/dev/null; " +
-            "i=0; while [ $i -lt 20 ] && pgrep -f 'mpv.*ryoku-ytmusic-mpv\\.sock' >/dev/null 2>&1; do sleep 0.05; i=$((i+1)); done; " +
-            "rm -f " + ytmusic.ipcSocket + "; true"]
-        onExited: {
-            if (ytmusic.pendingVideoId.length === 0)
-                return;
-            playProc.videoId = ytmusic.pendingVideoId;
-            playProc.title = ytmusic.pendingTitle;
-            ytmusic.pendingVideoId = "";
-            ytmusic.pendingTitle = "";
-            playProc.running = true;
         }
     }
 
@@ -179,7 +156,5 @@ Provider {
         availProc.running = true;
         Dispatcher.register(ytmusic);
     }
-    Component.onDestruction: {
-        killProc.running = true;
-    }
+    Component.onDestruction: Radio.stop()
 }

@@ -10,7 +10,7 @@ function eq(actual, expected, msg) {
     else { failed++; console.log("FAIL " + msg + "\n  expected " + e + "\n  got      " + a); }
 }
 
-const prefixes = { "=": "calc", ";": "clipboard", "/": "actions", "/file": "find", "/folder": "find", "/image": "find", "/video": "find", ">": "packages", "?": "web", "s:": "spotify", "@": "ytmusic" };
+const prefixes = { "=": "calc", ";": "clipboard", "/": "actions", "/file": "find", "/folder": "find", "/image": "find", "/video": "find", ">": "packages", "?": "web", "@": "ytmusic" };
 
 eq(routePrefix("=2+2", prefixes), { provider: "calc", query: "2+2", prefix: "=" }, "math prefix routes and strips");
 eq(routePrefix(";link", prefixes), { provider: "clipboard", query: "link", prefix: ";" }, "clipboard prefix routes");
@@ -22,8 +22,7 @@ eq(routePrefix("firefox", prefixes), { provider: null, query: "firefox", prefix:
 eq(routePrefix("", prefixes), { provider: null, query: "", prefix: "" }, "empty text is default with empty query");
 eq(routePrefix("= 2 + 2", prefixes), { provider: "calc", query: "2 + 2", prefix: "=" }, "prefix strips a following space");
 eq(routePrefix("?", prefixes), { provider: "web", query: "", prefix: "?" }, "bare prefix routes with empty query");
-eq(routePrefix("s:daft punk", prefixes), { provider: "spotify", query: "daft punk", prefix: "s:" }, "multi-char prefix routes and strips");
-eq(routePrefix("settings", prefixes), { provider: null, query: "settings", prefix: "" }, "a word starting with s is not the spotify prefix");
+eq(routePrefix("settings", prefixes), { provider: null, query: "settings", prefix: "" }, "a plain word is default fan-out, not a prefix");
 eq(routePrefix("@lofi", prefixes), { provider: "ytmusic", query: "lofi", prefix: "@" }, "single-char @ prefix routes");
 
 eq(looksNumeric("2+2"), true, "leading digit looks numeric");
@@ -58,7 +57,7 @@ eq(looksNumeric("e+3"), true, "e constant with op is numeric");
 eq(looksNumeric("route66"), false, "identifier with a digit is not numeric");
 eq(looksNumeric("s3cret"), false, "identifier with a middle digit is not numeric");
 eq(looksNumeric("hello"), false, "plain word is not numeric");
-eq(looksNumeric("settings"), false, "leading s is not numeric (not spotify prefix either)");
+eq(looksNumeric("settings"), false, "leading s is not numeric");
 eq(looksNumeric("spotify"), false, "word starting with s is not numeric");
 eq(looksNumeric("sine wave"), false, "sine is not sin (word boundary guard)");
 eq(looksNumeric("expert"), false, "expert is not exp (word boundary guard)");
