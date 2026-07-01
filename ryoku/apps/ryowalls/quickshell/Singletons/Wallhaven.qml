@@ -70,7 +70,7 @@ Singleton {
     }
     readonly property bool tuned: tuneFlags.length > 0
 
-    onTuneFlagsChanged: { root._syncTuneState(); _retune.restart(); }
+    onTuneFlagsChanged: _retune.restart()
     Timer { id: _retune; interval: 220; onTriggered: root._preview() }
 
     function resetTune() {
@@ -78,7 +78,8 @@ Singleton {
         cfg.colorspace = ""; cfg.backend = ""; cfg.saturation = 0; cfg.threshold = 0; cfg.contrast = false;
         cfgFile.writeAdapter();
     }
-    function _syncTuneState() {
+    function _writeTuneFor(image) {
+        tuneAdapter.image = image;
         tuneAdapter.palette = root.paletteChanged ? root.paletteName : "";
         tuneAdapter.colorspace = cfg.colorspace;
         tuneAdapter.backend = cfg.backend;
@@ -152,7 +153,6 @@ Singleton {
         if (!it || busy)
             return;
         busy = true;
-        root._syncTuneState();
         status = "Downloading";
         _dlPath = "";
         dlProc.command = cmd(["download", it.id, it.path]);
@@ -211,6 +211,7 @@ Singleton {
         stdout: StdioCollector { onStreamFinished: root._dlPath = (text.trim().split("\n").pop() || "") }
         onExited: code => {
             if (code === 0 && root._dlPath.length > 0 && root._setAfter) {
+                root._writeTuneFor(root._dlPath);
                 root.status = "Setting wallpaper";
                 setProc.command = ["ryoku-shell", "wallpaper", "set", root._dlPath];
                 setProc.running = true;
@@ -236,7 +237,7 @@ Singleton {
         watchChanges: true
         printErrors: false
         onLoadFailed: cfgFile.writeAdapter()
-        onLoaded: root._syncTuneState()
+        onLoaded: {}
         JsonAdapter {
             id: cfg
             property string apiKey: ""
@@ -261,6 +262,7 @@ Singleton {
         printErrors: false
         JsonAdapter {
             id: tuneAdapter
+            property string image: ""
             property string palette: ""
             property string colorspace: ""
             property string backend: ""
