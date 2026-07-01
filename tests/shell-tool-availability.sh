@@ -40,6 +40,9 @@ declare -A need=(
   [editor]=neovim
   [file-cli]=yazi
   [video]=mpv
+  [calc]=libqalculate
+  [music-mpris]=mpv-mpris
+  [music-recognition]=songrec
 )
 
 missing=()

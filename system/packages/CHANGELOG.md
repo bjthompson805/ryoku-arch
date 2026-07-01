@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: ship the launcher's three missing tools so its features work
+  on a fresh install: `libqalculate` (the calculator's qalc backend for units,
+  currency, %, and functions), `mpv-mpris` (exposes the YouTube Music mpv stream
+  over MPRIS, so the now-playing card and transport controls work), and `songrec`
+  (the Recognize Music action). `tests/shell-tool-availability.sh` now gates all
+  three, closing the "feature wired but tool not shipped" gap that let them ship
+  broken.
 - `base.packages`: add the windowed-VM stack (`qemu-desktop`, `edk2-ovmf`,
   `virglrenderer`) so a VM launches from Ryoku Settings > GPU > Machine out of the
   box. The GPU-passthrough extras (Looking Glass, kvmfr) stay AUR and on demand.
