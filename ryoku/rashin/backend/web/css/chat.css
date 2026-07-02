@@ -26,6 +26,7 @@
 .chat-drawer[hidden],
 .chat-legend[hidden],
 .chat-model-menu[hidden],
+.chat-working[hidden],
 .chat-toast[hidden] { display: none; }
 
 /* Usage meter: a 2px rule under the banner, mono label to the right. */
@@ -49,6 +50,31 @@
   font-size: 10px;
   letter-spacing: .14em;
   color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+/* Working strip: a passive pulse naming what the agent is doing right now,
+   fed live from the hermes stream (tool titles, thinking, writing). */
+.chat-working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+.chat-working-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--orange);
+  flex: none;
+}
+.chat-working-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -371,4 +397,14 @@
 
   @keyframes toastIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
   .chat-toast:not([hidden]) { animation: toastIn var(--mid) var(--ease); }
+
+  /* The working dot breathes while the agent acts; the label crossfades when
+     the activity changes. */
+  @keyframes workPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .35; transform: scale(.72); }
+  }
+  .chat-working-dot { animation: workPulse 1.4s var(--ease) infinite; }
+  @keyframes workIn { from { opacity: 0; } to { opacity: 1; } }
+  .chat-working:not([hidden]) .chat-working-label { animation: workIn var(--mid) var(--ease); }
 }

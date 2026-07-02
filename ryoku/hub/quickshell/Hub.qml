@@ -62,7 +62,7 @@ Rectangle {
         "store":       { "title": "Store", "subtitle": "Browse and install shell plugins and extras bundles for the Ryoku desktop." },
         "addons":      { "title": "Add-ons", "subtitle": "Your installed plugins. Open one to change its settings, enable it, or remove it." },
         "performance": { "title": "Performance", "subtitle": "Opt-in tweaks that trade a little eye-candy for lower CPU, GPU, and memory use on modest hardware." },
-        "rashin":      { "title": "Rashin", "subtitle": "Rashin, the compass: an optional local agent OS. A maintained system map plus the Hermes agent give every coding agent instant knowledge of your machine." }
+        "rashin":      { "title": "Rashin", "subtitle": "Rashin, the needle (羅針): an optional local agent OS. A maintained system map plus the Hermes agent point every coding agent straight at your machine's answers." }
     })
 
     function known(s) {

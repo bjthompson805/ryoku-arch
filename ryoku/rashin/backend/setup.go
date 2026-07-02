@@ -133,7 +133,7 @@ func RunSetup() error {
 		reportPhase("done", "dry run complete", true)
 		return nil
 	}
-	if err := cmdEnable(); err != nil {
+	if err := cmdEnable(false); err != nil {
 		return err
 	}
 	cfg := LoadConfig()

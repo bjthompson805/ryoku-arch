@@ -95,6 +95,13 @@ say "installed $bindir/ryoku-rashin"
 "$bindir/ryoku-rashin" repo-index "$here/../.." \
   "${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/rashin-repo.md"
 say "indexed ryoku repo for rashin"
+# Rashin's systemd user unit: the dev deploy points ExecStart at ~/.local/bin
+# (the package ships /usr/bin); reload so systemctl sees the fresh unit.
+mkdir -p "$cfg/systemd/user"
+sed "s|^ExecStart=.*|ExecStart=$bindir/ryoku-rashin serve --if-enabled|" \
+  "$here/../rashin/systemd/ryoku-rashin.service" > "$cfg/systemd/user/ryoku-rashin.service"
+systemctl --user daemon-reload 2>/dev/null || true
+say "installed rashin systemd user unit"
 say "building ryoku CLI"
 (cd "$here/../cli" && go build -o ryoku .)
 install -m755 "$here/../cli/ryoku" "$bindir/ryoku"

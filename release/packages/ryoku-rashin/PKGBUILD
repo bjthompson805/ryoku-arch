@@ -34,4 +34,9 @@ build() {
 package() {
   install -Dm755 "$srcdir/ryoku-rashin" "$pkgdir/usr/bin/ryoku-rashin"
   install -Dm644 "$srcdir/ryoku-repo.md" "$pkgdir/usr/share/ryoku/rashin/ryoku-repo.md"
+  # Systemd user unit: `ryoku-rashin enable` runs `systemctl --user enable
+  # --now` on it; the daemon then starts at every login (or at boot with
+  # lingering) instead of riding the Hyprland session.
+  install -Dm644 "$_repo/ryoku/rashin/systemd/ryoku-rashin.service" \
+    "$pkgdir/usr/lib/systemd/user/ryoku-rashin.service"
 }

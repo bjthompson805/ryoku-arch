@@ -42,6 +42,23 @@
   `/api/about`; the chat WebSocket learns models/commands/history/usage frames.
   Hermes onboarding detection now reads the mapping-form `model:` block, and
   session titles surface correctly.
+- `rashin/systemd` + `rashin/backend` + `hyprland/modules/autostart`: the
+  daemon now runs as a **systemd user unit** (`ryoku-rashin.service`) instead
+  of riding the Hyprland session. `ryoku-rashin enable` does
+  `systemctl --user enable --now`, so the dashboard is up at every login,
+  survives compositor restarts, and restarts on crash; `enable --at-boot`
+  adds `loginctl enable-linger` so it starts with the machine, before login.
+  The unit runs `serve --if-enabled`, keeping `rashin.json` the single gate;
+  without systemd everything falls back to the old detached spawn. The
+  package ships the unit to `/usr/lib/systemd/user`, `deploy.sh` to
+  `~/.config/systemd/user` (ExecStart rewritten to `~/.local/bin`), and the
+  autostart.lua line is gone.
+- `rashin/backend/web`: a **working strip** under the chat banner: while the
+  agent acts, a pulsing dot names what it is doing live from the hermes
+  stream (the running tool's title, `thinking`, `writing`, `waiting for your
+  approval`), clearing at turn end and staying quiet during history replays.
+  The hero and composer copy now call Rashin what it is, the needle (羅針),
+  not the compass (羅針盤), whose 盤 is the dashboard itself.
 - `rashin/backend` + `cli`: the vault gains two more generated layers, and the
   index follows the system. `ryoku-repo.md` is a **pre-indexed map of the Ryoku
   monorepo itself** (layout with file counts, key entry points, docs list),

@@ -112,7 +112,14 @@ Subcommands:
 | `wire [agent]` | Apply vault pointers to all detected agents, or one named agent |
 | `unwire [agent]` | Remove vault pointers, keeping the file |
 | `status [--json]` | Report daemon, vault, hermes, and wiring state |
-| `enable` / `disable` | Flip the autostart gate and start or stop the daemon |
+| `enable [--at-boot]` / `disable` | Start or stop the daemon and its autostart. With systemd, `enable` runs `systemctl --user enable --now ryoku-rashin` so the dashboard starts at every login and restarts on crash; `--at-boot` adds `loginctl enable-linger` so it starts when the machine boots, before login. Without systemd it falls back to a detached spawn for the session |
+
+The daemon runs as a **systemd user unit** (`ryoku-rashin.service`, shipped to
+`/usr/lib/systemd/user` by the package, `~/.config/systemd/user` by
+`deploy.sh`). The unit runs `serve --if-enabled`, so the `enabled` gate in
+`rashin.json` stays the single source of truth: a disabled rashin exits
+immediately even if the unit fires. It no longer rides the Hyprland session,
+so it survives compositor restarts and is up before the desktop paints.
 
 The dashboard serves on `http://127.0.0.1:3600`. The HTTP API (all localhost)
 covers `GET /api/status`, `GET /api/vitals` (also pushed on `WS /ws/vitals`),
@@ -155,6 +162,16 @@ tool cards, and permission prompts, it carries:
 - **Session history**: a drawer lists stored sessions; loading one replays its
   transcript; NEW SESSION starts fresh.
 - **Context meter**: a thin bar tracks the session's token usage.
+- **Working strip**: while the agent acts, a pulsing dot names what it is
+  doing right now, fed live from the hermes stream: the running tool's title
+  (`read: system.md`), `thinking` during reasoning, `writing` while the answer
+  streams, `waiting for your approval` when a permission is pending. Clears at
+  turn end.
+- **Approvals**: when hermes wants to run something that needs consent, it
+  sends `session/request_permission` over ACP with the tool title and the
+  options it will accept. The dashboard renders them as allow/deny stamps;
+  the reply goes back over the same request, and cancelling a turn answers
+  any pending request as cancelled. Nothing runs while a request is open.
 
 Terminal `hermes` and web chat share the same memory, because both run in the
 vault workspace.

@@ -34,7 +34,7 @@
         <img src="assets/hero.webp" alt="" onerror="this.closest('[data-hero]').classList.add('no-art')">
         <span class="hero-sun" aria-hidden="true"></span>
         <span class="hero-tick" aria-hidden="true"></span>
-        <div class="hero-cap"><b>RYOKU RASHIN</b><span>system compass</span></div>
+        <div class="hero-cap"><b>RYOKU RASHIN</b><span>羅針 / the system needle</span></div>
       </header>
 
       <div class="metarow">
@@ -143,6 +143,10 @@
           <span class="chat-usage-bar"><i data-usage-fill></i></span>
           <span class="chat-usage-label" data-usage-label>CTX 0%</span>
         </div>
+        <div class="chat-working" data-chat-working hidden>
+          <i class="chat-working-dot" aria-hidden="true"></i>
+          <span class="chat-working-label" data-working-label>working</span>
+        </div>
       </div>
       <div class="chat-stream" data-chat-stream></div>
       <div class="chat-perms" data-chat-perms></div>
@@ -153,7 +157,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5L12.5 4a4 4 0 0 1 5.7 5.7L9.7 18.2a2 2 0 0 1-2.9-2.9L15 7"/></svg>
         </button>
         <input type="file" data-chat-file accept="image/*" multiple hidden>
-        <textarea class="chat-input" data-chat-input rows="1" placeholder="Ask the compass. ENTER sends, / for commands."></textarea>
+        <textarea class="chat-input" data-chat-input rows="1" placeholder="Ask the needle. ENTER sends, / for commands."></textarea>
         <button type="button" class="chat-chip" data-chat-model title="Switch model" hidden></button>
         <button type="button" class="chat-iconbtn" data-chat-history title="Session history" aria-label="Session history">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>

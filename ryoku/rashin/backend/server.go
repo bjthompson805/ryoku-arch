@@ -227,12 +227,67 @@ func cmdServe(ifEnabled bool) error {
 	return Serve(cfg)
 }
 
-func cmdEnable() error {
+// systemd helpers: rashin prefers running as a systemd user unit so it starts
+// with every login (and with the machine itself once lingering is on),
+// survives Hyprland restarts, and restarts on crash. Everything degrades to
+// the plain detached spawn when systemd is not around.
+
+const rashinUnit = "ryoku-rashin.service"
+
+func systemctlUser(args ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "systemctl", append([]string{"--user"}, args...)...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	return cmd.Run()
+}
+
+// unitKnown reports whether the user unit file is installed anywhere systemd
+// looks (package: /usr/lib/systemd/user, dev deploy: ~/.config/systemd/user).
+func unitKnown() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "systemctl", "--user", "list-unit-files", rashinUnit, "--no-legend").Output()
+	return err == nil && strings.Contains(string(out), rashinUnit)
+}
+
+func haveSystemd() bool {
+	if _, err := exec.LookPath("systemctl"); err != nil {
+		return false
+	}
+	return os.Getenv("XDG_RUNTIME_DIR") != ""
+}
+
+func cmdEnable(atBoot bool) error {
 	cfg := LoadConfig()
 	cfg.Enabled = true
 	if err := SaveConfig(cfg); err != nil {
 		return err
 	}
+	if haveSystemd() && unitKnown() {
+		// An old detached daemon would hold the flock and wedge the unit.
+		stopSpawnedDaemon()
+		if err := systemctlUser("enable", "--now", rashinUnit); err != nil {
+			return err
+		}
+		if atBoot {
+			// Lingering starts the user manager (and this unit) at BOOT,
+			// before login. Needs polkit auth or root once.
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			lc := exec.CommandContext(ctx, "loginctl", "enable-linger", currentUser())
+			lc.Stdout, lc.Stderr = os.Stdout, os.Stderr
+			if err := lc.Run(); err != nil {
+				fmt.Fprintln(os.Stderr, "ryoku-rashin: enable-linger failed (dashboard will start at login instead of boot):", err)
+			} else {
+				fmt.Println("rashin enabled (starts at boot via lingering)")
+				return nil
+			}
+		}
+		fmt.Println("rashin enabled (systemd user unit, starts at login)")
+		return nil
+	}
+	// No systemd: fall back to a detached spawn for this session only.
 	if !pingDaemon(cfg.Port) {
 		self, err := os.Executable()
 		if err != nil {
@@ -257,14 +312,30 @@ func cmdDisable() error {
 	if err := SaveConfig(cfg); err != nil {
 		return err
 	}
-	b, err := os.ReadFile(filepath.Join(RuntimeDir(), "daemon.pid"))
-	if err == nil {
-		if pid, perr := strconv.Atoi(strings.TrimSpace(string(b))); perr == nil {
-			_ = syscall.Kill(pid, syscall.SIGTERM)
-		}
+	if haveSystemd() && unitKnown() {
+		_ = systemctlUser("disable", "--now", rashinUnit)
 	}
+	stopSpawnedDaemon()
 	fmt.Println("rashin disabled")
 	return nil
+}
+
+// stopSpawnedDaemon SIGTERMs a daemon started by the pre-systemd spawn path.
+func stopSpawnedDaemon() {
+	b, err := os.ReadFile(filepath.Join(RuntimeDir(), "daemon.pid"))
+	if err != nil {
+		return
+	}
+	if pid, perr := strconv.Atoi(strings.TrimSpace(string(b))); perr == nil {
+		_ = syscall.Kill(pid, syscall.SIGTERM)
+	}
+}
+
+func currentUser() string {
+	if u := os.Getenv("USER"); u != "" {
+		return u
+	}
+	return strconv.Itoa(os.Getuid())
 }
 
 func pingDaemon(port int) bool {

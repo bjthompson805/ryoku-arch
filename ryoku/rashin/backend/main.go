@@ -16,8 +16,9 @@ usage: ryoku-rashin <command>
   wire [agent]           apply vault pointers (all detected agents, or one)
   unwire [agent]         remove vault pointers
   status [--json]        report daemon, vault, hermes, and wiring state
-  enable                 gate autostart on and start the daemon
-  disable                gate autostart off and stop the daemon
+  enable [--at-boot]     start the daemon now and at every login; --at-boot
+                         adds user lingering so it starts with the machine
+  disable                stop the daemon and turn autostart off
 `
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 	case "status":
 		err = cmdStatus(len(os.Args) > 2 && os.Args[2] == "--json")
 	case "enable":
-		err = cmdEnable()
+		err = cmdEnable(len(os.Args) > 2 && os.Args[2] == "--at-boot")
 	case "disable":
 		err = cmdDisable()
 	default:

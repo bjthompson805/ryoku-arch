@@ -1,0 +1,11 @@
+[Unit]
+Description=Ryoku Rashin: local agent OS daemon and dashboard
+
+[Service]
+ExecStart=/usr/bin/ryoku-rashin serve --if-enabled
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

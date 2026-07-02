@@ -207,3 +207,30 @@ test("v2 fields survive an unrelated frame without mutation", () => {
   assert.equal(next.usage.size, 100, "usage preserved across frames");
   assert.equal(base.items.length, 0, "prior state not mutated");
 });
+
+test("activity tracks tools, thinking, writing, and clears at turn_end", () => {
+  let s = reduce([
+    { type: "state", state: "busy" },
+    { type: "tool", id: "t1", title: "Reading desktop.md", status: "in_progress" },
+  ]);
+  assert.equal(s.activity, "Reading desktop.md");
+  s = applyEvent(s, { type: "agent_thought", text: "hmm" });
+  assert.equal(s.activity, "thinking");
+  s = applyEvent(s, { type: "agent_text", text: "The config" });
+  assert.equal(s.activity, "writing");
+  s = applyEvent(s, { type: "tool", id: "t1", status: "completed" });
+  assert.equal(s.activity, "writing", "completion keeps the last label");
+  s = applyEvent(s, { type: "permission", requestId: "r1", title: "Run ls", options: [] });
+  assert.equal(s.activity, "waiting for your approval");
+  s = applyEvent(s, { type: "turn_end", stopReason: "end_turn" });
+  assert.equal(s.activity, "");
+});
+
+test("activity stays quiet during replay", () => {
+  const s = reduce([
+    { type: "replay_start" },
+    { type: "tool", id: "t1", title: "old tool", status: "in_progress" },
+    { type: "agent_text", text: "old" },
+  ]);
+  assert.equal(s.activity, "");
+});

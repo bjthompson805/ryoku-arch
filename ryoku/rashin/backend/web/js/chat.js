@@ -20,7 +20,29 @@ export function initialState() {
     usage: null, // {size,used} once the daemon reports it
     history: [], // [{id,title,updatedAt,cwd}]
     replaying: false,
+    activity: "", // what the agent is doing right now ("" = idle)
   };
+}
+
+// activityFor derives the passive working-strip label from a live frame:
+// tool starts name the tool, thoughts read as thinking, streaming text as
+// writing. Cleared on turn_end/idle.
+function activityFor(ev, state) {
+  switch (ev.type) {
+    case "tool":
+      if (ev.status === "pending" || ev.status === "in_progress") {
+        return ev.title || "running a tool";
+      }
+      return state.activity; // completion keeps the last label until turn_end
+    case "agent_thought":
+      return "thinking";
+    case "agent_text":
+      return "writing";
+    case "permission":
+      return "waiting for your approval";
+    default:
+      return state.activity;
+  }
 }
 
 function lastOpenAgentMsg(items) {
@@ -36,6 +58,7 @@ function lastOpenAgentMsg(items) {
 // (chat WS protocol) or the local {type:'permission_reply'} echo.
 export function applyEvent(state, ev) {
   const s = Object.assign({}, state);
+  if (!state.replaying) s.activity = activityFor(ev, state);
   switch (ev.type) {
     case "user":
     case "user_text": {
@@ -105,12 +128,16 @@ export function applyEvent(state, ev) {
       }
       // During replay a turn_end is historical: it must not clear the live busy
       // flag or trip the "response ready" toast, so leave busy as-is.
-      if (!state.replaying) s.busy = false;
+      if (!state.replaying) {
+        s.busy = false;
+        s.activity = "";
+      }
       return s;
     }
     case "state": {
       s.banner = { state: ev.state || "", model: ev.model || state.banner.model || "", error: ev.error || "" };
       s.busy = ev.state === "busy" || ev.state === "starting";
+      if (!s.busy) s.activity = "";
       return s;
     }
     case "models": {
@@ -189,6 +216,8 @@ if (typeof document !== "undefined") {
     const usageBox = root.querySelector("[data-chat-usage]");
     const usageFill = root.querySelector("[data-usage-fill]");
     const usageLabel = root.querySelector("[data-usage-label]");
+    const workingBox = root.querySelector("[data-chat-working]");
+    const workingLabel = root.querySelector("[data-working-label]");
     const chatTop = root.querySelector(".chat-top");
 
     // The thin REPLAYING banner is not in the static markup; mint it once and
@@ -360,6 +389,13 @@ if (typeof document !== "undefined") {
       if (usageLabel) usageLabel.textContent = "CTX " + pct + "%";
     }
 
+    function renderWorking() {
+      if (!workingBox) return;
+      const show = state.busy && !state.replaying && state.activity;
+      workingBox.hidden = !show;
+      if (show && workingLabel) workingLabel.textContent = state.activity;
+    }
+
     function renderModelChip() {
       if (!modelChip) return;
       if (!state.models.length && !state.currentModel) {
@@ -375,6 +411,7 @@ if (typeof document !== "undefined") {
       renderPerms();
       renderBanner();
       renderUsage();
+      renderWorking();
       renderModelChip();
       renderLegend();
       if (drawer && !drawer.hidden) renderDrawer();
