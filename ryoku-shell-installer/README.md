@@ -3,7 +3,7 @@
 Install the Ryoku desktop on an existing Arch machine, without the ISO.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
 ```
 
 Headless / unattended:
@@ -61,7 +61,7 @@ The binary and its checksum are committed (same convention as
 raw.githubusercontent.com with no release infrastructure. Test a branch with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/<branch>/ryoku-shell/install.sh \
+curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/<branch>/ryoku-shell-installer/install.sh \
   | RYOKU_SHELL_REF=<branch> bash
 ```
 

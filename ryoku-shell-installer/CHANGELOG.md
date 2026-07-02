@@ -1,4 +1,4 @@
-# Changelog: ryoku-shell
+# Changelog: ryoku-shell-installer
 
 ## Unreleased
 

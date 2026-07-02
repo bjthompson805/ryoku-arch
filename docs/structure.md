@@ -116,7 +116,7 @@ When two subsystems need the same thing, it lives once and both reference it:
 `ryoku-hw-laptop` is the single laptop/desktop detector used by both GPU policy
 and the idle policy. Reuse the helper; never re-implement its logic.
 
-## `ryoku-shell/` the no-ISO installer
+## `ryoku-shell-installer/` the no-ISO installer
 
 The standalone way in: a curl-able `install.sh` bootstrap plus the
 `ryoku-shell-install` Go TUI that converts an existing Arch machine into a
