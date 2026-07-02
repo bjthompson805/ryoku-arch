@@ -19,6 +19,29 @@
   one-click Hermes setup watched live, open-dashboard button), and `autostart`
   launches `ryoku-rashin serve --if-enabled`, which exits at once until enabled.
   See `docs/rashin.md`.
+- `rashin/backend`: the dashboard grows from a glance into a **full local-agent
+  utility** (v0.2.0), seven panels. Chat v2: image attach/paste/drag-drop (sent
+  as ACP image blocks, downscaled client-side), clickable links, a `/` command
+  legend fed live from Hermes's slash commands, a model picker with recents
+  (switches over `session/set_model`), a session-history drawer that replays
+  stored transcripts (`session/list` + `session/load`), a context-usage meter,
+  token fade-in streaming, and a response-ready toast for backgrounded tabs.
+  New **Memory** panel: provider detection (builtin or honcho/mem0/supermemory/
+  hindsight and friends, plus Obsidian vault detection), a force-directed graph
+  of the vault's notes and references, a 26-week activity heatmap, and Hermes
+  session history read from `~/.hermes/state.db` (sqlite3, read-only). New
+  **Skills** panel: all Hermes skills by category with origin counts (bundled /
+  hub / agent-grown), live search, and the enabled toolbelt grouped into
+  families. New **About** panel: what Rashin is, live facts, quick start, and a
+  command crib pointing at `hermes -h`, `hermes gateway`, `hermes model`. The
+  Overview gains a **code intelligence card**: when the user has `prowl-agent`
+  installed and an indexed repo, the daemon surfaces doctor finding counts,
+  files/symbols, and top hotspots (read-only exec, cached, degrades to hidden;
+  prowl stays user-installed because upstream ships no license yet). New API:
+  `/api/hermes/skills`, `/api/hermes/memory`, `/api/prowl`, `/api/prowl/search`,
+  `/api/about`; the chat WebSocket learns models/commands/history/usage frames.
+  Hermes onboarding detection now reads the mapping-form `model:` block, and
+  session titles surface correctly.
 - `rashin/backend` + `cli`: the vault gains two more generated layers, and the
   index follows the system. `ryoku-repo.md` is a **pre-indexed map of the Ryoku
   monorepo itself** (layout with file counts, key entry points, docs list),

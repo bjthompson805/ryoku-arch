@@ -117,8 +117,10 @@ Subcommands:
 The dashboard serves on `http://127.0.0.1:3600`. The HTTP API (all localhost)
 covers `GET /api/status`, `GET /api/vitals` (also pushed on `WS /ws/vitals`),
 `GET /api/vault` and `GET /api/vault/file?p=`, `POST /api/index`,
-`GET /api/agents` with wire and unwire, and `WS /ws/chat` for the Hermes bridge.
-Vitals come from `/proc` and `statfs`, with GPU via `nvidia-smi` when present.
+`GET /api/agents` with wire and unwire, `GET /api/hermes/skills`,
+`GET /api/hermes/memory`, `GET /api/prowl` and `GET /api/prowl/search?q=`,
+`GET /api/about`, and `WS /ws/chat` for the Hermes bridge. Vitals come from
+`/proc` and `statfs`, with GPU via `nvidia-smi` when present.
 
 ## The dashboard
 
@@ -129,16 +131,42 @@ black paper with cream ink and a vermillion sun disc.
 
 | Panel | Content |
 |---|---|
-| Overview | Hero poster header, vitals as poster stat blocks, daemon and hermes state, journal ticker |
+| Overview | Hero poster header, vitals as poster stat blocks, daemon and hermes state, code intelligence card (prowl-agent doctor counts, files and symbols, hotspots) |
 | Vault | File tree, rendered markdown, reindex button, generated-fence badges |
-| Agents | Detected CLIs, versions, wiring state per agent, wire and unwire actions |
-| Chat | Hermes session: streaming text, tool-call cards, permission prompts, session list |
+| Memory | Provider tiles (builtin or external, with Obsidian vault detection), a force-directed graph of the vault's notes and their references, a 26-week activity heatmap, and the Hermes session history read from `~/.hermes/state.db` |
+| Skills | Every Hermes skill grouped by category with origin counts (bundled, hub, agent-grown), live search, and the enabled toolbelt grouped into families |
+| Agents | Detected CLIs, wiring state per agent, wire and unwire actions |
+| Chat | The full Hermes conversation surface (below) |
+| About | What Rashin is, the pieces with live facts, quick start, a command crib (`hermes -h`, `hermes gateway`, `hermes model`, `hermes tools`, `prowl-agent overview`), and the privacy note |
+
+### Chat
 
 The chat panel talks to Hermes over the daemon's ACP bridge (Agent Client
-Protocol over stdio, the interface Zed uses). Streamed message chunks, thought
-chunks, tool start and finish events, and permission requests all surface in the
-UI. Terminal `hermes` and web chat share the same memory, because both run in the
+Protocol over stdio, the interface Zed uses). Beyond streamed text, thoughts,
+tool cards, and permission prompts, it carries:
+
+- **Images**: attach (paperclip), paste, or drag-drop up to three; the client
+  downscales to 1568px JPEG and sends them as ACP image blocks.
+- **Links**: markdown links and bare URLs render clickable (new tab).
+- **Command legend**: typing `/` opens a fuzzy-filtered popup of Hermes's slash
+  commands (`/help`, `/model`, `/tools`, `/compact`, ...) with keyboard nav.
+- **Model picker**: a chip shows the current model; clicking lists every model
+  hermes advertises, with a recent-five section, and switches live.
+- **Session history**: a drawer lists stored sessions; loading one replays its
+  transcript; NEW SESSION starts fresh.
+- **Context meter**: a thin bar tracks the session's token usage.
+
+Terminal `hermes` and web chat share the same memory, because both run in the
 vault workspace.
+
+## Prowl-agent integration
+
+When `prowl-agent` (the code-intelligence indexer) is on PATH and a repo with a
+`.prowl/` index is found (`RYOKU_RASHIN_REPO`, else the Ryoku checkout), the
+daemon surfaces it read-only: doctor finding counts, files and symbols, top
+hotspots on the Overview card, and `GET /api/prowl/search?q=` for content
+search. Prowl is optional and user-installed; everything degrades to a hidden
+card without it.
 
 ## One-click setup
 
