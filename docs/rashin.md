@@ -36,6 +36,8 @@ The vault is the knowledge base every agent reads and writes, at
 | `system.md` | Generated: hardware, kernel, drivers, displays |
 | `desktop.md` | Generated: the Ryoku map (configs, owners, reload commands) |
 | `packages.md` | Generated: package sets, versions, update state |
+| `ryoku-repo.md` | Generated: the Ryoku source tree map, pre-indexed and shipped |
+| `user.md` | Generated: where this user's config diverges from the shipped baseline |
 | `memory/` | Agent-writable; Hermes `MEMORY.md` and `USER.md` live here |
 | `journal/` | Agent-writable dated notes, one file per day |
 
@@ -47,14 +49,45 @@ by the user and agents.
 
 **Write rules for agents.**
 
-- Generated files (`system.md`, `desktop.md`, `packages.md`) are read-only. Do
-  not edit inside the fence; a reindex overwrites it.
+- Generated files (`system.md`, `desktop.md`, `packages.md`, `ryoku-repo.md`,
+  `user.md`) are read-only. Do not edit inside the fence; a reindex overwrites it.
 - Read `desktop.md` before searching the filesystem or guessing paths. It names
   where every config lives, which binary owns it, and how to reload it.
+- Changes listed in `user.md` are the user's own choices; never revert them to
+  shipped defaults without being asked.
 - Write durable notes to `memory/` and dated notes to `journal/YYYY-MM-DD.md`.
 
-Reindex triggers: daemon start, `ryoku-rashin index`, a 6h timer, and the
-dashboard's reindex button.
+Reindex triggers: daemon start, `ryoku-rashin index`, a 6h timer, the
+dashboard's reindex button, and `ryoku update` (both channels reindex after
+configs land, so agents see the new system immediately). The user layer also
+reindexes on its own: the daemon fingerprints the live `~/.config` every two
+minutes and rewrites `user.md` when it drifts.
+
+## The pre-indexed source map
+
+`ryoku-repo.md` maps the monorepo that produced the system: layout with file
+counts, key entry points, and the docs list. The installed target has no
+checkout, so the map ships as a snapshot:
+
+- **Packaged:** the `ryoku-rashin` PKGBUILD runs `ryoku-rashin repo-index` over
+  the exact release tree and installs the result to
+  `/usr/share/ryoku/rashin/ryoku-repo.md`. A system update replaces the
+  snapshot with the new release's, and the post-update reindex folds it in.
+- **Dev checkout:** `ryoku/shell/deploy.sh` writes the same snapshot to
+  `~/.local/state/ryoku/rashin-repo.md` on every deploy.
+- **Live regeneration:** with `RYOKU_RASHIN_REPO` pointing at a checkout,
+  reindex regenerates the map from the tree instead of copying a snapshot.
+
+## The user-owned changes layer
+
+`user.md` diffs the shipped base config (`/usr/share/ryoku/config`, the tree
+`ryoku materialize` lays down) against the live `~/.config` by content hash,
+and lists three classes: dedicated user-override files (`hypr/user.lua`,
+`kitty/user.conf`, `fish/user.fish`, `hypr/monitors_user.lua`), shipped files
+the user edited in place, and shipped files the user removed. Agents treat
+everything listed there as the user's own choices, distinct from Ryoku
+defaults. On a dev checkout without the base tree, the layer degrades to a
+note saying the diff is unavailable.
 
 ## The daemon: `ryoku-rashin`
 
@@ -73,7 +106,8 @@ Subcommands:
 | Command | Job |
 |---|---|
 | `serve [--if-enabled]` | HTTP and WebSocket on `127.0.0.1:3600`, embedded dashboard. `--if-enabled` exits 0 immediately when the gate is off (the autostart path) |
-| `index` | Regenerate `system.md`, `desktop.md`, `packages.md` |
+| `index` | Regenerate all vault maps: `system.md`, `desktop.md`, `packages.md`, `ryoku-repo.md`, `user.md` |
+| `repo-index <root> [out]` | Build the Ryoku source map from a checkout; used by the PKGBUILD and `deploy.sh` |
 | `setup` | One-click actuator: install Hermes, run its onboarding, wire, enable |
 | `wire [agent]` | Apply vault pointers to all detected agents, or one named agent |
 | `unwire [agent]` | Remove vault pointers, keeping the file |
