@@ -188,6 +188,12 @@
   `shell/fish` (with its non-brand greeting) was dropped for `ryoku/apps/fish`.
 
 ### Fixed
+- `hyprland/hyprland.lua`: no more "Your config has errors" flash on a fresh
+  first boot. Hyprland reports even a `pcall`'d `require()` of a missing module
+  in the config-error overlay, and six optional drop-ins (`monitors_user`,
+  `theme`, `settings`, `modules.private`, `ghosttype`, `user`) legitimately do
+  not exist on a new home. The loader now probes with `package.searchpath`
+  first and only requires files that are actually there.
 - `shell/quickshell/{visualizer,pill,widgets}` + `shell/ipc`: a memory leak on this
   Qt 6.11 / NVIDIA stack where any continuously-animating or continuously-composited
   element grows RSS without bound (a plain rotating rectangle leaks ~0.9 MB/min and
