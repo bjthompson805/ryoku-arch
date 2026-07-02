@@ -587,6 +587,38 @@ func stepConfigs(e *engine) error {
 		return err
 	}
 
+	// the published hyprland.lua pcall-requires optional drop-ins that are
+	// never shipped, and hyprland flags even a caught require() of a missing
+	// module in the config-error overlay, so a fresh home flashed "Your config
+	// has errors" on first boot. stub them comment-only: the tools that own
+	// them overwrite the stubs, materialize never touches them, and once the
+	// searchpath-probing loader ships from main these stop mattering.
+	stubs := []struct{ rel, content string }{
+		{".config/hypr/monitors_user.lua", "-- hand-pinned displays: copy what you need from monitors_user.lua.example.\n-- loaded after the generated monitors.lua, so pins here win. never touched by updates.\n"},
+		{".config/hypr/user.lua", "-- your hyprland overrides. loaded last, so anything here wins. never touched by updates.\n"},
+		{".config/hypr/theme.lua", "-- owned by ryoku settings: applying a theme replaces this file.\n"},
+		{".config/hypr/settings.lua", "-- owned by ryoku settings (the hub): it regenerates this file.\n"},
+		{".config/hypr/modules/private.lua", "-- optional private module, yours to fill in.\n"},
+		{".config/hypr/ghosttype.lua", "-- owned by ghosttype when installed.\n"},
+	}
+	for _, s := range stubs {
+		if e.dry {
+			e.say("DRYRUN: stub ~/" + s.rel + " if absent")
+			continue
+		}
+		p := filepath.Join(e.f.homeDir, s.rel)
+		if _, err := os.Lstat(p); err == nil {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(p, []byte(s.content), 0o644); err != nil {
+			return err
+		}
+		e.say("stubbed ~/" + s.rel)
+	}
+
 	// keyboard layout salvaged from the machine (niri config or localectl);
 	// keyboard.lua is user-owned, materialize never touches it again.
 	if e.f.kbLayout != "" && e.f.kbLayout != "us" {

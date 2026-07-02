@@ -12,3 +12,12 @@
   config (salvaging the keyboard layout from a niri setup), builds the AUR
   extras, and converges with `ryoku doctor`. Headless `--yes` and `--dry-run`
   modes included.
+
+### Fixed
+
+- First boot flashed Hyprland's "Your config has errors" overlay: the shipped
+  config pcall-requires optional drop-ins that don't exist on a fresh home and
+  Hyprland reports the caught failure anyway. The installer now seeds
+  comment-only stubs for the six optional files after `ryoku materialize`;
+  they become redundant (but stay harmless) once the searchpath-probing
+  loader ships in `ryoku-desktop`.
