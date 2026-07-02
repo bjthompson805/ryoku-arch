@@ -24,6 +24,14 @@
   `omarchy-keyring` (originals kept as `*.pre-ryoku`, undo lines in
   `restore.sh`).
 
+- niri migration now carries real intent over: the full xkb setup (layout,
+  variant, options) read across config.kdl and its includes lands in
+  keyboard.lua, and output blocks (rotation, scale, position, mode, off, VRR)
+  become monitors_user.lua pins that autoscale respects. User-level
+  xdg-desktop-portal config is moved aside, the systemd user tree is backed
+  up so restore.sh can put wants-wiring back, and clipboard/gamma daemons
+  joined the conflict list.
+
 ### Fixed
 
 - First boot flashed Hyprland's "Your config has errors" overlay: the shipped

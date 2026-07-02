@@ -52,9 +52,7 @@ var sessionPkgs = []string{
 // the standard Ryoku extras. all best-effort, verify flags the critical two.
 var aurPkgs = []string{"wallust", "awww-git", "bibata-cursor-theme-bin", "localsend-bin", "handy-bin"}
 
-// system/packages/dev.packages: the toolchains every ISO machine ships.
-// ryoku recovery rebuilds the desktop from source and hard-requires go+git,
-// so skipping this set leaves the panic button dead.
+// system/packages/dev.packages; ryoku recovery builds from source and needs go.
 var devPkgs = []string{"go", "nodejs", "npm", "rust", "python", "python-pip", "python-pipx", "mise"}
 
 var sparsePaths = []string{
@@ -72,6 +70,7 @@ type plan struct {
 	fish      bool // fish as login shell
 	devtools  bool // dev.packages toolchains (go/rust/node/python; recovery needs go)
 	omarchy   bool // retire the [omarchy] repo and mirror pin
+	niriMon   bool // pin the salvaged niri monitor layout in monitors_user.lua
 }
 
 func defaultPlan(f *facts) *plan {
@@ -85,6 +84,7 @@ func defaultPlan(f *facts) *plan {
 		fish:      !strings.HasSuffix(f.userShell, "/fish"),
 		devtools:  true,
 		omarchy:   f.omarchyRepo || f.omarchyMirror,
+		niriMon:   len(f.niriOutputs) > 0,
 	}
 }
 
@@ -393,11 +393,17 @@ func stepPayload(e *engine) error {
 // and the lockscreen dirs are moved aside wholesale: a stale hyprland.conf or a
 // foreign quickshell tree next to the Ryoku one is exactly the breakage a
 // migration must avoid. the rest are copied, then clobbered in place.
-var backupMove = []string{".config/hypr", ".config/quickshell", ".local/share/quickshell-lockscreen", ".local/share/qylock"}
+// xdg-desktop-portal moves aside too: a user-level portals.conf outranks the
+// packaged hyprland one and breaks screenshare under the new session.
+var backupMove = []string{
+	".config/hypr", ".config/quickshell", ".config/xdg-desktop-portal",
+	".local/share/quickshell-lockscreen", ".local/share/qylock",
+}
 var backupCopy = []string{
 	".config/niri", ".config/kitty", ".config/fish", ".config/nvim",
 	".config/fastfetch", ".config/yazi", ".config/wallust", ".config/kdeglobals",
 	".config/starship.toml", ".config/mimeapps.list",
+	".config/systemd/user", // raw symlink tree, restore.sh puts wants wiring back as-was
 }
 
 func stepBackup(e *engine) error {
@@ -499,6 +505,18 @@ func (e *engine) recordRestore(line string) {
 }
 
 func stepConflicts(e *engine) error {
+	// units first, while their unit files still exist. disable only, never
+	// stop: running daemons die with the old session.
+	if e.p.softOff {
+		for _, u := range e.f.softUnits {
+			if err := e.cmd("", nil, "systemctl", "--user", "disable", u); err != nil {
+				e.say("warning: could not disable " + u)
+				continue
+			}
+			// || true: add-wants units have no [Install] and refuse a bare enable
+			e.recordRestore("systemctl --user enable " + u + " || true")
+		}
+	}
 	if e.p.rivals && len(e.f.rivalPkgs) > 0 {
 		// plain -R, no -ns cascade: -Rns on a meta like cachyos-niri-noctalia
 		// would drag niri itself out, and the plan promises niri survives as a
@@ -524,17 +542,6 @@ func stepConflicts(e *engine) error {
 					e.say("warning: could not remove " + p + "; the package step may abort on a conflict")
 				}
 			}
-		}
-	}
-	if e.p.softOff {
-		for _, u := range e.f.softUnits {
-			// disable only: killing the user's current session daemons out from
-			// under them mid-install helps nobody. they end with the old session.
-			if err := e.cmd("", nil, "systemctl", "--user", "disable", u); err != nil {
-				e.say("warning: could not disable " + u)
-				continue
-			}
-			e.recordRestore("systemctl --user enable " + u)
 		}
 	}
 	return nil
@@ -689,17 +696,49 @@ func stepConfigs(e *engine) error {
 		return err
 	}
 
-	// the published hyprland.lua pcall-requires optional drop-ins that are
-	// never shipped, and hyprland flags even a caught require() of a missing
-	// module in the config-error overlay, so a fresh home flashed "Your config
-	// has errors" on first boot. stub them comment-only: the tools that own
-	// them overwrite the stubs, materialize never touches them, and once the
-	// searchpath-probing loader ships from main these stop mattering.
+	// niri monitor pins go in before the stub pass, real pins beat a comment stub.
+	if e.p.niriMon && len(e.f.niriOutputs) > 0 {
+		pins, skipped := renderNiriPins(e.f.niriOutputs)
+		for _, name := range skipped {
+			e.sayf("note: niri output %q is matched by description; pin it by connector in monitors_user.lua", name)
+		}
+		if pins != "" {
+			mu := filepath.Join(e.f.homeDir, ".config/hypr/monitors_user.lua")
+			if e.dry {
+				e.say("DRYRUN: write niri monitor pins to ~/.config/hypr/monitors_user.lua")
+			} else if _, err := os.Lstat(mu); err != nil {
+				if err := os.WriteFile(mu, []byte(pins), 0o644); err != nil {
+					return err
+				}
+				e.say("carried the niri monitor layout into hypr/monitors_user.lua")
+			}
+		}
+	}
+
+	// keyboard.lua is user-owned: seeded once, never touched by updates.
+	lua := func(s string) string { return strings.NewReplacer(`"`, ``, `\`, ``).Replace(s) }
+	if e.f.kbLayout != "" && (e.f.kbLayout != "us" || e.f.kbVariant != "" || e.f.kbOptions != "") {
+		e.sayf("seeding keyboard layout %q variant %q options %q into hypr/keyboard.lua",
+			e.f.kbLayout, e.f.kbVariant, e.f.kbOptions)
+		if !e.dry {
+			kb := filepath.Join(e.f.homeDir, ".config/hypr/keyboard.lua")
+			content := "-- keyboard layout, carried over by the installer. edits here stick.\n" +
+				"hl.config({\n    input = {\n        kb_layout = \"" + lua(e.f.kbLayout) + "\",\n" +
+				"        kb_variant = \"" + lua(e.f.kbVariant) + "\",\n" +
+				"        kb_options = \"" + lua(e.f.kbOptions) + "\",\n    },\n})\n"
+			if err := os.WriteFile(kb, []byte(content), 0o644); err != nil {
+				return err
+			}
+		}
+	}
+
+	// the published loader still flags missing optional drop-ins in the
+	// config-error overlay, so stub them until the searchpath fix ships.
 	stubs := []struct{ rel, content string }{
-		{".config/hypr/monitors_user.lua", "-- hand-pinned displays: copy what you need from monitors_user.lua.example.\n-- loaded after the generated monitors.lua, so pins here win. never touched by updates.\n"},
-		{".config/hypr/user.lua", "-- your hyprland overrides. loaded last, so anything here wins. never touched by updates.\n"},
+		{".config/hypr/monitors_user.lua", "-- hand-pinned displays, see monitors_user.lua.example. pins here win.\n"},
+		{".config/hypr/user.lua", "-- your hyprland overrides. loaded last, never touched by updates.\n"},
 		{".config/hypr/theme.lua", "-- owned by ryoku settings: applying a theme replaces this file.\n"},
-		{".config/hypr/settings.lua", "-- owned by ryoku settings (the hub): it regenerates this file.\n"},
+		{".config/hypr/settings.lua", "-- owned by ryoku settings, regenerated by the hub.\n"},
 		{".config/hypr/modules/private.lua", "-- optional private module, yours to fill in.\n"},
 		{".config/hypr/ghosttype.lua", "-- owned by ghosttype when installed.\n"},
 	}
@@ -719,22 +758,6 @@ func stepConfigs(e *engine) error {
 			return err
 		}
 		e.say("stubbed ~/" + s.rel)
-	}
-
-	// keyboard layout salvaged from the machine (niri config or localectl);
-	// keyboard.lua is user-owned, materialize never touches it again.
-	if e.f.kbLayout != "" && e.f.kbLayout != "us" {
-		e.sayf("seeding keyboard layout %q into hypr/keyboard.lua", e.f.kbLayout)
-		if !e.dry {
-			kb := filepath.Join(e.f.homeDir, ".config/hypr/keyboard.lua")
-			content := "-- keyboard layout. user-owned: seeded by the installer from your previous\n" +
-				"-- setup, then never touched by a ryoku update, so edits here stick.\n" +
-				"hl.config({\n    input = {\n        kb_layout = \"" + e.f.kbLayout + "\",\n" +
-				"        kb_variant = \"\",\n        kb_options = \"\",\n    },\n})\n"
-			if err := os.WriteFile(kb, []byte(content), 0o644); err != nil {
-				return err
-			}
-		}
 	}
 
 	seeds := []struct {

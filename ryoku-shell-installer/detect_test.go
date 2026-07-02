@@ -12,16 +12,6 @@ func TestParseOSRelease(t *testing.T) {
 	}
 }
 
-func TestNiriLayout(t *testing.T) {
-	cfg := "input {\n    keyboard {\n        xkb {\n            layout \"us,de\"\n        }\n    }\n}\n"
-	if got := niriLayout(cfg); got != "us,de" {
-		t.Fatalf("got %q", got)
-	}
-	if got := niriLayout("output \"DP-1\" {}"); got != "" {
-		t.Fatalf("expected empty, got %q", got)
-	}
-}
-
 func TestShellJoin(t *testing.T) {
 	if got := shellJoin("pacman", []string{"-S", "a b"}); got != "pacman -S \"a b\"" {
 		t.Fatalf("got %q", got)

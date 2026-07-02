@@ -101,6 +101,9 @@ func buildItems(f *facts, p *plan) []planItem {
 	if f.omarchyRepo || f.omarchyMirror {
 		it = append(it, planItem{"Retire the Omarchy repo", "drops [omarchy] from pacman.conf, restores a standard Arch mirrorlist, removes omarchy-keyring", &p.omarchy})
 	}
+	if len(f.niriOutputs) > 0 {
+		it = append(it, planItem{"Carry over niri monitor layout", fmt.Sprintf("pins %d output(s) (rotation, scale, position) into monitors_user.lua", len(f.niriOutputs)), &p.niriMon})
+	}
 	it = append(it, planItem{"AUR extras", "wallust + awww (wallpaper engine), Bibata cursor, LocalSend, Handy", &p.aur})
 	it = append(it, planItem{"Developer toolchain", "go, rust, node, python (ISO parity); ryoku recovery rebuilds from source and needs go", &p.devtools})
 	if !strings.HasSuffix(f.userShell, "/fish") {

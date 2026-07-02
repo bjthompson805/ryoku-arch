@@ -42,7 +42,10 @@ type facts struct {
 	omarchyMirror bool     // mirrorlist pinned to Omarchy's package mirror
 	softUnits     []string // enabled user units that fight the shell
 	niriFound     bool
+	niriOutputs   []niriOutput // monitor intent salvaged from the niri config
 	kbLayout      string
+	kbVariant     string
+	kbOptions     string
 	userShell     string
 	ryokuOnBox    bool // ryoku-desktop already installed
 	hostname      string
@@ -75,6 +78,10 @@ var softConflictUnits = []string{
 	"swww.service", "swww-daemon.service", "hyprpaper.service", "wpaperd.service",
 	"swayidle.service", "swayosd.service",
 	"noctalia.service", "dms.service", "inir.service", "caelestia.service",
+	// graphical-session.target units follow the user into the new session:
+	// clipboard watchers fight the stash, gamma daemons fight hyprsunset
+	"cliphist.service", "wl-clip-persist.service", "clipse.service",
+	"wlsunset.service", "gammastep.service",
 }
 
 var otherDMUnits = []string{
@@ -141,16 +148,6 @@ func mirrorlistHasOmarchy(list string) bool {
 		}
 	}
 	return false
-}
-
-// niri config keeps xkb layout as `layout "us,de"` inside an xkb block.
-var kdlLayoutRe = regexp.MustCompile(`(?m)^\s*layout\s+"([^"]+)"`)
-
-func niriLayout(cfg string) string {
-	if m := kdlLayoutRe.FindStringSubmatch(cfg); m != nil {
-		return m[1]
-	}
-	return ""
 }
 
 var x11LayoutRe = regexp.MustCompile(`X11 Layout:\s*(\S+)`)
@@ -258,10 +255,14 @@ func detect() *facts {
 		}
 	}
 
-	// keyboard layout: prefer the niri config the user actually lives in,
-	// fall back to localectl's X11 layout.
-	if b, err := os.ReadFile(filepath.Join(cfg, "niri/config.kdl")); err == nil {
-		f.kbLayout = niriLayout(string(b))
+	// keyboard + monitor intent from the niri config, includes followed.
+	// an xkb keymap file overrides fields, nothing to salvage then.
+	if niriText := loadNiriConfig(f.homeDir); niriText != "" {
+		layout, variant, options, hasFile := parseNiriXkb(niriText)
+		if !hasFile {
+			f.kbLayout, f.kbVariant, f.kbOptions = layout, variant, options
+		}
+		f.niriOutputs = parseNiriOutputs(niriText)
 	}
 	if f.kbLayout == "" {
 		if m := x11LayoutRe.FindStringSubmatch(out("localectl", "status")); m != nil {
