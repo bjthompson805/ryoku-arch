@@ -19,6 +19,23 @@
   one-click Hermes setup watched live, open-dashboard button), and `autostart`
   launches `ryoku-rashin serve --if-enabled`, which exits at once until enabled.
   See `docs/rashin.md`.
+- `rashin/backend` + `cli`: the vault gains two more generated layers, and the
+  index follows the system. `ryoku-repo.md` is a **pre-indexed map of the Ryoku
+  monorepo itself** (layout with file counts, key entry points, docs list),
+  generated at package build by the `ryoku-rashin` PKGBUILD and shipped to
+  `/usr/share/ryoku/rashin/ryoku-repo.md` (a dev `deploy.sh` writes the same
+  snapshot to `~/.local/state/ryoku/rashin-repo.md`), so agents navigate the
+  distro's source without a checkout. `user.md` is the **user-owned changes
+  layer**: it hash-diffs the shipped base config against the live `~/.config`
+  and lists override files, edited files, and removed files, reindexed
+  separately by a 2-minute fingerprint watcher in the daemon whenever the
+  user's config drifts. `ryoku update` now reindexes the vault after configs
+  land on both channels (checkout and packaged), best effort, so the maps
+  always describe the system that is actually running.
+- `rashin/backend/web`: the dashboard scales to the viewport instead of hugging
+  the left edge on wide screens: the content column centres (up to 1480px),
+  and the hero, stat blocks, type, and chat art grow with `clamp()` between
+  laptop and desktop sizes.
 - `hub/quickshell/PerformancePage` + `shell/quickshell/{visualizer,pill,widgets}`:
   a **Performance Optimizations** section in Ryoku Settings, tweaks for modest
   hardware (most off by default; the visualiser freeze defaults on) and written to

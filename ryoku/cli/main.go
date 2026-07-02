@@ -94,6 +94,7 @@ func cmdUpdate(_ []string) error {
 	if handled, err := channelUpdate(); err != nil {
 		return err
 	} else if handled {
+		rashinReindex()
 		offerSnapperHelpers()
 		runFreshDoctor()
 		snapperPost(pre, "ryoku-update")
@@ -130,12 +131,26 @@ func cmdUpdate(_ []string) error {
 	// restart the shell daemon so the new binary + QML both take effect.
 	hyprReload()
 	restartShell()
+	rashinReindex()
 
 	offerSnapperHelpers()
 	runFreshDoctor()
 	snapperPost(pre, "ryoku-update")
 	fmt.Println("==> Update complete")
 	return nil
+}
+
+// rashinReindex refreshes the agent-OS vault after an update so agents see
+// the new system immediately. Best effort: rashin is optional and a failed
+// index never blocks an update.
+func rashinReindex() {
+	if !has("ryoku-rashin") {
+		return
+	}
+	fmt.Println("==> Reindexing the Rashin vault")
+	if err := run("ryoku-rashin", "index"); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: rashin reindex failed: %v\n", err)
+	}
 }
 
 // wantedSnapperHelpers: which snapshot helpers we should offer to install,

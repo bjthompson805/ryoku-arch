@@ -90,6 +90,11 @@ say "building ryoku-rashin"
 (cd "$here/../rashin/backend" && go build -o ryoku-rashin .)
 install -m755 "$here/../rashin/backend/ryoku-rashin" "$bindir/ryoku-rashin"
 say "installed $bindir/ryoku-rashin"
+# Pre-index the checkout for the Rashin vault: dev-machine equivalent of the
+# snapshot the package ships to /usr/share/ryoku/rashin.
+"$bindir/ryoku-rashin" repo-index "$here/../.." \
+  "${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/rashin-repo.md"
+say "indexed ryoku repo for rashin"
 say "building ryoku CLI"
 (cd "$here/../cli" && go build -o ryoku .)
 install -m755 "$here/../cli/ryoku" "$bindir/ryoku"
