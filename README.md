@@ -138,6 +138,21 @@ gpg --verify ryoku-*.iso.sig ryoku-*.iso
 Prefer to build it yourself? The archiso profile and build script live in
 `installation/iso`.
 
+### Install without the ISO
+
+Already on Arch? One line converts the machine into a Ryoku box: it backs up
+your configs (with a `restore.sh` to undo), trusts the signed `[ryoku]` repo,
+migrates you off conflicting shells and daemons, and wires the full desktop.
+On this branch the installer runs from `unstable-dev`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/unstable-dev/ryoku-shell-installer/install.sh | RYOKU_SHELL_REF=unstable-dev bash
+```
+
+Preview everything it would do without changing anything by appending
+`-s -- --dry-run` after `bash`. Details in
+[`ryoku-shell-installer/`](ryoku-shell-installer/README.md).
+
 ## Repository layout
 
 | Path | One job |
