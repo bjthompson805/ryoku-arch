@@ -272,6 +272,10 @@ export function initMemory(root) {
         return { fill: C.slate, ring: null };
       case "hermes":
         return { fill: C.ink, ring: C.orange };
+      case "learned":
+        return { fill: C.orange, ring: null };
+      case "skill":
+        return { fill: C.ink, ring: C.red };
       default:
         return { fill: C.ink, ring: null };
     }
@@ -308,6 +312,7 @@ export function initMemory(root) {
   function renderTiles(data) {
     const p = data.provider || {};
     const files = data.files || {};
+    const learned = data.learned || {};
     const external = p.kind && p.kind !== "builtin";
     const provStamp =
       '<span class="stamp ' +
@@ -318,14 +323,26 @@ export function initMemory(root) {
     const vault = p.obsidianVault
       ? '<span class="stat-sub dim">' + escapeHtml(p.obsidianVault) + "</span>"
       : '<span class="stat-sub dim">no obsidian vault</span>';
-    const days = (data.heatmap || []).filter((h) => h && h.count > 0).length;
     const sessions = (data.sessions || []).length;
     const memBytes = files.memoryMd ? humanBytes(files.memoryBytes || 0) : "--";
+    // The growth ledger: everything the agent accumulated on its own. Starts
+    // near zero on a fresh install and fills as hermes runs.
+    const grown =
+      (learned.memoryEntries || 0) +
+      (learned.userFacts || 0) +
+      (learned.agentSkills || 0) +
+      (learned.vaultNotes || 0);
+    const grownSub =
+      (learned.memoryEntries || 0) + " memories / " +
+      (learned.userFacts || 0) + " user facts / " +
+      (learned.agentSkills || 0) + " skills / " +
+      (learned.vaultNotes || 0) + " notes";
     tilesEl.innerHTML =
       tile("teal", "PROVIDER", provStamp, vault, true) +
+      tile("vermillion", "LEARNED", String(grown), grownSub) +
       tile("orange", "MEMORY.MD", memBytes, files.memoryMd ? "on disk" : "absent") +
       tile("slate", "SESSIONS", String(sessions), "recorded") +
-      tile("tan", "JOURNAL DAYS", String(days), "active");
+      tile("tan", "JOURNAL DAYS", String((data.learned || {}).journalDays || 0), "active");
   }
 
   function renderHeatmap(entries) {

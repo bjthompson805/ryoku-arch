@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -254,9 +255,51 @@ type MemoryReport struct {
 		MemoryBytes int64 `json:"memoryBytes"`
 		UserMd      bool  `json:"userMd"`
 	} `json:"files"`
+	// Learned is the growth layer: what the agent has accumulated on its own,
+	// beyond the maps Ryoku generates. It fills as hermes runs.
+	Learned struct {
+		MemoryEntries int      `json:"memoryEntries"`
+		UserFacts     int      `json:"userFacts"`
+		AgentSkills   int      `json:"agentSkills"`
+		VaultNotes    int      `json:"vaultNotes"`
+		JournalDays   int      `json:"journalDays"`
+		Preview       []string `json:"preview,omitempty"`
+	} `json:"learned"`
 	Graph    GraphModel     `json:"graph"`
 	Heatmap  []HeatmapDay   `json:"heatmap"`
 	Sessions []SessionEntry `json:"sessions"`
+}
+
+// memoryEntries splits a hermes memory file into its curated entries. The
+// agent separates entries with a bare section sign line; the rashin pointer
+// fence does not count as learned content.
+func memoryEntries(raw string) []string {
+	// Drop the rashin pointer block: it is wiring, not learned memory.
+	for {
+		bi := strings.Index(raw, "<!-- ryoku-rashin:begin -->")
+		ei := strings.Index(raw, "<!-- ryoku-rashin:end -->")
+		if bi < 0 || ei <= bi {
+			break
+		}
+		raw = raw[:bi] + raw[ei+len("<!-- ryoku-rashin:end -->"):]
+	}
+	var out []string
+	for _, part := range strings.Split(raw, "\n\u00a7\n") {
+		if s := strings.TrimSpace(part); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// entryLabel reduces a memory entry to a short node label.
+func entryLabel(entry string) string {
+	line := firstLine(entry)
+	line = strings.TrimLeft(line, "#-* \t")
+	if len(line) > 42 {
+		line = line[:42]
+	}
+	return line
 }
 
 type GraphNode struct {
@@ -362,11 +405,44 @@ func buildMemoryGraph() GraphModel {
 		})
 		byBase[filepath.Base(id)] = id
 	}
-	// Hermes memory joins the graph as its own node when present.
+	// Hermes memory joins the graph as its own node when present, and every
+	// curated entry inside it becomes a small "learned" satellite, so the web
+	// visibly grows as the agent accumulates knowledge about the user.
 	memPath := hermesMemory()
 	if fi, err := os.Stat(memPath); err == nil {
 		nodes = append(nodes, GraphNode{ID: "hermes:MEMORY.md", Label: "hermes MEMORY", Group: "hermes", Size: fi.Size()})
 		byBase["MEMORY.md"] = "hermes:MEMORY.md"
+	}
+	var learnedLinks []GraphLink
+	if raw, err := os.ReadFile(memPath); err == nil {
+		for i, entry := range memoryEntries(string(raw)) {
+			if i >= 40 {
+				break
+			}
+			id := fmt.Sprintf("learned:%d", i)
+			nodes = append(nodes, GraphNode{
+				ID: id, Label: entryLabel(entry), Group: "learned", Size: int64(len(entry)),
+			})
+			learnedLinks = append(learnedLinks, GraphLink{Source: "hermes:MEMORY.md", Target: id})
+		}
+	}
+	// Agent-grown skills orbit the graph too: they are the other visible
+	// artifact of the agent teaching itself.
+	skillsRep := SkillsReportNow()
+	agentSkillCount := 0
+	for _, cat := range skillsRep.Categories {
+		for _, s := range cat.Skills {
+			if s.Origin != "agent" {
+				continue
+			}
+			if agentSkillCount >= 20 {
+				break
+			}
+			id := "skill:" + s.Dir
+			nodes = append(nodes, GraphNode{ID: id, Label: s.Name, Group: "skill", Size: 400})
+			learnedLinks = append(learnedLinks, GraphLink{Source: "hermes:MEMORY.md", Target: id})
+			agentSkillCount++
+		}
 	}
 
 	var links []GraphLink
@@ -401,7 +477,7 @@ func buildMemoryGraph() GraphModel {
 			}
 		}
 	}
-	g.Nodes, g.Links = nodes, links
+	g.Nodes, g.Links = nodes, append(links, learnedLinks...)
 	return g
 }
 
@@ -479,7 +555,40 @@ func MemoryReportNow() MemoryReport {
 	if fi, err := os.Stat(hermesMemory()); err == nil {
 		rep.Files.MemoryMd, rep.Files.MemoryBytes = true, fi.Size()
 	}
-	rep.Files.UserMd = fileExists(filepath.Join(home(), ".hermes", "memories", "USER.md"))
+	userMd := filepath.Join(home(), ".hermes", "memories", "USER.md")
+	rep.Files.UserMd = fileExists(userMd)
+
+	// The growth ledger: curated memory entries, user-profile facts, skills
+	// the agent authored, and its own notes in the vault.
+	if raw, err := os.ReadFile(hermesMemory()); err == nil {
+		entries := memoryEntries(string(raw))
+		rep.Learned.MemoryEntries = len(entries)
+		for i, e := range entries {
+			if i >= 12 {
+				break
+			}
+			rep.Learned.Preview = append(rep.Learned.Preview, entryLabel(e))
+		}
+	}
+	if raw, err := os.ReadFile(userMd); err == nil {
+		rep.Learned.UserFacts = len(memoryEntries(string(raw)))
+	}
+	rep.Learned.AgentSkills = SkillsReportNow().Counts["agent"]
+	if entries, err := os.ReadDir(filepath.Join(VaultDir(), "memory")); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				rep.Learned.VaultNotes++
+			}
+		}
+	}
+	if entries, err := os.ReadDir(filepath.Join(VaultDir(), "journal")); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				rep.Learned.JournalDays++
+			}
+		}
+	}
+
 	rep.Sessions = hermesSessions(50)
 	rep.Graph = buildMemoryGraph()
 	rep.Heatmap = buildHeatmap(rep.Sessions)

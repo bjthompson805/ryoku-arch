@@ -682,6 +682,27 @@ if (typeof document !== "undefined") {
         drawer.hidden = true;
       });
     }
+    if (drawer) {
+      // The drawer closes like the model menu: outside click, Escape, or
+      // navigating away from the chat panel.
+      document.addEventListener("click", (e) => {
+        if (drawer.hidden) return;
+        if (drawer.contains(e.target)) return;
+        if (historyBtn && (e.target === historyBtn || historyBtn.contains(e.target))) return;
+        drawer.hidden = true;
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (!drawer.hidden) drawer.hidden = true;
+        if (modelMenu && !modelMenu.hidden) modelMenu.hidden = true;
+      });
+      window.addEventListener("hashchange", () => {
+        if (location.hash !== "#/chat") {
+          drawer.hidden = true;
+          if (modelMenu) modelMenu.hidden = true;
+        }
+      });
+    }
     if (toast) {
       toast.addEventListener("click", () => {
         location.hash = "#/chat";

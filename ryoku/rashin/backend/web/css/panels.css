@@ -185,9 +185,30 @@
 /* Memory ---------------------------------------------------------------- */
 .mem-tiles {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: clamp(16px, 1.6vw, 28px);
   margin-bottom: clamp(20px, 2.2vw, 34px);
+}
+.stat[data-accent=vermillion] .stat-corner { background: var(--red); }
+.mem-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: .08em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+.mem-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.mem-legend i {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.mem-legend-ring {
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--red);
 }
 .mem-tile-num {
   display: block;

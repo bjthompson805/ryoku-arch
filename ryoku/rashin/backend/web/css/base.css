@@ -17,9 +17,12 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+  height: 100%;
+}
+
 html, body {
   margin: 0;
-  height: 100%;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-mono);
@@ -27,6 +30,9 @@ html, body {
   line-height: 1.5;
 }
 
+/* The body grows with its content (height, not fixed 100%), so the stage's
+   bottom padding lands BELOW the last element and the page never ends flush
+   against the window edge. */
 body { display: flex; min-height: 100%; }
 
 .grain {

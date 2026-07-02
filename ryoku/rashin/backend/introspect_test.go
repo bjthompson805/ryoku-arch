@@ -83,3 +83,27 @@ func TestMemoryProviderBuiltinDefault(t *testing.T) {
 		t.Fatalf("kind %q", kind)
 	}
 }
+
+func TestMemoryEntriesSplitAndFenceStrip(t *testing.T) {
+	raw := "<!-- ryoku-rashin:begin -->\npointer wiring\n<!-- ryoku-rashin:end -->\n" +
+		"User prefers fish shell over bash.\n\u00a7\n" +
+		"## Project ryoku\nWorks on a Hyprland distro.\n\u00a7\n" +
+		"   \n"
+	entries := memoryEntries(raw)
+	if len(entries) != 2 {
+		t.Fatalf("entries = %d (%q)", len(entries), entries)
+	}
+	if entries[0] != "User prefers fish shell over bash." {
+		t.Fatalf("first entry %q", entries[0])
+	}
+	if entryLabel(entries[1]) != "Project ryoku" {
+		t.Fatalf("label %q", entryLabel(entries[1]))
+	}
+}
+
+func TestMemoryEntriesEmptyWhenOnlyFence(t *testing.T) {
+	raw := "<!-- ryoku-rashin:begin -->\nwiring only\n<!-- ryoku-rashin:end -->\n"
+	if got := memoryEntries(raw); len(got) != 0 {
+		t.Fatalf("expected no learned entries, got %q", got)
+	}
+}

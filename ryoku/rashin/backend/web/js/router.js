@@ -23,6 +23,12 @@ export function initRouter(onChange) {
         p.classList.remove("wipe-in");
         void p.offsetWidth; // restart the animation
         p.classList.add("wipe-in");
+        // A throttled tab can freeze the animation at t=0 with the panel
+        // fully clipped (and unclickable). Drop the class once it ends, and
+        // unconditionally after its duration, so the wipe can never wedge.
+        const clear = () => p.classList.remove("wipe-in");
+        p.addEventListener("animationend", clear, { once: true });
+        setTimeout(clear, 700);
       }
     });
     links.forEach((l) => l.classList.toggle("active", l.dataset.nav === name));

@@ -19,6 +19,15 @@
 .chat-banner[data-state=busy] { color: var(--orange); border-color: var(--orange); }
 .chat-banner[data-state=dead] { color: var(--red); border-color: var(--red); }
 
+/* Author display rules (flex) outrank the UA [hidden] rule; restate it with
+   attribute specificity so hidden always wins. */
+.chat-usage[hidden],
+.chat-attach-row[hidden],
+.chat-drawer[hidden],
+.chat-legend[hidden],
+.chat-model-menu[hidden],
+.chat-toast[hidden] { display: none; }
+
 /* Usage meter: a 2px rule under the banner, mono label to the right. */
 .chat-usage { display: flex; align-items: center; gap: 10px; }
 .chat-usage-bar {
