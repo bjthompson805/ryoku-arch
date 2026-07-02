@@ -47,7 +47,11 @@ write_root() {
 }
 
 PM=(pacman)
-(( EUID == 0 )) || PM=(sudo pacman)
+PRIV=()
+if (( EUID != 0 )); then
+  PM=(sudo pacman)
+  PRIV=(sudo)
+fi
 
 pkg_installed() { pacman -Qq "$1" >/dev/null 2>&1; }
 
@@ -84,7 +88,19 @@ if ! has_nvidia; then
   exit 0
 fi
 
-pkgs=(nvidia-utils libva-nvidia-driver linux-headers)
+# DKMS builds against every installed kernel, so headers must match the
+# kernels actually on the box (linux-zen/-lts/-cachyos included), not just
+# stock linux. pkgbase names the owning package for each module tree.
+headers=()
+for pb in /usr/lib/modules/*/pkgbase; do
+  [[ -r $pb ]] || continue
+  read -r kernel <"$pb"
+  headers+=("${kernel}-headers")
+done
+(( ${#headers[@]} > 0 )) || headers=(linux-headers)
+mapfile -t headers < <(printf '%s\n' "${headers[@]}" | sort -u)
+
+pkgs=(nvidia-utils libva-nvidia-driver "${headers[@]}")
 if nvidia_has_gsp; then
   echo "nvidia.sh: GSP-capable NVIDIA GPU (Turing+), using the open kernel modules."
   pkgs=(nvidia-open-dkms "${pkgs[@]}")
@@ -119,7 +135,7 @@ EOF
 # missing unit tolerated.
 if command -v systemctl >/dev/null 2>&1; then
   echo "nvidia.sh: enabling NVIDIA suspend/resume services"
-  run systemctl enable nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service || true
+  run "${PRIV[@]}" systemctl enable nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service || true
 fi
 
 # keep the initramfs in step with the NVIDIA modules on driver-only updates,
@@ -127,7 +143,7 @@ fi
 # version mismatch, GPU won't init. rebuild via limine-mkinitcpio (the UKI
 # path) when present, else plain mkinitcpio.
 echo "nvidia.sh: installing initramfs-rebuild pacman hook"
-run mkdir -p /etc/pacman.d/hooks
+run "${PRIV[@]}" mkdir -p /etc/pacman.d/hooks
 write_root /etc/pacman.d/hooks/ryoku-nvidia.hook <<'EOF'
 [Trigger]
 Operation=Install
