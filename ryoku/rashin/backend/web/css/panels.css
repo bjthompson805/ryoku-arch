@@ -1,7 +1,7 @@
 /* Overview -------------------------------------------------------------- */
 .hero {
   position: relative;
-  height: 230px;
+  height: clamp(230px, 24vw, 400px);
   margin-bottom: 26px;
   border: 1px solid var(--line);
   overflow: hidden;
@@ -19,15 +19,15 @@
 }
 .hero-cap b {
   font-family: var(--font-display);
-  font-size: 34px;
+  font-size: clamp(34px, 3vw, 58px);
   letter-spacing: -.02em;
   line-height: .95;
 }
-.hero-cap span { font-size: 10px; letter-spacing: .3em; color: var(--ink-dim); text-transform: uppercase; }
+.hero-cap span { font-size: clamp(10px, .7vw, 13px); letter-spacing: .3em; color: var(--ink-dim); text-transform: uppercase; }
 .hero-sun {
   position: absolute;
   top: -40px; right: -40px;
-  width: 160px; height: 160px;
+  width: clamp(160px, 13vw, 260px); height: clamp(160px, 13vw, 260px);
   border-radius: 50%;
   background: radial-gradient(circle at 50% 50%, var(--red) 60%, transparent 62%);
   opacity: .8;
@@ -59,11 +59,11 @@
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: clamp(16px, 1.6vw, 28px);
 }
 .stat {
   position: relative;
-  padding: 16px;
+  padding: clamp(16px, 1.5vw, 28px);
   border: 1px solid var(--line);
   background: var(--paper-2);
   overflow: hidden;
@@ -82,14 +82,14 @@
 .stat-num {
   display: block;
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: clamp(40px, 3.4vw, 68px);
   line-height: 1;
   letter-spacing: -.02em;
 }
 .stat-sub {
   display: block;
   margin-top: 8px;
-  font-size: 10px;
+  font-size: clamp(10px, .75vw, 13px);
   color: var(--ink-dim);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -111,8 +111,8 @@
   background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
-.vault-toolbar .panel-title { margin: 0; font-size: 26px; }
-.vault-grid { display: grid; grid-template-columns: 240px 1fr; gap: 22px; }
+.vault-toolbar .panel-title { margin: 0; font-size: clamp(26px, 1.8vw, 36px); }
+.vault-grid { display: grid; grid-template-columns: clamp(240px, 18vw, 340px) 1fr; gap: clamp(22px, 2.5vw, 44px); }
 .vault-list { list-style: none; margin: 0; padding: 0; border-right: 1px dashed var(--line); }
 .vault-item {
   display: flex;
@@ -125,7 +125,7 @@
   border: 0;
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: clamp(12px, .85vw, 15px);
   text-align: left;
   cursor: pointer;
 }
@@ -139,8 +139,8 @@
   letter-spacing: -.01em;
   margin: 1.1em 0 .5em;
 }
-.md h1 { font-size: 26px; } .md h2 { font-size: 20px; }
-.md h3 { font-size: 16px; } .md h4 { font-size: 14px; }
+.md h1 { font-size: clamp(26px, 1.8vw, 34px); } .md h2 { font-size: clamp(20px, 1.4vw, 26px); }
+.md h3 { font-size: clamp(16px, 1.1vw, 20px); } .md h4 { font-size: clamp(14px, 1vw, 17px); }
 .md p { margin: .6em 0; }
 .md a { color: var(--red); text-decoration: underline; }
 .md code { font-family: var(--font-mono); background: var(--paper-2); padding: 1px 5px; }
@@ -153,7 +153,7 @@
 .md pre code { background: none; padding: 0; }
 .md ul, .md ol { padding-left: 20px; }
 .md hr { border: 0; border-top: 1px dashed var(--line); margin: 1.2em 0; }
-.md table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 12px; }
+.md table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: clamp(12px, .85vw, 15px); }
 .md th, .md td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
 .md th { color: var(--ink-dim); text-transform: uppercase; font-size: 10px; letter-spacing: .1em; }
 
@@ -168,8 +168,8 @@
 }
 .agent-row:last-child { border-bottom: 1px solid var(--line); }
 .agent-id { display: flex; flex-direction: column; gap: 4px; }
-.agent-name { font-family: var(--font-display); font-size: 18px; }
-.agent-file { font-size: 11px; color: var(--ink-dim); }
+.agent-name { font-family: var(--font-display); font-size: clamp(18px, 1.3vw, 24px); }
+.agent-file { font-size: clamp(11px, .8vw, 13px); color: var(--ink-dim); }
 .agent-state { display: flex; align-items: center; gap: 12px; }
 
 /* Author display rules below (panel-chat flex) outrank the UA [hidden] rule, so
@@ -179,7 +179,7 @@
 /* Chat ------------------------------------------------------------------ */
 .panel-chat { display: flex; flex-direction: column; height: calc(100vh - 82px); }
 .chat-banner {
-  font-size: 10px;
+  font-size: clamp(10px, .7vw, 12px);
   letter-spacing: .18em;
   text-transform: uppercase;
   padding: 8px 12px;
@@ -201,7 +201,7 @@
   gap: 18px;
 }
 .chat-empty img {
-  width: min(300px, 40vh);
+  width: min(clamp(280px, 24vw, 420px), 44vh);
   border: 1px solid var(--line);
   filter: saturate(.9);
 }
@@ -237,7 +237,7 @@
   background: var(--paper-2);
 }
 .tool-head { display: flex; flex-direction: column; gap: 3px; }
-.tool-title { font-size: 13px; }
+.tool-title { font-size: clamp(13px, .9vw, 15px); }
 .tool-kind { font-size: 9px; letter-spacing: .16em; color: var(--ink-dim); text-transform: uppercase; }
 .tool-card[data-status=completed] .stamp-status { color: var(--teal); }
 .tool-card[data-status=failed] .stamp-status { color: var(--red); }
@@ -270,6 +270,6 @@
   border: 1px solid var(--line);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: clamp(13px, .9vw, 15px);
 }
 .chat-input:focus { outline: none; border-color: var(--red); }

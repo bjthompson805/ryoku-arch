@@ -70,6 +70,12 @@ export function mdToHtml(src) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
+    // HTML comment-only lines (the vault's generated-fence markers) are
+    // plumbing, not content; hide them. They arrive escaped by this point.
+    if (/^\s*&lt;!--.*--&gt;\s*$/.test(line)) {
+      continue;
+    }
+
     if (/^\s*```/.test(line)) {
       flushPara();
       flushList();

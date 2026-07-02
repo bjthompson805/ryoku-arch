@@ -12,6 +12,12 @@ test("hostile script input stays escaped", () => {
   assert.ok(html.includes("&lt;script&gt;"), "angle brackets escaped");
 });
 
+test("html comment-only lines are hidden, inline comments stay escaped text", () => {
+  const html = mdToHtml("<!-- rashin:generated:begin -->\nbody\n<!-- rashin:generated:end -->");
+  assert.equal(html, "<p>body</p>");
+  assert.ok(mdToHtml("before <!-- x --> after").includes("&lt;!-- x --&gt;"));
+});
+
 test("headings render by level", () => {
   assert.equal(mdToHtml("# Title"), "<h1>Title</h1>");
   assert.equal(mdToHtml("### Deep"), "<h3>Deep</h3>");
