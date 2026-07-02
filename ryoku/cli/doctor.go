@@ -371,6 +371,7 @@ type snapperState struct {
 	confdContents       string
 	snapperInstalled    bool
 	snapPacInstalled    bool
+	limineInstalled     bool
 	limineSyncInstalled bool
 	limineSyncEnabled   bool
 }
@@ -404,10 +405,14 @@ func planSnapper(s snapperState) (snapperOutcome, []string) {
 	if !s.snapPacInstalled {
 		problems = append(problems, "snap-pac is not installed, so pacman transactions are not auto-snapshotted (sudo pacman -S snap-pac)")
 	}
-	if !s.limineSyncInstalled {
-		problems = append(problems, "limine-snapper-sync is not installed, so snapshots are not in the Limine boot menu (ryoku-pkg-aur-add limine-snapper-sync)")
-	} else if !s.limineSyncEnabled {
-		problems = append(problems, "limine-snapper-sync.service is disabled, so new snapshots never reach the Limine boot menu (sudo systemctl enable --now limine-snapper-sync.service)")
+	// only meaningful under Limine; a GRUB box (converted CachyOS and the
+	// like) is healthy without it and must not warn forever.
+	if s.limineInstalled {
+		if !s.limineSyncInstalled {
+			problems = append(problems, "limine-snapper-sync is not installed, so snapshots are not in the Limine boot menu (ryoku-pkg-aur-add limine-snapper-sync)")
+		} else if !s.limineSyncEnabled {
+			problems = append(problems, "limine-snapper-sync.service is disabled, so new snapshots never reach the Limine boot menu (sudo systemctl enable --now limine-snapper-sync.service)")
+		}
 	}
 	if len(problems) == 0 {
 		return snapperOK, nil
@@ -424,6 +429,7 @@ func gatherSnapperState() snapperState {
 		configExists:        exists("/etc/snapper/configs/root"),
 		snapperInstalled:    has("snapper"),
 		snapPacInstalled:    pkgInstalled("snap-pac"),
+		limineInstalled:     pkgInstalled("limine"),
 		limineSyncInstalled: pkgInstalled("limine-snapper-sync"),
 		limineSyncEnabled:   unitEnabled("limine-snapper-sync.service"),
 	}

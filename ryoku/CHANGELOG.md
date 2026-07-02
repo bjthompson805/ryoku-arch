@@ -204,6 +204,10 @@
   `shell/fish` (with its non-brand greeting) was dropped for `ryoku/apps/fish`.
 
 ### Fixed
+- `cli/doctor`: the limine-snapper-sync checks only run when limine is
+  actually installed. A GRUB box with a healthy snapper setup (converted
+  CachyOS installs, typically) was flagged inconsistent forever, with a fix
+  suggestion that could not work there.
 - `hyprland/hyprland.lua`: no more "Your config has errors" flash on a fresh
   first boot. Hyprland reports even a `pcall`'d `require()` of a missing module
   in the config-error overlay, and six optional drop-ins (`monitors_user`,

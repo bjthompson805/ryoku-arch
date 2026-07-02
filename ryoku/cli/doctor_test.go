@@ -272,6 +272,7 @@ func TestPlanSnapper(t *testing.T) {
 		confdContents:       "SNAPPER_CONFIGS=\"root\"\n",
 		snapperInstalled:    true,
 		snapPacInstalled:    true,
+		limineInstalled:     true,
 		limineSyncInstalled: true,
 		limineSyncEnabled:   true,
 	}
@@ -279,6 +280,11 @@ func TestPlanSnapper(t *testing.T) {
 	withConfd := func(c string) snapperState { s := consistent; s.confdContents = c; return s }
 	plainSnapshotsDir := func() snapperState { s := consistent; s.snapshotsIsSubvol = false; return s }
 	noSnapPac := func() snapperState { s := consistent; s.snapPacInstalled = false; return s }
+	nonLimine := func() snapperState {
+		s := consistent
+		s.limineInstalled, s.limineSyncInstalled, s.limineSyncEnabled = false, false, false
+		return s
+	}
 	noLimineSync := func() snapperState { s := consistent; s.limineSyncInstalled = false; s.limineSyncEnabled = false; return s }
 	syncDisabled := func() snapperState { s := consistent; s.limineSyncEnabled = false; return s }
 
@@ -298,6 +304,7 @@ func TestPlanSnapper(t *testing.T) {
 		{"configured but snap-pac missing recommends it", noSnapPac(), snapperWarnInconsistent, "snap-pac"},
 		{"configured but limine-snapper-sync missing recommends it", noLimineSync(), snapperWarnInconsistent, "limine-snapper-sync"},
 		{"sync installed but service disabled tells the exact enable", syncDisabled(), snapperWarnInconsistent, "limine-snapper-sync.service is disabled"},
+		{"non-limine box is healthy without the sync package", nonLimine(), snapperOK, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
