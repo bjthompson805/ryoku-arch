@@ -53,11 +53,27 @@ func HermesStatus() HermesInfo {
 	if ok {
 		info.Version = hermesVersion(bin)
 	}
-	if _, err := os.Stat(hermesConfig()); err == nil {
-		info.Configured = true
-	}
+	info.Configured = hermesOnboarded()
 	info.Wired = fileHasBlock(hermesMemory())
 	return info
+}
+
+// hermesOnboarded reports whether the user finished hermes's own onboarding.
+// The installer lays a template config.yaml with an EMPTY `model:` line, so
+// file existence alone is a false positive; a chosen model is the artifact of
+// the user actually completing `hermes setup`.
+func hermesOnboarded() bool {
+	b, err := os.ReadFile(hermesConfig())
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if rest, ok := strings.CutPrefix(trimmed, "model:"); ok {
+			return strings.TrimSpace(rest) != ""
+		}
+	}
+	return false
 }
 
 func hermesVersion(bin string) string {
@@ -68,9 +84,13 @@ func hermesVersion(bin string) string {
 		return ""
 	}
 	line := strings.TrimSpace(firstLine(string(out)))
-	// Reduce "hermes 0.15.2" to "0.15.2" when the tool prefixes its name.
-	if f := strings.Fields(line); len(f) > 1 && strings.EqualFold(f[0], "hermes") {
-		return f[len(f)-1]
+	// Real output: "Hermes Agent v0.18.0 (2026.7.1) · upstream 88d1d620".
+	// Pick the first token that looks like a version number.
+	for _, f := range strings.Fields(line) {
+		v := strings.TrimPrefix(f, "v")
+		if len(v) > 0 && v[0] >= '0' && v[0] <= '9' && strings.Contains(v, ".") {
+			return v
+		}
 	}
 	return line
 }
