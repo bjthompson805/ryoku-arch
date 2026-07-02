@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Services.Mpris
 import Quickshell.Services.SystemTray
+import Quickshell.Wayland
 import Quickshell.Widgets
 import "Singletons"
 
@@ -13,9 +14,10 @@ import "Singletons"
 // scene. no separate program, no seam: the frame just has options on top, the
 // same way the island is the frame swelling at the centre.
 //
-// layout: left = 力 mark + workspaces, centre = clock, right = now-playing +
-// system tray + power. content sits below `contentTop` (the frame's own top
-// edge) so it reads as riding the thickened frame, not floating in the border.
+// layout: left = 力 mark + workspaces + focused-window title, centre = clock,
+// right = now-playing + system tray + power. content sits below `contentTop`
+// (the frame's own top edge) so it reads as riding the thickened frame, not
+// floating in the border.
 Item {
     id: bar
 
@@ -24,6 +26,9 @@ Item {
     required property real contentTop
     // window the tray menus anchor to.
     required property var trayWindow
+    // a summoned surface drops out of the bar over the centre; the clock
+    // fades under it so the two never overprint.
+    property bool surfaceOpen: false
 
     signal calendarRequested()
     signal powerRequested()
@@ -99,13 +104,30 @@ Item {
                     }
                 }
             }
+
+            // focused-window title, live via foreign-toplevel (Hyprland's
+            // model deliberately skips title events to avoid refresh spam).
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Config.barShowTitle && text.length > 0
+                width: Math.min(implicitWidth, 380 * bar.s)
+                elide: Text.ElideRight
+                text: ToplevelManager.activeToplevel ? (ToplevelManager.activeToplevel.title || "") : ""
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 11 * bar.s
+                font.weight: Font.Medium
+            }
         }
 
-        // centre: clock (tap opens the pill calendar).
+        // centre: clock (tap opens the pill calendar). fades away while a
+        // surface panel is dropped over the centre.
         Item {
             anchors.centerIn: parent
             height: parent.height
             implicitWidth: clockInner.implicitWidth
+            opacity: bar.surfaceOpen ? 0 : 1
+            Behavior on opacity { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
 
             Row {
                 id: clockInner
@@ -134,6 +156,7 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 anchors.margins: -8 * bar.s
+                enabled: !bar.surfaceOpen
                 cursorShape: Qt.PointingHandCursor
                 onClicked: bar.calendarRequested()
             }
@@ -159,7 +182,7 @@ Item {
                 id: mprisItem
                 anchors.verticalCenter: parent.verticalCenter
                 height: parent.height
-                visible: rightRow.player !== null && rightRow.player.trackTitle
+                visible: Config.barShowMedia && rightRow.player !== null && rightRow.player.trackTitle
                 readonly property real titleW: Math.min(titleText.implicitWidth, 200 * bar.s)
                 implicitWidth: visible ? (playGlyph.implicitWidth + 7 * bar.s + titleW) : 0
 
@@ -198,7 +221,7 @@ Item {
                 width: 1
                 height: 16 * bar.s
                 color: Theme.hair
-                visible: rightRow.player !== null && rightRow.player.trackTitle
+                visible: mprisItem.visible
             }
 
             // system tray.

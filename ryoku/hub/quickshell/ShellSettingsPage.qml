@@ -18,7 +18,8 @@ Item {
         "frameRadius", "frameBorder", "frameSmoothing", "frameOpacity",
         "shadowStrength", "shadowSize", "surfaceColor",
         "islandWidth", "islandHeight", "islandRestCorner", "islandOpenCorner",
-        "islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide", "barEnabled",
+        "islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide",
+        "barEnabled", "barHeight", "barShowTitle", "barShowMedia",
         "fontFamily", "fontScale"
     ]
     readonly property var vizKeys: [
@@ -34,7 +35,8 @@ Item {
         "shadowStrength": 0.5, "shadowSize": 26, "surfaceColor": "#1a1b26",
         "islandWidth": 108, "islandHeight": 38, "islandRestCorner": 18, "islandOpenCorner": 22,
         "islandGap": 8, "islandSmoothing": 24, "islandOpacity": 1,
-        "islandStyle": "island", "islandAutohide": false, "barEnabled": false,
+        "islandStyle": "island", "islandAutohide": false,
+        "barEnabled": false, "barHeight": 26, "barShowTitle": true, "barShowMedia": true,
         "fontFamily": "Inter", "fontScale": 1.0,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
@@ -68,6 +70,9 @@ Item {
         property string islandStyle: "island"
         property bool islandAutohide: false
         property bool barEnabled: false
+        property real barHeight: 26
+        property bool barShowTitle: true
+        property bool barShowMedia: true
         property string fontFamily: "Inter"
         property real fontScale: 1.0
         property bool enabled: true
@@ -202,6 +207,9 @@ Item {
             property string islandStyle: "island"
             property bool islandAutohide: false
             property bool barEnabled: false
+            property real barHeight: 26
+            property bool barShowTitle: true
+            property bool barShowMedia: true
             property string fontFamily: "Inter"
             property real fontScale: 1.0
         }
@@ -411,6 +419,17 @@ Item {
                 width: islandRow.colW
                 spacing: 30
 
+                Text {
+                    width: parent.width
+                    visible: draft.barEnabled
+                    wrapMode: Text.WordWrap
+                    text: "The top bar is on, so the island never rests on screen. These settings shape only the panel that drops out of the bar when a surface opens."
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                }
+
                 SettingSection {
                     width: parent.width
                     title: "APPEARANCE"
@@ -510,14 +529,39 @@ Item {
                         checked: draft.barEnabled
                         onToggled: (v) => page.edit("barEnabled", v)
                     }
+                    NumberField {
+                        width: parent.width; label: "Height"; unit: "px"
+                        from: 18; to: 48; value: draft.barHeight
+                        onModified: (v) => page.edit("barHeight", v)
+                    }
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        text: "A bar across the top of the frame with workspaces, clock, now-playing, tray and power. While it is on, the resting pill island is hidden; the launcher, calendar and other surfaces still open from their keybinds."
+                        text: "A bar across the frame's top edge: workspaces and the focused window on the left, the clock in the centre, now-playing, tray and power on the right. Windows tuck in right below it. Tap the clock for the calendar; it drops out of the bar. While the bar is on, the resting pill island is hidden and surfaces still open from their keybinds."
                         color: Theme.faint
                         font.family: Theme.font
                         font.pixelSize: 12
                         font.weight: Font.Medium
+                    }
+                }
+            }
+
+            Column {
+                width: barRow.colW
+                spacing: 30
+
+                SettingSection {
+                    width: parent.width
+                    title: "CONTENT"
+                    ToggleRow {
+                        width: parent.width; label: "Focused window title"
+                        checked: draft.barShowTitle
+                        onToggled: (v) => page.edit("barShowTitle", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Now playing"
+                        checked: draft.barShowMedia
+                        onToggled: (v) => page.edit("barShowMedia", v)
                     }
                 }
             }

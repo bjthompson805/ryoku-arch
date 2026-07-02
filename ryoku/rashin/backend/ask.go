@@ -1,24 +1,21 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
+	"bufio"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 )
 
-// ask.go is the launcher's one-shot: it joins the daemon's chat hub as one
-// more WebSocket client (the SAME hermes session the dashboard shows), sends
-// one terse-mode question, streams progress markers to stdout, and exits at
-// turn end. The launcher parses the markers; "continue in dashboard" then
-// opens the very conversation this started.
+// ask.go is the launcher's one-shot CLI: it POSTs the question to the running
+// daemon's /api/ask and pipes the streamed marker lines straight to stdout.
+// The daemon does the thinking (fast lane or hermes session) and records the
+// conversation in the shared transcript, so "continue in dashboard" opens the
+// very conversation this started.
 //
 // stdout protocol (one marker per line):
 //   @working <label>   what the agent is doing right now
@@ -26,8 +23,8 @@ import (
 //   @answer <json>     {"text":"...","images":["/abs.png"]} final answer
 //   @error <message>   terminal failure
 
-// quickPreamble rides in front of the question so the model answers tersely.
-// The hub records the RAW question for the transcript; only hermes sees this.
+// quickPreamble rides in front of session-lane questions so the model answers
+// tersely. The transcript records the RAW question; only hermes sees this.
 const quickPreamble = "[quick ask from the launcher: reply with just the answer, " +
 	"one or two sentences or a tight list, no preamble, no follow-up questions] "
 
@@ -42,100 +39,24 @@ func cmdAsk(question string) error {
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	defer cancel()
-	origin := fmt.Sprintf("http://127.0.0.1:%d", cfg.Port)
-	ws, _, err := websocket.Dial(ctx, origin+"/ws/chat", &websocket.DialOptions{
-		HTTPHeader: http.Header{"Origin": []string{origin}},
-	})
+	client := http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Post(fmt.Sprintf(
+		"http://127.0.0.1:%d/api/ask?q=%s", cfg.Port, url.QueryEscape(question)), "", nil)
 	if err != nil {
 		emitAsk("error", "cannot reach the daemon: "+err.Error())
 		os.Exit(1)
 	}
-	defer ws.Close(websocket.StatusNormalClosure, "done")
-	// The final answer can exceed the default 32KiB read cap.
-	ws.SetReadLimit(4 << 20)
-
-	emitAsk("working", "waking the needle")
-	if err := runAskTurn(ctx, ws, question); err != nil {
-		emitAsk("error", err.Error())
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		emitAsk("error", fmt.Sprintf("daemon answered %d", resp.StatusCode))
 		os.Exit(1)
 	}
-	return nil
-}
-
-// runAskTurn drives one question through the shared session: wait for a
-// usable state, skip any join replay, send, then stream until turn_end.
-func runAskTurn(ctx context.Context, ws *websocket.Conn, question string) error {
-	sent := false
-	replaying := false
-	answer := &strings.Builder{}
-	sawText := false
-
-	for {
-		var f wsOut
-		if err := wsjson.Read(ctx, ws, &f); err != nil {
-			if ctx.Err() != nil {
-				return fmt.Errorf("timed out waiting for the answer")
-			}
-			return fmt.Errorf("connection lost: %v", err)
-		}
-		switch f.Type {
-		case "replay_start":
-			replaying = true
-		case "replay_end":
-			replaying = false
-		case "state":
-			switch f.State {
-			case "dead":
-				msg := "hermes is unavailable"
-				if f.Error != "" {
-					msg += ": " + f.Error
-				}
-				return fmt.Errorf("%s", msg)
-			case "starting":
-				emitAsk("working", "waking the needle")
-			default:
-				if !sent && !replaying {
-					if err := wsjson.Write(ctx, ws, map[string]any{
-						"type": "user", "text": question, "quick": true,
-					}); err != nil {
-						return err
-					}
-					sent = true
-					emitAsk("working", "thinking")
-				}
-			}
-		case "agent_thought":
-			if sent && !replaying {
-				emitAsk("working", "thinking")
-			}
-		case "tool":
-			if sent && !replaying && (f.Status == "pending" || f.Status == "in_progress") {
-				label := f.Title
-				if label == "" {
-					label = "running a tool"
-				}
-				emitAsk("working", label)
-			}
-		case "agent_text":
-			if sent && !replaying {
-				answer.WriteString(f.Text)
-				if !sawText {
-					sawText = true
-					emitAsk("working", "writing")
-				}
-			}
-		case "permission":
-			if sent && !replaying {
-				emitAsk("perm", f.Title)
-			}
-		case "turn_end":
-			if sent && !replaying {
-				return emitAnswer(answer.String())
-			}
-		}
+	sc := bufio.NewScanner(resp.Body)
+	sc.Buffer(make([]byte, 64*1024), 4<<20)
+	for sc.Scan() {
+		fmt.Println(sc.Text())
 	}
+	return nil
 }
 
 type askAnswer struct {
@@ -162,19 +83,6 @@ func extractImages(text string) []string {
 		out = append(out, p)
 	}
 	return out
-}
-
-func emitAnswer(text string) error {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		text = "(no answer)"
-	}
-	b, err := json.Marshal(askAnswer{Text: text, Images: extractImages(text)})
-	if err != nil {
-		return err
-	}
-	fmt.Println("@answer " + string(b))
-	return nil
 }
 
 func emitAsk(kind, detail string) {

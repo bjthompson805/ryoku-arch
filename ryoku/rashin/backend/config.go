@@ -9,6 +9,13 @@ import (
 type Config struct {
 	Enabled bool `json:"enabled"`
 	Port    int  `json:"port"`
+	// Quick overrides the launcher fast lane's model connection. Empty means
+	// derive it from hermes's own provider config.
+	Quick struct {
+		Model   string `json:"model,omitempty"`
+		BaseURL string `json:"baseUrl,omitempty"`
+		KeyEnv  string `json:"keyEnv,omitempty"`
+	} `json:"quick,omitzero"`
 }
 
 func defaultConfig() Config {

@@ -75,6 +75,9 @@ func Serve(cfg Config) error {
 	}()
 
 	hub := newChatHub()
+	// Pre-warm the shared session: hermes pays its Python cold start at boot,
+	// not on the user's first question.
+	go hub.warm()
 	mux := http.NewServeMux()
 
 	sub, err := fs.Sub(webFS, "web")
@@ -137,6 +140,7 @@ func Serve(cfg Config) error {
 	mux.HandleFunc("GET /api/about", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, AboutReportNow(cfg))
 	})
+	mux.HandleFunc("POST /api/ask", hub.handleAsk)
 
 	mux.HandleFunc("GET /ws/vitals", func(w http.ResponseWriter, r *http.Request) {
 		ws, err := acceptWS(w, r)

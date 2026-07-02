@@ -42,6 +42,20 @@
   `/api/about`; the chat WebSocket learns models/commands/history/usage frames.
   Hermes onboarding detection now reads the mapping-form `model:` block, and
   session titles surface correctly.
+- `rashin/backend`: quick asks got fast. `/api/ask` now runs **two lanes**: a
+  fabric-style fast lane makes ONE direct streaming chat-completions call on
+  the same model connection hermes is configured with (openrouter, openai,
+  groq, ollama, or any local endpoint; key read from `~/.hermes/.env`), a
+  terse pattern prompt plus the vault maps as context, no Python spawn, no
+  agent loop, answers in a second or two; the model replies `TOOLS_REQUIRED`
+  when the ask genuinely needs tools, which escalates it to the session lane.
+  OAuth backends (openai-codex) go straight to the session lane, and the
+  daemon now **pre-warms the hermes session at boot**, cutting the first ask
+  on this machine from ~19s to ~8s. The lane's connection is overridable in
+  `rashin.json` (`quick.model` / `quick.baseUrl` / `quick.keyEnv`) for a
+  cheaper or local quick-answer model. The ask CLI is now a thin pipe over
+  `/api/ask`, both lanes land in the shared transcript, and consecutive
+  duplicate working markers are deduped.
 - `shell/quickshell/launcher` + `rashin/backend`: the launcher learns to ask
   the agent. A `\` prefix routes to Rashin: type `\why is my mic quiet?`,
   ENTER, and a pulsing strip names what hermes is doing (the running tool,

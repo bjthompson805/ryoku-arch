@@ -108,7 +108,7 @@ Subcommands:
 | `serve [--if-enabled]` | HTTP and WebSocket on `127.0.0.1:3600`, embedded dashboard. `--if-enabled` exits 0 immediately when the gate is off (the autostart path) |
 | `index` | Regenerate all vault maps: `system.md`, `desktop.md`, `packages.md`, `ryoku-repo.md`, `user.md` |
 | `repo-index <root> [out]` | Build the Ryoku source map from a checkout; used by the PKGBUILD and `deploy.sh` |
-| `ask <question>` | One-shot quick ask, built for the launcher's `\` prefix: joins the shared session over the chat WebSocket, sends the question in terse mode (just the answer, no preamble), streams `@working`/`@perm`/`@answer` marker lines to stdout, and exits at turn end. The conversation is then waiting in the dashboard chat |
+| `ask <question>` | One-shot quick ask, built for the launcher's `\` prefix: POSTs to the daemon's `/api/ask` and pipes streamed `@working`/`@perm`/`@answer` marker lines to stdout. See "Quick asks: two lanes" below |
 | `setup` | One-click actuator: install Hermes, run its onboarding, wire, enable |
 | `wire [agent]` | Apply vault pointers to all detected agents, or one named agent |
 | `unwire [agent]` | Remove vault pointers, keeping the file |
@@ -129,6 +129,34 @@ covers `GET /api/status`, `GET /api/vitals` (also pushed on `WS /ws/vitals`),
 `GET /api/hermes/memory`, `GET /api/prowl` and `GET /api/prowl/search?q=`,
 `GET /api/about`, and `WS /ws/chat` for the Hermes bridge. Vitals come from
 `/proc` and `statfs`, with GPU via `nvidia-smi` when present.
+
+## Quick asks: two lanes
+
+A launcher ask does not always need the full agent. `/api/ask` routes it:
+
+1. **Fast lane (fabric-style).** When hermes's configured provider speaks
+   plain chat-completions (openrouter, openai, groq, ollama, or a local
+   endpoint), the daemon makes ONE direct streaming call on that same model
+   connection: a terse pattern prompt plus the vault's generated maps as
+   context. No Python spawn, no agent loop, no tool schemas: answers land in
+   a second or two. The model is instructed to reply `TOOLS_REQUIRED` when
+   the request actually needs tools (live web, commands, media, image
+   generation), which escalates the ask.
+2. **Session lane.** OAuth backends (openai-codex) and tool-needing asks go
+   through the real hermes session, which the daemon now **pre-warms at
+   boot**, so even this lane skips the ~10s Python cold start. The terse-mode
+   preamble keeps answers short.
+
+Both lanes write the conversation into the shared transcript, so "continue in
+dashboard" always opens the full exchange. The fast lane's connection can be
+overridden in `~/.config/ryoku/rashin.json` for a cheaper or local model:
+
+```json
+{ "quick": { "model": "llama3.2", "baseUrl": "http://127.0.0.1:11434/v1" } }
+```
+
+`keyEnv` names the `~/.hermes/.env` variable holding the key when the endpoint
+needs one; hermes-known providers resolve their key automatically.
 
 ## The dashboard
 

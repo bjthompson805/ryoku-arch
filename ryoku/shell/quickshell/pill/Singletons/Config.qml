@@ -48,7 +48,13 @@ Singleton {
     // top bar = opt-in bar drawn on the frame's thickened top edge (Bar.qml),
     // in place of the resting island. when on, the island never shows at rest
     // (surfaces / keybinds still summon the pill). Settings -> Shell -> Bar.
-    property alias barEnabled: adapter.barEnabled
+    // barHeight = the band the top edge swells by (scaled per monitor, like
+    // island geometry). barShowTitle / barShowMedia gate the focused-window
+    // title and the now-playing readout.
+    property alias barEnabled:   adapter.barEnabled
+    property alias barHeight:    adapter.barHeight
+    property alias barShowTitle: adapter.barShowTitle
+    property alias barShowMedia: adapter.barShowMedia
 
     // typography: UI font family (Theme.font reads this) + a scale that grows
     // or shrinks the whole pill (text and the island around it). keeps the
@@ -91,6 +97,9 @@ Singleton {
             property string islandStyle: "island"
             property bool islandAutohide: false
             property bool barEnabled: false
+            property real barHeight: 26
+            property bool barShowTitle: true
+            property bool barShowMedia: true
             property string fontFamily: "Inter"
             property real fontScale: 1.0
         }

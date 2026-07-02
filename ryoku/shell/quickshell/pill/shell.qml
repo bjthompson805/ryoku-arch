@@ -349,9 +349,14 @@ ShellRoot {
             // the other three edges.
             readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide && !Config.barEnabled
             readonly property real evenTop: 22 * s
-            // bar swells the frame's top into a band; reserve it so tiles tuck below.
-            readonly property real barBand: 26 * s
-            readonly property real zone: Config.barEnabled ? (evenTop + barBand) : (reservesIsland ? (restHeight + topGap) : evenTop)
+            // bar swells the frame's top into a band; reserve exactly the
+            // visible bar (frame top + band, the same numbers as the
+            // overlay's barVisibleH) so tiles tuck right under it with only
+            // gaps_out between. anything else opens a dead strip that grows
+            // with fontScale / monitor height.
+            readonly property real barBand: Config.barHeight * s
+            readonly property real barVisibleH: Math.max(0, Config.frameBorder - 50) + barBand
+            readonly property real zone: Config.barEnabled ? barVisibleH : (reservesIsland ? (restHeight + topGap) : evenTop)
 
             screen: modelData
             color: "transparent"
@@ -380,8 +385,8 @@ ShellRoot {
             // the options (Bar.qml). inverted rect is oversized 50px (its
             // anchors.margins), so the on-screen top is borderTop - 50; the
             // bar adds `barBand` below that.
-            readonly property real frameTopVisible: Config.frameBorder - 50
-            readonly property real barBand: 26 * s
+            readonly property real frameTopVisible: Math.max(0, Config.frameBorder - 50)
+            readonly property real barBand: Config.barHeight * s
             readonly property real barVisibleH: frameTopVisible + barBand
 
             // island appearance, read from the live config. the frame is
@@ -390,13 +395,17 @@ ShellRoot {
             //   floating = detached pill, hangs below the frame, floats
             //              over content.
             //   none     = no resting island at all.
-            readonly property bool fused: Config.islandStyle === "island"
+            // bar mode always fuses: a summoned surface is the bar swelling
+            // open downward, never a detached pill colliding with the band.
+            readonly property bool fused: Config.islandStyle === "island" || Config.barEnabled
             readonly property bool styleNone: Config.islandStyle === "none" || Config.barEnabled
             readonly property bool autohide: Config.islandAutohide && !styleNone
             // where the pill sits below the screen top. fused rides the
-            // frame neck; floating/none hang lower so they read as detached.
+            // frame neck; floating/none hang lower so they read as detached;
+            // bar mode clears the band so content drops out of the bar.
             readonly property real floatTopGap: (18 + Config.islandGap) * s
-            readonly property real pillTop: fused ? topGap : floatTopGap
+            readonly property real pillTop: Config.barEnabled ? (barVisibleH + topGap)
+                : (fused ? topGap : floatTopGap)
             // rest visibility. fused/floating show at rest unless
             // auto-hidden; none never shows at rest. an explicit summon
             // brings a hidden island in: open surface (a keybind), peek or
@@ -585,6 +594,7 @@ ShellRoot {
                     height: overlay.barVisibleH
                     s: overlay.s
                     contentTop: 0
+                    surfaceOpen: overlay.surfaceOpen
                     trayWindow: overlay
                     onCalendarRequested: root.toggleSurface(overlay.modelData.name, "calendar")
                     onPowerRequested: root.togglePopout(overlay.modelData.name, "power")
