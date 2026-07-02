@@ -75,7 +75,10 @@ type plan struct {
 
 func defaultPlan(f *facts) *plan {
 	return &plan{
-		nvidia:    f.hasNvidia && !f.nouveauLive,
+		// secure boot rejects unsigned dkms modules and the nvidia script also
+		// blacklists nouveau: proceeding would boot into a black screen. only
+		// an sbctl-managed box gets to keep the default.
+		nvidia:    f.hasNvidia && !f.nouveauLive && !(f.secureBoot && !f.sbctlSigned),
 		switchDM:  true,
 		switchNet: true,
 		rivals:    true,
@@ -606,7 +609,11 @@ func stepDrivers(e *engine) error {
 	if e.p.nvidia {
 		scripts = append(scripts, "nvidia.sh")
 	} else if e.f.hasNvidia {
-		e.say("skipping the NVIDIA driver setup (kept nouveau; re-run with the toggle on to switch)")
+		if e.f.secureBoot && !e.f.sbctlSigned {
+			e.say("skipping the NVIDIA driver setup (Secure Boot is on and would reject the unsigned modules)")
+		} else {
+			e.say("skipping the NVIDIA driver setup (kept nouveau; re-run with the toggle on to switch)")
+		}
 	}
 	for _, s := range scripts {
 		if err := e.cmd("", nil, "bash", filepath.Join(drv, s)); err != nil {
@@ -883,6 +890,11 @@ func stepVerify(e *engine) error {
 	check(err == nil, "Hyprland wayland session registered")
 	if e.p.switchDM {
 		check(unitEnabled("system", "sddm.service"), "sddm.service enabled")
+	}
+	if e.f.hasNvidia && e.f.secureBoot && !e.p.nvidia {
+		e.say(gWarn + " Secure Boot is on, so the proprietary NVIDIA driver was skipped: unsigned")
+		e.say("  DKMS modules are rejected at boot. To switch later, disable Secure Boot in")
+		e.say("  firmware or sign the kernel and modules (sbctl), then re-run this installer.")
 	}
 	if !has("wallust") || !has("awww") {
 		e.say(gWarn + " wallust/awww missing (AUR): wallpapers and palettes will not work until installed")

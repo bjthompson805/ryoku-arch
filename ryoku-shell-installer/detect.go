@@ -26,6 +26,9 @@ type facts struct {
 	online     bool
 	btrfsRoot  bool
 
+	secureBoot  bool // SecureBoot=1 and SetupMode=0 in efivars
+	sbctlSigned bool // sbctl on PATH with a key store, signing hook likely works
+
 	gpus        []string
 	hasNvidia   bool
 	nouveauLive bool
@@ -187,6 +190,7 @@ func detect() *facts {
 
 	f.detectGPUs()
 	f.detectUcode()
+	f.detectSecureBoot()
 
 	// enabled display manager: the display-manager.service alias symlink is
 	// authoritative; fall back to probing the known units.
@@ -307,6 +311,42 @@ func (f *facts) detectGPUs() {
 			f.nouveauLive = true
 		}
 	}
+}
+
+// EFI_GLOBAL_VARIABLE, fixed by the UEFI spec.
+const efiGlobalGUID = "8be4df61-93ca-11d2-aa0d-00e098032b8c"
+
+// efivarOn reads an efivarfs boolean: 4-byte attribute header, then the data
+// byte. mokutil and bootctl read the same variable the same way.
+func efivarOn(b []byte) bool {
+	return len(b) >= 5 && b[4] == 1
+}
+
+// secureBootEnforcing: SecureBoot=1 alone is not enough, SetupMode=1 means
+// the firmware accepts any key and nothing is actually enforced.
+func secureBootEnforcing(secureBoot, setupMode []byte) bool {
+	return efivarOn(secureBoot) && !efivarOn(setupMode)
+}
+
+func (f *facts) detectSecureBoot() {
+	sb, err := os.ReadFile("/sys/firmware/efi/efivars/SecureBoot-" + efiGlobalGUID)
+	if err != nil {
+		return // BIOS boot or no efivars: secure boot impossible
+	}
+	setup, _ := os.ReadFile("/sys/firmware/efi/efivars/SetupMode-" + efiGlobalGUID)
+	f.secureBoot = secureBootEnforcing(sb, setup)
+	if f.secureBoot && has("sbctl") {
+		if fi, err := os.Stat("/var/lib/sbctl"); err == nil && fi.IsDir() {
+			f.sbctlSigned = true
+		}
+	}
+}
+
+// systemdBooted is sd_booted(3)'s canonical test: the directory only exists
+// when systemd is pid 1, even if libsystemd is installed under another init.
+func systemdBooted() bool {
+	fi, err := os.Stat("/run/systemd/system")
+	return err == nil && fi.IsDir()
 }
 
 func (f *facts) detectUcode() {

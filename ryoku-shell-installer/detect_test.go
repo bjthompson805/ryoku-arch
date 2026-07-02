@@ -35,6 +35,34 @@ func TestStripPacmanSection(t *testing.T) {
 	}
 }
 
+func TestSecureBootEnforcing(t *testing.T) {
+	attr := []byte{6, 0, 0, 0} // efivarfs attribute header
+	on, off := append(attr, 1), append(attr, 0)
+	if !secureBootEnforcing(on, off) {
+		t.Fatal("SecureBoot=1 SetupMode=0 must be enforcing")
+	}
+	if secureBootEnforcing(on, on) {
+		t.Fatal("setup mode means nothing is enforced")
+	}
+	if secureBootEnforcing(off, off) || secureBootEnforcing(nil, nil) || secureBootEnforcing([]byte{1}, nil) {
+		t.Fatal("short or zero variables must not read as enforcing")
+	}
+}
+
+func TestDefaultPlanSecureBoot(t *testing.T) {
+	f := &facts{hasNvidia: true, secureBoot: true}
+	if defaultPlan(f).nvidia {
+		t.Fatal("secure boot must force the nvidia default off")
+	}
+	f.sbctlSigned = true
+	if !defaultPlan(f).nvidia {
+		t.Fatal("an sbctl-managed box keeps the nvidia default")
+	}
+	if !defaultPlan(&facts{hasNvidia: true}).nvidia {
+		t.Fatal("no secure boot, nvidia stays default on")
+	}
+}
+
 func TestMirrorlistHasOmarchy(t *testing.T) {
 	if !mirrorlistHasOmarchy("# comment\nServer = https://stable-mirror.omarchy.org/$repo/os/$arch\n") {
 		t.Fatal("missed the omarchy mirror")

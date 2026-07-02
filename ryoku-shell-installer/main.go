@@ -25,18 +25,20 @@ type planItem struct {
 	label  string
 	detail string
 	on     *bool
+	locked bool // shown but not toggleable (safety gate holds it)
 }
 
 type model struct {
 	w, h  int
 	frame int
-	state string // scan, plan, install, done, failed
+	state string // scan, ack, plan, install, done, failed
 
-	f       *facts
-	p       *plan
-	items   []planItem
-	sel     int
-	confirm bool
+	f        *facts
+	p        *plan
+	items    []planItem
+	sel      int
+	confirm  bool
+	ackInput string // typed acknowledgement on gated distros (manjaro)
 
 	eng     *engine
 	events  chan any
@@ -82,32 +84,40 @@ func buildItems(f *facts, p *plan) []planItem {
 		if f.nouveauLive {
 			d = "you are on nouveau right now; switching needs a reboot to take effect"
 		}
-		it = append(it, planItem{"NVIDIA proprietary drivers", d, &p.nvidia})
+		locked := false
+		switch {
+		case f.secureBoot && !f.sbctlSigned:
+			d = "held off: Secure Boot rejects unsigned DKMS modules (black screen at boot); sign with sbctl or disable Secure Boot, then re-run"
+			locked = true
+		case f.secureBoot && f.sbctlSigned:
+			d += "; Secure Boot is on, sbctl found: make sure its hook signs DKMS modules"
+		}
+		it = append(it, planItem{"NVIDIA proprietary drivers", d, &p.nvidia, locked})
 	}
 	if dm := f.otherDM(); dm != "" {
-		it = append(it, planItem{"Switch login to SDDM", "disables " + dm + " and enables the Ryoku greeter (at reboot)", &p.switchDM})
+		it = append(it, planItem{"Switch login to SDDM", "disables " + dm + " and enables the Ryoku greeter (at reboot)", &p.switchDM, false})
 	} else if f.currentDM == "" {
-		it = append(it, planItem{"Enable SDDM login", "no display manager found; toggle off to keep starting Hyprland by hand", &p.switchDM})
+		it = append(it, planItem{"Enable SDDM login", "no display manager found; toggle off to keep starting Hyprland by hand", &p.switchDM, false})
 	}
 	if len(f.otherNet) > 0 {
-		it = append(it, planItem{"Switch to NetworkManager", "disables " + strings.Join(f.otherNet, ", ") + " (at reboot)", &p.switchNet})
+		it = append(it, planItem{"Switch to NetworkManager", "disables " + strings.Join(f.otherNet, ", ") + " (at reboot)", &p.switchNet, false})
 	}
 	if len(f.rivalPkgs) > 0 {
-		it = append(it, planItem{"Remove rival shells", "uninstalls " + strings.Join(f.rivalPkgs, ", "), &p.rivals})
+		it = append(it, planItem{"Remove rival shells", "uninstalls " + strings.Join(f.rivalPkgs, ", "), &p.rivals, false})
 	}
 	if len(f.softUnits) > 0 {
-		it = append(it, planItem{"Disable conflicting daemons", "disables " + strings.Join(f.softUnits, ", "), &p.softOff})
+		it = append(it, planItem{"Disable conflicting daemons", "disables " + strings.Join(f.softUnits, ", "), &p.softOff, false})
 	}
 	if f.omarchyRepo || f.omarchyMirror {
-		it = append(it, planItem{"Retire the Omarchy repo", "drops [omarchy] from pacman.conf, restores a standard Arch mirrorlist, removes omarchy-keyring", &p.omarchy})
+		it = append(it, planItem{"Retire the Omarchy repo", "drops [omarchy] from pacman.conf, restores a standard Arch mirrorlist, removes omarchy-keyring", &p.omarchy, false})
 	}
 	if len(f.niriOutputs) > 0 {
-		it = append(it, planItem{"Carry over niri monitor layout", fmt.Sprintf("pins %d output(s) (rotation, scale, position) into monitors_user.lua", len(f.niriOutputs)), &p.niriMon})
+		it = append(it, planItem{"Carry over niri monitor layout", fmt.Sprintf("pins %d output(s) (rotation, scale, position) into monitors_user.lua", len(f.niriOutputs)), &p.niriMon, false})
 	}
-	it = append(it, planItem{"AUR extras", "wallust + awww (wallpaper engine), Bibata cursor, LocalSend, Handy", &p.aur})
-	it = append(it, planItem{"Developer toolchain", "go, rust, node, python (ISO parity); ryoku recovery rebuilds from source and needs go", &p.devtools})
+	it = append(it, planItem{"AUR extras", "wallust + awww (wallpaper engine), Bibata cursor, LocalSend, Handy", &p.aur, false})
+	it = append(it, planItem{"Developer toolchain", "go, rust, node, python (ISO parity); ryoku recovery rebuilds from source and needs go", &p.devtools, false})
 	if !strings.HasSuffix(f.userShell, "/fish") {
-		it = append(it, planItem{"fish as login shell", "Ryoku's default shell; your current one stays installed", &p.fish})
+		it = append(it, planItem{"fish as login shell", "Ryoku's default shell; your current one stays installed", &p.fish, false})
 	}
 	return it
 }
@@ -132,7 +142,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.f = msg.f
 		m.p = defaultPlan(m.f)
 		m.items = buildItems(m.f, m.p)
-		m.state = "plan"
+		if needsManjaroAck(m.f) {
+			m.state = "ack"
+		} else {
+			m.state = "plan"
+		}
 		return m, nil
 	case evStep:
 		m.stepIdx = msg.idx
@@ -171,6 +185,24 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 		m.intAsk = false
 	}
 	switch m.state {
+	case "ack":
+		switch k {
+		case "esc":
+			return m, tea.Quit
+		case "enter":
+			if strings.EqualFold(strings.TrimSpace(m.ackInput), "manjaro") {
+				m.state = "plan"
+			}
+		case "backspace":
+			if len(m.ackInput) > 0 {
+				m.ackInput = m.ackInput[:len(m.ackInput)-1]
+			}
+		default:
+			if len(k) == 1 && len(m.ackInput) < 16 {
+				m.ackInput += k
+			}
+		}
+		return m, nil
 	case "plan":
 		if m.confirm {
 			switch k {
@@ -194,7 +226,7 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 				m.sel--
 			}
 		case " ", "space":
-			if len(m.items) > 0 {
+			if len(m.items) > 0 && !m.items[m.sel].locked {
 				*m.items[m.sel].on = !*m.items[m.sel].on
 			}
 		case "enter":
@@ -240,6 +272,8 @@ func (m model) View() tea.View {
 	switch m.state {
 	case "scan":
 		body = m.viewScan()
+	case "ack":
+		body = m.viewAck()
 	case "plan":
 		body = m.viewPlan()
 	case "install":
@@ -268,6 +302,8 @@ func (m model) View() tea.View {
 
 func (m model) footer() string {
 	switch m.state {
+	case "ack":
+		return keyHint("type manjaro + enter", "accept the risk") + hintSep() + keyHint("esc", "quit")
 	case "plan":
 		if m.confirm {
 			return keyHint("y", "install") + hintSep() + keyHint("n", "back")
@@ -307,6 +343,25 @@ func (m model) viewScan() string {
 	return m.header(fg(cBrand, sp) + " " + fg(cText, "inspecting this machine…"))
 }
 
+// viewAck is the Manjaro gate: a hard warning that must be typed through.
+// the [ryoku] repo is built against Arch current and Manjaro stable trails it
+// by weeks; the resulting partial-upgrade breakage would look like Ryoku's
+// fault, so consent has to be explicit.
+func (m model) viewAck() string {
+	iw := clamp(m.w-14, 56, 90)
+	var b strings.Builder
+	b.WriteString(bold(cYell, gWarn+" Manjaro detected: "+m.f.distroName) + "\n\n")
+	b.WriteString(fg(cText, "The [ryoku] repository is built against Arch current. Manjaro stable ships") + "\n")
+	b.WriteString(fg(cText, "Arch packages 1 to 4 weeks late, so installing can leave the Qt stack") + "\n")
+	b.WriteString(fg(cText, "half-upgraded: the shell then fails to start, or unrelated apps break.") + "\n")
+	b.WriteString(fg(cText, "This setup is unsupported; breakage lands on you.") + "\n\n")
+	b.WriteString(fg(cSub, "Type ") + bold(cYell, "manjaro") + fg(cSub, " and press enter to accept the risk, esc to quit.") + "\n\n")
+	b.WriteString(fg(cSub, "> ") + fg(cText, m.ackInput) + fg(cBrand, "_") + "\n")
+	box := sty().Border(borderDouble()).BorderForeground(cYell).Padding(1, 2).
+		Render(padLines(strings.TrimRight(b.String(), "\n"), iw))
+	return m.header(box)
+}
+
 func (m model) viewPlan() string {
 	f := m.f
 	iw := clamp(m.w-14, 62, 96)
@@ -317,6 +372,13 @@ func (m model) viewPlan() string {
 	}
 	row("system", f.distroName)
 	row("gpu", f.gpuSummary())
+	if f.secureBoot {
+		sb := "on and enforcing; unsigned NVIDIA DKMS modules cannot load"
+		if f.sbctlSigned {
+			sb = "on, sbctl key store found; its hook must cover DKMS modules"
+		}
+		row("secure boot", sb)
+	}
 	dm := f.currentDM
 	if dm == "" {
 		dm = "none"
@@ -468,6 +530,13 @@ func (m model) viewFailed() string {
 func runHeadless(dry bool, ref, payload string) int {
 	fmt.Println(bold(cBrand, "ryoku-shell-install") + fg(cSub, " (headless)"))
 	f := detect()
+	if needsManjaroAck(f) {
+		fmt.Println(bold(cYell, "refusing to install on Manjaro non-interactively."))
+		fmt.Println("the [ryoku] repo is built against Arch current; Manjaro stable trails it by")
+		fmt.Println("weeks and partial upgrades can break the Qt stack. run without --yes to read")
+		fmt.Println("the warning, or set RYOKU_ALLOW_MANJARO=1 to accept the risk here.")
+		return 1
+	}
 	p := defaultPlan(f)
 	fmt.Printf("system: %s | gpu: %s | dm: %s\n", f.distroName, f.gpuSummary(), f.currentDM)
 	fmt.Printf("plan: nvidia=%v sddm=%v networkmanager=%v remove-shells=%v aur=%v fish=%v devtools=%v omarchy-cleanup=%v\n",
@@ -550,6 +619,11 @@ func main() {
 	if out("uname", "-m") != "x86_64" {
 		die("the [ryoku] repository ships x86_64 packages only")
 	}
+	// the whole engine leans on systemctl; Artix and other non-systemd spins
+	// pass the pacman check but every session/service step would fail.
+	if !systemdBooted() {
+		die("this system does not boot with systemd (Artix or another init detected); Ryoku needs systemd and cannot install here")
+	}
 
 	if !*dry {
 		primeSudo()
@@ -569,6 +643,12 @@ func main() {
 	if m, ok := fm.(model); ok && m.exitReboot {
 		_ = exec.Command("systemctl", "reboot").Run()
 	}
+}
+
+// needsManjaroAck: Manjaro gets a hard warning with typed consent (TUI) or a
+// refusal (--yes); RYOKU_ALLOW_MANJARO=1 waves both through.
+func needsManjaroAck(f *facts) bool {
+	return f.distroID == "manjaro" && os.Getenv("RYOKU_ALLOW_MANJARO") != "1"
 }
 
 func envOr(k, def string) string {
