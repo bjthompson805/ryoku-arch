@@ -23,24 +23,53 @@ function isTableSep(line) {
   return cells.length > 0 && cells.every((c) => /^:?-{1,}:?$/.test(c));
 }
 
-// Spans run on already-escaped text. Inline code is lifted out first so its
-// contents escape further transforms, then restored last.
+// Spans run on already-escaped text. Inline code and finished links are lifted
+// out into sentinels first so later passes (bold/italic, bare-URL autolinking)
+// can never reach inside them; everything is spliced back at the end.
 function inline(s) {
-  const codes = [];
-  s = s.replace(/`([^`]+)`/g, (_, c) => {
-    codes.push(c);
-    return "\u0000" + (codes.length - 1) + "\u0000";
-  });
+  const holds = [];
+  const stash = (html) => "\u0000" + (holds.push(html) - 1) + "\u0000";
+
+  s = s.replace(/`([^`]+)`/g, (_, c) => stash("<code>" + c + "</code>"));
+
+  // Markdown links. http(s) open a new tab hardened with rel=noopener; in-page
+  // #anchors stay same-tab; anything else (javascript:, data:) is left as text.
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (whole, text, href) => {
     href = href.trim();
-    if (/^https?:\/\//i.test(href) || href[0] === "#") {
-      return '<a href="' + href.replace(/"/g, "%22") + '">' + text + "</a>";
+    if (/^https?:\/\//i.test(href)) {
+      return stash('<a href="' + href.replace(/"/g, "%22") +
+        '" target="_blank" rel="noopener">' + text + "</a>");
+    }
+    if (href[0] === "#") {
+      return stash('<a href="' + href.replace(/"/g, "%22") + '">' + text + "</a>");
     }
     return whole;
   });
+
+  // Bare http(s) URLs in the remaining text. Stops at whitespace, a sentinel,
+  // or an escaped angle bracket; trailing sentence punctuation ).,;:!? is
+  // peeled off the match and left as plain text after the link.
+  s = s.replace(/https?:\/\/[^\s\u0000<]+/gi, (url) => {
+    let tail = "";
+    while (/[).,;:!?]$/.test(url)) {
+      tail = url.slice(-1) + tail;
+      url = url.slice(0, -1);
+    }
+    if (!url) return tail;
+    return stash('<a href="' + url.replace(/"/g, "%22") +
+      '" target="_blank" rel="noopener">' + url + "</a>") + tail;
+  });
+
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  s = s.replace(/\u0000(\d+)\u0000/g, (_, n) => "<code>" + codes[+n] + "</code>");
+
+  // Splice sentinels back. Loop because a stashed link's text may itself hold
+  // an inline-code sentinel, and one replace pass does not rescan its output.
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/\u0000(\d+)\u0000/g, (_, n) => holds[+n]);
+  } while (s !== prev);
   return s;
 }
 

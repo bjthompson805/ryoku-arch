@@ -6,6 +6,10 @@ import { initRouter } from "./router.js";
 import { initVitals } from "./vitals.js";
 import { initVault } from "./vault.js";
 import { initAgents } from "./agents.js";
+import { initMemory } from "./memory.js";
+import { initSkills } from "./skills.js";
+import { initAbout } from "./about.js";
+import { initCode } from "./code.js";
 import { api } from "./api.js";
 import "./chat.js";
 
@@ -33,6 +37,9 @@ function boot() {
     if (started[name]) return;
     started[name] = true;
     if (name === "vault") initVault(document.querySelector('[data-panel="vault"]'));
+    else if (name === "memory") initMemory(document.querySelector('[data-panel="memory"]'));
+    else if (name === "skills") initSkills(document.querySelector('[data-panel="skills"]'));
+    else if (name === "about") initAbout(document.querySelector('[data-panel="about"]'));
     else if (name === "agents") initAgents(document.querySelector('[data-panel="agents"]'));
     else if (name === "chat") {
       const el = document.querySelector('[data-panel="chat"]');
@@ -40,6 +47,7 @@ function boot() {
     }
   });
   initVitals(document.querySelector('[data-panel="overview"]'));
+  initCode(document.querySelector('[data-panel="overview"]'));
   paintStatus();
   setInterval(paintStatus, 5000);
 }

@@ -7,6 +7,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/panels.css">
+  <link rel="stylesheet" href="css/chat.css">
   <link rel="stylesheet" href="css/motion.css">
 </head>
 <body>
@@ -18,8 +19,11 @@
     <ul class="nav">
       <li><a data-nav="overview" href="#/overview"><b>01</b><span>OVERVIEW</span></a></li>
       <li><a data-nav="vault" href="#/vault"><b>02</b><span>VAULT</span></a></li>
-      <li><a data-nav="agents" href="#/agents"><b>03</b><span>AGENTS</span></a></li>
-      <li><a data-nav="chat" href="#/chat"><b>04</b><span>CHAT</span></a></li>
+      <li><a data-nav="memory" href="#/memory"><b>03</b><span>MEMORY</span></a></li>
+      <li><a data-nav="skills" href="#/skills"><b>04</b><span>SKILLS</span></a></li>
+      <li><a data-nav="agents" href="#/agents"><b>05</b><span>AGENTS</span></a></li>
+      <li><a data-nav="chat" href="#/chat"><b>06</b><span>CHAT</span></a></li>
+      <li><a data-nav="about" href="#/about"><b>07</b><span>ABOUT</span></a></li>
     </ul>
   </nav>
 
@@ -70,6 +74,14 @@
         <div><em>DAEMON</em><span class="stamp stamp-idle" data-s="daemon">--</span></div>
         <div><em>HERMES</em><span class="stamp stamp-idle" data-s="hermes">--</span></div>
       </div>
+
+      <div class="code-card" data-code-card hidden>
+        <div class="code-head">
+          <em class="eyebrow">CODE INTELLIGENCE</em>
+          <span class="dim" data-code-repo></span>
+        </div>
+        <div class="code-body" data-code-body></div>
+      </div>
     </section>
 
     <section class="panel panel-vault" data-panel="vault" hidden>
@@ -83,25 +95,78 @@
       </div>
     </section>
 
+    <section class="panel panel-memory" data-panel="memory" hidden>
+      <h2 class="panel-title">MEMORY</h2>
+      <div class="mem-tiles" data-mem-tiles></div>
+      <div class="mem-grid">
+        <div class="mem-graph-wrap">
+          <em class="eyebrow">THE WEB OF NOTES</em>
+          <canvas class="mem-graph" data-mem-graph></canvas>
+        </div>
+        <div class="mem-side">
+          <em class="eyebrow">ACTIVITY</em>
+          <div class="mem-heatmap" data-mem-heatmap></div>
+          <em class="eyebrow">SESSIONS</em>
+          <div class="mem-sessions" data-mem-sessions><p class="dim">loading...</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel panel-skills" data-panel="skills" hidden>
+      <div class="skills-toolbar">
+        <h2 class="panel-title">SKILLS</h2>
+        <input class="skills-search" data-skills-search type="search" placeholder="filter skills..." spellcheck="false">
+      </div>
+      <div class="skills-counts" data-skills-counts></div>
+      <div class="skills-groups" data-skills-groups><p class="dim">loading...</p></div>
+      <h3 class="panel-sub">TOOLBELT</h3>
+      <div class="toolbelt" data-toolbelt><p class="dim">loading...</p></div>
+    </section>
+
     <section class="panel" data-panel="agents" hidden>
       <h2 class="panel-title">AGENTS</h2>
       <div class="agents-list" data-agents-list><p class="dim">loading...</p></div>
     </section>
 
     <section class="panel panel-chat" data-panel="chat" hidden>
-      <div class="chat-banner" data-chat-banner data-state="starting">STARTING</div>
-      <div class="chat-stream" data-chat-stream>
-        <div class="chat-empty" data-chat-empty>
-          <img src="assets/chat-empty.webp" alt="" onerror="this.parentElement.hidden = true">
-          <p>The compass is listening. Ask about your machine.</p>
+      <div class="chat-top">
+        <div class="chat-banner" data-chat-banner data-state="starting">STARTING</div>
+        <div class="chat-usage" data-chat-usage hidden>
+          <span class="chat-usage-bar"><i data-usage-fill></i></span>
+          <span class="chat-usage-label" data-usage-label>CTX 0%</span>
         </div>
       </div>
+      <div class="chat-stream" data-chat-stream></div>
       <div class="chat-perms" data-chat-perms></div>
+      <div class="chat-attach-row" data-attach-row hidden></div>
+      <div class="chat-legend" data-chat-legend hidden></div>
       <form class="chat-bar" data-chat-form>
-        <textarea class="chat-input" data-chat-input rows="1" placeholder="Ask the compass. ENTER sends, SHIFT+ENTER newline."></textarea>
+        <button type="button" class="chat-iconbtn" data-chat-attach title="Attach image" aria-label="Attach image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5L12.5 4a4 4 0 0 1 5.7 5.7L9.7 18.2a2 2 0 0 1-2.9-2.9L15 7"/></svg>
+        </button>
+        <input type="file" data-chat-file accept="image/*" multiple hidden>
+        <textarea class="chat-input" data-chat-input rows="1" placeholder="Ask the compass. ENTER sends, / for commands."></textarea>
+        <button type="button" class="chat-chip" data-chat-model title="Switch model" hidden></button>
+        <button type="button" class="chat-iconbtn" data-chat-history title="Session history" aria-label="Session history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        </button>
         <button type="button" class="btn btn-ghost" data-chat-cancel hidden>CANCEL</button>
         <button type="submit" class="btn btn-primary" data-chat-send>SEND</button>
       </form>
+      <div class="chat-model-menu" data-model-menu hidden></div>
+      <aside class="chat-drawer" data-chat-drawer hidden>
+        <div class="chat-drawer-head">
+          <em class="eyebrow">SESSIONS</em>
+          <button type="button" class="btn btn-primary" data-chat-new>NEW SESSION</button>
+        </div>
+        <div class="chat-drawer-list" data-drawer-list><p class="dim">loading...</p></div>
+      </aside>
+      <div class="chat-toast" data-chat-toast hidden></div>
+    </section>
+
+    <section class="panel panel-about" data-panel="about" hidden>
+      <h2 class="panel-title">ABOUT</h2>
+      <div class="about-body" data-about-body><p class="dim">loading...</p></div>
     </section>
 
   </main>

@@ -40,11 +40,42 @@ test("fenced code block", () => {
 });
 
 test("http links allowed, javascript scheme rejected", () => {
-  assert.equal(mdToHtml("[go](https://x.io)"), '<p><a href="https://x.io">go</a></p>');
+  assert.equal(
+    mdToHtml("[go](https://x.io)"),
+    '<p><a href="https://x.io" target="_blank" rel="noopener">go</a></p>',
+  );
   assert.equal(mdToHtml("[anchor](#top)"), '<p><a href="#top">anchor</a></p>');
   const bad = mdToHtml("[x](javascript:alert(1))");
   assert.ok(!bad.includes("<a "), "javascript scheme must not become a link");
   assert.ok(bad.includes("[x]"), "raw text preserved for rejected link");
+});
+
+test("bare url becomes a target=_blank link", () => {
+  const html = mdToHtml("see https://ryoku.dev/docs for more");
+  assert.ok(
+    html.includes('<a href="https://ryoku.dev/docs" target="_blank" rel="noopener">https://ryoku.dev/docs</a>'),
+    "bare url linkified",
+  );
+});
+
+test("trailing paren and period are peeled off a bare url", () => {
+  const html = mdToHtml("(see https://ryoku.dev/x).");
+  assert.ok(
+    html.includes('<a href="https://ryoku.dev/x" target="_blank" rel="noopener">https://ryoku.dev/x</a>).'),
+    "punctuation stays as text, href is clean",
+  );
+  assert.ok(!html.includes('href="https://ryoku.dev/x).'), "trailing chars not in href");
+});
+
+test("bare url inside inline code is left untouched", () => {
+  const html = mdToHtml("run `curl https://ryoku.dev` now");
+  assert.ok(html.includes("<code>curl https://ryoku.dev</code>"), "code content intact");
+  assert.ok(!html.includes("<a "), "no link created inside code");
+});
+
+test("bare javascript scheme is never linkified", () => {
+  const html = mdToHtml("javascript:alert(1) is inert");
+  assert.ok(!html.includes("<a "), "only http(s) autolinks");
 });
 
 test("pipe table renders thead and tbody", () => {

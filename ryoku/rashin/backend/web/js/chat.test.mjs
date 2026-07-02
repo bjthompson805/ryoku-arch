@@ -111,3 +111,99 @@ test("unknown event returns state unchanged", () => {
   const s1 = applyEvent(s0, { type: "mystery" });
   assert.equal(s0, s1);
 });
+
+test("models frame sets model list and current", () => {
+  const s = applyEvent(initialState(), {
+    type: "models",
+    current: "openai-codex:gpt-5.5",
+    models: [{ id: "openai-codex:gpt-5.5", name: "GPT 5.5", description: "flagship" }],
+  });
+  assert.equal(s.currentModel, "openai-codex:gpt-5.5");
+  assert.equal(s.models.length, 1);
+  assert.equal(s.models[0].name, "GPT 5.5");
+});
+
+test("commands frame stores the legend list", () => {
+  const s = applyEvent(initialState(), {
+    type: "commands",
+    commands: [{ name: "help", description: "show help", hint: "" }],
+  });
+  assert.equal(s.commands.length, 1);
+  assert.equal(s.commands[0].name, "help");
+});
+
+test("session_info frame captures id and title", () => {
+  const s = applyEvent(initialState(), { type: "session_info", sessionId: "abc123", title: "Debugging" });
+  assert.equal(s.session.id, "abc123");
+  assert.equal(s.session.title, "Debugging");
+});
+
+test("usage frame stores size and used", () => {
+  const s = applyEvent(initialState(), { type: "usage", size: 200000, used: 16042 });
+  assert.equal(s.usage.size, 200000);
+  assert.equal(s.usage.used, 16042);
+});
+
+test("history frame stores the session list", () => {
+  const s = applyEvent(initialState(), {
+    type: "history",
+    sessions: [{ id: "s1", title: "One", updatedAt: "2026-07-02T00:00:00Z", cwd: "/tmp" }],
+  });
+  assert.equal(s.history.length, 1);
+  assert.equal(s.history[0].title, "One");
+});
+
+test("replay_start clears the stream and sets replaying", () => {
+  let s = reduce([
+    { type: "user", text: "old" },
+    { type: "agent_text", text: "prior" },
+    { type: "turn_end" },
+  ]);
+  assert.equal(s.items.length, 2);
+  s = applyEvent(s, { type: "replay_start" });
+  assert.equal(s.items.length, 0, "stream cleared for replay");
+  assert.equal(s.replaying, true);
+});
+
+test("during replay user_text appends a user message and turn_end keeps busy", () => {
+  const s = reduce([
+    { type: "state", state: "busy" },
+    { type: "replay_start" },
+    { type: "user_text", text: "hello from history" },
+    { type: "agent_text", text: "a reply" },
+    { type: "turn_end" },
+    { type: "replay_end" },
+  ]);
+  const users = s.items.filter((i) => i.role === "user");
+  const agents = s.items.filter((i) => i.role === "agent");
+  assert.equal(users.length, 1);
+  assert.equal(users[0].text, "hello from history");
+  assert.equal(agents.length, 1);
+  assert.equal(agents[0].open, false, "replayed agent turn is closed");
+  assert.equal(s.busy, true, "turn_end during replay does not clear busy");
+  assert.equal(s.replaying, false, "replay_end lowers the flag");
+});
+
+test("turn_end outside replay still clears busy", () => {
+  const s = reduce([
+    { type: "state", state: "busy" },
+    { type: "agent_text", text: "hi" },
+    { type: "turn_end" },
+  ]);
+  assert.equal(s.busy, false);
+});
+
+test("user event carries images through the reducer", () => {
+  const s = applyEvent(initialState(), {
+    type: "user", text: "look", images: [{ data: "AAA", mimeType: "image/jpeg" }],
+  });
+  assert.equal(s.items[0].images.length, 1);
+  assert.equal(s.items[0].images[0].mimeType, "image/jpeg");
+});
+
+test("v2 fields survive an unrelated frame without mutation", () => {
+  const base = applyEvent(initialState(), { type: "usage", size: 100, used: 10 });
+  const next = applyEvent(base, { type: "agent_text", text: "x" });
+  assert.equal(next.usage.size, 100, "usage preserved across frames");
+  assert.equal(base.items.length, 0, "prior state not mutated");
+});
