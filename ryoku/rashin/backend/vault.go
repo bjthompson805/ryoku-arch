@@ -18,9 +18,11 @@ const (
 // generatedFiles are the vault docs Reindex owns end to end. Everything else in
 // the vault belongs to the user or an agent.
 var generatedFiles = map[string]bool{
-	"system.md":   true,
-	"desktop.md":  true,
-	"packages.md": true,
+	"system.md":     true,
+	"desktop.md":    true,
+	"packages.md":   true,
+	"ryoku-repo.md": true,
+	"user.md":       true,
 }
 
 // AgentsTemplate is the vault entry contract, written to AGENTS.md once. It is
@@ -43,14 +45,18 @@ const AgentsTemplate = "# Ryoku system vault\n" +
 	"- `system.md` generated: hardware, kernel, GPU, disks, displays.\n" +
 	"- `desktop.md` generated: the Ryoku map (configs, owners, reload commands).\n" +
 	"- `packages.md` generated: installed package counts, the explicit set, updates.\n" +
+	"- `ryoku-repo.md` generated: the Ryoku source tree map (pre-indexed, ships with the system).\n" +
+	"- `user.md` generated: where this user's config diverges from the shipped baseline.\n" +
 	"- `memory/` durable notes agents keep across sessions (Hermes MEMORY.md lives here).\n" +
 	"- `journal/` dated notes, one file per day named `YYYY-MM-DD.md`.\n" +
 	"\n" +
 	"## Rules\n" +
 	"\n" +
-	"- The three generated files are read only. Their content between the\n" +
+	"- The generated files are read only. Their content between the\n" +
 	"  `rashin:generated` markers is overwritten on every reindex; edits there are\n" +
 	"  lost. Write anything durable to `memory/` or `journal/` instead.\n" +
+	"- Changes listed in `user.md` are the user's own; never revert them to\n" +
+	"  shipped defaults without being asked.\n" +
 	"- You may add prose outside the generated markers in those files; it is kept.\n" +
 	"- This file (AGENTS.md) is yours to extend. `CLAUDE.md` is a symlink to it.\n"
 

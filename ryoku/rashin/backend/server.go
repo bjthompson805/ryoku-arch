@@ -61,6 +61,18 @@ func Serve(cfg Config) error {
 			_ = Reindex()
 		}
 	}()
+	// User-owned changes reindex separately: a cheap fingerprint of the live
+	// config every 2 minutes, the full diff only when it moves.
+	go func() {
+		last := userConfigFingerprint()
+		for range time.Tick(2 * time.Minute) {
+			cur := userConfigFingerprint()
+			if cur != last {
+				last = cur
+				_ = ReindexUser()
+			}
+		}
+	}()
 
 	hub := newChatHub()
 	mux := http.NewServeMux()

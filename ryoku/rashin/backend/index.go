@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Reindex regenerates the three machine-owned vault docs. Every probe is best
+// Reindex regenerates the machine-owned vault docs. Every probe is best
 // effort, so a missing tool degrades one section rather than failing the index.
 func Reindex() error {
 	if err := EnsureVault(); err != nil {
@@ -28,7 +28,19 @@ func Reindex() error {
 			return err
 		}
 	}
-	return nil
+	if err := writeRepoVaultDoc(); err != nil {
+		return err
+	}
+	return writeUserVaultDoc()
+}
+
+// ReindexUser refreshes only the user-owned changes layer; cheap enough for
+// the watcher to run whenever the live config drifts.
+func ReindexUser() error {
+	if err := EnsureVault(); err != nil {
+		return err
+	}
+	return writeUserVaultDoc()
 }
 
 const systemHeader = "# System\n" +

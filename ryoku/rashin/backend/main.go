@@ -10,7 +10,8 @@ const usage = `ryoku-rashin: the Ryoku agent OS daemon
 usage: ryoku-rashin <command>
 
   serve [--if-enabled]   run the dashboard and agent bridge on 127.0.0.1
-  index                  regenerate the vault's system, desktop, and package maps
+  index                  regenerate the vault maps (system, desktop, packages, repo, user)
+  repo-index <root> [out]  build the Ryoku source map from a checkout (build/deploy time)
   setup                  one-click Hermes install, onboarding, and wiring
   wire [agent]           apply vault pointers (all detected agents, or one)
   unwire [agent]         remove vault pointers
@@ -31,6 +32,8 @@ func main() {
 		err = cmdServe(ifEnabled)
 	case "index":
 		err = cmdIndex()
+	case "repo-index":
+		err = cmdRepoIndex(argOr(2, ""), argOr(3, ""))
 	case "setup":
 		err = cmdSetup()
 	case "wire":
