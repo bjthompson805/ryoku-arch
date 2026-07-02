@@ -19,6 +19,14 @@
   optional bundles from the `ryoku-extras` catalogue.
 
 ### Fixed
+- `hardware/display/ryoku-monitor`: autoscale picked absurd scales inside
+  virtual machines. A hypervisor fabricates the guest display's EDID, so the
+  px/mm density math ran on fiction (a plausible fake physical size sails past
+  the existing zero/absurd-DPI guards straight into the 1.25-2.0 buckets).
+  Autoscale now pins the 1x bucket for every output of a VM guest
+  (`systemd-detect-virt --vm`) and for `Virtual-*` connectors on bare metal;
+  the host window does the real scaling anyway. `RYOKU_MONITOR_VM` overrides
+  detection for tests, and `monitors_user.lua` pins still win as before.
 - `hardware/gpu/ryoku-gpu-detect`: GPU detection could hang indefinitely. It
   reads NVIDIA VRAM from `nvidia-smi` (and model names from `lspci`), and a
   runtime-suspended or wedged GPU can make `nvidia-smi` block forever, stalling

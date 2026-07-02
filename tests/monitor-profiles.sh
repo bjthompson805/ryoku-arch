@@ -17,6 +17,11 @@ profiles="$tmp/profiles"
 # reads it and apply writes it). Per-test overrides point elsewhere.
 export RYOKU_MONITORS_APPLIED="$tmp/applied-default.json"
 
+# CI runners are VM guests themselves, so pin VM detection off; the DPI
+# assertions below must exercise the real buckets. The virtual-display tests
+# re-enable it per invocation.
+export RYOKU_MONITOR_VM=0
+
 # Two distinct displays, Dell on DP-1 and LG on DP-2.
 cat >"$tmp/two.json" <<'JSON'
 [
@@ -94,6 +99,22 @@ field4() { awk -F'|' -v n="$1" '$1==n {print $4}' <<<"$specout"; }
 [[ "$(field4 DP-3)" == "1.5" ]] || fail "valid 4K 1.5 must be kept, got $(field4 DP-3)"
 # Low-DPI 1080p stays 1x.
 [[ "$(field4 DP-4)" == "1" ]] || fail "low-DPI 1080p must stay 1x, got $(field4 DP-4)"
+
+# --- virtual displays: a hypervisor's EDID is fiction, autoscale must stay 1x.
+# Connector name alone forces it, even with a plausible fake physical size that
+# would otherwise bucket well above 1x.
+cat >"$tmp/vm.json" <<'JSON'
+[
+  {"name":"Virtual-1","width":2560,"height":1600,"refreshRate":60.0,"x":0,"y":0,"scale":1.0,"physicalWidth":300,"physicalHeight":190,"disabled":false}
+]
+JSON
+vmout="$(RYOKU_MONITOR_JSON="$tmp/vm.json" bash -c 'source "$1"; monitors_json | dpi_specs' _ "$mon")"
+[[ "$(awk -F'|' '$1=="Virtual-1" {print $4}' <<<"$vmout")" == "1" ]] \
+  || fail "Virtual-* connector must autoscale to 1x, got: $vmout"
+# A detected VM guest forces 1x on every output, whatever the connector says.
+vmout="$(RYOKU_MONITOR_JSON="$tmp/dpi.json" RYOKU_MONITOR_VM=1 bash -c 'source "$1"; monitors_json | dpi_specs' _ "$mon")"
+[[ "$(awk -F'|' '$1=="eDP-1" {print $4}' <<<"$vmout")" == "1" ]] \
+  || fail "VM guest must autoscale the eDP panel to 1x, got: $vmout"
 
 # --- manual override: autoscale leaves a pinned output out of the generated conf
 # (the user manages it in monitors.user.lua) and still writes the others.

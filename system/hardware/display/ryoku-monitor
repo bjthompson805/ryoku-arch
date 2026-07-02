@@ -69,14 +69,29 @@ monitors_json() {
   fi
 }
 
+# a hypervisor fabricates the guest display's EDID, so px/mm there is fiction
+# and the DPI buckets below land on nonsense scales (the host window does the
+# real scaling anyway). force the 1x bucket for every output of a VM guest,
+# and for Virtual-* connectors on bare metal (same fabricated-EDID case).
+# RYOKU_MONITOR_VM=0/1 overrides detection for fixture tests.
+is_vm_guest() {
+  case "${RYOKU_MONITOR_VM:-}" in
+    1) return 0 ;;
+    0) return 1 ;;
+  esac
+  command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt --vm --quiet
+}
+
 # emits "name|WxH@rate|XxY|wanted_scale|current_scale" per enabled monitor.
 # wanted_scale = DPI bucket (px * 25.4 / physical-mm) snapped to a 1/120 scale
 # whose logical W *and* H land on whole pixels -- Hyprland rejects anything else
 # (1.5 on a 2560 panel = 1706.67px wide -> "Invalid scale" overlay), so the raw
-# bucket can't be applied straight. missing / lying EDID (virtual outputs etc.)
-# falls back to 1x.
+# bucket can't be applied straight. missing / lying EDID falls back to 1x, and
+# VM guests / Virtual-* outputs are pinned to the 1x bucket (see is_vm_guest).
 dpi_specs() {
-  jq -r '
+  local vm=false
+  if is_vm_guest; then vm=true; fi
+  jq -r --argjson vm "$vm" '
     def abs: if . < 0 then - . else . end;
     # Nearest scale to $target that Hyprland accepts for a w x h panel: a 1/120
     # multiple (1.0 .. 3.0) whose logical width and height both land on whole
@@ -87,8 +102,8 @@ dpi_specs() {
              and ((($h / .) - (($h / .) | round)) | abs) < 0.01) ] as $valid
       | if ($valid | length) == 0 then 1.0
         else ($valid | min_by(((. - $target) | abs)) | (. * 10000 | round) / 10000) end;
-    def dpiscale($w; $h; $pw):
-      ( if ($pw // 0) <= 0 then 1.0
+    def dpiscale($name; $w; $h; $pw):
+      ( if $vm or ($name | startswith("Virtual-")) or (($pw // 0) <= 0) then 1.0
         else ($w * 25.4 / $pw) as $d
         | if   ($d < 40 or $d > 700) then 1.0
           elif $d <= 120 then 1.0
@@ -99,7 +114,7 @@ dpi_specs() {
         end ) as $target
       | snap($w; $h; $target);
     .[] | select(.disabled | not)
-    | "\(.name)|\(.width)x\(.height)@\(.refreshRate | round)|\(.x)x\(.y)|\(dpiscale(.width; .height; .physicalWidth))|\(.scale)"
+    | "\(.name)|\(.width)x\(.height)@\(.refreshRate | round)|\(.x)x\(.y)|\(dpiscale(.name; .width; .height; .physicalWidth))|\(.scale)"
   '
 }
 
