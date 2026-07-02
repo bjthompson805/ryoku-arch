@@ -21,6 +21,14 @@ main() {
   }
 
   [[ $(id -u) -ne 0 ]] || die "run as your normal user, not root (sudo is used when needed)"
+
+  # NixOS gets its own engine (nix profile + flake, no pacman anywhere);
+  # one advertised URL, each OS keeps its own installer.
+  if [[ -e /etc/NIXOS ]]; then
+    say "NixOS detected, handing off to the NixOS installer"
+    exec bash <(curl -fsSL "https://raw.githubusercontent.com/neur0map/ryoku-arch/nixos/ryoku-nixos/install.sh")
+  fi
+
   command -v pacman > /dev/null 2>&1 || die "this installer needs an Arch-based system (pacman not found)"
   [[ $(uname -m) == x86_64 ]] || die "the [ryoku] repository ships x86_64 packages only"
   command -v curl > /dev/null 2>&1 || die "curl is required"

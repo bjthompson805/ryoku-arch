@@ -4,6 +4,9 @@
 
 ### Added
 
+- NixOS handoff: `install.sh` detects `/etc/NIXOS` and execs the nix-based
+  installer from the `nixos` branch, so one curl line serves both worlds.
+
 - Standalone no-ISO installer: `install.sh` curl bootstrap plus the
   `ryoku-shell-install` bubbletea TUI. Scans the machine, backs up configs
   with a generated `restore.sh`, removes rival quickshell shells, disables

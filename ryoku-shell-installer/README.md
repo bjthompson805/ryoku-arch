@@ -1,6 +1,8 @@
 # ryoku-shell
 
 Install the Ryoku desktop on an existing Arch machine, without the ISO.
+On NixOS the same one-liner hands off to the flake-based installer on the
+`nixos` branch (`ryoku-nixos/install.sh`); everything below is the Arch path.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
