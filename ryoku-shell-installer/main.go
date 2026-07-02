@@ -79,6 +79,11 @@ func (m model) waitEv() tea.Cmd {
 
 func buildItems(f *facts, p *plan) []planItem {
 	var it []planItem
+	if f.prevRun != nil {
+		it = append(it, planItem{"Resume the previous run",
+			fmt.Sprintf("%d step(s) already finished last time; keeps that run's backup dir and skips them (toggle off to redo everything)", len(f.prevRun.Completed)),
+			&p.resume, false})
+	}
 	if f.hasNvidia {
 		d := "installs the proprietary driver, blacklists nouveau, rebuilds the initramfs"
 		if f.nouveauLive {
@@ -560,6 +565,9 @@ func runHeadless(dry bool, ref, payload string) int {
 	if len(f.riceFound) > 0 {
 		fmt.Println("rice found: " + strings.Join(f.riceFound, ", ") + " (daemons replaced, configs ride the backup)")
 	}
+	if f.prevRun != nil {
+		fmt.Printf("resuming the interrupted previous run: %d step(s) already done\n", len(f.prevRun.Completed))
+	}
 	fmt.Printf("plan: nvidia=%v sddm=%v greeter-theme=%v networkmanager=%v remove-shells=%v aur=%v fish=%v devtools=%v omarchy-cleanup=%v monitor-pins=%v\n",
 		p.nvidia, p.switchDM, p.greeter, p.switchNet, p.rivals, p.aur, p.fish, p.devtools, p.omarchy, p.monPins)
 	e := newEngine(f, p, dry, ref, payload)
@@ -625,6 +633,7 @@ func stdoutIsTTY() bool {
 func main() {
 	yes := flag.Bool("yes", false, "run non-interactively with the default plan")
 	dry := flag.Bool("dry-run", false, "print every command instead of running it")
+	uninstall := flag.Bool("uninstall", false, "remove the ryoku packages and restore the backup chain")
 	ref := flag.String("ref", envOr("RYOKU_SHELL_REF", "main"), "ryoku-arch git ref for the payload")
 	payload := flag.String("payload", os.Getenv("RYOKU_SHELL_PAYLOAD"), "use a local ryoku-arch checkout as the payload")
 	flag.Parse()
@@ -650,6 +659,9 @@ func main() {
 		primeSudo()
 	}
 
+	if *uninstall {
+		os.Exit(runUninstall(*yes, *dry))
+	}
 	if *yes {
 		os.Exit(runHeadless(*dry, *ref, *payload))
 	}

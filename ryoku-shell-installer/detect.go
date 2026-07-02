@@ -59,8 +59,9 @@ type facts struct {
 	hostname      string
 	username      string
 	homeDir       string
-	hyprCfgDirs   []string // pre-existing ~/.config/{hypr,quickshell,niri}
-	riceFound     []string // known hyprland rices detected by marker paths
+	hyprCfgDirs   []string  // pre-existing ~/.config/{hypr,quickshell,niri}
+	riceFound     []string  // known hyprland rices detected by marker paths
+	prevRun       *runState // interrupted earlier run, offered as a resume
 }
 
 // rival quickshell stacks; ordered meta -> shell -> runtime so pacman removal
@@ -348,6 +349,8 @@ func detect() *facts {
 	if f.kbLayout == "(unset)" || f.kbLayout == "n/a" {
 		f.kbLayout = ""
 	}
+
+	f.prevRun = loadState(f.homeDir)
 
 	return f
 }

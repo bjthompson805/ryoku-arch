@@ -72,6 +72,7 @@ type plan struct {
 	omarchy   bool // retire the [omarchy] repo and mirror pin
 	monPins   bool // pin the salvaged monitor layout in monitors_user.lua
 	greeter   bool // point SDDM at the Ryoku greeter theme
+	resume    bool // skip steps a previous interrupted run already finished
 }
 
 func defaultPlan(f *facts) *plan {
@@ -92,6 +93,7 @@ func defaultPlan(f *facts) *plan {
 		// when KDE's sddm-kcm owns sddm.conf.d the user chose that greeter
 		// look; keep it unless they opt in.
 		greeter: !f.kdeSddmConf,
+		resume:  f.prevRun != nil,
 	}
 }
 
@@ -128,6 +130,7 @@ type engine struct {
 	restorePath     string
 	prevBackups     int
 	pendingRestore  []string // undo lines queued before restore.sh exists
+	state           *runState
 
 	steps []estep
 }
@@ -135,6 +138,17 @@ type engine struct {
 func newEngine(f *facts, p *plan, dry bool, ref, payloadOverride string) *engine {
 	e := &engine{f: f, p: p, dry: dry, ref: ref, payloadOverride: payloadOverride}
 	e.openLog()
+	// resuming continues the previous run's backup dir so restore.sh stays
+	// one script; declining starts a fresh state (the file is rewritten at
+	// the first completed step).
+	if p.resume && f.prevRun != nil {
+		e.state = f.prevRun
+		if f.prevRun.BackupDir != "" {
+			if fi, err := os.Stat(f.prevRun.BackupDir); err == nil && fi.IsDir() {
+				e.backupDir = f.prevRun.BackupDir
+			}
+		}
+	}
 	// repo trust comes before conflict removal on purpose: nothing gets
 	// uninstalled until the [ryoku] db has actually been fetched. legacy
 	// sources go first so the full upgrade already runs on clean mirrors.
@@ -197,12 +211,18 @@ func (e *engine) runFrom(idx int) chan any {
 			s := e.steps[i]
 			e.events <- evStep{idx: i, title: s.title}
 			e.log("==== step " + s.id + " ====")
+			if e.p.resume && e.state != nil && e.state.has(s.id) {
+				e.say("finished in the previous run, resuming past it")
+				continue
+			}
 			if err := s.fn(e); err != nil {
 				e.sayf("step %s failed: %v", s.id, err)
 				e.events <- evDone{err: err, idx: i}
 				return
 			}
+			e.markStepDone(s.id)
 		}
+		e.clearState()
 		e.events <- evDone{idx: len(e.steps)}
 	}()
 	return e.events
