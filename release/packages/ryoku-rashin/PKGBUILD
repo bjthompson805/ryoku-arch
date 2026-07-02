@@ -1,0 +1,33 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# Ryoku Rashin backend (Go). The optional local agent OS daemon: it maintains a
+# markdown knowledge vault, serves the embedded web dashboard on 127.0.0.1, and
+# bridges the Hermes agent over ACP. Ships with the desktop but stays inert until
+# the user enables it (optional means not running, not absent).
+#
+# Built from the in-repo source at ryoku/rashin/backend; no tarball is fetched.
+# go build downloads its one module dependency (github.com/coder/websocket,
+# pinned in go.sum), so the build needs network access.
+pkgname=ryoku-rashin
+pkgver=${RYOKU_PKGVER:-0.1.0}
+pkgrel=1
+pkgdesc="Ryoku Rashin: local agent OS daemon and dashboard"
+arch=('x86_64')
+url="https://ryoku.dev"
+license=('GPL-3.0-or-later')
+# hermes is per-user opt-in (installed by the one-click setup, never packaged);
+# kitty and xdg-open ship with the desktop.
+depends=()
+makedepends=('go')
+source=()
+
+_repo="$startdir/../../.."
+
+build() {
+  cd "$_repo/ryoku/rashin/backend"
+  CGO_ENABLED=0 go build -trimpath -o "$srcdir/ryoku-rashin" .
+}
+
+package() {
+  install -Dm755 "$srcdir/ryoku-rashin" "$pkgdir/usr/bin/ryoku-rashin"
+}

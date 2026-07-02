@@ -20,6 +20,7 @@ depends=(
   # Ryoku
   'ryoku-shell'
   'ryoku-hub'
+  'ryoku-rashin'
   'ryoku-blobs'
   'ryoku'
   'ryoku-keyring'

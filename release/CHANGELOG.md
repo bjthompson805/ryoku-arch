@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `release/packages/ryoku-rashin/`: a PKGBUILD for the optional Ryoku Rashin
+  daemon (`ryoku-rashin`), built from the in-repo `ryoku/rashin/backend` with
+  `CGO_ENABLED=0 go build -trimpath` like `ryoku-hub`; the build needs network
+  for its one module dependency (`github.com/coder/websocket`). `ryoku-desktop`
+  now depends on it, so the binary ships with the desktop but stays inert until
+  the user enables it (optional means not running, not absent). It carries no
+  runtime depends: Hermes is per-user opt-in, and kitty and xdg-open come with
+  the desktop.
 - `ryoku-desktop` ships the Nautilus stash menu extension
   (`ryoku/apps/nautilus/ryoku-stash-menu.py`) to
   `/usr/share/nautilus-python/extensions/`, so the file-manager Install / Compress
