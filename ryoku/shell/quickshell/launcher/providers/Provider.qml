@@ -7,7 +7,7 @@ import QtQuick
 // query(text) returns an array of result objects:
 //   { title, subtitle, icon, type, score, actions: [{ name, icon, execute }],
 //     view? }
-// Lower score ranks higher. `prefix` is one char ("=", ";", "/", ...) or "".
+// Lower score ranks higher. `prefix` is one char ("=", ">", "/", ...) or "".
 // `defaultProvider` includes the provider in the unprefixed fan-out.
 // An Item (not a QtObject) so a provider can hold child objects (Timer, Process,
 // FileView) for its async work; it has no size and never renders.

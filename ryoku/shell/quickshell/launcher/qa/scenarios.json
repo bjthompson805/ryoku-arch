@@ -417,89 +417,6 @@
       ]
     },
     {
-      "id": "clip-list",
-      "name": "; lists clipboard history in CLIPBOARD mode",
-      "covers": "clipboard provider listing",
-      "steps": [
-        "sh printf 'qa-clip-alpha-7391' | cliphist store",
-        "show",
-        "type ;",
-        "settle"
-      ],
-      "asserts": [
-        ".modeLabel == \"CLIPBOARD\"",
-        ".resultCount >= 1"
-      ],
-      "screenshot": true
-    },
-    {
-      "id": "clip-filter",
-      "name": ";qa-clip filters history to the seeded entry",
-      "covers": "clipboard substring filter",
-      "steps": [
-        "sh printf 'qa-clip-alpha-7391' | cliphist store",
-        "show",
-        "type ;qa-clip",
-        "settle"
-      ],
-      "asserts": [
-        "[.results[] | select(.title | contains(\"qa-clip-alpha-7391\"))] | length >= 1"
-      ]
-    },
-    {
-      "id": "clip-recopy",
-      "name": "Enter re-copies the selected history entry",
-      "covers": "clipboard Copy action",
-      "steps": [
-        "sh printf 'qa-clip-alpha-7391' | cliphist store; wl-copy qa-other-content",
-        "show",
-        "type ;qa-clip-alpha",
-        "settle",
-        "key Return",
-        "sleep 1"
-      ],
-      "asserts": [
-        ".open == false"
-      ],
-      "shell_asserts": [
-        "[ \"$(wl-paste -n 2>/dev/null)\" = \"qa-clip-alpha-7391\" ]"
-      ],
-      "teardown": [
-        "cliphist list | grep qa-clip | while read -r l; do printf '%s' \"$l\" | cliphist delete; done; wl-copy -c"
-      ]
-    },
-    {
-      "id": "clip-delete-refresh",
-      "name": "Deleting a history entry removes it from cliphist and the list",
-      "covers": "clipboard Delete action end to end",
-      "steps": [
-        "sh printf 'qa-del-one' | cliphist store; sleep 0.2; printf 'qa-del-two' | cliphist store",
-        "show",
-        "type ;qa-del",
-        "settle",
-        "sh S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .5)|socat - UNIX-CONNECT:$S >/tmp/launcher-qa-fixtures/del.before",
-        "ctrl k",
-        "sleep 0.4",
-        "key Down",
-        "key Return",
-        "sleep 1.2",
-        "show",
-        "type ;qa-del",
-        "settle"
-      ],
-      "asserts": [
-        ".resultCount == 1",
-        "[.results[] | select(.title | contains(\"qa-del-one\"))] | length == 1"
-      ],
-      "shell_asserts": [
-        "jq -e '.resultCount == 2' /tmp/launcher-qa-fixtures/del.before >/dev/null",
-        "! cliphist list | grep -q qa-del-two"
-      ],
-      "teardown": [
-        "cliphist list | grep qa-del | while read -r l; do printf '%s' \"$l\" | cliphist delete; done"
-      ]
-    },
-    {
       "id": "find-file",
       "name": "/file finds a file at home by name",
       "covers": "find provider file mode",
@@ -695,7 +612,6 @@
     },
     {
       "id": "win-focus",
-      "blocked": "compositor: every IPC-context focus path (lua dispatch, cycle_next, direction focus, wlr foreign-toplevel activate) is a silent no-op on hyprland 0.55.4; keybind-context dispatchers work. Launcher wiring is correct and verified to issue the activation.",
       "name": "Enter on a window row focuses that window",
       "covers": "windows Focus action via Hyprland dispatch",
       "steps": [
@@ -803,7 +719,7 @@
       "covers": "SearchRow mode chip routing",
       "steps": [
         "show",
-        "type ;",
+        "type /x",
         "sleep 0.4",
         "sh S=$XDG_RUNTIME_DIR/ryoku-launcher.sock; (printf 'state\\n'; sleep .5)|socat - UNIX-CONNECT:$S | jq -r .modeLabel >/tmp/launcher-qa-fixtures/chips.out",
         "hide",
@@ -825,7 +741,7 @@
         ".modeLabel == \"FOLDER\""
       ],
       "shell_asserts": [
-        "printf 'CLIPBOARD\\nCALC\\nYT MUSIC\\n' | diff - /tmp/launcher-qa-fixtures/chips.out"
+        "printf 'ACTIONS\\nCALC\\nYT MUSIC\\n' | diff - /tmp/launcher-qa-fixtures/chips.out"
       ]
     },
     {

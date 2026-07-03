@@ -2,7 +2,6 @@ import QtQuick
 import "actions"
 import "apps"
 import "calc"
-import "clipboard"
 import "find"
 import "media/mpris"
 import "media/ytmusic"
@@ -20,7 +19,6 @@ Item {
     Actions { id: actionsProvider }
     Apps { id: appsProvider }
     Calc {}
-    Clipboard {}
     Find {}
     Mpris {}
     YtMusic {}

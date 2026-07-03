@@ -64,7 +64,6 @@ Item {
         if (p === "/") return "ACTIONS";
         if (p === ">") return "PACKAGE";
         if (p === "=") return "CALC";
-        if (p === ";") return "CLIPBOARD";
         if (p === "@") return "YT MUSIC";
         if (p === "?") return "WEB";
         if (askMode) return "RASHIN";

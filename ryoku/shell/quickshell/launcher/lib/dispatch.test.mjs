@@ -10,10 +10,9 @@ function eq(actual, expected, msg) {
     else { failed++; console.log("FAIL " + msg + "\n  expected " + e + "\n  got      " + a); }
 }
 
-const prefixes = { "=": "calc", ";": "clipboard", "/": "actions", "/file": "find", "/folder": "find", "/image": "find", "/video": "find", ">": "packages", "?": "web", "@": "ytmusic" };
+const prefixes = { "=": "calc", "/": "actions", "/file": "find", "/folder": "find", "/image": "find", "/video": "find", ">": "packages", "?": "web", "@": "ytmusic" };
 
 eq(routePrefix("=2+2", prefixes), { provider: "calc", query: "2+2", prefix: "=" }, "math prefix routes and strips");
-eq(routePrefix(";link", prefixes), { provider: "clipboard", query: "link", prefix: ";" }, "clipboard prefix routes");
 eq(routePrefix("/wifi", prefixes), { provider: "actions", query: "wifi", prefix: "/" }, "bare slash routes to actions");
 eq(routePrefix("/file report", prefixes), { provider: "find", query: "report", prefix: "/file" }, "longest match: /file routes to find, not actions");
 eq(routePrefix("/image cat", prefixes), { provider: "find", query: "cat", prefix: "/image" }, "/image routes to find with its prefix");
