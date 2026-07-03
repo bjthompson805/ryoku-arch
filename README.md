@@ -11,23 +11,33 @@ guided installer, and the system definition that reproduces them, all from a
 single repository. The base is lean enough to live in from first boot and
 deliberate in how it looks and moves.
 
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-F25623?style=for-the-badge)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-E2342A?style=for-the-badge)](LICENSE)
 [![Built on Arch](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://archlinux.org)
 [![Hyprland](https://img.shields.io/badge/Hyprland-58E1C2?style=for-the-badge&logoColor=white)](https://hypr.land)
-[![Status: 0.1.0 Beta 13](https://img.shields.io/badge/status-0.1.0_Beta_13-F25623?style=for-the-badge)](https://ryoku.dev)
+[![Status: 0.1.0 Beta 13](https://img.shields.io/badge/status-0.1.0_Beta_13-E2342A?style=for-the-badge)](https://ryoku.dev)
 [![Build ISO](https://github.com/neur0map/ryoku-arch/actions/workflows/build-iso.yml/badge.svg)](https://github.com/neur0map/ryoku-arch/actions/workflows/build-iso.yml)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/8KjBmUEyKA)
 [![Reddit](https://img.shields.io/badge/Reddit-r%2FRyokuArch-FF4500?style=for-the-badge&logo=reddit&logoColor=white)](https://www.reddit.com/r/RyokuArch/)
 
-<kbd>[Ryoku](docs/ryoku.md)</kbd> &middot; <kbd>[Docs](docs/)</kbd> &middot; <kbd>[Structure](docs/structure.md)</kbd> &middot; <kbd>[Discord](https://discord.gg/8KjBmUEyKA)</kbd> &middot; <kbd>[Subreddit](https://www.reddit.com/r/RyokuArch/)</kbd>
+<kbd>[Download](https://ryoku.dev)</kbd> &middot; <kbd>[Ryoku](docs/ryoku.md)</kbd> &middot; <kbd>[Docs](docs/)</kbd> &middot; <kbd>[Structure](docs/structure.md)</kbd> &middot; <kbd>[Discord](https://discord.gg/8KjBmUEyKA)</kbd> &middot; <kbd>[Subreddit](https://www.reddit.com/r/RyokuArch/)</kbd>
+
+</div>
+
+---
+
+<div align="center">
+
+<img src="docs/media/desktop.webp" alt="The Ryoku desktop" width="960" />
+
+<sub>The Ryoku desktop. Screenshots are real; the poster art is generated.</sub>
 
 <p>
   <a href="https://youtu.be/kx7VW4Mg0m4">
-    <img src="https://img.youtube.com/vi/kx7VW4Mg0m4/maxresdefault.jpg" alt="Ryoku showcase: watch on YouTube" width="960" />
+    <img src="https://img.youtube.com/vi/kx7VW4Mg0m4/maxresdefault.jpg" alt="Ryoku showcase: watch on YouTube" width="640" />
   </a>
+  <br />
+  <sub>&#9654; <a href="https://youtu.be/kx7VW4Mg0m4">Watch the Ryoku showcase on YouTube</a></sub>
 </p>
-
-<sub>&#9654; <a href="https://youtu.be/kx7VW4Mg0m4">Watch the Ryoku showcase on YouTube</a></sub>
 
 </div>
 
@@ -52,6 +62,33 @@ package conventions still descend from it, but the installer, shell, theming, an
 desktop are Ryoku's own. The shell is custom: its frame-blob rendering and some
 animation curves are adapted from Caelestia.
 
+## The desktop
+
+One motion language across every surface, retinted live from your wallpaper.
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/media/launcher.webp" alt="Launcher" width="100%" /><br />
+      <sub><b>Launcher.</b> Apps, commands, calculator, files, and Ryotunes radio behind one search.</sub>
+    </td>
+    <td width="50%">
+      <img src="docs/media/control-deck.webp" alt="Control Deck" width="100%" /><br />
+      <sub><b>Control Deck.</b> Stash, tools, game mode, and capture, reachable in one place.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/media/appearance.webp" alt="Appearance" width="100%" /><br />
+      <sub><b>Appearance.</b> The whole desktop retints from the wallpaper.</sub>
+    </td>
+    <td width="50%">
+      <img src="docs/media/terminals.webp" alt="Terminals" width="100%" /><br />
+      <sub><b>Tooling.</b> GlazePKG across every package manager, plus a live system monitor.</sub>
+    </td>
+  </tr>
+</table>
+
 ## What ships
 
 - **The desktop** under `ryoku/`: a Hyprland session authored in Lua (not a
@@ -63,6 +100,68 @@ animation curves are adapted from Caelestia.
   and the archiso profile that builds the signed ISO.
 - **The update system** under `release/`: the `ryoku` control CLI, the desktop
   packages, and the signed `[ryoku]` pacman repository.
+
+## Install
+
+Two ways in. A fresh machine boots the signed **ISO**; an existing Arch box
+converts in place with the **shell installer**.
+
+### Fresh install (the ISO)
+
+Signed ISO builds are published at **[ryoku.dev](https://ryoku.dev)**. Download
+the latest image, its signature, and the checksums, write it to a USB stick, and
+boot it. The guided installer partitions the disk (Btrfs with subvolumes),
+installs the package set and the Ryoku desktop from the signed repository, sets
+up the Limine boot chain, and configures snapshots.
+
+Releases are signed with:
+
+- **Key:** `Ryoku Releases <releases@ryoku.dev>`
+- **Fingerprint:** `EB6D 3C0F 55A7 B3CA BA6B  2838 847B 274F 025D D6E3`
+- **Public key in repo:** [`keys/ryoku-release-key.pub.asc`](keys/ryoku-release-key.pub.asc)
+
+Verify the imported key's fingerprint matches before trusting it:
+
+```bash
+gpg --import keys/ryoku-release-key.pub.asc
+gpg --verify ryoku-*.iso.sig ryoku-*.iso
+```
+
+Prefer to build it yourself? The archiso profile and build script live in
+[`installation/iso`](installation/iso).
+
+### Already on Arch (no ISO)
+
+One line converts an existing Arch machine into a Ryoku box: it backs up your
+configs (with a `restore.sh` to undo), trusts the signed `[ryoku]` repo, migrates
+you off conflicting shells and daemons, and wires up the full desktop. It never
+partitions a disk. On this branch the installer runs from `unstable-dev`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/unstable-dev/ryoku-shell-installer/install.sh | RYOKU_SHELL_REF=unstable-dev bash
+```
+
+Preview everything it would do without changing anything by appending
+`-s -- --dry-run` after `bash`. Details in
+[`ryoku-shell-installer/`](ryoku-shell-installer/README.md).
+
+> [!WARNING]
+> The shell installer is young and still being tested across different hardware,
+> distributions, and existing setups. It rewrites your shell and desktop
+> configuration in place, and it may not behave the same on a setup we have not
+> seen yet. **Back up your system first.** It writes a `restore.sh` and refuses
+> to run as root, but making proper backups is your responsibility, and Ryoku is
+> not responsible for data loss or for breaking your current desktop. Run it with
+> `--dry-run` before you commit, and prefer a machine you can afford to reinstall.
+
+### CachyOS kernel, in one click
+
+Want the CachyOS scheduler and build? Open the Hub, go to **Extras**, and install
+the **CachyOS Kernel** bundle. One click adds the CachyOS `x86-64-v3` repository
+(its own signing key, layered above `[core]` and never replacing it) and installs
+`linux-cachyos`. It is additive and idempotent, and it leaves your stock kernel in
+place as a fallback, so you keep the choice of what to boot. Full details in
+[`docs/kernels.md`](docs/kernels.md).
 
 ## Updating
 
@@ -114,45 +213,6 @@ run on a machine that is not Ryoku, and asks you to confirm before it changes
 anything. Pass `--yes` to skip the prompt and `--no-packages` to pull and
 redeploy the configs without the pacman step.
 
-## Install
-
-Signed ISO builds are published at [ryoku.dev](https://ryoku.dev). Download the
-latest ISO, signature, and checksums there, write it to a USB stick, and boot it.
-The guided installer partitions the disk (Btrfs with subvolumes), installs the
-package set and the Ryoku desktop from the signed repository, sets up the Limine
-boot chain, and configures snapshots.
-
-Releases are signed with:
-
-- **Key:** `Ryoku Releases <releases@ryoku.dev>`
-- **Fingerprint:** `EB6D 3C0F 55A7 B3CA BA6B  2838 847B 274F 025D D6E3`
-- **Public key in repo:** [`keys/ryoku-release-key.pub.asc`](keys/ryoku-release-key.pub.asc)
-
-Verify the imported key's fingerprint matches before trusting it:
-
-```bash
-gpg --import keys/ryoku-release-key.pub.asc
-gpg --verify ryoku-*.iso.sig ryoku-*.iso
-```
-
-Prefer to build it yourself? The archiso profile and build script live in
-`installation/iso`.
-
-### Install without the ISO
-
-Already on Arch? One line converts the machine into a Ryoku box: it backs up
-your configs (with a `restore.sh` to undo), trusts the signed `[ryoku]` repo,
-migrates you off conflicting shells and daemons, and wires the full desktop.
-On this branch the installer runs from `unstable-dev`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/unstable-dev/ryoku-shell-installer/install.sh | RYOKU_SHELL_REF=unstable-dev bash
-```
-
-Preview everything it would do without changing anything by appending
-`-s -- --dry-run` after `bash`. Details in
-[`ryoku-shell-installer/`](ryoku-shell-installer/README.md).
-
 ## Repository layout
 
 | Path | One job |
@@ -181,3 +241,4 @@ display configuration UI adapted from
 [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell). Full
 attribution and upstream links are in [`NOTICE`](NOTICE). Ryoku is released under
 the [GNU GPL v3](LICENSE).
+</content>
