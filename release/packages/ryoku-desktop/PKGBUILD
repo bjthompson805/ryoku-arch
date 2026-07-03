@@ -35,6 +35,10 @@ depends=(
   'hyprpolkitagent'
   'xdg-desktop-portal-hyprland'
   'xdg-desktop-portal-gtk'
+  # Qt icon theme the shipped qt6ct.conf (config/qt6ct/qt6ct.conf) selects, so
+  # named freedesktop icons (e.g. the Avahi entries' network-wired) resolve in
+  # the launcher's all-apps grid instead of a broken-image placeholder.
+  'papirus-icon-theme'
   # shell + apps configured here
   'quickshell'
   'kitty'
@@ -160,7 +164,7 @@ package() {
 
   # per-app configs
   install -Dm644 "$_repo/ryoku/apps/fish/config.fish"       "$cfg/fish/config.fish"
-  install -Dm644 "$_repo/ryoku/shell/kde/kdeglobals"        "$cfg/kdeglobals"
+  install -Dm644 "$_repo/ryoku/shell/qt6ct/qt6ct.conf"     "$cfg/qt6ct/qt6ct.conf"
   install -Dm644 "$_repo/ryoku/apps/starship/starship.toml" "$cfg/starship.toml"
   install -Dm644 "$_repo/ryoku/apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"
   install -Dm644 "$_repo/ryoku/apps/yazi/yazi.toml"         "$cfg/yazi/yazi.toml"

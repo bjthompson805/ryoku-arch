@@ -48,6 +48,10 @@ xdg-user-dirs
 qt6-wayland
 qt6ct
 adwaita-icon-theme
+# Papirus-Dark is the shipped Qt icon theme (ryoku/shell/qt6ct/qt6ct.conf); it
+# covers named freedesktop icons (e.g. network-wired) that Adwaita ships only as
+# -symbolic, so the launcher's all-apps grid resolves every entry's logo.
+papirus-icon-theme
 
 # Cursor theme from the official repo (the rest of the Ryoku cursor set is AUR,
 # see aur.packages). vimix is a modern flat XCursor theme.

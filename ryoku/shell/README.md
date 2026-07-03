@@ -34,7 +34,8 @@ package as the base config under `/usr/share/ryoku/config`, which
   docs/frame.md.
 - `wallust/` Palette generation from the current wallpaper (the kitty palette, the
   Hyprland colors, and the shell visualiser palette at `~/.cache/wallust/colors.json`).
-- `kde/` The Qt/KDE platform theme (`kdeglobals`). GTK apps are themed by the
+- `qt6ct/` The Qt platform theme config (`qt6ct.conf`): the icon theme
+  (`Papirus-Dark`) and Fusion style for Qt apps. GTK apps are themed by the
   Hyprland autostart (`gsettings color-scheme`), not a shipped file.
 - `systemd/` The user session target.
 

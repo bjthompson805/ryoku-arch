@@ -77,6 +77,13 @@
   (limine-mkinitcpio, mkinitcpio, dracut) and warns instead of aborting the
   install when none is found or the rebuild fails.
 
+- Icon theme reaches shell-installed boxes: `ryoku-desktop` now depends on
+  `papirus-icon-theme` (the theme its shipped `qt6ct.conf` selects), so the
+  installer pulls it in with the desktop set and the launcher's all-apps grid
+  resolves every app logo. The migration backup also carries `.config/qt6ct`
+  aside (was `.config/kdeglobals`, no longer shipped) so a prior Qt config is
+  preserved before `ryoku materialize` lays the Ryoku one.
+
 - First boot flashed Hyprland's "Your config has errors" overlay: the shipped
   config pcall-requires optional drop-ins that don't exist on a fresh home and
   Hyprland reports the caught failure anyway. The installer now seeds

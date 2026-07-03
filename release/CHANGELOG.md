@@ -52,6 +52,14 @@
   install and `ryoku update` both deliver the new shell.
 
 ### Fixed
+- `ryoku-desktop`: depend on `papirus-icon-theme` and install `qt6ct/qt6ct.conf`
+  in place of the removed `kdeglobals`, matching the shell's switch back to the
+  `qt6ct` Qt platform theme so packaged desktops resolve app icons (the
+  launcher's all-apps grid showed broken-image placeholders under the
+  never-functional `kde` theme). The dependency is the single source that reaches
+  every path: pacstrap already pulls it via `base.packages`, the standalone shell
+  installer gets it transitively (it installs `ryoku-desktop`), and existing
+  boxes pick it up on `ryoku update` since the auto-generated `pkgver` bumps.
 - `ryoku` package now depends on `pacman-contrib`: `ryoku status` (the data the
   Hub and update island read for "check for updates") uses `checkupdates` to
   detect pending updates, but it was not installed on Ryoku systems, so the

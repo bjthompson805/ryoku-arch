@@ -68,6 +68,12 @@
   pacman transactions, wired to the snapper `root` config by the installer.
 
 ### Fixed
+- `base.packages`: ship `papirus-icon-theme`. The shipped Qt icon theme
+  (`ryoku/shell/qt6ct/qt6ct.conf`) is `Papirus-Dark`, and `adwaita-icon-theme`
+  alone left named freedesktop icons (e.g. `network-wired`, which the Avahi
+  desktop entries use) unresolved, since Adwaita carries them only as
+  `-symbolic`. With Papirus present the launcher's all-apps grid renders every
+  entry's logo instead of a broken-image placeholder.
 - `base.packages`: add the desktop session pieces a plain Hyprland needs to render
   and function: `xorg-xwayland`, `hyprpolkit-agent`, `qt6-wayland`, `qt6ct`,
   `xdg-desktop-portal-gtk`, and `adwaita-icon-theme`. Without them the installed

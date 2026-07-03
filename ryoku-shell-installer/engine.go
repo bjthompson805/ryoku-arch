@@ -428,7 +428,7 @@ var backupMove = []string{
 }
 var backupCopy = []string{
 	".config/niri", ".config/sway", ".config/kitty", ".config/fish", ".config/nvim",
-	".config/fastfetch", ".config/yazi", ".config/wallust", ".config/kdeglobals",
+	".config/fastfetch", ".config/yazi", ".config/wallust", ".config/qt6ct",
 	".config/starship.toml", ".config/mimeapps.list",
 	".config/systemd/user", // raw symlink tree, restore.sh puts wants wiring back as-was
 }

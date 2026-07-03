@@ -40,7 +40,7 @@ assumed `base-devel`. `ryoku-hub` is the only Go package with an external module
 
 `ryoku-desktop` installs the base configs to `/usr/share/ryoku/config`, mirroring
 the `~/.config` layout (for example `hypr/hyprland.lua`, `quickshell/...`,
-`quickshell/hub/...`, `fish/config.fish`, `kdeglobals`, `starship.toml`). The
+`quickshell/hub/...`, `fish/config.fish`, `qt6ct/qt6ct.conf`, `starship.toml`). The
 Hyprland tree includes `scripts/`, so after materialize the `ryoku-cmd-*` and
 `*.sh` helpers also sit at `~/.config/hypr/scripts`, where the shell invokes them
 by absolute path.

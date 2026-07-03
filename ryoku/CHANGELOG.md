@@ -317,6 +317,17 @@
   `shell/fish` (with its non-brand greeting) was dropped for `ryoku/apps/fish`.
 
 ### Fixed
+- `hyprland/modules/env.lua` + `shell/qt6ct`: app logos in the launcher's
+  all-apps grid resolve again. `QT_QPA_PLATFORMTHEME` was `kde`, but the `kde`
+  platform-theme plugin comes only from `plasma-integration` (a 122-package
+  Plasma pull), which this Plasma-free desktop never installed, so Qt resolved
+  no icon theme at all and searched hicolor only. Named freedesktop icons like
+  the Avahi entries' `network-wired` fell back to the broken-image placeholder.
+  Switched back to the `qt6ct` platform theme (its plugin ships with `qt6ct`,
+  already in the base set) and ship `qt6ct/qt6ct.conf` with `icon_theme=`
+  `Papirus-Dark` and the Fusion style. Removed the now-dead `kde/kdeglobals`:
+  its KDE ColorScheme was equally inert without the missing plugin, and keeping
+  its `[Icons]` line would duplicate the icon-theme source.
 - `cli/doctor`: the limine-snapper-sync checks only run when limine is
   actually installed. A GRUB box with a healthy snapper setup (converted
   CachyOS installs, typically) was flagged inconsistent forever, with a fix

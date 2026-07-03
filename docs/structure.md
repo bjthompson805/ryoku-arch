@@ -42,7 +42,7 @@ truth for the live desktop.
   `docs/plugins.md`)),
   `plugin/` (`Ryoku.Blobs`, the C++/QML SDF metaball module the frame renders
   with; `build.sh` builds it, and it ships prebuilt), `wallust/` (palette from
-  the wallpaper), `kde/` (`kdeglobals`),
+  the wallpaper), `qt6ct/` (the Qt icon theme, `qt6ct.conf`),
   `systemd/` (the user session target), `ipc/` (`ryoku-shell`, the Go shell
   daemon that supervises the Quickshell components, owns wallpaper/clipboard/
   lock and the GNOME keyring password prompt (it registers as the keyring system
