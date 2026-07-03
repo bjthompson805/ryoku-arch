@@ -124,6 +124,24 @@ Item {
         Behavior on border.color { ColorAnimation { duration: Motion.highlight } }
         Behavior on color { ColorAnimation { duration: Motion.highlight } }
 
+        // wallpaper backdrop: the real desktop background, cropped to the cell and
+        // dimmed so the windows (and the number/icons) read on top. Backmost
+        // child, above the flat fill. The add cell stays flat.
+        Image {
+            anchors.fill: parent
+            visible: !cell.isAdd && Config.wallpaper.length > 0
+            source: Config.wallpaper
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+            smooth: true
+            sourceSize.width: Math.round(parent.width * 1.2)
+            opacity: cell.active ? 0.62 : 0.42
+            Behavior on opacity { NumberAnimation { duration: Motion.highlight } }
+            // a thin dim veil so bright wallpapers never wash out the previews.
+            Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.28) }
+        }
+
         // Ryoku-style workspace numeral: a bold zero-padded mono ordinal in the
         // top-left, vermillion when active/hovered (mirrors the Hub ThemeTile).
         // Above the previews (z), on a faint chip so it reads over any window.

@@ -12,6 +12,23 @@ Singleton {
     property alias fontFamily:     adapter.fontFamily
     property alias fontScale:      adapter.fontScale
 
+    // Current wallpaper path, so the workspace cells can render the real desktop
+    // background behind their window previews. The daemon writes the absolute
+    // path (+ newline) to ~/.local/state/ryoku-wallpaper on every change; watch
+    // it and expose a file:// url (empty until it resolves).
+    property string wallpaper: {
+        var t = wallFile.text().trim();
+        return t.length > 0 ? "file://" + t : "";
+    }
+    FileView {
+        id: wallFile
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku-wallpaper"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
+
     FileView {
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
         blockLoading: true
