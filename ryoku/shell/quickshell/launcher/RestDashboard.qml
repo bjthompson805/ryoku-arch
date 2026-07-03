@@ -62,19 +62,33 @@ Item {
         borderColor: Theme.border
         borderWidth: 1
 
-        // Backmost layer: the hands-of-creation art (samurai reaching to a
-        // marble goddess, red sun at the meeting point). Clipped to the card's
-        // rounded corners; the asset is faded to transparent at the sides so the
-        // clock and date read over the recessed card, not over the art.
+        // Backmost layer: the launcher's hero art (ships as the hands of
+        // creation, a samurai reaching to a marble goddess, red sun where they
+        // meet). Clipped to the card's rounded corners, under the wave and text.
+        //
+        // TO SWAP THE IMAGE: drop your file into launcher/art/ and point the
+        // `source` below at it. That is the whole job. Guidelines so it looks
+        // right with no other edits:
+        //   - Format: PNG. Quickshell's Qt has no webp plugin, so a .webp shows
+        //     nothing. Use .png (or .jpg).
+        //   - Size: about 1600x640 or wider. The card is a ~5:1 banner and the
+        //     image is cover-cropped to it, so the horizontal centre always
+        //     shows and the top/bottom get trimmed. Keep your subject centred.
+        //   - Legibility: the clock sits far left, the date far right. Keep
+        //     those zones dark, or bake a transparent left/right fade into the
+        //     PNG (the shipped asset does), so the text stays readable on any
+        //     wallpaper.
+        //   - `opacity` below dims it so it reads as atmosphere, not a photo.
+        //     Raise it for a bolder image, lower it to make it whisper.
         ClippingRectangle {
             anchors.fill: parent
             radius: Metrics.radiusCard * root.s
             color: "transparent"
             Image {
                 anchors.fill: parent
-                source: "art/hands-adam.png"
+                source: "art/hands-adam.png"   // <- swap this file (PNG, ~1600x640+, centred subject)
                 fillMode: Image.PreserveAspectCrop
-                opacity: 0.6
+                opacity: 0.6                     // <- image strength: higher = bolder, lower = subtler
                 asynchronous: true
                 smooth: true
             }
