@@ -199,7 +199,7 @@ Item {
                 y: cell.isText ? cell.a.points[0].y - canvas.sy : 0
                 text: cell.isText ? (cell.a.text || "") : ""
                 color: cell.isText ? cell.a.color : "transparent"
-                font.family: "Inter"
+                font.family: "Space Grotesk"
                 font.pixelSize: cell.isText ? cell.a.size : 16
                 textFormat: Text.PlainText
                 renderType: Text.NativeRendering

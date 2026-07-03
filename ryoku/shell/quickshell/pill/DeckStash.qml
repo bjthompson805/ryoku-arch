@@ -219,7 +219,7 @@ Item {
         color: Qt.alpha(Theme.cardBot, 0.5)
         border.width: 1
         border.color: Theme.hair
-        radius: 3 * stash.s
+        radius: Theme.radius
         clip: true
 
         // square spec grid behind the files (same texture as the hub Profile drop window).
@@ -285,7 +285,7 @@ Item {
                     id: card
                     anchors.fill: parent
                     anchors.margins: 4 * stash.s
-                    radius: 3 * stash.s
+                    radius: Theme.radius
                     clip: true
                     color: (tile.hovered || tile.confirming) ? Theme.frameBg : Theme.tileBg
                     border.width: 1
@@ -571,7 +571,7 @@ Item {
     // brand ring while a drag hovers the section, over the whole body.
     Rectangle {
         anchors.fill: parent
-        radius: 3 * stash.s
+        radius: Theme.radius
         color: "transparent"
         border.width: 1.5 * stash.s
         border.color: Qt.alpha(Theme.brand, 0.55)

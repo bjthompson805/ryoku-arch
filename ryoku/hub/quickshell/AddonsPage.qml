@@ -134,7 +134,7 @@ Item {
 
                     width: Math.max(280, (grid.width - 18 * 2) / 3)
                     height: 248
-                    radius: 16
+                    radius: Theme.radius
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Theme.cardTop }
                         GradientStop { position: 1.0; color: Theme.cardBot }
@@ -162,7 +162,7 @@ Item {
                         anchors.top: parent.top
                         anchors.margins: 12
                         height: 150
-                        radius: 10
+                        radius: Theme.radius
                         color: Theme.surfaceLo
                         clip: true
 
@@ -192,7 +192,7 @@ Item {
                             anchors.margins: 8
                             width: dotText.implicitWidth + 18
                             height: 20
-                            radius: 10
+                            radius: Theme.radius
                             color: card.on ? Qt.rgba(Theme.ok.r, Theme.ok.g, Theme.ok.b, 0.18) : Qt.rgba(0, 0, 0, 0.4)
                             Text {
                                 id: dotText
@@ -317,7 +317,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         height: 30
                         width: updLabel.implicitWidth + 22
-                        radius: 8
+                        radius: Theme.radius
                         color: updHov.hovered ? Theme.frameBg : "transparent"
                         border.width: 1
                         border.color: Theme.ember
@@ -342,7 +342,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         height: 30
                         width: rmLabel.implicitWidth + 22
-                        radius: 8
+                        radius: Theme.radius
                         color: "transparent"
                         border.width: 1
                         border.color: rmHov.hovered ? Theme.bad : Theme.line

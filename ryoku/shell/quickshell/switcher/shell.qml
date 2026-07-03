@@ -23,9 +23,9 @@ ShellRoot {
     readonly property color dimBg:   Qt.rgba(0, 0, 0, 0.45)
     readonly property bool matchWallpaper: switchCfg.followWallpaper
     readonly property color wallBase: switchPalette.background
-    readonly property color cardTop: matchWallpaper ? wallBase : "#1a1b26"
-    readonly property color cardBot: matchWallpaper ? tone(wallBase, -0.03) : "#16161e"
-    readonly property color border:  matchWallpaper ? tone(wallBase, 0.14) : "#2f3549"
+    readonly property color cardTop: matchWallpaper ? wallBase : "#16110b"
+    readonly property color cardBot: matchWallpaper ? tone(wallBase, -0.03) : "#0f0c07"
+    readonly property color border:  matchWallpaper ? tone(wallBase, 0.14) : Qt.rgba(243/255, 237/255, 225/255, 0.14)
 
     // Shift a colour's HSV value by dv (hue and saturation kept), for the ramp.
     function tone(c, dv) {
@@ -42,7 +42,7 @@ ShellRoot {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter { id: switchPalette; property color background: "#1a1b26" }
+        JsonAdapter { id: switchPalette; property color background: "#16110b" }
     }
     FileView {
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/theme.json"
@@ -52,11 +52,11 @@ ShellRoot {
         onFileChanged: reload()
         JsonAdapter { id: switchCfg; property bool followWallpaper: true }
     }
-    readonly property color accent:  "#7aa2f7"
-    readonly property color cream:   "#c0caf5"
-    readonly property color dim:     "#7aa2f7"
-    readonly property color faint:   "#565f89"
-    readonly property string uiFont: "Inter"
+    readonly property color accent:  "#e2342a"
+    readonly property color cream:   "#e6dccb"
+    readonly property color dim:     "#8f8770"
+    readonly property color faint:   "#5c5249"
+    readonly property string uiFont: "Space Grotesk"
 
     // Reactive over the toplevel model, so the list fills in once the async
     // refreshToplevels() lands (a fresh instance starts with an empty model).
@@ -153,7 +153,7 @@ ShellRoot {
             readonly property int rows: Math.ceil(root.wins.length / cols)
             width: cols * cellW + (cols - 1) * gap + pad * 2
             height: rows * cellH + (rows - 1) * gap + pad * 2
-            radius: 22
+            radius: 0
             gradient: Gradient {
                 GradientStop { position: 0.0; color: root.cardTop }
                 GradientStop { position: 1.0; color: root.cardBot }
@@ -175,9 +175,9 @@ ShellRoot {
                         required property int index
                         width: card.cellW
                         height: card.cellH
-                        radius: 14
+                        radius: 0
                         readonly property bool current: index === root.sel
-                        color: current ? Qt.rgba(0.48, 0.63, 0.96, 0.16) : Qt.rgba(1, 1, 1, 0.03)
+                        color: current ? Qt.rgba(226/255, 52/255, 42/255, 0.16) : Qt.rgba(243/255, 237/255, 225/255, 0.03)
                         border.width: current ? 2 : 1
                         border.color: current ? root.accent : root.border
                         Behavior on border.color { ColorAnimation { duration: 110 } }

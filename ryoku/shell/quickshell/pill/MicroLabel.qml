@@ -14,7 +14,7 @@ Row {
     Rectangle {
         width: 5 * ml.s
         height: 5 * ml.s
-        radius: 1 * ml.s
+        radius: Theme.radius
         color: Theme.brand
         anchors.verticalCenter: parent.verticalCenter
     }

@@ -13,7 +13,7 @@ Rectangle {
     function focusInput() { input.forceActiveFocus(); }
 
     implicitHeight: 40
-    radius: 10
+    radius: Theme.radius
     color: input.activeFocus ? Theme.surface : Theme.surfaceLo
     border.width: 1
     border.color: input.activeFocus ? Theme.ember : Theme.line

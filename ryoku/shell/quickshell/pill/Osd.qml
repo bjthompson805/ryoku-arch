@@ -149,7 +149,7 @@ Item {
             anchors.rightMargin: 12 * root.s
             anchors.verticalCenter: parent.verticalCenter
             height: 4 * root.s
-            radius: 2 * root.s
+            radius: Theme.radius
             color: Theme.threadBg
 
             Rectangle {
@@ -178,7 +178,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 30 * root.s
             height: 30 * root.s
-            radius: 8 * root.s
+            radius: Theme.radius
             color: Theme.tileBg
 
             Image {

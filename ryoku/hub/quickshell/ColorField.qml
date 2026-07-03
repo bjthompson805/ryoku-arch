@@ -46,7 +46,7 @@ Item {
             id: swatch
             width: 30
             height: 30
-            radius: 9
+            radius: Theme.radius
             color: cf.value
             border.width: 1
             border.color: Theme.line
@@ -55,7 +55,7 @@ Item {
         Rectangle {
             width: 132
             height: 30
-            radius: 9
+            radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
             border.color: hexInput.activeFocus ? Theme.ember : Theme.line
@@ -102,7 +102,7 @@ Item {
                     required property var modelData
                     width: 22
                     height: 22
-                    radius: 7
+                    radius: Theme.radius
                     color: swatchCell.modelData
                     border.width: cf.hex(cf.value) === String(swatchCell.modelData) ? 2 : 1
                     border.color: cf.hex(cf.value) === String(swatchCell.modelData) ? Theme.ember : Theme.line

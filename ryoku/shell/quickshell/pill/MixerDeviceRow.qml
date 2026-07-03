@@ -214,7 +214,7 @@ Item {
                     readonly property bool current: root.node && modelData && modelData.id === root.node.id
                     width: parent.width
                     height: 26 * root.s
-                    radius: 8 * root.s
+                    radius: Theme.radius
                     color: candHover.hovered ? Theme.frameBg : "transparent"
 
                     HoverHandler { id: candHover }

@@ -72,6 +72,15 @@ Rectangle {
         return false;
     }
 
+    // The section's group name, for the page eyebrow ("SYSTEM", "DESKTOP", …).
+    // Pinned sections (Profile, Updates) have no group; label them "Settings".
+    function groupFor(s) {
+        for (var i = 0; i < hub.sectionDefs.length; i++)
+            if (hub.sectionDefs[i].key === s)
+                return hub.sectionDefs[i].group || "Settings";
+        return "Settings";
+    }
+
     gradient: Gradient {
         GradientStop { position: 0.0; color: Theme.bgTop }
         GradientStop { position: 1.0; color: Theme.bgBot }
@@ -184,6 +193,7 @@ Rectangle {
                 anchors.leftMargin: 40
                 anchors.rightMargin: 64
                 anchors.topMargin: 16
+                eyebrow: hub.searching ? "Search" : hub.groupFor(hub.section)
                 title: hub.searching ? "Search" : hub.pageMeta[hub.section].title
                 subtitle: hub.searching ? "Results across every section" : hub.pageMeta[hub.section].subtitle
                 configPaths: hub.searching ? [] : hub.configPathsFor(hub.section)

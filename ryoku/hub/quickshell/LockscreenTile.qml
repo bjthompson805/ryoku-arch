@@ -48,7 +48,7 @@ Rectangle {
     readonly property bool badgeAccent: tile.busy || tile.active
 
     implicitHeight: body.implicitHeight + 34
-    radius: 16
+    radius: Theme.radius
     color: hover.hovered ? Theme.surface : Theme.surfaceLo
     border.width: tile.active ? 2 : 1
     border.color: (tile.active || hover.hovered) ? Theme.ember : Theme.line
@@ -68,7 +68,7 @@ Rectangle {
             id: media
             width: parent.width
             height: Math.round(width * 9 / 16)
-            radius: 8
+            radius: Theme.radius
             color: Theme.keyBot
             border.width: 1
             border.color: (tile.active || hover.hovered) ? Theme.ember : Theme.line
@@ -102,7 +102,7 @@ Rectangle {
                 anchors.margins: 10
                 width: pvRow.implicitWidth + 20
                 height: 28
-                radius: 14
+                radius: Theme.radius
                 visible: tile.installed && !tile.busy
                 color: Qt.rgba(0, 0, 0, 0.55)
                 border.width: 1

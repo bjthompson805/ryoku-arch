@@ -52,7 +52,7 @@ Item {
         anchors.leftMargin: 28
         anchors.topMargin: 3
         anchors.bottomMargin: 3
-        radius: 9
+        radius: Theme.radius
         color: hover.hovered ? Theme.surfaceLo : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.quick } }
     }

@@ -55,9 +55,9 @@ Singleton {
 
         JsonAdapter {
             id: adapter
-            property color background: "#1a1b26"
-            property color color4: "#F25623"
-            property color color5: "#ff7a45"
+            property color background: "#16110b"
+            property color color4: "#e2342a"
+            property color color5: "#e83b30"
         }
     }
 }

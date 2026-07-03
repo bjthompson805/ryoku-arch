@@ -97,7 +97,7 @@ Item {
         y: Math.max(8, Math.min(menu.py, menu.height - height - 8))
         width: menu.schema.length > 0 ? 300 : 234
         height: Math.min(col.implicitHeight + 28, menu.height - 16)
-        radius: 12
+        radius: Theme.radius
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: Theme.cardBot }
@@ -211,7 +211,7 @@ Item {
                         Row {
                             visible: fieldWrap.startsGroup && fieldWrap.grp.length > 0 && fieldWrap.shown
                             spacing: 7
-                            Rectangle { width: 5; height: 5; radius: 1; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
+                            Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: fieldWrap.grp
@@ -247,7 +247,7 @@ Item {
                                         readonly property bool sel: String(menu.val(fieldWrap.f)) === String(chip.modelData.value)
                                         width: chipT.implicitWidth + 18
                                         height: 24
-                                        radius: 6
+                                        radius: Theme.radius
                                         color: chip.sel ? Theme.brand : Theme.tileBg
                                         border.width: 1
                                         border.color: chip.sel ? Theme.brand : Theme.border
@@ -289,7 +289,7 @@ Item {
                                 readonly property bool on: menu.val(fieldWrap.f) === true || menu.val(fieldWrap.f) === "true"
                                 width: 38
                                 height: 20
-                                radius: 10
+                                radius: Theme.radius
                                 color: sw.on ? Theme.brand : Theme.tileBg
                                 border.width: 1
                                 border.color: sw.on ? Theme.brand : Theme.border
@@ -297,7 +297,7 @@ Item {
                                 Rectangle {
                                     width: 14
                                     height: 14
-                                    radius: 7
+                                    radius: Theme.radius
                                     y: 3
                                     x: sw.on ? parent.width - width - 3 : 3
                                     color: sw.on ? Theme.cardBot : Theme.cream
@@ -354,12 +354,12 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: parent.width
                                     height: 4
-                                    radius: 2
+                                    radius: Theme.radius
                                     color: Theme.tileBg
                                     Rectangle {
                                         width: Math.round(parent.width * slRow.frac)
                                         height: parent.height
-                                        radius: 2
+                                        radius: Theme.radius
                                         color: Theme.brand
                                     }
                                 }
@@ -417,7 +417,7 @@ Item {
                                     Rectangle {
                                         width: 66
                                         height: 48
-                                        radius: 6
+                                        radius: Theme.radius
                                         color: Theme.tileBg
                                         border.width: 1
                                         border.color: String(menu.val(fieldWrap.f)).length === 0 ? Theme.brand : Theme.border
@@ -436,7 +436,7 @@ Item {
                                     Rectangle {
                                         width: 66
                                         height: 48
-                                        radius: 6
+                                        radius: Theme.radius
                                         color: brHov.hovered ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.12) : Theme.tileBg
                                         border.width: 1
                                         border.color: brHov.hovered ? Theme.brand : Theme.border
@@ -460,7 +460,7 @@ Item {
                                             readonly property bool sel: String(menu.val(fieldWrap.f)) === ("file://" + thumb.modelData)
                                             width: 66
                                             height: 48
-                                            radius: 6
+                                            radius: Theme.radius
                                             color: Theme.tileBg
                                             border.width: thumb.sel ? 2 : 1
                                             border.color: thumb.sel ? Theme.brand : Theme.border
@@ -515,7 +515,7 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: -6
             anchors.rightMargin: -6
-            radius: 6
+            radius: Theme.radius
             color: miMa.containsMouse ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.08) : "transparent"
             Behavior on color { ColorAnimation { duration: 90 } }
         }
@@ -525,7 +525,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 2
             height: 14
-            radius: 1
+            radius: Theme.radius
             color: Theme.brand
             opacity: miMa.containsMouse ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 90 } }

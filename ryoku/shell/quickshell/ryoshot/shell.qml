@@ -43,7 +43,7 @@ ShellRoot {
     readonly property string shotsDir: homeDir + "/Pictures/Screenshots"
     readonly property string ryoshotLuaPath: homeDir + "/.config/hypr/modules/ryoshot.lua"
 
-    readonly property color vermilion: "#e0563b"
+    readonly property color vermilion: "#e2342a"
 
     function beginSelection(gx, gy) {
         pressPoint = { x: gx, y: gy };

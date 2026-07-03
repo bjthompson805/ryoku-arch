@@ -142,7 +142,7 @@ Item {
             width: 7
             contentItem: Rectangle {
                 implicitWidth: 4
-                radius: 2
+                radius: Theme.radius
                 color: Theme.line
                 opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                 Behavior on opacity { NumberAnimation { duration: Theme.quick } }
@@ -319,7 +319,7 @@ Item {
             Rectangle {
                 width: 3
                 height: promptCol.implicitHeight
-                radius: 1.5
+                radius: Theme.radius
                 color: Theme.ember
             }
 
@@ -362,7 +362,7 @@ Item {
                             required property int index
                             height: 32
                             width: optLabel.implicitWidth + (index === 0 ? 30 : 22)
-                            radius: 3
+                            radius: Theme.radius
                             color: optMa.containsMouse
                                 ? (index === 0 ? Theme.frameBg : Theme.keyTop)
                                 : "transparent"

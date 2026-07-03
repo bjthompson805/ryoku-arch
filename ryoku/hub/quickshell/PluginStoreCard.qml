@@ -19,7 +19,7 @@ Rectangle {
 
     implicitWidth: 320
     implicitHeight: 286
-    radius: 18
+    radius: Theme.radius
     color: hover.hovered ? Theme.surface : Theme.surfaceLo
     border.width: 1
     border.color: hover.hovered ? Theme.ember : Theme.line
@@ -87,7 +87,7 @@ Rectangle {
             anchors.margins: 12
             width: badge.implicitWidth + 18
             height: 22
-            radius: 11
+            radius: Theme.radius
             color: tile.plugin.official ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.92)
                                          : Qt.rgba(0, 0, 0, 0.55)
             border.width: tile.plugin.official ? 0 : 1
@@ -179,7 +179,7 @@ Rectangle {
                     required property var modelData
                     height: 20
                     width: hostLabel.implicitWidth + 16
-                    radius: 6
+                    radius: Theme.radius
                     color: Theme.keyBot
                     border.width: 1
                     border.color: Theme.line

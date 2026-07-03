@@ -15,7 +15,7 @@ Rectangle {
     signal applied()
 
     implicitHeight: body.implicitHeight + 38
-    radius: 16
+    radius: Theme.radius
     color: hover.hovered ? Theme.surface : Theme.surfaceLo
     border.width: tile.active ? 2 : 1
     border.color: (tile.active || hover.hovered) ? Theme.ember : Theme.line
@@ -130,7 +130,7 @@ Rectangle {
                     required property string modelData
                     width: (body.width - 25) / 6
                     height: 8
-                    radius: 4
+                    radius: Theme.radius
                     color: modelData
                 }
             }

@@ -70,7 +70,7 @@ Item {
             width: 7
             contentItem: Rectangle {
                 implicitWidth: 4
-                radius: 2
+                radius: Theme.radius
                 color: Theme.line
                 opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                 Behavior on opacity { NumberAnimation { duration: Theme.quick } }
@@ -99,7 +99,7 @@ Item {
                     required property var modelData
                     width: rows.width
                     height: 56
-                    radius: 12
+                    radius: Theme.radius
                     color: Theme.surfaceLo
                     border.width: 1
                     border.color: Theme.line
@@ -128,7 +128,7 @@ Item {
                         anchors.rightMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
                         height: 32
-                        radius: 9
+                        radius: Theme.radius
                         color: Theme.surface
                         border.width: 1
                         border.color: cmdIn.activeFocus ? Theme.ember : Theme.line
@@ -171,7 +171,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 8
         height: 60
-        radius: 14
+        radius: Theme.radius
         color: store.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08) : Theme.surfaceLo
         border.width: 1
         border.color: store.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4) : Theme.line

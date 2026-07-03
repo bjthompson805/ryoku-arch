@@ -11,9 +11,9 @@ Rectangle {
     width: 32
     height: 32
     radius: 7
-    color: active ? "#e0563b" : (ma.containsMouse && !dim ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
+    color: active ? "#e2342a" : (ma.containsMouse && !dim ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
 
-    readonly property color idle: "#c4ccda"
+    readonly property color idle: "#c7bfae"
 
     Icon {
         anchors.centerIn: parent

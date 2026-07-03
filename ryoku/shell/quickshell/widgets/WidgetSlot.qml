@@ -23,7 +23,7 @@ Item {
     property bool locked: false
     property real pad: 0
     property string bg: "none"                 // none | card | glass
-    property real radius: 26
+    property real radius: Theme.radius
     property real gridSize: 32
     property real zoneMargin: 64
     property real scaleCfg: 1                   // current Config <widget>Scale, for the resize readout
@@ -218,7 +218,7 @@ Item {
             anchors.bottom: parent.bottom
             width: 13
             height: 2
-            radius: 1
+            radius: Theme.radius
             color: (hgrip.containsMouse || slot.resizing) ? Theme.brand : Theme.faint
             Behavior on color { ColorAnimation { duration: 100 } }
         }
@@ -227,7 +227,7 @@ Item {
             anchors.bottom: parent.bottom
             width: 2
             height: 13
-            radius: 1
+            radius: Theme.radius
             color: (hgrip.containsMouse || slot.resizing) ? Theme.brand : Theme.faint
             Behavior on color { ColorAnimation { duration: 100 } }
         }
@@ -279,7 +279,7 @@ Item {
         anchors.bottomMargin: 26
         width: roText.implicitWidth + 16
         height: 20
-        radius: 6
+        radius: Theme.radius
         color: Qt.rgba(0, 0, 0, 0.62)
         Text {
             id: roText

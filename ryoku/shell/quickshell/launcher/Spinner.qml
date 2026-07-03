@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import "Singletons"
 
 // A small indeterminate spinner: a vermilion arc that sweeps continuously while
 // an async provider (packages, find, music, calc) has a query in flight. The
@@ -9,7 +10,7 @@ Item {
     id: root
 
     property real size: 16
-    property color color: "#F25623"
+    property color color: Theme.verm
     property real thickness: 2
 
     implicitWidth: size

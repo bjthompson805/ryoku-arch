@@ -357,7 +357,7 @@ Item {
                 width: 7
                 contentItem: Rectangle {
                     implicitWidth: 4
-                    radius: 2
+                    radius: Theme.radius
                     color: Theme.line
                     opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                     Behavior on opacity { NumberAnimation { duration: Theme.quick } }
@@ -401,7 +401,7 @@ Item {
                             id: rowBg
                             width: parent.width
                             height: 46
-                            radius: 12
+                            radius: Theme.radius
                             color: netItem.isActive
                                 ? Theme.frameBg
                                 : (rowHover.hovered ? Theme.surfaceLo : "transparent")
@@ -426,25 +426,25 @@ Item {
                                 Rectangle {
                                     x: 0; width: 3; height: 4
                                     y: bars.height - height
-                                    radius: 1.5
+                                    radius: Theme.radius
                                     color: bars.filled > 0 ? bars.litColor : bars.dimColor
                                 }
                                 Rectangle {
                                     x: 6; width: 3; height: 8
                                     y: bars.height - height
-                                    radius: 1.5
+                                    radius: Theme.radius
                                     color: bars.filled > 1 ? bars.litColor : bars.dimColor
                                 }
                                 Rectangle {
                                     x: 12; width: 3; height: 12
                                     y: bars.height - height
-                                    radius: 1.5
+                                    radius: Theme.radius
                                     color: bars.filled > 2 ? bars.litColor : bars.dimColor
                                 }
                                 Rectangle {
                                     x: 18; width: 3; height: 16
                                     y: bars.height - height
-                                    radius: 1.5
+                                    radius: Theme.radius
                                     color: bars.filled > 3 ? bars.litColor : bars.dimColor
                                 }
                             }
@@ -526,7 +526,7 @@ Item {
                                 anchors.rightMargin: 10
                                 anchors.verticalCenter: parent.verticalCenter
                                 height: 32
-                                radius: 10
+                                radius: Theme.radius
                                 color: Theme.surfaceLo
                                 border.width: 1
                                 border.color: pwField.activeFocus ? Theme.ember : Theme.line

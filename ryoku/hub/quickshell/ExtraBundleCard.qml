@@ -17,7 +17,7 @@ Rectangle {
     signal opened()
 
     implicitHeight: body.implicitHeight + 40
-    radius: 16
+    radius: Theme.radius
     color: hover.hovered ? Theme.surface : Theme.surfaceLo
     border.width: 1
     border.color: hover.hovered ? Theme.ember : Theme.line

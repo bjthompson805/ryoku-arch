@@ -494,7 +494,7 @@ Item {
                         Rectangle {
                             width: parent.width
                             height: 30 * root.s
-                            radius: 9 * root.s
+                            radius: Theme.radius
                             color: netItem.isActive ? Qt.rgba(Theme.verm.r, Theme.verm.g, Theme.verm.b, 0.14)
                                 : (rowHover.hovered ? Theme.frameBg : "transparent")
 
@@ -736,7 +736,7 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 34 * root.s
-                radius: 10 * root.s
+                radius: Theme.radius
                 color: root.hsActive ? Theme.frameBg : "transparent"
 
                 GlyphIcon {

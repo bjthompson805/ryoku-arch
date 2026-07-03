@@ -69,7 +69,7 @@ Item {
             id: chip
             width: 46 * root.s
             height: 20 * root.s
-            radius: 5 * root.s
+            radius: Theme.radius
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             color: "transparent"
@@ -328,7 +328,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         height: 18 * root.s
                         width: invText.implicitWidth + 14 * root.s
-                        radius: 3 * root.s
+                        radius: Theme.radius
                         color: "transparent"
                         border.color: Theme.brand
                         border.width: 1
@@ -368,7 +368,7 @@ Item {
                     width: parent.width
                     height: invCol.implicitHeight + 20 * root.s
                     color: Theme.lineSoft
-                    radius: 3 * root.s
+                    radius: Theme.radius
 
                     Rectangle {
                         width: 2 * root.s

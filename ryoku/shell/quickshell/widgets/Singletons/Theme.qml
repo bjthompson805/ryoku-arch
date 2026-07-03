@@ -8,8 +8,10 @@ import Quickshell
 // highlight). motion = the shell's morph curve (OutExpo), so a widget
 // feels like the same desktop as the pill.
 Singleton {
-    // brand: fixed, used sparingly. the one accent that never themes.
-    readonly property color brand: "#F25623"
+    // brand: fixed vermillion, used sparingly. the one accent that never themes.
+    readonly property color brand: "#e2342a"
+    readonly property color sun:   "#e2342a"
+    readonly property color gold:  "#d9a441"
 
     // neutral inks for text on an arbitrary wallpaper. bright, with soft +
     // dim steps. pair with a drop shadow for contrast on any backdrop.
@@ -18,17 +20,19 @@ Singleton {
     readonly property color inkDim:  "#9aa3c8"
     readonly property color shadow:  Qt.rgba(0, 0, 0, 0.55)
 
-    // carbon-dossier surface for the desktop menu (chrome should read as the
-    // same shell as the pill). cool near-black panel + faint hairline for
-    // rules / registration ticks + faint ink for eyebrow labels.
-    readonly property color cardTop: Wallust.matchWallpaper ? Wallust.base : "#1a1b26"
-    readonly property color cardBot: Wallust.matchWallpaper ? Wallust.deep : "#13131b"
-    readonly property color hair:    Qt.rgba(245 / 255, 243 / 255, 255 / 255, 0.13)
-    readonly property color faint:   Qt.rgba(245 / 255, 243 / 255, 255 / 255, 0.42)
+    // carbon-dossier surface for the desktop menu (chrome reads as the shell:
+    // the website's warm near-black + hairline + faint ink for eyebrows).
+    readonly property color cardTop: Wallust.matchWallpaper ? Wallust.base : "#16110b"
+    readonly property color cardBot: Wallust.matchWallpaper ? Wallust.deep : "#0f0c07"
+    readonly property color hair:    Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.13)
+    readonly property color faint:   Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.42)
+    readonly property color lineStrong: Qt.rgba(236 / 255, 226 / 255, 205 / 255, 0.40)
 
-    readonly property string font:   "Inter"
+    readonly property string display: "Fraunces"
+    readonly property string font:   "Space Grotesk"
     readonly property string fontJp: "Noto Sans CJK JP"
     readonly property string mono:   "JetBrainsMono Nerd Font"
+    readonly property int radius: 0
 
     // motion: short + smooth. OutExpo mirrors the shell's open curve.
     readonly property int quick:  140

@@ -167,7 +167,7 @@ Item {
         Rectangle {
             width: parent.width
             height: 76
-            radius: 14
+            radius: Theme.radius
             color: page.hsActive ? Theme.frameBg : Theme.surfaceLo
             border.width: 1
             border.color: page.hsActive ? Theme.ember : Theme.line
@@ -255,7 +255,7 @@ Item {
                 // hairline background, lights up while editing.
                 Rectangle {
                     anchors.fill: parent
-                    radius: 10
+                    radius: Theme.radius
                     color: cr.editing ? Theme.surfaceLo : "transparent"
                     border.width: 1
                     border.color: cr.editing ? Theme.ember : Theme.lineSoft
@@ -325,7 +325,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: revealText.implicitWidth + 18
                     height: 24
-                    radius: 7
+                    radius: Theme.radius
                     color: revealHov.hovered ? Theme.surface : "transparent"
                     border.width: 1
                     border.color: revealHov.hovered ? Theme.ember : Theme.line

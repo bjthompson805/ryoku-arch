@@ -132,7 +132,7 @@ Item {
             id: tick
             width: 2.5 * root.s
             height: 11 * root.s
-            radius: 2 * root.s
+            radius: Theme.radius
             color: Theme.tickRest
             anchors.verticalCenter: thread.verticalCenter
             x: Math.max(0, Math.min(parent.width - width,

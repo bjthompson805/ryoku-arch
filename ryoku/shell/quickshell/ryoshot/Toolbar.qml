@@ -7,7 +7,7 @@ Item {
     implicitHeight: glass.implicitHeight
 
     property string activeTool: "rect"
-    property color activeColor: "#e0563b"
+    property color activeColor: "#e2342a"
     property int activeWidth: 4
     property bool canUndo: false
     property bool canRedo: false
@@ -25,11 +25,11 @@ Item {
     signal uploadRequested()
     signal settingsRequested()
 
-    readonly property color glassBg: Qt.rgba(20 / 255, 24 / 255, 34 / 255, 0.92)
-    readonly property color glassBorder: "#313a4d"
-    readonly property color vermilion: "#e0563b"
-    readonly property color idle: "#c4ccda"
-    readonly property color sep: "#313a4d"
+    readonly property color glassBg: Qt.rgba(22 / 255, 17 / 255, 11 / 255, 0.92)
+    readonly property color glassBorder: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
+    readonly property color vermilion: "#e2342a"
+    readonly property color idle: "#c7bfae"
+    readonly property color sep: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
 
     readonly property var tools: [
         { id: "select",  icon: "select",  implemented: true },
@@ -44,7 +44,7 @@ Item {
     ]
 
     readonly property var swatches: [
-        "#e0563b", "#ffffff", "#1a1a1a", "#e23b3b", "#f2c14e", "#5bbf73", "#4f8fe0"
+        "#e2342a", "#ffffff", "#1a1a1a", "#e23b3b", "#f2c14e", "#5bbf73", "#4f8fe0"
     ]
 
     readonly property var widths: [

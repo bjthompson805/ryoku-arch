@@ -142,7 +142,7 @@ PillSurface {
             visible: root.isPassword
             width: parent.width
             height: 36 * root.s
-            radius: 9 * root.s
+            radius: Theme.radius
             color: Theme.tileBg
             border.width: 1
             border.color: field1.activeFocus ? Theme.frameBorder : Theme.border
@@ -176,7 +176,7 @@ PillSurface {
             visible: root.isPasswordNew
             width: parent.width
             height: 36 * root.s
-            radius: 9 * root.s
+            radius: Theme.radius
             color: Theme.tileBg
             border.width: 1
             border.color: field2.activeFocus ? Theme.frameBorder : (root.mismatch ? Qt.alpha(Theme.verm, 0.6) : Theme.border)
@@ -217,7 +217,7 @@ PillSurface {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 17 * root.s
                 height: 17 * root.s
-                radius: 5 * root.s
+                radius: Theme.radius
                 color: checked ? Theme.brand : "transparent"
                 border.width: 1
                 border.color: checked ? Theme.brand : Theme.border
@@ -280,7 +280,7 @@ PillSurface {
                 id: continueBtn
                 width: (parent.width - parent.spacing) / 2
                 height: 34 * root.s
-                radius: 9 * root.s
+                radius: Theme.radius
                 color: continueArea.containsMouse ? Theme.vermLit : Theme.brand
                 opacity: Keyring.busy ? 0.6 : 1
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
@@ -307,7 +307,7 @@ PillSurface {
             Rectangle {
                 width: (parent.width - parent.spacing) / 2
                 height: 34 * root.s
-                radius: 9 * root.s
+                radius: Theme.radius
                 color: cancelArea.containsMouse ? Theme.frameBg : Theme.tileBg
                 border.width: 1
                 border.color: Theme.border

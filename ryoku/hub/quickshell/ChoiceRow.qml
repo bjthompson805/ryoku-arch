@@ -35,7 +35,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         height: 30
         width: seg.width + 6
-        radius: 9
+        radius: Theme.radius
         color: Theme.surfaceLo
         border.width: 1
         border.color: Theme.line
@@ -54,7 +54,7 @@ Item {
                     readonly property bool active: row.current === cell.modelData.key
                     width: cellText.implicitWidth + 26
                     height: 26
-                    radius: 7
+                    radius: Theme.radius
                     color: cell.active ? Theme.keyTop : "transparent"
                     border.width: cell.active ? 1 : 0
                     border.color: Theme.line

@@ -58,7 +58,7 @@ Item {
         y: Math.max(8, Math.min(menu.py, menu.height - height - 8))
         width: 234
         height: col.implicitHeight + 28
-        radius: 12
+        radius: 0
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: Theme.cardBot }
@@ -171,7 +171,7 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: -6
             anchors.rightMargin: -6
-            radius: 6
+            radius: 0
             color: miMa.containsMouse ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.08) : "transparent"
             Behavior on color { ColorAnimation { duration: 90 } }
         }

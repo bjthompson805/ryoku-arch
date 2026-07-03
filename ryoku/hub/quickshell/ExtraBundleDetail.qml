@@ -224,7 +224,7 @@ Item {
             width: 7
             contentItem: Rectangle {
                 implicitWidth: 4
-                radius: 2
+                radius: Theme.radius
                 color: Theme.line
                 opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                 Behavior on opacity { NumberAnimation { duration: Theme.quick } }

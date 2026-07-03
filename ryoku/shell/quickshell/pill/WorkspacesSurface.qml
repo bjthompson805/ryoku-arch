@@ -260,7 +260,7 @@ PillSurface {
                             y: card.modelData.fy * minimap.height
                             width: Math.max(16 * root.s, card.modelData.fw * minimap.width)
                             height: Math.max(14 * root.s, card.modelData.fh * minimap.height)
-                            radius: 5 * root.s
+                            radius: Theme.radius
                             color: ma.containsMouse ? Theme.frameBg : Theme.tileBg
                             border.width: 1
                             border.color: ma.containsMouse ? Theme.brand : Theme.border
@@ -398,7 +398,7 @@ PillSurface {
             height: 42 * root.s
             x: root.dragX - width / 2
             y: root.dragY - height / 2
-            radius: 7 * root.s
+            radius: Theme.radius
             color: Theme.frameBg
             border.width: 1
             border.color: Theme.brand

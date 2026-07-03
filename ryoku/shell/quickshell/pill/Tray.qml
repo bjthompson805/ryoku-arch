@@ -75,7 +75,7 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 6 * tray.s
+                    radius: Theme.radius
                     color: Theme.frameBg
                     border.width: 1
                     border.color: Theme.frameBorder
@@ -149,7 +149,7 @@ Item {
             visible: !mrow.entryData.isSeparator
             anchors.fill: parent
             anchors.leftMargin: mrow.indent
-            radius: 8 * tray.s
+            radius: Theme.radius
             color: mrowArea.containsMouse && mrow.entryData.enabled
                 ? Theme.frameBg : "transparent"
 
@@ -290,7 +290,7 @@ Item {
                 x: Math.max(8 * tray.s, Math.min(menu.anchorX - width / 2, menu.width - width - 8 * tray.s))
                 y: 50 * tray.s
                 width: 220 * tray.s
-                radius: 12 * tray.s
+                radius: Theme.radius
                 clip: true
 
                 gradient: Gradient {

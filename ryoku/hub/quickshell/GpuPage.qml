@@ -302,7 +302,7 @@ Item {
                         visible: page.modeWarn !== ""
                         width: parent.width
                         height: modeWarnText.implicitHeight + 20
-                        radius: 8
+                        radius: Theme.radius
                         color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.10)
                         border.width: 1
                         border.color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4)
@@ -376,7 +376,7 @@ Item {
                         visible: page.planning
                         width: parent.width
                         height: 220
-                        radius: 10
+                        radius: Theme.radius
                         color: Theme.surfaceLo
                         border.width: 1
                         border.color: Theme.line
@@ -480,7 +480,7 @@ Item {
             anchors.bottom: parent.bottom
             visible: page.actionError !== ""
             height: Math.min(errText.implicitHeight + 22, 110)
-            radius: 10
+            radius: Theme.radius
             color: Qt.rgba(Theme.bad.r, Theme.bad.g, Theme.bad.b, 0.12)
             border.width: 1
             border.color: Qt.rgba(Theme.bad.r, Theme.bad.g, Theme.bad.b, 0.5)

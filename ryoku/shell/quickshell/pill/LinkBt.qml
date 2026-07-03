@@ -272,7 +272,7 @@ Item {
                         Rectangle {
                             width: parent.width
                             height: 38 * root.s
-                            radius: 9 * root.s
+                            radius: Theme.radius
                             color: rowHover.hovered ? Theme.frameBg : "transparent"
 
                             HoverHandler { id: rowHover }
@@ -290,7 +290,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 26 * root.s
                                 height: 26 * root.s
-                                radius: 8 * root.s
+                                radius: Theme.radius
                                 color: Theme.tileBg
                                 border.width: 1
                                 border.color: Theme.border

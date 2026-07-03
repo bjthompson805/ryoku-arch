@@ -51,7 +51,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 40 * root.s
             height: 34 * root.s
-            radius: 3 * root.s
+            radius: Theme.radius
             color: t.lit ? Theme.frameBg : Theme.tileBg
             border.width: 1
             border.color: t.lit ? Theme.frameBorder : Theme.border

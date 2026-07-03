@@ -12,10 +12,10 @@ Item {
     signal closeRequested()
     signal rebound()
 
-    readonly property color glassBg: Qt.rgba(24 / 255, 28 / 255, 38 / 255, 0.97)
-    readonly property color glassBorder: "#3a4456"
-    readonly property color vermilion: "#e0563b"
-    readonly property color idle: "#c4ccda"
+    readonly property color glassBg: Qt.rgba(22 / 255, 17 / 255, 11 / 255, 0.97)
+    readonly property color glassBorder: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
+    readonly property color vermilion: "#e2342a"
+    readonly property color idle: "#c7bfae"
 
     readonly property int arrow: 7
     implicitWidth: card.implicitWidth

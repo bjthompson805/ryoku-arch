@@ -190,7 +190,7 @@ PillSurface {
                 id: netzRow
                 width: parent.width
                 height: 44 * root.s
-                radius: 10 * root.s
+                radius: Theme.radius
                 color: netzHover.hovered ? Theme.frameBg : "transparent"
 
                 HoverHandler {
@@ -285,7 +285,7 @@ PillSurface {
                 id: btRow
                 width: parent.width
                 height: 44 * root.s
-                radius: 10 * root.s
+                radius: Theme.radius
                 color: btHover.hovered ? Theme.frameBg : "transparent"
 
                 HoverHandler {

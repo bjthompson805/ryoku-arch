@@ -83,7 +83,7 @@ Singleton {
             property real frameOpacity: 1
             property real shadowStrength: 0.5
             property real shadowSize: 26
-            property color surfaceColor: "#1a1b26"
+            property color surfaceColor: "#16110b"
             property real islandWidth: 108
             property real islandHeight: 38
             property real islandRestCorner: 18
@@ -94,7 +94,7 @@ Singleton {
             property string islandStyle: "island"
             property bool islandAutohide: false
             property bool barEnabled: false
-            property string fontFamily: "Inter"
+            property string fontFamily: "Space Grotesk"
             property real fontScale: 1.0
         }
     }

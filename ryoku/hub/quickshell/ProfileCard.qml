@@ -27,7 +27,7 @@ Item {
 
     // inner padding + corner radius, on the card's scale.
     readonly property real pad: 18 * root.s
-    readonly property real cardRadius: 16 * root.s
+    readonly property real cardRadius: Theme.radius
 
     // parallax tilt + foil shimmer state.
     property real tiltX: 0
@@ -269,19 +269,24 @@ Item {
 
                 Item { width: 1; height: 14 * root.s }
 
-                // portrait window: framed 力 mark over grid + glow + corners.
+                // portrait window: red-sun + marble bust, drifting on cursor for
+                // depth (the website's hero motif). sharp frame, grid, corner regs.
                 Rectangle {
                     width: parent.width
                     height: 180 * root.s
-                    radius: 8 * root.s
+                    radius: Theme.radius
                     color: "transparent"
-                    border.color: Theme.line
+                    border.color: Theme.lineStrong
                     border.width: 1 * root.s
+
+                    // parallax offsets from the card's cursor tracker (0..1 -> -0.5..0.5).
+                    readonly property real px: root.shimNX - 0.5
+                    readonly property real py: root.shimNY - 0.5
 
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: 2 * root.s
-                        radius: 6 * root.s
+                        radius: Theme.radius
                         clip: true
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: Theme.frameBg }
@@ -301,55 +306,61 @@ Item {
                                 ctx.strokeStyle = tint;
                                 ctx.lineWidth = 1;
                                 for (let x = 0; x <= width; x += step) {
-                                    ctx.beginPath();
-                                    ctx.moveTo(x, 0);
-                                    ctx.lineTo(x, height);
-                                    ctx.stroke();
+                                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
                                 }
                                 for (let y = 0; y <= height; y += step) {
-                                    ctx.beginPath();
-                                    ctx.moveTo(0, y);
-                                    ctx.lineTo(width, y);
-                                    ctx.stroke();
+                                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
                                 }
                             }
                         }
 
-                        // central glow behind the mark.
-                        Canvas {
-                            anchors.fill: parent
-                            property string glow: root.logoGlow
-                            onWidthChanged: requestPaint()
-                            onHeightChanged: requestPaint()
-                            onPaint: {
-                                let ctx = getContext("2d");
-                                ctx.clearRect(0, 0, width, height);
-                                let g = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width * 0.45);
-                                g.addColorStop(0, glow);
-                                g.addColorStop(1, "rgba(0,0,0,0)");
-                                ctx.fillStyle = g;
-                                ctx.fillRect(0, 0, width, height);
-                            }
-                        }
-
-                        // the 力 mark = the card's emblem.
-                        Text {
+                        // the red sun, far layer, drifts least.
+                        SunDisc {
+                            size: 150 * root.s
+                            core: Theme.sun
+                            intensity: 0.85
                             anchors.centerIn: parent
-                            text: "力"
-                            color: Theme.brand
-                            font.family: Theme.fontJp
-                            font.weight: Font.Medium
-                            font.pixelSize: 104 * root.s
+                            anchors.horizontalCenterOffset: parent.parent.px * 8 * root.s
+                            anchors.verticalCenterOffset: parent.parent.py * 6 * root.s - 6 * root.s
                         }
 
-                        // corner ornaments.
+                        // the marble bust, near layer, drifts most (parallax depth).
+                        Image {
+                            source: "art/marble-bust.png"
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true
+                            asynchronous: true
+                            height: parent.height * 1.02
+                            width: height
+                            opacity: 0.92
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.horizontalCenterOffset: parent.parent.px * 20 * root.s
+                            anchors.bottomMargin: -parent.parent.py * 12 * root.s
+                        }
+
+                        // 力 stamp, small foreground accent, top-left.
+                        Text {
+                            text: "力"
+                            color: Theme.sun
+                            opacity: 0.9
+                            font.family: Theme.fontJp
+                            font.weight: Font.Black
+                            font.pixelSize: 26 * root.s
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.margins: 12 * root.s
+                            x: anchors.leftMargin + parent.parent.px * 26 * root.s
+                        }
+
+                        // corner registration marks.
                         Repeater {
                             model: 4
                             Rectangle {
                                 required property int index
                                 width: 8 * root.s
                                 height: 8 * root.s
-                                radius: 1 * root.s
+                                radius: Theme.radius
                                 color: "transparent"
                                 border.color: Qt.alpha(Theme.cream, 0.5)
                                 border.width: 1 * root.s

@@ -162,7 +162,7 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 220
                 height: 30
-                radius: 9
+                radius: Theme.radius
                 color: Theme.surfaceLo
                 border.width: 1
                 border.color: input.activeFocus ? Theme.ember : Theme.line
@@ -219,7 +219,7 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 220
                 height: 30
-                radius: 9
+                radius: Theme.radius
                 color: pickHover.hovered ? Theme.surface : Theme.surfaceLo
                 border.width: 1
                 border.color: pickHover.hovered ? Theme.ember : Theme.line

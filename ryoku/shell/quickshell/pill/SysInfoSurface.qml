@@ -288,7 +288,7 @@ PillSurface {
                 Rectangle {
                     width: parent.width
                     height: 180 * root.s
-                    radius: 8 * root.s
+                    radius: Theme.radius
                     color: "transparent"
                     border.color: Theme.border
                     border.width: 1 * root.s
@@ -296,7 +296,7 @@ PillSurface {
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: 2 * root.s
-                        radius: 6 * root.s
+                        radius: Theme.radius
                         clip: true
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: Theme.frameBg }
@@ -364,7 +364,7 @@ PillSurface {
                                 required property int index
                                 width: 8 * root.s
                                 height: 8 * root.s
-                                radius: 1 * root.s
+                                radius: Theme.radius
                                 color: "transparent"
                                 border.color: Qt.alpha(Theme.cream, 0.5)
                                 border.width: 1 * root.s
@@ -391,7 +391,7 @@ PillSurface {
                         anchors.verticalCenter: parent.verticalCenter
                         height: 20 * root.s
                         width: typeBadgeText.implicitWidth + 16 * root.s
-                        radius: 3 * root.s
+                        radius: Theme.radius
                         color: "transparent"
                         border.color: Theme.brand
                         border.width: 1 * root.s
@@ -433,7 +433,7 @@ PillSurface {
                     width: parent.width
                     height: flavorCol.implicitHeight + 20 * root.s
                     color: Theme.sheen
-                    radius: 2 * root.s
+                    radius: Theme.radius
                     opacity: root.rowsAnim
 
                     Rectangle {

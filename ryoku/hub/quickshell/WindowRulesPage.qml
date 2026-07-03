@@ -92,7 +92,7 @@ Item {
             width: 7
             contentItem: Rectangle {
                 implicitWidth: 4
-                radius: 2
+                radius: Theme.radius
                 color: Theme.line
                 opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                 Behavior on opacity { NumberAnimation { duration: Theme.quick } }
@@ -142,7 +142,7 @@ Item {
 
                     width: col.width
                     height: 56
-                    radius: 12
+                    radius: Theme.radius
                     color: Theme.surfaceLo
                     border.width: 1
                     border.color: Theme.line
@@ -158,7 +158,7 @@ Item {
                         Rectangle {
                             width: rrow.tfW
                             height: 30
-                            radius: 9
+                            radius: Theme.radius
                             color: Theme.surfaceLo
                             border.width: 1
                             border.color: classInput.activeFocus ? Theme.ember : Theme.line
@@ -195,7 +195,7 @@ Item {
                         Rectangle {
                             width: rrow.tfW
                             height: 30
-                            radius: 9
+                            radius: Theme.radius
                             color: Theme.surfaceLo
                             border.width: 1
                             border.color: titleInput.activeFocus ? Theme.ember : Theme.line
@@ -242,7 +242,7 @@ Item {
                             visible: rrow.needsValue
                             width: rrow.valW
                             height: 30
-                            radius: 9
+                            radius: Theme.radius
                             color: Theme.surfaceLo
                             border.width: 1
                             border.color: valInput.activeFocus ? Theme.ember : Theme.line
@@ -283,7 +283,7 @@ Item {
 
                             Rectangle {
                                 anchors.fill: parent
-                                radius: 8
+                                radius: Theme.radius
                                 color: delHov.hovered ? Qt.rgba(Theme.bad.r, Theme.bad.g, Theme.bad.b, 0.12) : "transparent"
                                 Behavior on color { ColorAnimation { duration: Theme.quick } }
                             }
@@ -313,7 +313,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 8
         height: 60
-        radius: 14
+        radius: Theme.radius
         color: store.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08) : Theme.surfaceLo
         border.width: 1
         border.color: store.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4) : Theme.line

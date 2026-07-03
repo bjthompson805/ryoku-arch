@@ -36,8 +36,8 @@ Item {
         ? Coords.intersectRect(globalSel, { x: sx, y: sy, width: width, height: height })
         : null
 
-    readonly property color dimColor: Qt.rgba(8 / 255, 10 / 255, 16 / 255, 0.62)
-    readonly property color vermilion: "#e0563b"
+    readonly property color dimColor: Qt.rgba(15 / 255, 12 / 255, 7 / 255, 0.62)
+    readonly property color vermilion: "#e2342a"
 
     function selectionBox() {
         if (selectedIndex === null || !model
@@ -342,7 +342,7 @@ Item {
         x: mine ? overlay.draft.points[0].x - overlay.sx : 0
         y: mine ? overlay.draft.points[0].y - overlay.sy : 0
         color: mine ? overlay.draft.color : "transparent"
-        font.family: "Inter"
+        font.family: "Space Grotesk"
         font.pixelSize: mine ? overlay.draft.size : 16
         renderType: Text.NativeRendering
         cursorVisible: mine

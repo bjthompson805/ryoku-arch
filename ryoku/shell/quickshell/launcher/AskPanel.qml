@@ -306,7 +306,7 @@ Item {
                     required property int index
                     width: parent.width
                     height: recCol.implicitHeight + 10 * root.s
-                    radius: 6 * root.s
+                    radius: Theme.radius
                     color: index === root.selectedRecent ? Theme.tileBg : "transparent"
 
                     Column {
@@ -451,7 +451,7 @@ Item {
                     readonly property bool danger: modelData.kind === "cancel"
                     width: chipRow.implicitWidth + 18 * root.s
                     height: chipRow.implicitHeight + 10 * root.s
-                    radius: 6 * root.s
+                    radius: Theme.radius
                     color: current || chipHover.hovered ? (danger ? Theme.vermDeep : Theme.verm) : "transparent"
                     border.color: current || chipHover.hovered ? (danger ? Theme.vermDeep : Theme.verm) : Theme.border
                     border.width: 1
@@ -465,7 +465,7 @@ Item {
                             visible: chipBox.modelData.kind === "color"
                             width: 10 * root.s
                             height: 10 * root.s
-                            radius: 2
+                            radius: Theme.radius
                             color: String(chipBox.modelData.value)
                             border.color: Theme.hair
                             border.width: 1

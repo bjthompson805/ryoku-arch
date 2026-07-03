@@ -89,7 +89,7 @@ Item {
         y: Math.max(8, Math.min(menu.py, menu.height - height - 8))
         width: 234
         height: col.implicitHeight + 28
-        radius: 12
+        radius: Theme.radius
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: Theme.cardBot }
@@ -175,7 +175,7 @@ Item {
                             readonly property bool on: menu.curAnchor === cell.modelData.zone
                             width: 32
                             height: 24
-                            radius: 5
+                            radius: Theme.radius
                             color: cell.on ? Theme.brand : (cellMa.containsMouse ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.12) : "transparent")
                             border.width: 1
                             border.color: cell.on ? Theme.brand : Theme.hair
@@ -230,7 +230,7 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: -6
             anchors.rightMargin: -6
-            radius: 6
+            radius: Theme.radius
             color: miMa.containsMouse ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.08) : "transparent"
             Behavior on color { ColorAnimation { duration: 90 } }
         }
@@ -241,7 +241,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 2
             height: 14
-            radius: 1
+            radius: Theme.radius
             color: Theme.brand
             opacity: miMa.containsMouse ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 90 } }

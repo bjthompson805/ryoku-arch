@@ -25,7 +25,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 36
             height: 36
-            radius: 9
+            radius: Theme.radius
             readonly property bool spinning: store.tab === "plugins" ? pluginsPage.refreshing : extrasPage.loading
             color: rHover.hovered ? Theme.surface : "transparent"
             border.width: 1

@@ -135,7 +135,7 @@ Item {
         anchors.margins: 22
         width: backRow.implicitWidth + 22
         height: 34
-        radius: 17
+        radius: Theme.radius
         color: backHover.hovered ? Theme.surface : Theme.surfaceLo
         border.width: 1
         border.color: backHover.hovered ? Theme.ember : Theme.line
@@ -174,7 +174,7 @@ Item {
                 id: heroFrame
                 width: parent.width
                 height: parent.height - (detail.shots.length > 1 ? 96 : 0)
-                radius: 18
+                radius: Theme.radius
                 color: Theme.surfaceLo
                 border.width: 1
                 border.color: Theme.line
@@ -220,7 +220,7 @@ Item {
                         required property int index
                         required property var modelData
                         readonly property bool sel: detail.shotIndex === index
-                        width: 128; height: 82; radius: 10
+                        width: 128; height: 82; radius: Theme.radius
                         color: Theme.surfaceLo
                         border.width: sel ? 2 : 1
                         border.color: sel ? Theme.ember : Theme.line
@@ -254,7 +254,7 @@ Item {
                 Text { text: "\u529b"; color: Theme.brand; font.family: Theme.fontJp; font.pixelSize: 22 }
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: badgeRow.implicitWidth + 16; height: 22; radius: 11
+                    width: badgeRow.implicitWidth + 16; height: 22; radius: Theme.radius
                     color: detail.plugin.official ? Qt.rgba(Theme.brand.r, Theme.brand.g, Theme.brand.b, 0.16) : Theme.keyBot
                     border.width: 1
                     border.color: detail.plugin.official ? Theme.brand : Theme.line
@@ -312,7 +312,7 @@ Item {
                     readonly property bool actionable: !actionBtn.isInstalled && !detail.busy
                     height: 32
                     width: actLabel.implicitWidth + 30
-                    radius: 3
+                    radius: Theme.radius
                     color: actMa.containsMouse
                         ? (actionBtn.isInstalled ? Theme.keyTop : Theme.frameBg)
                         : "transparent"
@@ -346,7 +346,7 @@ Item {
                     visible: detail.installed && !detail.busy
                     height: 32
                     width: rmLabel.implicitWidth + 22
-                    radius: 3
+                    radius: Theme.radius
                     color: "transparent"
                     border.width: 1
                     border.color: rmMa.containsMouse ? Theme.bad : Theme.line
@@ -401,7 +401,7 @@ Item {
                         required property var modelData
                         height: 30
                         width: hb.implicitWidth + 28
-                        radius: 8
+                        radius: Theme.radius
                         color: Theme.keyBot
                         border.width: 1
                         border.color: Theme.line

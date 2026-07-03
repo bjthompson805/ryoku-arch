@@ -87,7 +87,7 @@ Column {
                 anchors.leftMargin: 6 * root.s
                 width: 24 * root.s
                 height: 24 * root.s
-                radius: 5 * root.s
+                radius: Theme.radius
                 color: Theme.tileBg
 
                 Image {

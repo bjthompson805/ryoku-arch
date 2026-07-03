@@ -14,7 +14,7 @@ Item {
         anchors.top: parent.top
         width: 3
         height: textCol.implicitHeight
-        radius: 1.5
+        radius: Theme.radius
         color: Theme.ember
         opacity: Updates.available ? 0.9 : 0.3
     }

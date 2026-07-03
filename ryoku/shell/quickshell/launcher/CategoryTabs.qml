@@ -52,7 +52,7 @@ Item {
                     anchors.horizontalCenter: label.horizontalCenter
                     width: label.width
                     height: 2 * root.s
-                    radius: 1 * root.s
+                    radius: Theme.radius
                     color: Theme.verm
                     visible: parent.sel
                 }

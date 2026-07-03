@@ -70,7 +70,7 @@ PillSurface {
 
         width: parent ? parent.width : 0
         height: 26 * root.s
-        radius: 7 * root.s
+        radius: Theme.radius
         color: nrowHover.hovered ? Theme.frameBg : "transparent"
 
         HoverHandler {
@@ -105,7 +105,7 @@ PillSurface {
             anchors.verticalCenter: parent.verticalCenter
             width: 16 * root.s
             height: 16 * root.s
-            radius: 5 * root.s
+            radius: Theme.radius
             color: Theme.tileBg
             border.width: 1
             border.color: Theme.border
@@ -127,7 +127,7 @@ PillSurface {
                 visible: !nrowImg.visible
                 width: 5 * root.s
                 height: 5 * root.s
-                radius: 1.5 * root.s
+                radius: Theme.radius
                 rotation: 45
                 color: nrow.critical ? Theme.vermLit : Theme.verm
             }
@@ -334,7 +334,7 @@ PillSurface {
                                 id: groupHead
                                 width: parent.width
                                 height: 32 * root.s
-                                radius: 8 * root.s
+                                radius: Theme.radius
                                 color: headHover.hovered ? Theme.frameBg : "transparent"
 
                                 HoverHandler {
@@ -355,7 +355,7 @@ PillSurface {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: 20 * root.s
                                     height: 20 * root.s
-                                    radius: 6 * root.s
+                                    radius: Theme.radius
                                     color: Theme.tileBg
                                     border.width: 1
                                     border.color: Theme.border
@@ -377,7 +377,7 @@ PillSurface {
                                         visible: !headImg.visible
                                         width: 6 * root.s
                                         height: 6 * root.s
-                                        radius: 2 * root.s
+                                        radius: Theme.radius
                                         rotation: 45
                                         color: Theme.verm
                                     }

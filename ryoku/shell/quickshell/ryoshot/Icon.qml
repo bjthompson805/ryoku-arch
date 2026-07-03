@@ -5,7 +5,7 @@ Item {
     id: icon
 
     property string name: ""
-    property color tint: "#c4ccda"
+    property color tint: "#c7bfae"
     property real size: 18
 
     readonly property real vb: 24

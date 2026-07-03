@@ -291,7 +291,7 @@ Item {
             width: 7
             contentItem: Rectangle {
                 implicitWidth: 4
-                radius: 2
+                radius: Theme.radius
                 color: Theme.line
                 opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                 Behavior on opacity { NumberAnimation { duration: Theme.quick } }
@@ -319,7 +319,7 @@ Item {
             Rectangle {
                 width: clockCol.width
                 height: 200
-                radius: 16
+                radius: Theme.radius
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "#191320" }
                     GradientStop { position: 1.0; color: "#241a16" }
@@ -346,7 +346,7 @@ Item {
                     anchors.margins: 12
                     width: clockTag.width + 18
                     height: 20
-                    radius: 6
+                    radius: Theme.radius
                     color: Qt.rgba(0, 0, 0, 0.4)
                     Text {
                         id: clockTag
@@ -450,7 +450,7 @@ Item {
             Rectangle {
                 width: wxCol.width
                 height: 200
-                radius: 16
+                radius: Theme.radius
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "#191320" }
                     GradientStop { position: 1.0; color: "#241a16" }
@@ -475,7 +475,7 @@ Item {
                     anchors.margins: 12
                     width: wxTag.width + 18
                     height: 20
-                    radius: 6
+                    radius: Theme.radius
                     color: Qt.rgba(0, 0, 0, 0.4)
                     Text {
                         id: wxTag
@@ -572,7 +572,7 @@ Item {
             Rectangle {
                 width: calCol.width
                 height: 260
-                radius: 16
+                radius: Theme.radius
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "#191320" }
                     GradientStop { position: 1.0; color: "#241a16" }
@@ -596,7 +596,7 @@ Item {
                     anchors.margins: 12
                     width: calTag.width + 18
                     height: 20
-                    radius: 6
+                    radius: Theme.radius
                     color: Qt.rgba(0, 0, 0, 0.4)
                     Text {
                         id: calTag
@@ -699,7 +699,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 8
         height: 60
-        radius: 14
+        radius: Theme.radius
         color: page.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08) : Theme.surfaceLo
         border.width: 1
         border.color: page.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4) : Theme.line

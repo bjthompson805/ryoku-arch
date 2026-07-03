@@ -139,7 +139,7 @@ Item {
         anchors.top: parent.top
         anchors.right: tabs.left
         anchors.rightMargin: 10
-        width: 32; height: 32; radius: 9
+        width: 32; height: 32; radius: Theme.radius
         color: rHover.hovered ? Theme.surface : "transparent"
         border.width: 1
         border.color: rHover.hovered ? Theme.ember : "transparent"
@@ -175,7 +175,7 @@ Item {
                 required property var modelData
                 readonly property bool sel: page.view === tab.modelData.k
                 width: tl.implicitWidth + 30; height: 32
-                radius: 9
+                radius: Theme.radius
                 color: sel ? Theme.surface : "transparent"
                 border.width: 1
                 border.color: sel ? Theme.line : "transparent"
@@ -193,7 +193,7 @@ Item {
                     Rectangle {
                         visible: tab.modelData.k === "installed" && page.plugins.length > 0
                         anchors.verticalCenter: parent.verticalCenter
-                        width: cnt.implicitWidth + 12; height: 18; radius: 9
+                        width: cnt.implicitWidth + 12; height: 18; radius: Theme.radius
                         color: tab.sel ? Theme.ember : Theme.surfaceLo
                         Text { id: cnt; anchors.centerIn: parent; text: "" + page.plugins.length; color: tab.sel ? Theme.onAccent : Theme.dim; font.family: Theme.mono; font.pixelSize: 10; font.weight: Font.DemiBold }
                     }
@@ -268,7 +268,7 @@ Item {
                 width: parent.width
                 visible: page.plugins.length === 0
                 implicitHeight: 120
-                radius: 16
+                radius: Theme.radius
                 color: "transparent"
                 border.width: 1
                 border.color: Theme.line
@@ -297,7 +297,7 @@ Item {
 
                     width: col.width
                     implicitHeight: body.implicitHeight + 36
-                    radius: 16
+                    radius: Theme.radius
                     color: "transparent"
                     border.width: 1
                     border.color: cardHov.hovered ? Theme.ember : Theme.line
@@ -336,7 +336,7 @@ Item {
                             Rectangle {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                width: 46; height: 26; radius: 13
+                                width: 46; height: 26; radius: Theme.radius
                                 color: card.on ? Theme.ember : Theme.surfaceLo
                                 border.width: 1
                                 border.color: card.on ? Theme.ember : Theme.line
@@ -361,7 +361,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: updLabel.implicitWidth + 20
                                 height: 26
-                                radius: 3
+                                radius: Theme.radius
                                 color: updMa.containsMouse ? Theme.frameBg : "transparent"
                                 border.width: 1
                                 border.color: Theme.ember
@@ -414,7 +414,7 @@ Item {
                                         readonly property string nice: hostCell.modelData === "framePopout" ? "Frame popout"
                                             : hostCell.modelData === "desktopWidget" ? "Desktop widget"
                                             : hostCell.modelData
-                                        width: hcText.implicitWidth + 22; height: 28; radius: 8
+                                        width: hcText.implicitWidth + 22; height: 28; radius: Theme.radius
                                         color: active ? Theme.keyTop : Theme.surfaceLo
                                         border.width: 1
                                         border.color: Theme.line

@@ -25,7 +25,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: height / 2
+        radius: Theme.radius
         color: Theme.surfaceLo
         border.width: 1
         border.color: Theme.line
@@ -37,7 +37,7 @@ Item {
         height: parent.height - 8
         width: seg.segW
         x: 4 + seg.indexOfKey(seg.current) * seg.segW
-        radius: height / 2
+        radius: Theme.radius
         color: Theme.keyTop
         border.width: 1
         border.color: Theme.line

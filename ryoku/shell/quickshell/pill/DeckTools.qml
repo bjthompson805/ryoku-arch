@@ -86,7 +86,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: 38 * tools.s
                     height: 38 * tools.s
-                    radius: 3 * tools.s
+                    radius: Theme.radius
                     color: tile.lit ? Theme.frameBg : "transparent"
                     border.width: 1
                     border.color: tile.lit ? Theme.frameBorder : Theme.border

@@ -17,6 +17,39 @@ Item {
 
     ShowcaseBackdrop { anchors.fill: parent }
 
+    // Dimmed Lady Justice, bleeding off the right edge behind the dossier, the
+    // website's beauty panel motif as an ambient backdrop. Marble + irezumi read
+    // faintly through the stats; a left fade dissolves her into the page.
+    Image {
+        id: justice
+        source: "art/marble-justice.png"
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        asynchronous: true
+        opacity: 0.42
+        height: parent.height
+        width: height
+        anchors.right: parent.right
+        anchors.rightMargin: -parent.width * 0.04
+        anchors.verticalCenter: parent.verticalCenter
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            // dim + desaturate so she sits behind the data, not over it
+            brightness: -0.18
+            saturation: -0.35
+        }
+    }
+    // left-edge fade so she dissolves into the canvas (dim-out like the site)
+    Rectangle {
+        anchors.fill: justice
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: Theme.bgBot }
+            GradientStop { position: 0.45; color: "transparent" }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+    }
+
     // specimen, left and lifted.
     ProfileCard {
         id: hero

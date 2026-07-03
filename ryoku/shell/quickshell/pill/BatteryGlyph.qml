@@ -24,7 +24,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: 21 * root.s
         height: 12 * root.s
-        radius: 3.5 * root.s
+        radius: Theme.radius
         color: "transparent"
         border.width: 1.4 * root.s
         border.color: Qt.alpha(root.tint, 0.55)
@@ -35,7 +35,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: Math.max(0, (parent.width - 4 * root.s) * Math.max(0, Math.min(1, root.frac)))
             height: parent.height - 4 * root.s
-            radius: 1.5 * root.s
+            radius: Theme.radius
             color: root.tint
             Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 200 } }
@@ -49,7 +49,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: 2 * root.s
         height: 5 * root.s
-        radius: 1 * root.s
+        radius: Theme.radius
         color: Qt.alpha(root.tint, 0.55)
     }
 

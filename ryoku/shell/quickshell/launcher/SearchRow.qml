@@ -87,7 +87,7 @@ Item {
         anchors.rightMargin: root.modeLabel.length ? 10 * root.s : 0
         width: root.modeLabel.length ? chipText.implicitWidth + 16 * root.s : 0
         height: 20 * root.s
-        radius: 6 * root.s
+        radius: Theme.radius
         visible: root.modeLabel.length > 0
         color: Theme.frameBg
         border.width: 1

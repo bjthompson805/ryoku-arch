@@ -108,7 +108,7 @@ Item {
         Column {
             spacing: 8
             Text { id: mt; text: preview.hh + ":" + preview.mm; color: preview.ink; font.family: "Inter"; font.pixelSize: 54; font.weight: Font.Light; font.letterSpacing: 2 }
-            Rectangle { width: mt.implicitWidth * 0.34; height: 3; radius: 1.5; color: preview.accent }
+            Rectangle { width: mt.implicitWidth * 0.34; height: 3; radius: Theme.radius; color: preview.accent }
             Text {
                 visible: preview.seconds || !preview.is24
                 text: (preview.seconds ? preview.ss : "") + (preview.seconds && !preview.is24 ? "  " : "") + (!preview.is24 ? preview.ampm.toLowerCase() : "")
@@ -135,9 +135,9 @@ Item {
                     }
                 }
             }
-            Rectangle { x: (parent.width - width) / 2; y: parent.height / 2 - height; width: 5; height: parent.height * 0.28; radius: 2.5; color: preview.ink; antialiasing: true; transformOrigin: Item.Bottom; rotation: (preview.h % 12 + preview.mins / 60) * 30 }
-            Rectangle { x: (parent.width - width) / 2; y: parent.height / 2 - height; width: 4; height: parent.height * 0.40; radius: 2; color: preview.ink; antialiasing: true; transformOrigin: Item.Bottom; rotation: (preview.mins + preview.secs / 60) * 6 }
-            Rectangle { x: (parent.width - width) / 2; y: parent.height / 2 - height; width: 2; height: parent.height * 0.44; radius: 1; color: preview.accent; antialiasing: true; transformOrigin: Item.Bottom; rotation: preview.secs * 6 }
+            Rectangle { x: (parent.width - width) / 2; y: parent.height / 2 - height; width: 5; height: parent.height * 0.28; radius: Theme.radius; color: preview.ink; antialiasing: true; transformOrigin: Item.Bottom; rotation: (preview.h % 12 + preview.mins / 60) * 30 }
+            Rectangle { x: (parent.width - width) / 2; y: parent.height / 2 - height; width: 4; height: parent.height * 0.40; radius: Theme.radius; color: preview.ink; antialiasing: true; transformOrigin: Item.Bottom; rotation: (preview.mins + preview.secs / 60) * 6 }
+            Rectangle { x: (parent.width - width) / 2; y: parent.height / 2 - height; width: 2; height: parent.height * 0.44; radius: Theme.radius; color: preview.accent; antialiasing: true; transformOrigin: Item.Bottom; rotation: preview.secs * 6 }
             Rectangle { anchors.centerIn: parent; width: 9; height: 9; radius: 4.5; color: preview.accent; border.width: 1.5; border.color: preview.ink }
         }
     }
@@ -159,7 +159,7 @@ Item {
                     Rectangle {
                         visible: !parent.colon
                         anchors.fill: parent
-                        radius: 10
+                        radius: Theme.radius
                         color: Qt.rgba(0, 0, 0, 0.55)
                         border.width: 1
                         border.color: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.24)
@@ -216,7 +216,7 @@ Item {
     Component {
         id: badgeC
         Rectangle {
-            implicitWidth: bi.implicitWidth + 24; implicitHeight: bi.implicitHeight + 14; radius: 12
+            implicitWidth: bi.implicitWidth + 24; implicitHeight: bi.implicitHeight + 14; radius: Theme.radius
             color: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.16)
             border.width: 1; border.color: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.42)
             Row {

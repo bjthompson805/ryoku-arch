@@ -146,7 +146,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: chip.implicitWidth + 20
             height: 22
-            radius: 6
+            radius: Theme.radius
             color: "transparent"
             border.width: 1
             border.color: Qt.rgba(sr.level.r, sr.level.g, sr.level.b, 0.4)
@@ -176,7 +176,7 @@ Item {
             width: 7
             contentItem: Rectangle {
                 implicitWidth: 4
-                radius: 2
+                radius: Theme.radius
                 color: Theme.line
                 opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                 Behavior on opacity { NumberAnimation { duration: Theme.quick } }

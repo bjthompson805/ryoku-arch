@@ -25,7 +25,7 @@ Item {
         anchors.rightMargin: 12
         anchors.topMargin: 1
         anchors.bottomMargin: 1
-        radius: 11
+        radius: Theme.radius
         color: Theme.keyTop
         opacity: (hover.hovered && !btn.selected) ? 0.45 : 0
         Behavior on opacity { NumberAnimation { duration: Theme.quick } }

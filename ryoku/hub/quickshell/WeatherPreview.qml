@@ -103,7 +103,7 @@ Item {
                     readonly property real off: (index * 0.382) % 1
                     readonly property real len: ms.height * 0.17
                     readonly property real span: ms.height + len
-                    width: 2; height: len; radius: 1; rotation: 14; antialiasing: true
+                    width: 2; height: len; radius: Theme.radius; rotation: 14; antialiasing: true
                     color: Qt.rgba(0.62, 0.76, 1, 0.82)
                     x: ms.width * (0.08 + ((index * 0.6180339) % 1) * 0.84)
                     y: ((ms.phase + off) % 1) * span - len + ms.height * 0.28
@@ -163,7 +163,7 @@ Item {
             Row {
                 spacing: 16
                 Rectangle {
-                    width: 108; height: 108; radius: 20; clip: true
+                    width: 108; height: 108; radius: Theme.radius; clip: true
                     gradient: Gradient { GradientStop { position: 0.0; color: "#5b8fcf" } GradientStop { position: 1.0; color: "#9cc3ea" } }
                     MiniSky { anchors.fill: parent; category: preview.category; animate: preview.animate }
                 }

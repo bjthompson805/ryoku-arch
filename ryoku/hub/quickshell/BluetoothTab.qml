@@ -325,7 +325,7 @@ Item {
                 width: 7
                 contentItem: Rectangle {
                     implicitWidth: 4
-                    radius: 2
+                    radius: Theme.radius
                     color: Theme.line
                     opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
                     Behavior on opacity { NumberAnimation { duration: Theme.quick } }
@@ -358,7 +358,7 @@ Item {
                             id: tile
                             width: parent.width
                             height: 64
-                            radius: 14
+                            radius: Theme.radius
                             color: dev.isConnected ? Theme.frameBg
                                 : (rowHov.hovered ? Theme.keyTop : Theme.surfaceLo)
                             border.width: 1
@@ -378,7 +378,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 40
                                 height: 40
-                                radius: 12
+                                radius: Theme.radius
                                 color: dev.isConnected ? Qt.rgba(242 / 255, 86 / 255, 35 / 255, 0.16) : Theme.keyTop
                                 border.width: 1
                                 border.color: dev.isConnected ? Qt.rgba(242 / 255, 86 / 255, 35 / 255, 0.40) : Theme.line

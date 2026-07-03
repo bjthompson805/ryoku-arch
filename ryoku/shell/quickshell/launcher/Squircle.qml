@@ -11,7 +11,7 @@ import QtQuick.Shapes
 Item {
     id: root
 
-    property real radius: 16
+    property real radius: 16   // launcher's outer window-matching shape stays round (Hyprland rounding); inner content is sharp
     property real power: 4
     property color color: "transparent"
     property color borderColor: "transparent"

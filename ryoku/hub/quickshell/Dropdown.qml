@@ -48,7 +48,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: root.fieldWidth
         height: 30
-        radius: 9
+        radius: Theme.radius
         color: Theme.surfaceLo
         border.width: 1
         border.color: (popup.opened || hov.hovered) ? Theme.ember : Theme.line
@@ -96,7 +96,7 @@ Item {
 
         background: Rectangle {
             color: Theme.surface
-            radius: 12
+            radius: Theme.radius
             border.width: 1
             border.color: Theme.line
         }
@@ -115,7 +115,7 @@ Item {
                 readonly property bool active: root.current === opt.n.key
                 width: ListView.view.width
                 height: 32
-                radius: 8
+                radius: Theme.radius
                 color: optHov.hovered ? Theme.keyTop : "transparent"
 
                 Text {

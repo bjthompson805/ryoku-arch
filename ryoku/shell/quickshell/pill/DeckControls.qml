@@ -118,7 +118,7 @@ Item {
         signal toggled()
 
         height: 46 * root.s
-        radius: 4 * root.s
+        radius: Theme.radius
         color: st.on ? Qt.alpha(Theme.brand, 0.16)
             : (stHov.hovered ? Theme.frameBg : Theme.tileBg)
         border.width: 1
@@ -181,7 +181,7 @@ Item {
         property bool on: false
         signal acted()
         height: 38 * root.s
-        radius: 4 * root.s
+        radius: Theme.radius
         color: tt.on ? Theme.brand : (tHov.hovered ? Theme.frameBg : "transparent")
         border.width: 1
         border.color: tt.on ? Theme.brand : (tHov.hovered ? Theme.frameBorder : Theme.border)

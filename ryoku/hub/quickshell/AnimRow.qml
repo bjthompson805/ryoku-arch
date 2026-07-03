@@ -18,7 +18,7 @@ Rectangle {
     signal bezierPicked(string b)
 
     height: 46
-    radius: 10
+    radius: Theme.radius
     color: Theme.surfaceLo
     border.width: 1
     border.color: Theme.line
@@ -48,7 +48,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: 38
             height: 22
-            radius: 11
+            radius: Theme.radius
             color: row.on ? Theme.ember : Theme.keyTop
             border.width: 1
             border.color: row.on ? Theme.ember : Theme.line
@@ -78,7 +78,7 @@ Rectangle {
                 signal hit()
                 width: 24
                 height: 26
-                radius: 7
+                radius: Theme.radius
                 color: stHov.hovered ? Theme.keyTop : Theme.surface
                 border.width: 1
                 border.color: Theme.line

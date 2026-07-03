@@ -241,7 +241,7 @@ Item {
             anchors.bottom: parent.bottom
             anchors.margins: 12 * root.s
             width: height
-            radius: 8 * root.s
+            radius: Theme.radius
             color: Theme.tileBg
 
             Image {

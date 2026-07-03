@@ -39,7 +39,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 12
+        radius: Theme.radius
         color: Theme.surfaceLo
         border.width: 1
         border.color: Theme.line

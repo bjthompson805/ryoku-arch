@@ -8,7 +8,7 @@ Rectangle {
 
     property string text: ""
 
-    radius: 6
+    radius: Theme.radius
     implicitHeight: 25
     implicitWidth: Math.max(25, label.implicitWidth + 16)
     color: Theme.keyTop
@@ -21,7 +21,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.margins: 1
         height: 3
-        radius: 3
+        radius: Theme.radius
         color: Theme.keyBot
     }
 

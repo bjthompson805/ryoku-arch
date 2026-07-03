@@ -323,7 +323,7 @@ Item {
             id: canvasArea
             width: parent.width - controls.width - main.spacing
             height: parent.height
-            radius: 16
+            radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
             border.color: Theme.line
@@ -333,7 +333,7 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 anchors.margins: 1
-                radius: 15
+                radius: Theme.radius
                 color: "transparent"
             }
 
@@ -427,7 +427,7 @@ Item {
                 width: 7
                 contentItem: Rectangle {
                     implicitWidth: 4
-                    radius: 2
+                    radius: Theme.radius
                     color: Theme.line
                     opacity: csb.pressed ? 0.9 : (csb.hovered ? 0.7 : 0.4)
                 }
@@ -528,7 +528,7 @@ Item {
                         Rectangle {
                             width: parent.width - saveBtn.width - 8
                             height: 32
-                            radius: 9
+                            radius: Theme.radius
                             color: Theme.surfaceLo
                             border.width: 1
                             border.color: nameField.activeFocus ? Theme.ember : Theme.line
@@ -578,7 +578,7 @@ Item {
                                 required property var modelData
                                 width: ctlCol.width - 12
                                 height: 38
-                                radius: 9
+                                radius: Theme.radius
                                 color: phov.hovered ? Theme.keyTop : Theme.surfaceLo
                                 border.width: 1
                                 border.color: prof.modelData.matches ? Theme.ember : Theme.line
@@ -656,7 +656,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 8
         height: 60
-        radius: 14
+        radius: Theme.radius
         color: page.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08) : Theme.surfaceLo
         border.width: 1
         border.color: page.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4) : Theme.line

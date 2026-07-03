@@ -34,7 +34,7 @@ Item {
         Rectangle {
             width: 5
             height: 5
-            radius: 1
+            radius: Theme.radius
             color: Theme.brand
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -253,7 +253,7 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 22
-                radius: 5
+                radius: Theme.radius
                 clip: true
                 color: Theme.surfaceLo
                 border.width: 1

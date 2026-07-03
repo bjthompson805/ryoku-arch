@@ -529,7 +529,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 28 * pill.s
                 height: 28 * pill.s
-                radius: 6 * pill.s
+                radius: Theme.radius
                 color: Qt.alpha(Theme.brand, 0.10)
                 border.width: 1
                 border.color: Qt.alpha(Theme.brand, 0.6)

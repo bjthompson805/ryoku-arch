@@ -90,7 +90,7 @@ Item {
         Rectangle {
             width: parent.width
             height: 64
-            radius: 14
+            radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
             border.color: Theme.line
@@ -128,7 +128,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 46
                 height: 26
-                radius: 13
+                radius: Theme.radius
                 color: page.followWallpaper ? Theme.ember : Theme.keyTop
                 border.width: 1
                 border.color: page.followWallpaper ? Theme.ember : Theme.line

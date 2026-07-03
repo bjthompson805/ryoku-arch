@@ -13,7 +13,7 @@ Item {
     property bool primary: false
     signal clicked()
 
-    readonly property real radius: 10
+    readonly property real radius: Theme.radiusChip
 
     implicitWidth: row.implicitWidth + 32
     implicitHeight: 38

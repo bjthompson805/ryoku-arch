@@ -37,7 +37,7 @@ Item {
         anchors.top: parent.top
         width: Math.min(ed.width, ed.height * 1.6)
         height: ed.height - 28
-        radius: 14
+        radius: Theme.radius
         gradient: Gradient {
             GradientStop { position: 0.0; color: "#191320" }
             GradientStop { position: 1.0; color: "#241a16" }
@@ -50,7 +50,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             anchors.margins: 8
-            radius: 8
+            radius: Theme.radius
             color: "transparent"
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.06)
@@ -80,7 +80,7 @@ Item {
              : parent.height / 3
             width: ed.vertical ? bandThickness : parent.width / 3
             height: ed.vertical ? parent.height / 3 : bandThickness
-            radius: 8
+            radius: Theme.radius
             color: Qt.rgba(1, 1, 1, 0.03)
             Canvas {
                 anchors.fill: parent
@@ -109,7 +109,7 @@ Item {
             id: body
             width: ed.vertical ? 64 : 96
             height: ed.vertical ? 96 : 60
-            radius: 8
+            radius: Theme.radius
             color: Qt.rgba(0, 0, 0, 0.5)
             border.width: 1
             border.color: Theme.ember
@@ -163,7 +163,7 @@ Item {
                 id: edgeCell
                 required property var modelData
                 readonly property bool active: ed.edge === edgeCell.modelData.k
-                width: el.implicitWidth + 18; height: 24; radius: 7
+                width: el.implicitWidth + 18; height: 24; radius: Theme.radius
                 color: active ? Theme.keyTop : Theme.surfaceLo
                 border.width: 1; border.color: Theme.line
                 Text {

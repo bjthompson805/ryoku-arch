@@ -70,7 +70,7 @@ Item {
         property string t: ""
         property string body: ""
         spacing: 8
-        Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 3; height: 12; radius: 1.5; color: preview.accent }
+        Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 3; height: 12; radius: Theme.radius; color: preview.accent }
         Text { anchors.verticalCenter: parent.verticalCenter; width: 34; text: parent.t; color: preview.inkDim; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 10 }
         Text { anchors.verticalCenter: parent.verticalCenter; text: parent.body; color: preview.ink; font.family: "Inter"; font.pixelSize: 11 }
     }
@@ -129,7 +129,7 @@ Item {
                         readonly property bool current: inMonth && dayNum === preview.dom
                         width: 30; height: 28
                         Rectangle {
-                            anchors.centerIn: parent; width: 24; height: 24; radius: 8
+                            anchors.centerIn: parent; width: 24; height: 24; radius: Theme.radius
                             visible: mcell.current
                             color: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.16)
                             border.width: 1; border.color: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.55)
@@ -194,7 +194,7 @@ Item {
                     readonly property bool current: index === 0
                     spacing: 14
                     Rectangle {
-                        width: 42; height: 44; radius: 10
+                        width: 42; height: 44; radius: Theme.radius
                         color: arow.current ? Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.16) : Qt.rgba(0.96, 0.95, 1, 0.04)
                         border.width: 1; border.color: arow.current ? Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.5) : preview.hair
                         Column {
@@ -241,7 +241,7 @@ Item {
                             Item {
                                 anchors.horizontalCenter: parent.horizontalCenter; width: 28; height: 28
                                 Rectangle {
-                                    anchors.fill: parent; radius: 9; visible: wcell.current
+                                    anchors.fill: parent; radius: Theme.radius; visible: wcell.current
                                     color: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.16)
                                     border.width: 1; border.color: Qt.rgba(preview.accent.r, preview.accent.g, preview.accent.b, 0.55)
                                 }
@@ -303,7 +303,7 @@ Item {
                         readonly property int level: inMonth ? preview.heatLevel(dayNum) : 0
                         width: 30; height: 30
                         Rectangle {
-                            anchors.centerIn: parent; width: 26; height: 26; radius: 7
+                            anchors.centerIn: parent; width: 26; height: 26; radius: Theme.radius
                             visible: hcell.inMonth
                             color: hcell.level > 0 ? preview.tileColor(hcell.level) : Qt.rgba(0.96, 0.95, 1, 0.04)
                             border.width: hcell.current ? 1 : 0
@@ -328,7 +328,7 @@ Item {
                         id: hleg
                         required property int index
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 11; height: 11; radius: 3
+                        width: 11; height: 11; radius: Theme.radius
                         color: hleg.index > 0 ? preview.tileColor(hleg.index) : Qt.rgba(0.96, 0.95, 1, 0.06)
                         border.width: hleg.index === 0 ? 1 : 0
                         border.color: Qt.rgba(0.96, 0.95, 1, 0.2)

@@ -19,7 +19,7 @@ Item {
     property bool locked: false
     property real pad: 18
     property string bg: "card"            // none | card | glass
-    property real radius: 16
+    property real radius: 0
     property real gridSize: 32
     property real scaleCfg: 1             // persisted, bound from the host
 

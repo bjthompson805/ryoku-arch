@@ -19,7 +19,7 @@ Rectangle {
     signal dragDelta(real dx, real dy)
     signal dragEnded()
 
-    radius: 8
+    radius: Theme.radius
     color: tile.live ? (tile.selected ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.16) : Theme.surface)
                         : Theme.surfaceLo
     border.width: tile.selected ? 2 : 1

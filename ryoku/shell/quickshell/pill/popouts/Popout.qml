@@ -18,14 +18,14 @@ import "../Singletons"
 // + reveal all live here; each popup file only supplies its content. `align`
 // slides the body along the edge (start/center/end).
 //
-//   Popout { group: blobGroup; frameThickness: 16; radius: 16; smoothing: 30
+//   Popout { group: blobGroup; frameThickness: 16; radius: Theme.radius; smoothing: 30
 //            edge: "left"; openW: 220; openH: 200; Mixer {} }
 Item {
     id: root
 
     required property var group
     required property real frameThickness
-    property real radius: 16
+    property real radius: Theme.radius
     property real smoothing: 30
     property string edge: "left"          // "left" | "right" | "top" | "bottom"
     property string align: "center"       // "start" | "center" | "end" (along the edge)

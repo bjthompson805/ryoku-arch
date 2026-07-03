@@ -47,7 +47,7 @@ Item {
         anchors.top: parent.top
         width: 28 * root.s
         height: 28 * root.s
-        radius: 9 * root.s
+        radius: Theme.radius
         color: Theme.tileBg
         border.width: 1
         border.color: Theme.border
@@ -69,7 +69,7 @@ Item {
             visible: !toastImg.visible
             width: 7 * root.s
             height: 7 * root.s
-            radius: 2 * root.s
+            radius: Theme.radius
             rotation: 45
             color: root.critical ? Theme.vermLit : Theme.verm
         }
