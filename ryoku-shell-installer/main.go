@@ -113,6 +113,14 @@ func buildItems(f *facts, p *plan) []planItem {
 		gd = "KDE's login screen settings own SDDM here; toggle on to let the Ryoku theme outrank kde_settings.conf"
 	}
 	it = append(it, planItem{"Ryoku greeter theme", gd, &p.greeter, false})
+	// only offered when nothing better was salvaged: an existing fr/be/de/...
+	// setup already carries its own layout into keyboard.lua.
+	if f.kbLayout == "" || f.kbLayout == "us" {
+		it = append(it, planItem{"AZERTY keyboard (French)",
+			"sets layout fr for Hyprland, the console (KEYMAP=fr), and the SDDM login screen; turns the Belgian toggle off", &p.azertyFR, false})
+		it = append(it, planItem{"AZERTY keyboard (Belgian)",
+			"sets layout be for Hyprland, the console (KEYMAP=be-latin1), and the SDDM login screen; turns the French toggle off", &p.azertyBE, false})
+	}
 	if len(f.otherNet) > 0 {
 		it = append(it, planItem{"Switch to NetworkManager", "disables " + strings.Join(f.otherNet, ", ") + " (at reboot)", &p.switchNet, false})
 	}
@@ -142,7 +150,7 @@ var planGroups = []struct {
 	title  string
 	labels []string
 }{
-	{"session & hardware", []string{"NVIDIA proprietary drivers", "Switch login to SDDM", "Enable SDDM login", "Ryoku greeter theme", "Switch to NetworkManager"}},
+	{"session & hardware", []string{"NVIDIA proprietary drivers", "Switch login to SDDM", "Enable SDDM login", "Ryoku greeter theme", "AZERTY keyboard (French)", "AZERTY keyboard (Belgian)", "Switch to NetworkManager"}},
 	{"migration & cleanup", []string{"Remove rival shells", "Disable conflicting daemons", "Retire the Omarchy repo", "Carry over monitor layout"}},
 	{"extras", []string{"AUR extras", "Developer toolchain", "fish as login shell"}},
 }
@@ -294,6 +302,7 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 		case " ", "space":
 			if len(m.items) > 0 && m.items[m.sel].on != nil && !m.items[m.sel].locked {
 				*m.items[m.sel].on = !*m.items[m.sel].on
+				m.p.azertyExclusive(m.items[m.sel].on)
 			}
 		case "enter":
 			m.confirm = true
@@ -627,8 +636,8 @@ func runHeadless(dry bool, ref, payload string) int {
 	if f.prevRun != nil {
 		fmt.Printf("resuming the interrupted previous run: %d step(s) already done\n", len(f.prevRun.Completed))
 	}
-	fmt.Printf("plan: nvidia=%v sddm=%v greeter-theme=%v networkmanager=%v remove-shells=%v aur=%v fish=%v devtools=%v omarchy-cleanup=%v monitor-pins=%v\n",
-		p.nvidia, p.switchDM, p.greeter, p.switchNet, p.rivals, p.aur, p.fish, p.devtools, p.omarchy, p.monPins)
+	fmt.Printf("plan: nvidia=%v sddm=%v greeter-theme=%v networkmanager=%v remove-shells=%v aur=%v fish=%v devtools=%v omarchy-cleanup=%v monitor-pins=%v azerty-fr=%v azerty-be=%v\n",
+		p.nvidia, p.switchDM, p.greeter, p.switchNet, p.rivals, p.aur, p.fish, p.devtools, p.omarchy, p.monPins, p.azertyFR, p.azertyBE)
 	e := newEngine(f, p, dry, ref, payload)
 	ev := e.runFrom(0)
 	for msg := range ev {

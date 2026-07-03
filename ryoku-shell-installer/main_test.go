@@ -36,3 +36,44 @@ func TestGroupPlanItems(t *testing.T) {
 		t.Fatalf("short plans stay flat, got %d rows", len(short))
 	}
 }
+
+func TestAzertyPlanItems(t *testing.T) {
+	find := func(items []planItem, label string) *planItem {
+		for i := range items {
+			if items[i].label == label {
+				return &items[i]
+			}
+		}
+		return nil
+	}
+	p := &plan{}
+	items := buildItems(&facts{kbLayout: "us"}, p)
+	fr := find(items, "AZERTY keyboard (French)")
+	be := find(items, "AZERTY keyboard (Belgian)")
+	if fr == nil || be == nil {
+		t.Fatal("AZERTY toggles missing on a plain us layout")
+	}
+	if fr.on != &p.azertyFR || be.on != &p.azertyBE {
+		t.Fatal("AZERTY toggles wired to the wrong plan fields")
+	}
+	if find(buildItems(&facts{kbLayout: "de"}, &plan{}), "AZERTY keyboard (French)") != nil {
+		t.Fatal("AZERTY toggles must stay hidden when a layout was salvaged")
+	}
+	if find(buildItems(&facts{}, &plan{}), "AZERTY keyboard (Belgian)") == nil {
+		t.Fatal("AZERTY toggles missing when no layout was salvaged")
+	}
+
+	// the two choices are exclusive: the one just switched on wins.
+	*fr.on = true
+	p.azertyExclusive(fr.on)
+	*be.on = true
+	p.azertyExclusive(be.on)
+	if p.azertyFR || !p.azertyBE {
+		t.Fatalf("want fr=false be=true after toggling both, got fr=%v be=%v", p.azertyFR, p.azertyBE)
+	}
+	*be.on = false
+	p.azertyExclusive(be.on)
+	if p.azertyFR || p.azertyBE {
+		t.Fatal("switching a toggle off must not resurrect the other")
+	}
+}

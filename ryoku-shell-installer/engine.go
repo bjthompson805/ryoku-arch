@@ -73,6 +73,8 @@ type plan struct {
 	monPins   bool // pin the salvaged monitor layout in monitors_user.lua
 	greeter   bool // point SDDM at the Ryoku greeter theme
 	resume    bool // skip steps a previous interrupted run already finished
+	azertyFR  bool // force the French AZERTY layout (fr) on desktop, console, greeter
+	azertyBE  bool // force the Belgian AZERTY layout (be) on desktop, console, greeter
 }
 
 func defaultPlan(f *facts) *plan {
@@ -94,6 +96,22 @@ func defaultPlan(f *facts) *plan {
 		// look; keep it unless they opt in.
 		greeter: !f.kdeSddmConf,
 		resume:  f.prevRun != nil,
+		// the AZERTY overrides are opt-in only; a salvaged layout already
+		// covers anyone who had one configured.
+	}
+}
+
+// azertyExclusive keeps the two AZERTY toggles mutually exclusive: switching
+// one on switches the other off. just is the toggle that was just flipped.
+func (p *plan) azertyExclusive(just *bool) {
+	if !*just {
+		return
+	}
+	switch just {
+	case &p.azertyFR:
+		p.azertyBE = false
+	case &p.azertyBE:
+		p.azertyFR = false
 	}
 }
 
@@ -807,6 +825,16 @@ func stepConfigs(e *engine) error {
 		}
 	}
 
+	// an explicit AZERTY choice in the plan beats any salvaged layout.
+	azerty := e.p.azertyFR || e.p.azertyBE
+	if azerty {
+		layout := "fr"
+		if e.p.azertyBE {
+			layout = "be"
+		}
+		e.f.kbLayout, e.f.kbVariant, e.f.kbOptions, e.f.kbSource = layout, "", "", "plan"
+	}
+
 	// keyboard.lua is user-owned: seeded once, never touched by updates.
 	lua := func(s string) string { return strings.NewReplacer(`"`, ``, `\`, ``).Replace(s) }
 	if e.f.kbLayout != "" && (e.f.kbLayout != "us" || e.f.kbVariant != "" || e.f.kbOptions != "") {
@@ -814,17 +842,48 @@ func stepConfigs(e *engine) error {
 		if src == "" {
 			src = "localectl"
 		}
-		e.sayf("seeding keyboard layout %q variant %q options %q (from %s) into hypr/keyboard.lua",
-			e.f.kbLayout, e.f.kbVariant, e.f.kbOptions, src)
-		if !e.dry {
-			kb := filepath.Join(e.f.homeDir, ".config/hypr/keyboard.lua")
-			content := "-- keyboard layout, carried over by the installer. edits here stick.\n" +
-				"hl.config({\n    input = {\n        kb_layout = \"" + lua(e.f.kbLayout) + "\",\n" +
-				"        kb_variant = \"" + lua(e.f.kbVariant) + "\",\n" +
-				"        kb_options = \"" + lua(e.f.kbOptions) + "\",\n    },\n})\n"
-			if err := os.WriteFile(kb, []byte(content), 0o644); err != nil {
-				return err
+		kb := filepath.Join(e.f.homeDir, ".config/hypr/keyboard.lua")
+		// a salvaged layout never clobbers an existing file (a repair run
+		// keeps hand edits); an explicit AZERTY choice always writes.
+		if _, err := os.Lstat(kb); err == nil && !azerty {
+			e.say("hypr/keyboard.lua already exists, keeping it")
+		} else {
+			e.sayf("seeding keyboard layout %q variant %q options %q (from %s) into hypr/keyboard.lua",
+				e.f.kbLayout, e.f.kbVariant, e.f.kbOptions, src)
+			if !e.dry {
+				content := "-- keyboard layout, carried over by the installer. edits here stick.\n" +
+					"hl.config({\n    input = {\n        kb_layout = \"" + lua(e.f.kbLayout) + "\",\n" +
+					"        kb_variant = \"" + lua(e.f.kbVariant) + "\",\n" +
+					"        kb_options = \"" + lua(e.f.kbOptions) + "\",\n    },\n})\n"
+				if err := os.WriteFile(kb, []byte(content), 0o644); err != nil {
+					return err
+				}
 			}
+		}
+	}
+
+	// console + login-screen parity for an explicit AZERTY choice: the vt
+	// keymap and SDDM's X11 greeter follow the desktop layout.
+	if azerty {
+		layout, keymap := "fr", "fr"
+		if e.p.azertyBE {
+			layout, keymap = "be", "be-latin1"
+		}
+		e.say("setting the console keymap to " + keymap + " in /etc/vconsole.conf")
+		if err := e.sudoSh(`install -Dm644 /dev/stdin /etc/vconsole.conf <<'EOF'
+KEYMAP=` + keymap + `
+EOF`); err != nil {
+			return err
+		}
+		e.say("pointing the SDDM login screen at the " + layout + " layout via xorg.conf.d")
+		if err := e.sudoSh(`install -Dm644 /dev/stdin /etc/X11/xorg.conf.d/00-keyboard.conf <<'EOF'
+Section "InputClass"
+        Identifier "system-keyboard"
+        MatchIsKeyboard "on"
+        Option "XkbLayout" "` + layout + `"
+EndSection
+EOF`); err != nil {
+			return err
 		}
 	}
 
