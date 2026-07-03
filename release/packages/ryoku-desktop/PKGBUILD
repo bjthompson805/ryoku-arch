@@ -169,6 +169,7 @@ package() {
 
   # per-app configs
   install -Dm644 "$_repo/ryoku/apps/fish/config.fish"       "$cfg/fish/config.fish"
+  install -Dm644 "$_repo/ryoku/apps/fish/conf.d/rashin.fish" "$cfg/fish/conf.d/rashin.fish"
   install -Dm644 "$_repo/ryoku/shell/qt6ct/qt6ct.conf"     "$cfg/qt6ct/qt6ct.conf"
   install -Dm644 "$_repo/ryoku/apps/starship/starship.toml" "$cfg/starship.toml"
   install -Dm644 "$_repo/ryoku/apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"

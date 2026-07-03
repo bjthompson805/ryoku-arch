@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `ryoku-rashin` ships the `rashin` terminal command as a `/usr/bin/rashin`
+  symlink to the daemon binary (argv0 dispatch, the busybox pattern), and
+  `ryoku-desktop` lays `ryoku/apps/fish/conf.d/rashin.fish` into the base
+  config tree so materialized desktops get the interactive wrapper, the Alt+R
+  binding, the learning hook, and the recipes loader. Both stay inert until
+  Rashin is enabled. See the ryoku/apps and docs changelogs.
 - `ryoku-desktop` ships the PipeWire drop-in (`ryoku/apps/pipewire/`) in the
   base config tree, so materialized desktops get audio that follows a newly
   connected device (see the ryoku/apps changelog).
