@@ -20,6 +20,9 @@ type askSink struct {
 	answer  strings.Builder
 	started bool
 	lastMk  string
+	// permJSON: the terminal lane's consumer answers permissions itself, so
+	// its @perm payload carries {id, title, options} instead of a bare title.
+	permJSON bool
 }
 
 func (s *askSink) marker(kind, detail string) {
@@ -102,7 +105,11 @@ func (h *chatHub) handleAsk(w http.ResponseWriter, r *http.Request) {
 		sink.marker("working", "waking the needle")
 	}
 
-	h.sessionAsk(ctx, sink, q)
+	if ans, ok := h.sessionAsk(ctx, sink, quickPreamble, q); ok {
+		recordAsk(askRecord{At: nowRFC3339(), Kind: "quick", Question: q, Answer: ans,
+			Images: extractImages(ans), Actions: extractActions(ans)})
+		sink.marker("answer", mustAskJSON(ans))
+	}
 }
 
 // setAskCancel registers the current ask's cancel func, keyed by a generation
@@ -146,8 +153,9 @@ func (h *chatHub) handleAskRecent(w http.ResponseWriter, r *http.Request) {
 
 // sessionAsk runs the question through the real hermes session, translating
 // hub frames into markers until the turn ends. It joins as an internal client
-// so every dashboard sees the same stream.
-func (h *chatHub) sessionAsk(ctx context.Context, sink *askSink, q string) {
+// so every dashboard sees the same stream. The answer comes back for the
+// caller to record and emit; error paths emit @error here and report false.
+func (h *chatHub) sessionAsk(ctx context.Context, sink *askSink, preamble, q string) (string, bool) {
 	cl := &chatClient{out: make(chan wsOut, 256)}
 	h.mu.Lock()
 	h.clients[cl] = true
@@ -165,22 +173,22 @@ func (h *chatHub) sessionAsk(ctx context.Context, sink *askSink, q string) {
 	if conn == nil {
 		h.broadcast(wsOut{Type: "state", State: "ready"})
 		sink.marker("error", "hermes is unavailable; run setup from Ryoku Settings")
-		return
+		return "", false
 	}
 	// The user_text is already in the transcript; hand hermes the terse-mode
 	// prompt directly.
-	conn.Prompt(quickPreamble+q, nil)
+	conn.Prompt(preamble+q, nil)
 
 	var answer strings.Builder
 	for {
 		select {
 		case <-ctx.Done():
 			sink.marker("error", "timed out waiting for the answer")
-			return
+			return "", false
 		case f, ok := <-cl.out:
 			if !ok {
 				sink.marker("error", "daemon shutting down")
-				return
+				return "", false
 			}
 			switch f.Type {
 			case "state":
@@ -190,7 +198,7 @@ func (h *chatHub) sessionAsk(ctx context.Context, sink *askSink, q string) {
 						msg += ": " + f.Error
 					}
 					sink.marker("error", msg)
-					return
+					return "", false
 				}
 			case "agent_thought":
 				sink.marker("working", "thinking")
@@ -209,13 +217,18 @@ func (h *chatHub) sessionAsk(ctx context.Context, sink *askSink, q string) {
 					sink.marker("working", "writing")
 				}
 			case "permission":
+				if sink.permJSON {
+					b, err := json.Marshal(map[string]any{
+						"id": f.RequestID, "title": f.Title, "options": f.Options,
+					})
+					if err == nil {
+						sink.marker("perm", string(b))
+						break
+					}
+				}
 				sink.marker("perm", f.Title)
 			case "turn_end":
-				ans := strings.TrimSpace(answer.String())
-				recordAsk(askRecord{At: nowRFC3339(), Question: q, Answer: ans,
-					Images: extractImages(ans), Actions: extractActions(ans)})
-				sink.marker("answer", mustAskJSON(ans))
-				return
+				return strings.TrimSpace(answer.String()), true
 			}
 		}
 	}

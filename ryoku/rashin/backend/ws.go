@@ -69,6 +69,11 @@ type chatHub struct {
 	askCancel    func()
 	askGen       uint64
 	askCancelGen uint64
+	// termCancels keys in-flight terminal asks by request id, so concurrent
+	// terminals cancel independently; termHist is the last terminal exchange,
+	// the continuation context behind `rashin -c`.
+	termCancels map[string]context.CancelFunc
+	termHist    []chatMessage
 }
 
 // transcriptCap bounds the join replay; older frames just scroll away.
@@ -76,8 +81,9 @@ const transcriptCap = 400
 
 func newChatHub() *chatHub {
 	return &chatHub{
-		clients: map[*chatClient]bool{},
-		last:    wsOut{Type: "state", State: "starting"},
+		clients:     map[*chatClient]bool{},
+		last:        wsOut{Type: "state", State: "starting"},
+		termCancels: map[string]context.CancelFunc{},
 	}
 }
 

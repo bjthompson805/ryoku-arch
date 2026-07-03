@@ -61,15 +61,21 @@ func Serve(cfg Config) error {
 			_ = Reindex()
 		}
 	}()
-	// User-owned changes reindex separately: a cheap fingerprint of the live
-	// config every 2 minutes, the full diff only when it moves.
+	// User-owned changes and the habits layer reindex separately from the
+	// full map: a cheap fingerprint every 2 minutes, the rewrite only when
+	// the live config or the habits sources (history, asks, runs, recipes)
+	// move.
 	go func() {
-		last := userConfigFingerprint()
+		lastCfg := userConfigFingerprint()
+		lastHab := habitsFingerprint()
 		for range time.Tick(2 * time.Minute) {
-			cur := userConfigFingerprint()
-			if cur != last {
-				last = cur
+			if cur := userConfigFingerprint(); cur != lastCfg {
+				lastCfg = cur
 				_ = ReindexUser()
+			}
+			if cur := habitsFingerprint(); cur != lastHab {
+				lastHab = cur
+				_ = WriteHabits()
 			}
 		}
 	}()
@@ -143,6 +149,10 @@ func Serve(cfg Config) error {
 	mux.HandleFunc("POST /api/ask", hub.handleAsk)
 	mux.HandleFunc("POST /api/ask/cancel", hub.handleAskCancel)
 	mux.HandleFunc("GET /api/ask/recent", hub.handleAskRecent)
+	mux.HandleFunc("POST /api/term", hub.handleTerm)
+	mux.HandleFunc("POST /api/term/cancel", hub.handleTermCancel)
+	mux.HandleFunc("POST /api/term/ran", hub.handleTermRan)
+	mux.HandleFunc("POST /api/perm", hub.handlePerm)
 
 	mux.HandleFunc("GET /ws/vitals", func(w http.ResponseWriter, r *http.Request) {
 		ws, err := acceptWS(w, r)

@@ -23,6 +23,7 @@ var generatedFiles = map[string]bool{
 	"packages.md":   true,
 	"ryoku-repo.md": true,
 	"user.md":       true,
+	"habits.md":     true,
 }
 
 // AgentsTemplate is the vault entry contract, written to AGENTS.md once. It is
@@ -47,6 +48,7 @@ const AgentsTemplate = "# Ryoku system vault\n" +
 	"- `packages.md` generated: installed package counts, the explicit set, updates.\n" +
 	"- `ryoku-repo.md` generated: the Ryoku source tree map (pre-indexed, ships with the system).\n" +
 	"- `user.md` generated: where this user's config diverges from the shipped baseline.\n" +
+	"- `habits.md` generated: this user's directories, tool stack, and shell rhythms.\n" +
 	"- `memory/` durable notes agents keep across sessions (Hermes MEMORY.md lives here).\n" +
 	"- `journal/` dated notes, one file per day named `YYYY-MM-DD.md`.\n" +
 	"\n" +

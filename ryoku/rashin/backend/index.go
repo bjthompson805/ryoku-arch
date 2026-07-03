@@ -31,7 +31,10 @@ func Reindex() error {
 	if err := writeRepoVaultDoc(); err != nil {
 		return err
 	}
-	return writeUserVaultDoc()
+	if err := writeUserVaultDoc(); err != nil {
+		return err
+	}
+	return WriteHabits()
 }
 
 // ReindexUser refreshes only the user-owned changes layer; cheap enough for

@@ -16,6 +16,16 @@ type Config struct {
 		BaseURL string `json:"baseUrl,omitempty"`
 		KeyEnv  string `json:"keyEnv,omitempty"`
 	} `json:"quick,omitzero"`
+	// Habits gates the vault's user-habits mining. History defaults on;
+	// nil means enabled so an absent key keeps the feature.
+	Habits struct {
+		History *bool `json:"history,omitempty"`
+	} `json:"habits,omitzero"`
+}
+
+// HabitsHistoryEnabled: fish-history mining is opt-out.
+func (c Config) HabitsHistoryEnabled() bool {
+	return c.Habits.History == nil || *c.Habits.History
 }
 
 func defaultConfig() Config {

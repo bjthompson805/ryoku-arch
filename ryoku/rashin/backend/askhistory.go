@@ -15,11 +15,13 @@ import (
 // small append-capped JSONL under XDG_STATE_HOME, newest last.
 
 type askRecord struct {
-	At       string      `json:"at"` // RFC3339
+	At       string      `json:"at"`             // RFC3339
+	Kind     string      `json:"kind,omitempty"` // quick (default) | term
 	Question string      `json:"q"`
 	Answer   string      `json:"a"`
 	Images   []string    `json:"images,omitempty"`
 	Actions  []askAction `json:"actions,omitempty"`
+	Plan     *termPlan   `json:"plan,omitempty"` // the terminal lane's command plan
 }
 
 const askHistoryCap = 40
@@ -30,9 +32,12 @@ func askHistoryPath() string {
 
 var askHistoryMu sync.Mutex
 
-// recordAsk appends one completed ask, trimming the file to the cap.
+// recordAsk appends one completed ask, trimming the file to the cap. A record
+// with no answer text but a plan (a fence-only terminal proposal) is still
+// worth keeping for --resume and recipe save.
 func recordAsk(rec askRecord) {
-	if strings.TrimSpace(rec.Answer) == "" || strings.HasPrefix(rec.Answer, "(no answer") {
+	empty := strings.TrimSpace(rec.Answer) == "" || strings.HasPrefix(rec.Answer, "(no answer")
+	if empty && rec.Plan == nil {
 		return
 	}
 	askHistoryMu.Lock()

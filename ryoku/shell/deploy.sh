@@ -88,7 +88,10 @@ say "installed $bindir/ryoku-hub"
 say "building ryoku-rashin"
 (cd "$here/../rashin/backend" && go build -o ryoku-rashin .)
 install -m755 "$here/../rashin/backend/ryoku-rashin" "$bindir/ryoku-rashin"
-say "installed $bindir/ryoku-rashin"
+# `rashin` is the terminal-lane command: the same binary under a second name
+# (busybox pattern), argv0 routes a bare argument to the terminal ask.
+ln -sf ryoku-rashin "$bindir/rashin"
+say "installed $bindir/ryoku-rashin (and the rashin command)"
 # Pre-index the checkout for the Rashin vault: dev-machine equivalent of the
 # snapshot the package ships to /usr/share/ryoku/rashin.
 "$bindir/ryoku-rashin" repo-index "$here/../.." \
@@ -232,6 +235,7 @@ mv "$staging" "$cfg/hypr"
 # Palette generation, per-app config, and the user session target.
 mkdir -p "$cfg/wallust";   cp -a "$here/wallust/." "$cfg/wallust/"
 cp -a "$here/../apps/fish/config.fish" "$cfg/fish/config.fish"
+mkdir -p "$cfg/fish/conf.d"; cp -a "$here/../apps/fish/conf.d/." "$cfg/fish/conf.d/"
 mkdir -p "$cfg/qt6ct"; cp -a "$here/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
 mkdir -p "$cfg/pipewire"; cp -a "$here/../apps/pipewire/." "$cfg/pipewire/"
 mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"

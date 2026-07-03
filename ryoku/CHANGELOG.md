@@ -3,6 +3,33 @@
 ## Unreleased
 
 ### Added
+- `rashin/backend` + `apps/fish` + `docs/rashin-terminal.md`: **Rashin in the
+  terminal**, a third surface on the one brain (launcher `\`, dashboard, and
+  now the command line). A new `rashin` command (the `ryoku-rashin` binary
+  under a second name; argv0 routes a bare argument to a terminal ask) turns
+  natural language into an answer plus a ready-to-run command plan and drops it
+  on the fish prompt: `rashin take me to the fastfetch config`, `rashin scan
+  Documents for pngs and move them into Pictures`. It answers on the daemon's
+  fast lane (`POST /api/term`), the same direct chat-completions loop as the
+  launcher, with a terminal persona, the terminal context (cwd, last command
+  and its exit status), the read-only tools, and one action tool, `propose`,
+  whose commands the daemon validates (binary on PATH, source paths exist) and
+  tiers (read/write/system/danger via a deny-first Go classifier in
+  `danger.go`). It never runs anything itself; the buffer is the confirmation
+  and the tiers gate `--run`. Heavy asks escalate to the pre-warmed hermes
+  session, and session-lane permission prompts are answered right in the
+  terminal (`POST /api/perm`, answered exactly once even if the dashboard
+  races). A `conf.d/rashin.fish` weave adds the interactive wrapper, an
+  **Alt+R** binding that transmutes the current command line, a `fish_postexec`
+  hook that reports proposed-vs-ran corrections, and the recipes loader. New
+  **habits layer** (`habits.md`) mines this user's XDG directory names, modern
+  tool substitutions (eza/zoxide/fd/rg/bat), and fish-history rhythms
+  (secret-filtered, opt-out) into both ask lanes, so a command knows the folder
+  is really `Pictures`. Repeated asks become saved **recipes** (`rr-<name>` fish
+  abbreviations). Every surface reads and writes one ask history, so `\resume`,
+  `rashin --resume`, and "continue in dashboard" see one conversation. New
+  verbs: `term`, `term --report`; the `rashin` command also passes through
+  `status`/`enable`/`disable`/`setup`/`index`.
 - `shell/quickshell/overview` + `hyprland`: a new full-screen workspace overview
   (Super+Tab), a launcher-style expo that replaces the pill's workspace switcher.
   The compositor blurs the desktop (an `overview` layer rule) and a filmstrip

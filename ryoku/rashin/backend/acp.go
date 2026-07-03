@@ -92,16 +92,20 @@ type acpConn struct {
 	sessionID string
 	vault     string
 	closed    bool
+	// answeredPerms: a permission request is replied to exactly once, even
+	// when the dashboard and the terminal race to answer it.
+	answeredPerms map[int64]bool
 
 	events chan AcpEvent
 }
 
 func newACPConn(in io.Writer, out io.Reader, closer io.Closer) *acpConn {
 	c := &acpConn{
-		in:      in,
-		closer:  closer,
-		pending: map[int64]chan rpcMsg{},
-		events:  make(chan AcpEvent, 256),
+		in:            in,
+		closer:        closer,
+		pending:       map[int64]chan rpcMsg{},
+		events:        make(chan AcpEvent, 256),
+		answeredPerms: map[int64]bool{},
 	}
 	go c.readLoop(out)
 	return c
@@ -326,6 +330,13 @@ func (c *acpConn) Cancel() {
 
 // RespondPermission answers an inbound session/request_permission request.
 func (c *acpConn) RespondPermission(requestID int64, optionID string) {
+	c.mu.Lock()
+	if c.answeredPerms[requestID] {
+		c.mu.Unlock()
+		return
+	}
+	c.answeredPerms[requestID] = true
+	c.mu.Unlock()
 	outcome := map[string]any{"outcome": "cancelled"}
 	if optionID != "" {
 		outcome = map[string]any{"outcome": "selected", "optionId": optionID}

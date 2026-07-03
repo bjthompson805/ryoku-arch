@@ -129,7 +129,7 @@ func resolveQuickTarget(cfg Config) (quickTarget, error) {
 // pattern's knowledge. Small by construction; capped defensively.
 func vaultQuickContext() string {
 	var b strings.Builder
-	for _, name := range []string{"system.md", "desktop.md", "user.md"} {
+	for _, name := range []string{"system.md", "desktop.md", "user.md", "habits.md"} {
 		raw, err := ReadVaultFile(name)
 		if err != nil {
 			continue
@@ -166,20 +166,47 @@ type toolCall struct {
 	} `json:"function"`
 }
 
-// quickComplete runs the fast-lane agent loop: up to maxToolRounds of
-// read-only tool calls, then the final answer. onDelta streams the answer text
-// (after the sentinel is ruled out); onTool fires as each tool runs so the
-// launcher and dashboard can show what it is doing.
+// laneSpec parameterizes the fast-lane agent loop: the quick (launcher) and
+// terminal lanes share the loop, the streaming, and the escalation sentinel,
+// differing in persona, toolset, and prior turns.
+type laneSpec struct {
+	system  string                                              // full system prompt
+	tools   []map[string]any                                    // advertised schemas
+	exec    func(ctx context.Context, name, args string) string // tool executor
+	history []chatMessage                                       // prior exchange (continuation)
+}
+
+func quickSpec() laneSpec {
+	return laneSpec{
+		system: quickPattern + "\n\n# The machine map\n\n" + vaultQuickContext(),
+		tools:  quickToolSchemas(),
+		exec:   execQuickTool,
+	}
+}
+
+// quickComplete runs the launcher fast lane; see laneComplete.
 func quickComplete(ctx context.Context, t quickTarget, question string,
 	onDelta func(string), onTool func(id, title, status string)) (string, error) {
-	msgs := []chatMessage{
-		{Role: "system", Content: quickPattern + "\n\n# The machine map\n\n" + vaultQuickContext()},
-		{Role: "user", Content: question},
-	}
+	return laneComplete(ctx, t, quickSpec(), question, onDelta, onTool)
+}
+
+// laneComplete runs the fast-lane agent loop: up to maxToolRounds of tool
+// calls, then the final answer. onDelta streams the answer text (after the
+// sentinel is ruled out); onTool fires as each tool runs so the launcher,
+// terminal, and dashboard can show what it is doing.
+func laneComplete(ctx context.Context, t quickTarget, spec laneSpec, question string,
+	onDelta func(string), onTool func(id, title, status string)) (string, error) {
+	msgs := make([]chatMessage, 0, len(spec.history)+2)
+	msgs = append(msgs, chatMessage{Role: "system", Content: spec.system})
+	msgs = append(msgs, spec.history...)
+	msgs = append(msgs, chatMessage{Role: "user", Content: question})
 	for round := 0; round <= maxToolRounds; round++ {
 		// The last round forbids tools so the model must answer.
-		allowTools := round < maxToolRounds
-		text, calls, err := quickRound(ctx, t, msgs, allowTools, onDelta)
+		tools := spec.tools
+		if round == maxToolRounds {
+			tools = nil
+		}
+		text, calls, err := quickRound(ctx, t, msgs, tools, onDelta)
 		if err != nil {
 			return "", err
 		}
@@ -199,7 +226,7 @@ func quickComplete(ctx context.Context, t quickTarget, question string,
 			if onTool != nil {
 				onTool(c.ID, toolTitle(c), "in_progress")
 			}
-			result := execQuickTool(ctx, c.Function.Name, c.Function.Arguments)
+			result := spec.exec(ctx, c.Function.Name, c.Function.Arguments)
 			if onTool != nil {
 				onTool(c.ID, toolTitle(c), "completed")
 			}
@@ -226,6 +253,8 @@ func toolTitle(c toolCall) string {
 		return "listing " + a.Path
 	case "search_code":
 		return "searching code: " + a.Query
+	case "propose":
+		return "shaping the commands"
 	case "fetch_url":
 		return "fetching " + a.URL
 	default:
@@ -237,15 +266,15 @@ func toolTitle(c toolCall) string {
 // (streamed via onDelta, head held until the sentinel is ruled out) and any
 // tool_calls (fragmented across deltas by index). Streaming keeps the answer
 // fading in even though the loop can also call tools.
-func quickRound(ctx context.Context, t quickTarget, msgs []chatMessage, allowTools bool,
+func quickRound(ctx context.Context, t quickTarget, msgs []chatMessage, tools []map[string]any,
 	onDelta func(string)) (string, []toolCall, error) {
 	payload := map[string]any{
 		"model":    t.Model,
 		"stream":   true,
 		"messages": msgs,
 	}
-	if allowTools {
-		payload["tools"] = quickToolSchemas()
+	if len(tools) > 0 {
+		payload["tools"] = tools
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
