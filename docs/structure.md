@@ -33,8 +33,8 @@ truth for the live desktop.
   `install-qylock`, and `sddm/` (the greeter setup).
 - `shell/` the desktop shell subsystem: `quickshell/` (the QML UI: `pill` (the
   morphing top island, which also draws the screen frame, hosts the edge popouts
-  under `pill/popouts/`, and grows centre-island surfaces like the Super+D toolkit
-  and the Super+U utilities), `sidebar`, `ryoshot`, and `widgets` (the desktop
+  under `pill/popouts/`, and grows the centre-island control deck (`Super+D`:
+  stash, tools, and utilities)), `launcher`, `ryoshot`, and `widgets` (the desktop
   clock and weather on the wallpaper), and `plugins` (the third-party shell
   plugin runtime: `discover.sh` merges the catalogue with the user's
   `plugins.json`, `shell.qml` is the desktop-widget host layer, and `kit/` is the
@@ -58,7 +58,7 @@ truth for the live desktop.
   (`ryoku-hub`, the Go data plane that reads the keybind legend from the live
   Hyprland config, generates the `settings.lua` override from a JSON document, and
   persists hub state as TOML) and `quickshell/` (the native Qt6/QML app, a
-  `FloatingWindow` with a grouped sidebar and global fuzzy search, with live
+  `FloatingWindow` with a grouped nav rail and global fuzzy search, with live
   editors for displays, appearance, lockscreen, animations, input, keybinds, window and layer
   rules, autostart, environment, the shell, and the desktop widgets). The product is "Ryoku Settings"; the binary and
   config keep the internal `hub` name. Deployed to `~/.config/quickshell/hub`;
@@ -67,9 +67,12 @@ truth for the live desktop.
   (`ryoku-rashin`, one Go program that maintains the markdown knowledge vault at
   `~/.local/share/ryoku/rashin/`, serves the embedded dashboard on
   `127.0.0.1:3600`, and bridges the Hermes agent over ACP) with its hand-authored
-  web dashboard embedded under `backend/web/` (no build step). The Hub's
-  `RashinPage.qml` is the control surface (enable, one-click Hermes setup, open
-  dashboard); built by the shell's `deploy.sh`. See `docs/rashin.md`.
+  web dashboard embedded under `backend/web/` (no build step), and the `rashin`
+  terminal command (the same binary under a second name: natural language to a
+  ready-to-run command plan on the fish prompt, with a `conf.d/rashin.fish`
+  weave). The Hub's `RashinPage.qml` is the control surface (enable, one-click
+  Hermes setup, open dashboard); built by the shell's `deploy.sh`. See
+  `docs/rashin.md` and `docs/rashin-terminal.md`.
 - `assets/` `brand/` the 力 logo and icons, and `wallpapers/` the shipped
   wallpaper set (installs to `~/Pictures/Wallpapers`).
 

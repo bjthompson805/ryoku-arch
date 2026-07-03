@@ -38,6 +38,7 @@ The vault is the knowledge base every agent reads and writes, at
 | `packages.md` | Generated: package sets, versions, update state |
 | `ryoku-repo.md` | Generated: the Ryoku source tree map, pre-indexed and shipped |
 | `user.md` | Generated: where this user's config diverges from the shipped baseline |
+| `habits.md` | Generated: this user's directories, tool stack, and shell rhythms (feeds both ask lanes) |
 | `memory/` | Agent-writable; Hermes `MEMORY.md` and `USER.md` live here |
 | `journal/` | Agent-writable dated notes, one file per day |
 
@@ -200,6 +201,20 @@ Typing `\resume` lists recent quick asks (persisted at
 `$XDG_STATE_HOME/ryoku/rashin-asks.jsonl`, newest first). Picking one recalls
 its stored answer instantly, chips and all, with no model call. Every completed
 ask, from either lane, is recorded there.
+
+## In the terminal
+
+The launcher's `\` ask has a sibling on the command line: the `rashin`
+command. `rashin take me to the fastfetch config` answers from the same brain
+and drops a ready-to-run command on the fish prompt; `rashin scan Documents
+for pngs and move them to Pictures` returns the one-liner (it knows the
+directory is `Pictures`, from `habits.md`). It never runs anything itself, the
+buffer is the confirmation, and every command carries a danger tier
+(read/write/system/danger). It shares the daemon, the vault, and the ask
+history with the launcher and dashboard, so `\resume`, `rashin --resume`, and
+"continue in dashboard" all see one conversation. Repeated asks become saved
+recipes (`rr-<name>` fish abbreviations). Full design and UX in
+`docs/rashin-terminal.md`.
 
 ## The dashboard
 
