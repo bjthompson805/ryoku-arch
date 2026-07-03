@@ -14,7 +14,7 @@ Rectangle {
     readonly property bool running: card.item ? card.item.running === true : false
 
     height: 64
-    radius: 12
+    radius: Theme.radius
     color: Theme.surfaceLo
     border.width: card.active ? 1.6 : 1
     border.color: card.active ? Theme.ember : (ma.containsMouse ? Qt.alpha(Theme.cream, 0.3) : Theme.line)
@@ -28,7 +28,7 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         width: 40
         height: 40
-        radius: 10
+        radius: Theme.radius
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.keyTop }
             GradientStop { position: 1.0; color: Theme.keyBot }

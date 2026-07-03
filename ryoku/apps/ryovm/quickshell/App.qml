@@ -96,7 +96,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: 280
             height: 36
-            radius: 9
+            radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
             border.color: input.activeFocus ? Theme.ember : Theme.line
@@ -315,7 +315,7 @@ Rectangle {
         opacity: ib.dim ? 0.35 : 1
         Rectangle {
             anchors.fill: parent
-            radius: 8
+            radius: Theme.radius
             color: ibHover.hovered && !ib.dim ? Theme.keyTop : "transparent"
             Behavior on color { ColorAnimation { duration: Theme.quick } }
         }

@@ -44,7 +44,7 @@ Item {
             anchors.right: parent.right
             height: 16
             spacing: 7
-            Rectangle { width: 5; height: 5; radius: 1; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
+            Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Machine"
@@ -163,7 +163,7 @@ Item {
                     SectionHead { text: "Controls" }
                     Rectangle {
                         width: parent.width
-                        radius: 12
+                        radius: Theme.radius
                         color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.07)
                         border.width: 1
                         border.color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4)
@@ -266,7 +266,7 @@ Item {
                         Rectangle {
                             width: parent.width - addSnap.width - 10
                             height: 38
-                            radius: 9
+                            radius: Theme.radius
                             color: Theme.surfaceLo
                             border.width: 1
                             border.color: snapIn.activeFocus ? Theme.ember : Theme.line
@@ -320,7 +320,7 @@ Item {
                                 required property var modelData
                                 width: parent ? parent.width : 0
                                 height: 44
-                                radius: 9
+                                radius: Theme.radius
                                 color: Theme.surfaceLo
                                 border.width: 1
                                 border.color: Theme.line
@@ -399,7 +399,7 @@ Item {
         id: sh
         property string text: ""
         spacing: 7
-        Rectangle { width: 5; height: 5; radius: 1; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
+        Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
         Text { anchors.verticalCenter: parent.verticalCenter; text: sh.text; color: Theme.subtle; font.family: Theme.mono; font.pixelSize: 10; font.letterSpacing: 2; font.weight: Font.DemiBold; font.capitalization: Font.AllUppercase }
     }
     component SubLabel: Text {
@@ -422,7 +422,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 112
             height: 24
-            radius: 6
+            radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
             border.color: Theme.line

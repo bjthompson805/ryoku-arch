@@ -52,7 +52,7 @@ Item {
             property int dir: 1
             width: 30
             height: 30
-            radius: 9
+            radius: Theme.radius
             color: tap.pressed ? Theme.keyTop : (hov.hovered ? Theme.surface : Theme.surfaceLo)
             border.width: 1
             border.color: hov.hovered ? Theme.ember : Theme.line
@@ -84,7 +84,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 86
             height: 30
-            radius: 9
+            radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
             border.color: input.activeFocus ? Theme.ember : Theme.line

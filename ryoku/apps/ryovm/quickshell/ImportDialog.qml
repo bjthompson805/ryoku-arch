@@ -34,7 +34,7 @@ Item {
         anchors.centerIn: parent
         width: 480
         height: col.implicitHeight + 44
-        radius: 16
+        radius: Theme.radius
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: Theme.cardBot }
@@ -88,7 +88,7 @@ Item {
                 Rectangle {
                     width: parent.width
                     height: 38
-                    radius: 9
+                    radius: Theme.radius
                     color: Theme.surfaceLo
                     border.width: 1
                     border.color: nameIn.activeFocus ? Theme.ember : Theme.line
@@ -123,7 +123,7 @@ Item {
                     Rectangle {
                         width: parent.width - browse.width - 10
                         height: 38
-                        radius: 9
+                        radius: Theme.radius
                         color: Theme.surfaceLo
                         border.width: 1
                         border.color: isoIn.activeFocus ? Theme.ember : Theme.line

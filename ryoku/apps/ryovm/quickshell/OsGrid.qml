@@ -92,7 +92,7 @@ Item {
         Row {
             visible: sec.title.length > 0
             spacing: 7
-            Rectangle { width: 5; height: 5; radius: 1; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
+            Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: sec.title

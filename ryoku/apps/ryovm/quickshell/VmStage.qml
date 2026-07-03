@@ -17,7 +17,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 14
+        radius: Theme.radius
         clip: true
         gradient: Gradient {
             GradientStop { position: 0.0; color: "#211912" }
@@ -78,7 +78,7 @@ Item {
                 height: 96
                 Rectangle {
                     anchors.fill: parent
-                    radius: 22
+                    radius: Theme.radius
                     color: Qt.alpha(Theme.cream, 0.04)
                     border.width: 1
                     border.color: stage.running ? Qt.alpha(Theme.ember, 0.4) : Theme.line
@@ -99,7 +99,7 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: powerRow.implicitWidth + 22
                 height: 26
-                radius: 13
+                radius: Theme.radius
                 color: stage.running ? Qt.alpha(Theme.ok, 0.12) : Qt.alpha(Theme.cream, 0.04)
                 border.width: 1
                 border.color: stage.running ? Qt.alpha(Theme.ok, 0.5) : Theme.line

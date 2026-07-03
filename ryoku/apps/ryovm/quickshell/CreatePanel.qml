@@ -65,7 +65,7 @@ Item {
         Rectangle {
             width: parent.width
             height: 8
-            radius: 4
+            radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
             border.color: Theme.line
@@ -129,7 +129,7 @@ Item {
             anchors.right: parent.right
             height: 16
             spacing: 7
-            Rectangle { width: 5; height: 5; radius: 1; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
+            Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "New machine"
@@ -146,7 +146,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             height: Math.max(150, parent.height * 0.26)
-            radius: 14
+            radius: Theme.radius
             clip: true
             gradient: Gradient {
                 GradientStop { position: 0.0; color: "#211912" }

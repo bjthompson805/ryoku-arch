@@ -11,7 +11,7 @@ Rectangle {
     property bool active: false
     signal picked()
 
-    radius: 12
+    radius: Theme.radius
     color: Theme.surfaceLo
     border.width: cell.active ? 1.6 : 1
     border.color: cell.active ? Theme.ember : (ma.containsMouse ? Qt.alpha(Theme.cream, 0.32) : Theme.line)

@@ -14,7 +14,7 @@ Row {
             required property int index
             width: (pr.width - (pr.n - 1) * pr.spacing) / pr.n
             height: pr.height
-            radius: 4
+            radius: Theme.radius
             color: (pr.colors && pr.colors.length > index && pr.colors[index]) ? pr.colors[index] : Theme.surfaceLo
             border.width: 1
             border.color: Qt.alpha(Theme.cream, 0.08)

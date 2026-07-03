@@ -14,7 +14,7 @@ Item {
         height: 16
         spacing: 7
 
-        Rectangle { width: 5; height: 5; radius: 1; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
+        Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: "Live preview"
@@ -43,7 +43,7 @@ Item {
         anchors.right: parent.right
         anchors.bottom: palette.top
         anchors.bottomMargin: 14
-        radius: 13
+        radius: Theme.radius
         clip: true
         color: Theme.surfaceLo
         border.width: 1

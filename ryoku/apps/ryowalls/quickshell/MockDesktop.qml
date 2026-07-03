@@ -74,7 +74,7 @@ Item {
                     required property int index
                     width: (index === 1 ? 14 : 6) * mock.s
                     height: 6 * mock.s
-                    radius: 3 * mock.s
+                    radius: Theme.radius
                     color: index === 1 ? mock.cAccent : Qt.alpha(mock.cFg, 0.4)
                     Behavior on color { ColorAnimation { duration: Theme.medium } }
                 }
@@ -101,7 +101,7 @@ Item {
         anchors.topMargin: 14 * mock.s
         width: parent.width * 0.54
         height: parent.height * 0.46
-        radius: 9 * mock.s
+        radius: Theme.radius
         color: Qt.rgba(mock.cBg.r, mock.cBg.g, mock.cBg.b, 0.92)
         border.width: 1
         border.color: Qt.alpha(mock.cFg, 0.16)
@@ -150,7 +150,7 @@ Item {
                     model: 8
                     delegate: Rectangle {
                         required property int index
-                        width: 11 * mock.s; height: 9 * mock.s; radius: 2 * mock.s
+                        width: 11 * mock.s; height: 9 * mock.s; radius: Theme.radius
                         color: Wallhaven.col(index + 1, Theme.surfaceLo)
                         Behavior on color { ColorAnimation { duration: Theme.medium } }
                     }

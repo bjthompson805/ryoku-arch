@@ -34,7 +34,7 @@ Item {
         x: slider.trackX
         width: slider.trackW
         height: 4
-        radius: 2
+        radius: Theme.radius
         anchors.verticalCenter: parent.verticalCenter
         color: Theme.surfaceLo
         border.width: 1

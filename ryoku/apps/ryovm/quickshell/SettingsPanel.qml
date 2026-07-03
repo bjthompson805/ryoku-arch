@@ -24,7 +24,7 @@ Item {
         anchors.centerIn: parent
         width: 480
         height: col.implicitHeight + 44
-        radius: 16
+        radius: Theme.radius
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: Theme.cardBot }
