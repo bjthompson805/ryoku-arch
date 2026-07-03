@@ -16,7 +16,10 @@ Item {
     // user.lua (or monitors_user.lua) the file edits actually persist in.
     property var configPaths: []
 
-    implicitHeight: 92
+    // Height follows the content (eyebrow + title + subtitle), so a one or
+    // two line subtitle both sit right. A fixed height with a centred column
+    // let taller pages overflow upward and shove the eyebrow into the top edge.
+    implicitHeight: col.height
 
     function openConfig() {
         if (!header.configPaths || header.configPaths.length === 0)
@@ -25,8 +28,9 @@ Item {
     }
 
     Column {
+        id: col
         anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.top: parent.top
         spacing: 10
 
         // editorial kicker

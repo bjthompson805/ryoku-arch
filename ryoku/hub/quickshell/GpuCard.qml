@@ -418,7 +418,9 @@ Item {
                     width: parent.width
                     s: root.s
                     frac: 1
-                    tint: Theme.ember
+                    // soft house signature (matches ProfileCard), not a solid
+                    // ember bar that reads as a MUX meter stuck at an error.
+                    opacity: 0.35
                 }
             }
         }
