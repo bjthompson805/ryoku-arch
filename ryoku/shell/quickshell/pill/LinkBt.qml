@@ -35,9 +35,15 @@ Item {
         return String((a && a.name) || "").localeCompare(String((b && b.name) || ""));
     })
     readonly property bool discovering: adapter ? adapter.discovering === true : false
+    readonly property bool hasAdapter: adapter !== null
+    // rfkill (airplane mode, a laptop radio key) blocks the radio at the
+    // kernel; BlueZ then refuses Powered=true, so the toggle unblocks first.
+    readonly property bool blocked: (adapter && typeof BluetoothAdapterState !== "undefined")
+        ? adapter.state === BluetoothAdapterState.Blocked : false
 
     property string pairingAddress: ""
     property string failedAddress: ""
+    property bool serviceFailed: false
 
     implicitHeight: listFrame.y + listFrame.height
 
@@ -90,6 +96,20 @@ Item {
         pairProc.running = true;
     }
 
+    // one entry point for the adapter toggle. a blocked radio is unblocked
+    // first (/dev/rfkill is seat-writable via systemd uaccess, no root), and
+    // powered on when the unblock lands; everything else is a plain flip.
+    function setAdapterEnabled(v) {
+        if (!adapter)
+            return;
+        if (v && (blocked || unblockProc.running)) {
+            if (!unblockProc.running)
+                unblockProc.running = true;
+            return;
+        }
+        adapter.enabled = v;
+    }
+
     onActiveChanged: {
         if (!active) {
             scanTimer.stop();
@@ -124,6 +144,35 @@ Item {
                 failTimer.restart();
             }
         }
+    }
+
+    // rfkill unblock, then power the adapter once the radio is free.
+    Process {
+        id: unblockProc
+        command: ["rfkill", "unblock", "bluetooth"]
+        onExited: if (root.adapter) root.adapter.enabled = true
+    }
+
+    // revive a stopped bluetoothd from the empty-list line. pkexec raises the
+    // polkit prompt; enable --now so it also survives the next boot.
+    Process {
+        id: svcProc
+        command: ["pkexec", "systemctl", "enable", "--now", "bluetooth.service"]
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                root.serviceFailed = true;
+                svcFailTimer.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: svcFailTimer
+        interval: 4000
+        repeat: false
+        onTriggered: root.serviceFailed = false
     }
 
     Item {
@@ -204,9 +253,10 @@ Item {
 
             LinkToggle {
                 s: root.s
+                visible: root.hasAdapter
                 anchors.verticalCenter: parent.verticalCenter
                 on: root.adapter ? root.adapter.enabled === true : false
-                onToggled: if (root.adapter) root.adapter.enabled = !root.adapter.enabled
+                onToggled: if (root.adapter) root.setAdapterEnabled(root.adapter.enabled !== true)
             }
         }
     }
@@ -234,11 +284,23 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: 6 * root.s
             anchors.verticalCenter: parent.verticalCenter
-            text: root.discovering ? "Scanning…" : "No devices"
-            color: Theme.dim
+            text: !root.hasAdapter
+                ? (svcProc.running ? "Starting service…"
+                    : (root.serviceFailed ? "Couldn't start the service" : "Service off — tap to start"))
+                : (root.blocked ? "Blocked (rfkill) — toggle to unblock"
+                    : (root.discovering ? "Scanning…" : "No devices"))
+            color: !root.hasAdapter && !svcProc.running && !root.serviceFailed ? Theme.subtle : Theme.dim
             font.family: Theme.font
             font.pixelSize: 11 * root.s
             font.weight: Font.Medium
+
+            MouseArea {
+                anchors.fill: parent
+                anchors.margins: -6 * root.s
+                visible: !root.hasAdapter && !svcProc.running
+                cursorShape: Qt.PointingHandCursor
+                onClicked: svcProc.running = true
+            }
         }
 
         Flickable {

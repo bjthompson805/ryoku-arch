@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- Bluetooth actually works on installed systems: the bootloader step's service
+  enable now includes `bluetooth.service` next to sddm and NetworkManager. The
+  package set gained `bluez`/`bluez-utils` (system/packages), but nothing ever
+  enabled the daemon, which is why the desktop's Bluetooth UI shipped dead on
+  every install: no org.bluez on the bus, a silently no-op adapter toggle.
 - Snapshots (and every generated kernel entry) now actually appear in the boot
   menu. The bootloader step wrote the branded config to
   `/boot/limine/limine.conf`, a location Limine scans BEFORE

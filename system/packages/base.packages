@@ -28,6 +28,13 @@ iwd
 # iw: ryoku-wifi-powersave (Game Mode) disables 802.11 power-save for low latency
 iw
 
+# Bluetooth (BlueZ). bluetoothd is the org.bluez D-Bus daemon the shell and hub
+# Bluetooth UIs (Quickshell.Bluetooth) talk to; bluez-utils ships bluetoothctl,
+# which the pair-trust-connect flows shell out to. The installer enables
+# bluetooth.service (see installation/backend/lib/bootloader.sh).
+bluez
+bluez-utils
+
 # Audio (PipeWire)
 pipewire
 pipewire-alsa

@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: ship the Bluetooth stack, `bluez` + `bluez-utils`. The desktop
+  has always had Bluetooth UI (Hub Connections > Bluetooth, the pill's link
+  drill-in), but no install ever carried the daemon behind it: org.bluez never
+  appeared on the bus, `Quickshell.Bluetooth.defaultAdapter` stayed null, and the
+  adapter toggle no-opped silently. bluez-utils ships `bluetoothctl`, which the
+  UI's pair-trust-connect flows shell out to. The installer enables
+  `bluetooth.service` (see installation/backend).
 - `base.packages`: add `nautilus-python`, which runs the Ryoku stash actions
   (Install, Compress, Send with LocalSend) in the Nautilus right-click menu.
 - `base.packages`: ship the launcher's three missing tools so its features work

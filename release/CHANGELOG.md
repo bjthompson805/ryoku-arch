@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- `ryoku-desktop` ships the PipeWire drop-in (`ryoku/apps/pipewire/`) in the
+  base config tree, so materialized desktops get audio that follows a newly
+  connected device (see the ryoku/apps changelog).
 - `release/packages/ryoku-rashin/`: a PKGBUILD for the optional Ryoku Rashin
   daemon (`ryoku-rashin`), built from the in-repo `ryoku/rashin/backend` with
   `CGO_ENABLED=0 go build -trimpath` like `ryoku-hub`; the build needs network
@@ -52,6 +55,12 @@
   install and `ryoku update` both deliver the new shell.
 
 ### Fixed
+- `ryoku-desktop`: depend on `bluez` + `bluez-utils`, and one-shot enable + start
+  `bluetooth.service` from the `.install` (guarded by a marker under
+  `/var/lib/ryoku` so a user who later disables the service stays disabled
+  across upgrades; inside the installer chroot only the enable symlink lands).
+  Heals installs that predate the bluez dependency, where the Hub/pill
+  Bluetooth UI sat dead against a missing daemon.
 - `ryoku-desktop`: depend on `papirus-icon-theme` and install `qt6ct/qt6ct.conf`
   in place of the removed `kdeglobals`, matching the shell's switch back to the
   `qt6ct` Qt platform theme so packaged desktops resolve app icons (the

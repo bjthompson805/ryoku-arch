@@ -60,6 +60,7 @@ ShellRoot {
     // the Launcher body on the monitor currently (or last) shown; lets the
     // socket's `state` command snapshot what the palette is displaying.
     property var activeLauncher: null
+    property var activeBt: null
 
     // "<fn> [mon]" from the daemon's fast path; returns false on an unknown
     // command so the daemon falls back to the qs ipc client.
@@ -94,6 +95,7 @@ ShellRoot {
                         var dump = root.activeLauncher ? root.activeLauncher.stateDump() : {};
                         dump.open = root.open;
                         dump.monitor = root.openMon;
+                        dump.btConnected = root.activeBt ? root.activeBt.connected.length : 0;
                         cmdSock.write(JSON.stringify(dump) + "\n");
                     } else {
                         cmdSock.write((root.runCommand(l) ? "ok" : "err") + "\n");
@@ -127,10 +129,12 @@ ShellRoot {
             // a brief grace so the close morph can play before the window drops.
             Timer { id: closing; interval: Motion.window; repeat: false }
             onShownChanged: {
-                if (shown)
+                if (shown) {
                     root.activeLauncher = launcher;
-                else
+                    root.activeBt = btBubbles;
+                } else {
                     closing.restart();
+                }
             }
 
             // dim + click-out scrim.
@@ -153,6 +157,25 @@ ShellRoot {
                 s: win.s
                 shown: win.shown
                 onRequestClose: root.hide()
+            }
+
+            // Detached Bluetooth bubbles under the palette: one square card
+            // per connected device (BtConnections renders nothing otherwise),
+            // riding the same open/close morph as the card above.
+            BtConnections {
+                id: btBubbles
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: launcher.bottom
+                anchors.topMargin: 10 * win.s
+                width: launcher.width
+                s: win.s
+                transformOrigin: Item.Top
+                opacity: win.shown ? 1 : 0
+                scale: win.shown ? 1 : 0.92
+                Behavior on opacity { NumberAnimation { duration: Motion.window; easing.type: Easing.OutCubic } }
+                Behavior on scale {
+                    NumberAnimation { duration: Motion.window; easing.type: Motion.easeMorph; easing.bezierCurve: Motion.morphCurve }
+                }
             }
         }
     }

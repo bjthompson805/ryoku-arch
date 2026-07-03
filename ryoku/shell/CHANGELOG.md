@@ -11,6 +11,17 @@
   around `Listen` makes it 0700 atomically, with no world-visible window.
 
 ### Added
+- `quickshell/launcher` **Bluetooth bubbles**: connected devices float as their
+  own compact square-cornered cards under the palette window, one per device,
+  the Android quick-pair tile in Ryoku grammar -- name up top, a big
+  Material-style class pictogram on the left (BlueZ classifies the device as
+  audio-headset, input-mouse, phone, ...; the glyphs come from the Material
+  Design Icons set already embedded in the shipped Nerd Font), and the battery
+  reading large in the corner when the device reports one ("connected" when it
+  doesn't). Live off Quickshell.Bluetooth: cards appear on connect, drop on
+  disconnect, battery updates in place. Nothing connected renders nothing at
+  all. The launcher socket's `state` dump gains `btConnected`
+  (`BtConnections.qml`, instantiated in `shell.qml` under the Launcher card).
 - `ipc`: a new `ryoku-shell stash-send <file>` command opens the control deck's
   LocalSend picker on that file (a new pill `stashSend` IpcHandler that shows the
   stash and calls `openSendPicker`), so the Nautilus stash menu can hand a file to
@@ -399,6 +410,14 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `quickshell/pill` link: the Bluetooth row and drill-in no longer present a
+  dead toggle when bluetoothd is gone. The toggle hides without an adapter, the
+  device list line becomes "Service off -- tap to start" (`pkexec systemctl
+  enable --now bluetooth.service`, with a transient failure line), the row
+  subtext says "Service off" instead of the stray German "Aus", and enabling
+  from an rfkill-blocked state unblocks first (`rfkill unblock bluetooth`,
+  seat-writable via systemd uaccess), powering the adapter when the unblock
+  lands (`setAdapterEnabled` in `LinkBt.qml`, reused by the Link row toggle).
 - Wallpaper colours no longer inherit a previous image's tune. `ipc/wallpaper.go`
   `tuneArgs` applies the ryowalls palette tune only when it is keyed to the
   current wallpaper (an `image` match), so a Super+W cycle or a different image

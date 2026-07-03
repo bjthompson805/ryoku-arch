@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `pipewire/` audio follows the device you just connected. A pipewire-pulse
+  drop-in (`pipewire-pulse.conf.d/10-ryoku-switch-on-connect.conf`) loads the
+  PulseAudio compat `module-switch-on-connect`, so a Bluetooth headset finishing
+  its connect (or a plugged-in USB DAC) becomes the default sink and running
+  streams migrate to it. Before, sound kept playing from the old device until
+  the sink was re-picked by hand in the mixer. Deployed by `deploy.sh`, shipped
+  by `ryoku-desktop`.
 - `nautilus/` a Ryoku stash menu in the file-manager right-click: a
   `nautilus-python` extension (`ryoku-stash-menu.py`) that adds **Install with
   Ryoku** (installable files), **Compress with Ryoku** (media), and **Send with

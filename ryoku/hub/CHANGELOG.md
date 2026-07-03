@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- Connections > Bluetooth no longer shows a dead switch when the service is
+  gone. With no org.bluez on the bus (bluez missing or bluetoothd stopped),
+  `Bluetooth.defaultAdapter` is null and the old page still rendered "Bluetooth
+  is off." with a live-looking toggle that silently did nothing -- exactly what
+  a bluez-less install showed. The adapter toggle now hides without an adapter,
+  the placeholder says the service isn't running, and a **Start service** pill
+  revives it (`pkexec systemctl enable --now bluetooth.service`, the polkit
+  prompt via hyprpolkitagent) with a transient failure line. An rfkill-blocked
+  radio (airplane mode, a laptop radio key) is surfaced as "Bluetooth is
+  blocked." and the toggle unblocks first (`rfkill unblock bluetooth`,
+  seat-writable via systemd uaccess), powering the adapter when the unblock
+  lands, instead of asking BlueZ for a Powered=true it refuses.
 - GPU page no longer offers to "fix" a disabled IOMMU it cannot fix. On an
   Intel host with IOMMU off, the capability engine used to show a warn ("Ryoku
   can add intel_iommu=on") and a `needs-setup` verdict with an Enable button,

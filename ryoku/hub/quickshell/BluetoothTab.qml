@@ -19,6 +19,12 @@ Item {
     readonly property var devices: (typeof Bluetooth !== "undefined" && Bluetooth && Bluetooth.devices) ? Bluetooth.devices.values : []
     readonly property bool adapterOn: adapter ? adapter.enabled === true : false
     readonly property bool discovering: adapter ? adapter.discovering === true : false
+    readonly property bool hasAdapter: adapter !== null
+    // rfkill (airplane mode, a laptop radio key) blocks the radio at the
+    // kernel; BlueZ then refuses Powered=true, which is why a plain toggle can
+    // look dead. Surfaced so the toggle can unblock first (setAdapterEnabled).
+    readonly property bool blocked: (adapter && typeof BluetoothAdapterState !== "undefined")
+        ? adapter.state === BluetoothAdapterState.Blocked : false
     readonly property int connectedCount: {
         var n = 0;
         for (var i = 0; i < devices.length; i++)
@@ -44,6 +50,7 @@ Item {
 
     property string pairingAddress: ""
     property string failedAddress: ""
+    property string serviceError: ""
 
     function metaFor(d) {
         if (!d) return "";
@@ -95,6 +102,27 @@ Item {
         pairProc.running = true;
     }
 
+    // one entry point for the adapter toggle. a blocked radio is unblocked
+    // first (/dev/rfkill is seat-writable via systemd uaccess, no root), and
+    // powered on when the unblock lands; everything else is a plain flip.
+    function setAdapterEnabled(v) {
+        if (!adapter)
+            return;
+        if (v && (blocked || unblockProc.running)) {
+            if (!unblockProc.running)
+                unblockProc.running = true;
+            return;
+        }
+        adapter.enabled = v;
+    }
+
+    function startService() {
+        if (svcProc.running)
+            return;
+        page.serviceError = "";
+        svcProc.running = true;
+    }
+
     // leaving the subtab (or closing the hub) mid-scan stops discovery so BlueZ
     // isn't left chewing the radio in the background.
     Component.onDestruction: {
@@ -129,6 +157,36 @@ Item {
                 failTimer.restart();
             }
         }
+    }
+
+    // rfkill unblock, then power the adapter once the radio is free.
+    Process {
+        id: unblockProc
+        command: ["rfkill", "unblock", "bluetooth"]
+        onExited: if (page.adapter) page.adapter.enabled = true
+    }
+
+    // revive a stopped bluetoothd (service disabled by hand, or an install
+    // predating the bluez dependency). pkexec raises the polkit prompt
+    // (hyprpolkitagent); enable --now so it also survives the next boot.
+    Process {
+        id: svcProc
+        command: ["pkexec", "systemctl", "enable", "--now", "bluetooth.service"]
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                page.serviceError = "Could not start the bluetooth service.";
+                svcErrTimer.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: svcErrTimer
+        interval: 6000
+        repeat: false
+        onTriggered: page.serviceError = ""
     }
 
     // ---------- header band ------------------------------------------------
@@ -248,13 +306,15 @@ Item {
                 }
             }
 
-            // one primary toggle for the whole adapter.
+            // one primary toggle for the whole adapter. hidden when the
+            // service is gone: a switch that can't act shouldn't look live.
             ToggleRow {
                 anchors.verticalCenter: parent.verticalCenter
+                visible: page.hasAdapter
                 width: 56
                 label: ""
                 checked: page.adapterOn
-                onToggled: (v) => { if (page.adapter) page.adapter.enabled = v; }
+                onToggled: (v) => page.setAdapterEnabled(v)
             }
         }
     }
@@ -281,13 +341,14 @@ Item {
         // off / empty placeholder, centred so the page never looks broken.
         Column {
             anchors.centerIn: parent
-            visible: !page.adapterOn || page.devices.length === 0
+            visible: !page.hasAdapter || !page.adapterOn || page.devices.length === 0
             spacing: 10
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: !page.adapterOn
-                    ? "Bluetooth is off."
+                text: !page.hasAdapter ? "Bluetooth isn't available."
+                    : page.blocked ? "Bluetooth is blocked."
+                    : !page.adapterOn ? "Bluetooth is off."
                     : (page.discovering ? "Scanning…" : "No devices yet.")
                 color: Theme.dim
                 font.family: Theme.font
@@ -296,11 +357,48 @@ Item {
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                visible: !page.adapterOn || (!page.discovering && page.devices.length === 0)
-                text: !page.adapterOn
-                    ? "Turn the adapter on to see nearby and paired devices."
+                visible: !page.hasAdapter || !page.adapterOn || (!page.discovering && page.devices.length === 0)
+                text: !page.hasAdapter ? "The bluetooth service (bluez) isn't running."
+                    : page.blocked ? "The radio is off at the hardware level (rfkill); the toggle unblocks it."
+                    : !page.adapterOn ? "Turn the adapter on to see nearby and paired devices."
                     : "Hit Scan to discover nearby devices."
                 color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+
+            // service repair, shown only when org.bluez is missing entirely.
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: !page.hasAdapter
+                radius: height / 2
+                height: 32
+                width: svcLbl.implicitWidth + 32
+                color: svcHov.hovered && !svcProc.running ? Theme.keyTop : "transparent"
+                border.width: 1
+                border.color: svcProc.running ? Theme.ember : (svcHov.hovered ? Theme.ember : Theme.line)
+                Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+
+                Text {
+                    id: svcLbl
+                    anchors.centerIn: parent
+                    text: svcProc.running ? "Starting…" : "Start service"
+                    color: svcProc.running ? Theme.ember : (svcHov.hovered ? Theme.bright : Theme.cream)
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+
+                HoverHandler { id: svcHov; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: page.startService() }
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: page.serviceError.length > 0
+                text: page.serviceError
+                color: Theme.ember
                 font.family: Theme.font
                 font.pixelSize: 12
                 font.weight: Font.Medium

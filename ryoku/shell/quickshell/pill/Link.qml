@@ -84,7 +84,8 @@ PillSurface {
     readonly property var btPrimary: btConnected.length > 0 ? btConnected[0] : null
     readonly property int btBattery: batteryLevel(btPrimary)
 
-    readonly property string btSubText: !btOn ? "Aus"
+    readonly property string btSubText: !btAdapter ? "Service off"
+        : !btOn ? "Off"
         : (btPrimary
             ? ((btPrimary.deviceName || btPrimary.name || "Unknown")
                 + (btConnected.length > 1 ? " +" + (btConnected.length - 1) : ""))
@@ -356,9 +357,10 @@ PillSurface {
 
                     LinkToggle {
                         s: root.s
+                        visible: root.btAdapter !== null
                         anchors.verticalCenter: parent.verticalCenter
                         on: root.btOn
-                        onToggled: if (root.btAdapter) root.btAdapter.enabled = !root.btAdapter.enabled
+                        onToggled: btPage.setAdapterEnabled(!root.btOn)
                     }
 
                     GlyphIcon {

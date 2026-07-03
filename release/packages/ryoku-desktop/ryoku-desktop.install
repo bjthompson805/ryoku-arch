@@ -17,13 +17,31 @@ _refresh() {
   fi
 }
 
+# enable bluetooth.service exactly once, so installs that predate the bluez
+# dependency get a running bluetoothd on upgrade (the shell/hub Bluetooth UIs
+# are dead without it). The marker keeps this one-shot: a user who later
+# disables the service stays disabled across upgrades. `start` only fires on a
+# booted system; inside the installer chroot the enable symlink is enough.
+_bluetooth() {
+  [ -e /usr/lib/systemd/system/bluetooth.service ] || return 0
+  local marker=/var/lib/ryoku/bluetooth-enabled
+  [ -e "$marker" ] && return 0
+  systemctl enable bluetooth.service 2>/dev/null || true
+  if [ -d /run/systemd/system ]; then
+    systemctl start bluetooth.service 2>/dev/null || true
+  fi
+  mkdir -p /var/lib/ryoku && : >"$marker"
+}
+
 post_install() {
   _refresh
+  _bluetooth
   _hint
 }
 
 post_upgrade() {
   _refresh
+  _bluetooth
   _hint
 }
 

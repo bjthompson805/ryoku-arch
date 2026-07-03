@@ -233,6 +233,7 @@ mv "$staging" "$cfg/hypr"
 mkdir -p "$cfg/wallust";   cp -a "$here/wallust/." "$cfg/wallust/"
 cp -a "$here/../apps/fish/config.fish" "$cfg/fish/config.fish"
 mkdir -p "$cfg/qt6ct"; cp -a "$here/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
+mkdir -p "$cfg/pipewire"; cp -a "$here/../apps/pipewire/." "$cfg/pipewire/"
 mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 # Refresh the icon cache only when the theme has an index.theme; the user-overlay
 # hicolor dir usually has none, and gtk-update-icon-cache -f on an index-less dir
