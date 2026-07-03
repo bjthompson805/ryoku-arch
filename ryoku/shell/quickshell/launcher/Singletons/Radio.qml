@@ -35,7 +35,11 @@ Singleton {
 
     // Live while our mpv owns playback. NowPlaying reads these so the card shows
     // the exact square cover and clean title per radio track, not mpv's guess.
-    readonly property bool active: playProc.running && queue.length > 0
+    // engineUp mirrors the IPC socket: mpv is spawned detached (so a quickshell
+    // reload cannot kill it) and its death is observed as socket EOF, not as a
+    // child-process exit.
+    property bool engineUp: false
+    readonly property bool active: engineUp && queue.length > 0
     readonly property string cover: current ? (current.cover || "") : ""
     readonly property string title: current ? (current.title || "") : ""
     readonly property string artist: current ? (current.artist || "") : ""
@@ -86,8 +90,11 @@ Singleton {
     }
 
     // Whether a player is our own mpv stream (never the proxy mirroring it).
+    // Matched by DBus name: mpv-mpris derives it from mpv's audio-client-name,
+    // which we set to "ryotunes" at spawn, so a user's own mpv (same mpv-mpris
+    // script, identity also "mpv") is never mistaken for our stream.
     function isOurPlayer(p) {
-        return p && !root.isProxy(p) && String(p.identity || "").toLowerCase() === "mpv";
+        return p && !root.isProxy(p) && String(p.dbusName || "").indexOf("org.mpris.MediaPlayer2.mpv.ryotunes") === 0;
     }
 
     // Our stream AND it owns playback now: NowPlaying trusts our cover/title then.
@@ -136,15 +143,13 @@ Singleton {
         // a fresh play rebuilds mpv's playlist, which drops mpv's shuffle state;
         // keep our flag in step so the button never lies.
         root.shuffled = false;
-        if (playProc.running && mpvSock.connected) {
+        if (mpvSock.connected) {
             root.mpvCmd(["loadfile", url, "replace"]);
             root.mpvCmd(["playlist-clear"]);
             root.mpvCmd(["set_property", "volume", 100]);
             root.mpvCmd(["set_property", "pause", false]);
         } else {
-            playProc.firstUrl = url;
-            playProc.running = false;
-            playProc.running = true;
+            root.spawnMpv(url);
         }
     }
 
@@ -172,22 +177,30 @@ Singleton {
     // radio, same as picking a search result. With a videoId we start playback
     // immediately and fill the queue when /next lands; a playlist-only link waits
     // for the first track. Playlist links are saved for instant replay later.
+    // The seed videoId playback started on while its playlist fetch is in
+    // flight; the fetch handler merges around it instead of restarting audio.
+    property string pendingSeedVid: ""
+
     function playUrl(url) {
         var parsed = YtMusic.parseYtUrl(url);
         if (!parsed)
             return false;
         root.session++;
         root.buffering = true;
-        root.tookOverAt = Date.now();
-        root.pauseOthers();
         if (parsed.videoId) {
-            // start now on the seed track; the queue fills when the playlist lands.
+            // start now on the seed track; the queue fills when the playlist
+            // lands. Take over the airwaves only when real audio starts.
+            root.tookOverAt = Date.now();
+            root.pauseOthers();
+            root.pendingSeedVid = parsed.videoId;
             root.queue = [{ id: parsed.videoId, title: "", artist: "", album: "", cover: "", durationLabel: "" }];
             root.index = 0;
             root.startOrReplace(root.watchUrl(parsed.videoId));
         } else {
-            root.queue = [];
-            root.index = 0;
+            // playlist-only link: nothing plays until the fetch resolves, so
+            // leave whatever is on the air (ours or another player) alone; the
+            // fetch handler pauses others when it actually has audio to start.
+            root.pendingSeedVid = "";
         }
         radioProc.fetchPlaylist(parsed.videoId, parsed.playlistId, root.session, parsed.playlistId.length > 0);
         return true;
@@ -242,13 +255,19 @@ Singleton {
             mpvSock.write(JSON.stringify({ command: ["get_property", "playlist"], request_id: root.syncReqId }) + "\n");
     }
 
-    // Stop for good: kill mpv and clear. Used on explicit stop / launcher exit.
+    // Stop for good: kill mpv and clear. Used on explicit stop only; a shell
+    // reload deliberately leaves mpv playing for the next instance to adopt.
     function stop() {
         root.queue = [];
         root.index = 0;
         root.buffering = false;
+        root.shuffled = false;
+        root.pending = [];
+        root.pendingSeedVid = "";
+        root.engineUp = false;
+        sockDial.stop();
+        sockDial.tries = 0;
         mpvSock.connected = false;
-        playProc.running = false;
         killProc.running = true;
     }
 
@@ -265,6 +284,12 @@ Singleton {
             var q = root.pending;
             q.push(line);
             root.pending = q;
+            // a buffered write with no dial running would strand forever (the
+            // old give-up path); re-arm so the queue drains once mpv answers.
+            if (root.lastSpawnUrl.length > 0 && !sockDial.running) {
+                sockDial.tries = 0;
+                sockDial.start();
+            }
         }
     }
     function flushPending() {
@@ -274,38 +299,65 @@ Singleton {
             mpvSock.write(q[i]);
     }
 
-    // The persistent audio mpv. `--idle=yes` keeps it alive when the queue drains
-    // before radio refills; the IPC server is how we append and observe.
-    Process {
-        id: playProc
-        property string firstUrl: ""
-        command: ["mpv", "--no-video", "--no-terminal", "--force-window=no",
+    // The persistent audio mpv, spawned DETACHED so it outlives this quickshell
+    // instance: a hot-reload tears the QML tree (and any declarative Process
+    // child with it) but must not silence the music; the next instance adopts
+    // the running mpv over the socket instead. `--idle=yes` keeps mpv alive
+    // when the queue drains before radio refills; the IPC server is how we
+    // append and observe; the ryotunes audio-client-name gives our stream a
+    // stable MPRIS bus name (see isOurPlayer).
+    property string lastSpawnUrl: ""
+    property string respawnAfterKill: ""
+    function spawnMpv(url) {
+        // a stop()'s pkill may still be sweeping the socket pattern; spawning
+        // into that window would kill the fresh mpv. Park the url until the
+        // sweep finishes.
+        if (killProc.running) {
+            root.respawnAfterKill = url;
+            return;
+        }
+        root.lastSpawnUrl = url;
+        Quickshell.execDetached(["mpv", "--no-video", "--no-terminal", "--force-window=no",
             "--audio-display=no", "--idle=yes", "--volume=100",
+            "--audio-client-name=ryotunes",
             "--cache=yes", "--network-timeout=20",
             // open the next queue entry only as the current one nears its end
             // (initial connect + ytdl resolve, not an early full download), so the
             // next track starts gaplessly without stealing bandwidth mid-song.
             "--prefetch-playlist=yes",
             "--input-ipc-server=" + root.ipcSocket,
-            "--ytdl-format=bestaudio/best", firstUrl]
-        onStarted: sockDial.start()
-        onExited: {
-            mpvSock.connected = false;
-            sockDial.stop();
-            root.queue = [];
-            root.buffering = false;
-        }
+            "--ytdl-format=bestaudio/best", url]);
+        sockDial.tries = 0;
+        sockDial.maxTries = 60;
+        sockDial.start();
     }
 
     // mpv creates the IPC socket a beat after launch; dial until it answers.
+    // On give-up after a spawn: one respawn attempt, then a clean stop so the
+    // engine state and the process agree. On give-up of the startup adoption
+    // probe (nothing was spawned): fall through to the orphan sweep.
     Timer {
         id: sockDial
         interval: 120
         repeat: true
         property int tries: 0
+        property int maxTries: 60
+        property bool respawned: false
         onTriggered: {
             if (mpvSock.connected) { sockDial.stop(); tries = 0; return; }
-            if (++tries > 60) { sockDial.stop(); tries = 0; return; }
+            if (++tries > maxTries) {
+                sockDial.stop();
+                tries = 0;
+                if (root.lastSpawnUrl.length > 0 && !respawned) {
+                    respawned = true;
+                    var u = root.lastSpawnUrl;
+                    root.lastSpawnUrl = "";
+                    root.spawnMpv(u);
+                } else {
+                    root.stop();
+                }
+                return;
+            }
             mpvSock.connected = true;
         }
     }
@@ -320,12 +372,26 @@ Singleton {
         onConnectionStateChanged: {
             if (connected) {
                 sockDial.stop();
+                sockDial.respawned = false;
+                root.engineUp = true;
                 mpvSock.write(JSON.stringify({ command: ["observe_property", 1, "playlist-pos"] }) + "\n");
                 // core-idle is true while mpv is loading/buffering and NOT actually
                 // producing sound; observing it lets the card show a buffering state
                 // and freeze the seekbar instead of ticking silently on a slow load.
                 mpvSock.write(JSON.stringify({ command: ["observe_property", 2, "core-idle"] }) + "\n");
                 root.flushPending();
+                // connected with nothing played this session: an orphan from the
+                // previous instance answered. Ask for its playlist; the reply
+                // either adopts it (skeleton queue) or sweeps it away.
+                if (root.queue.length === 0)
+                    mpvSock.write(JSON.stringify({ command: ["get_property", "playlist"], request_id: root.adoptReqId }) + "\n");
+            } else if (root.engineUp) {
+                // socket EOF: mpv died (it is not our child anymore, so this is
+                // the only death signal). Clear so active/upNext follow.
+                root.engineUp = false;
+                root.queue = [];
+                root.index = 0;
+                root.buffering = false;
             }
         }
         parser: SplitParser {
@@ -358,25 +424,60 @@ Singleton {
         } else if (msg && msg.request_id === root.syncReqId && msg.data) {
             // reply to the shuffle's playlist request: rebuild our queue to mpv's
             // new order by mapping each entry's videoId back to our track object,
-            // and set the index from the entry mpv marks `current`.
+            // and set the index from the entry mpv marks `current`. An entry we
+            // cannot map (e.g. an append that landed mid-shuffle) gets a skeleton
+            // instead of being dropped, so q stays positionally congruent with
+            // mpv and playlist-pos keeps indexing the right track.
             var byId = {};
             for (var i = 0; i < root.queue.length; i++)
                 byId[root.queue[i].id] = root.queue[i];
             var q = [];
             var cur = root.index;
             for (var j = 0; j < msg.data.length; j++) {
-                var t = byId[root.videoIdFromUrl(msg.data[j].filename)];
-                if (t) {
-                    q.push(t);
-                    if (msg.data[j].current)
-                        cur = q.length - 1;
-                }
+                var vid = root.videoIdFromUrl(msg.data[j].filename);
+                if (!vid)
+                    continue;
+                var t = byId[vid] || root.skeletonTrack(vid);
+                q.push(t);
+                if (msg.data[j].current)
+                    cur = q.length - 1;
             }
             if (q.length > 0) {
                 root.queue = q;
                 root.index = cur;
             }
+        } else if (msg && msg.request_id === root.adoptReqId) {
+            // reply to the startup adoption probe: an orphan mpv from the last
+            // instance is alive on our socket. If its playlist is ours (watch
+            // URLs), rebuild a skeleton queue and keep the music playing; rich
+            // metadata degrades gracefully (mpv's resolved title, ytimg cover)
+            // and the radio keeps extending from the tail. Anything else is
+            // swept away as before.
+            var aq = [];
+            var acur = 0;
+            var entries = Array.isArray(msg.data) ? msg.data : [];
+            for (var k = 0; k < entries.length; k++) {
+                var avid = root.videoIdFromUrl(entries[k].filename);
+                if (!avid)
+                    continue;
+                aq.push(root.skeletonTrack(avid));
+                if (entries[k].current)
+                    acur = aq.length - 1;
+            }
+            if (aq.length > 0 && root.queue.length === 0) {
+                root.queue = aq;
+                root.index = acur;
+            } else if (root.queue.length === 0) {
+                root.stop();
+            }
         }
+    }
+
+    // Minimal track object for an mpv playlist entry we have no metadata for:
+    // adopted after a reload, or appended while a shuffle snapshot was in
+    // flight. The ytimg thumb is real cover art (16:9 instead of square).
+    function skeletonTrack(vid) {
+        return { id: vid, title: "", artist: "", album: "", cover: "https://i.ytimg.com/vi/" + vid + "/hqdefault.jpg", durationLabel: "" };
     }
 
     // Append more radio seeded from the last queued track, so the station is
@@ -427,15 +528,41 @@ Singleton {
                 if (radioProc.mode === "playlist") {
                     if (tracks.length === 0) {
                         root.buffering = false;
+                        root.pendingSeedVid = "";
                         return;
                     }
-                    var startedVid = root.queue.length > 0 ? root.queue[0].id : "";
-                    if (!(startedVid && tracks[0].id === startedVid))
+                    var seed = root.pendingSeedVid;
+                    root.pendingSeedVid = "";
+                    if (seed) {
+                        // audio already started on the seed; never restart it.
+                        // YT Music routinely substitutes an equivalent videoId
+                        // for the seed, so find it anywhere in the playlist and
+                        // merge around it instead of comparing to tracks[0].
+                        var i0 = -1;
+                        for (var s = 0; s < tracks.length; s++)
+                            if (tracks[s].id === seed) { i0 = s; break; }
+                        var tail;
+                        if (i0 >= 0) {
+                            root.queue = tracks.slice(i0);
+                            tail = tracks.slice(i0 + 1);
+                        } else {
+                            root.queue = [root.queue[0]].concat(tracks);
+                            tail = tracks;
+                        }
+                        root.index = 0;
+                        for (var k = 0; k < tail.length; k++)
+                            root.mpvCmd(["loadfile", root.watchUrl(tail[k].id), "append"]);
+                    } else {
+                        // playlist-only link: replacement audio is real now, so
+                        // this is the moment to take over the airwaves.
+                        root.tookOverAt = Date.now();
+                        root.pauseOthers();
                         root.startOrReplace(root.watchUrl(tracks[0].id));
-                    for (var k = 1; k < tracks.length; k++)
-                        root.mpvCmd(["loadfile", root.watchUrl(tracks[k].id), "append"]);
-                    root.queue = tracks;
-                    root.index = 0;
+                        for (var p = 1; p < tracks.length; p++)
+                            root.mpvCmd(["loadfile", root.watchUrl(tracks[p].id), "append"]);
+                        root.queue = tracks;
+                        root.index = 0;
+                    }
                     if (radioProc.savePlaylistId.length > 0)
                         root.playlistResolved(radioProc.savePlaylistId, tracks);
                     return;
@@ -485,7 +612,7 @@ Singleton {
     Timer {
         interval: 1000
         repeat: true
-        running: playProc.running
+        running: root.engineUp
         onTriggered: {
             if (fade.running)
                 return;
@@ -514,19 +641,45 @@ Singleton {
         }
     }
 
-    // pkill fallback + socket cleanup for stop()/exit, matching the old teardown.
+    // pkill fallback + socket cleanup for explicit stop() and failed adoption.
     Process {
         id: killProc
         command: ["sh", "-c",
             "pkill -f 'mpv.*ryoku-ytmusic-mpv\\.sock' 2>/dev/null; " +
             "i=0; while [ $i -lt 20 ] && pgrep -f 'mpv.*ryoku-ytmusic-mpv\\.sock' >/dev/null 2>&1; do sleep 0.05; i=$((i+1)); done; " +
             "rm -f " + root.ipcSocket + "; true"]
+        onExited: {
+            // a play() that landed mid-sweep parked its url here (spawnMpv).
+            if (root.respawnAfterKill.length > 0) {
+                var u = root.respawnAfterKill;
+                root.respawnAfterKill = "";
+                root.spawnMpv(u);
+            }
+        }
     }
 
-    // Kill any orphan mpv from a previous launcher instance on startup: a daemon
-    // restart or crash SIGTERMs the old qs before Component.onDestruction can run,
-    // leaving an mpv playing that the new Radio has no queue for (it would show a
-    // raw "watch?v=..." title with no cover). Clean slate so state always matches.
-    Component.onCompleted: killProc.running = true
-    Component.onDestruction: killProc.running = true
+    // Adoption probe id for the startup playlist request (see the socket's
+    // connected branch and onMpvLine).
+    readonly property int adoptReqId: 43
+
+    // Startup: probe the socket briefly instead of pkilling on sight. A live
+    // mpv from the previous instance (hot-reload, daemon restart) answers and
+    // gets adopted, so the music never stops; a dead socket or a foreign
+    // playlist falls through to the sweep via sockDial's give-up -> stop().
+    // The 2s guard covers a connect that never gets a playlist reply.
+    Timer {
+        id: adoptGuard
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            if (root.queue.length === 0 && root.engineUp)
+                root.stop();
+        }
+    }
+    Component.onCompleted: {
+        sockDial.tries = 0;
+        sockDial.maxTries = 6;
+        sockDial.start();
+        adoptGuard.start();
+    }
 }

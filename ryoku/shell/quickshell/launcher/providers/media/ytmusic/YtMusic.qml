@@ -214,5 +214,4 @@ Provider {
         availProc.running = true;
         Dispatcher.register(ytmusic);
     }
-    Component.onDestruction: Radio.stop()
 }

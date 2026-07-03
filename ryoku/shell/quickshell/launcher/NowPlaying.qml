@@ -40,7 +40,13 @@ Item {
     // "watch?v=..."/bare-id stream title (an mpv still resolving, or an orphan) is
     // suppressed to a neutral label rather than shown as a URL.
     readonly property string rawTitle: hasPlayer && player.trackTitle ? player.trackTitle : ""
-    readonly property bool rawIsUrl: rawTitle.indexOf("watch?v=") === 0 || /^[A-Za-z0-9_-]{11}$/.test(rawTitle)
+    // URL-ish anywhere in the title (mpv's pre-resolve title is the FULL
+    // https://... url, not a bare watch?v= fragment); the bare-videoId
+    // heuristic only applies to our own stream, where an 11-char token really
+    // is a videoId, never to a Spotify/browser track that happens to fit it.
+    readonly property bool rawIsUrl: rawTitle.indexOf("watch?v=") !== -1
+        || /^(https?:\/\/|www\.)/i.test(rawTitle)
+        || (Radio.isOurPlayer(player) && /^[A-Za-z0-9_-]{11}$/.test(rawTitle))
     readonly property string title: ours && Radio.title.length ? Radio.title
         : (rawTitle.length > 0 && !rawIsUrl ? rawTitle : "Nothing playing")
     readonly property string artist: ours && Radio.artist.length ? Radio.artist

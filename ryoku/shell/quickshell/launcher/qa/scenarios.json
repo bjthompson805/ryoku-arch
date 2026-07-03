@@ -505,7 +505,7 @@
     },
     {
       "id": "pkg-installed-row",
-      "name": ">kitty surfaces the installed package",
+      "name": ">kitty surfaces the installed package with its installed tag",
       "covers": "packages verb/installed marker",
       "steps": [
         "show",
@@ -513,7 +513,7 @@
         "settle 40"
       ],
       "asserts": [
-        "[.results[] | select((.title | test(\"^kitty\\\\s\")) and (.subtitle | test(\"^pacman\")))] | length >= 1"
+        "[.results[] | select((.title | test(\"^kitty\\\\s\")) and (.subtitle | test(\"^pacman\\\\s+\\\\(installed\\\\)\")))] | length >= 1"
       ],
       "screenshot": true,
       "network": true

@@ -1,8 +1,9 @@
 // Parse the `gpk search --json` envelope into launcher rows. The envelope is
 // { gpk_version, schema, data: [{ name, version, source, description,
-// installed_at }] }. A package is "installed" when installed_at is a real date
-// (gpk emits the zero time "0001-01-01T00:00:00Z" for not-installed). Pure logic
-// so the package provider's parsing is node-tested without invoking gpk.
+// installed, installed_at }] }. A package is installed when gpk says
+// `installed: true` (schema-1 additive field); older gpk builds lack it, so a
+// non-zero installed_at ("0001-01-01T00:00:00Z" means not installed) is the
+// fallback. Pure logic so the provider's parsing is node-tested without gpk.
 
 var ZERO_TIME = "0001-01-01T00:00:00Z";
 
@@ -35,7 +36,7 @@ function parse(raw) {
             version: p.version || "",
             source: p.source || "",
             description: p.description || "",
-            installed: isInstalled(p.installed_at)
+            installed: p.installed === true || isInstalled(p.installed_at)
         });
     }
     return out;
