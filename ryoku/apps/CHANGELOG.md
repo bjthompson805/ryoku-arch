@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `fish/conf.d/rashin.fish` the terminal weave for Ryoku Rashin's `rashin`
+  command: an interactive wrapper that drops a proposed command on the prompt,
+  an **Alt+R** binding that transmutes the current command line into a
+  command, a `fish_postexec` hook that reports proposed-vs-ran corrections to
+  the daemon, and a loader for the generated `rr-<name>` recipe abbreviations.
+  Inert when the `ryoku-rashin` daemon is off or absent. Deployed by
+  `deploy.sh`, shipped by `ryoku-desktop`. See `docs/rashin-terminal.md`.
 - `pipewire/` audio follows the device you just connected. A pipewire-pulse
   drop-in (`pipewire-pulse.conf.d/10-ryoku-switch-on-connect.conf`) loads the
   PulseAudio compat `module-switch-on-connect`, so a Bluetooth headset finishing
@@ -50,6 +57,15 @@
   Settings > GPU is a separate, single-VM path.
 
 ### Changed
+- `fastfetch/` new emblem (`assets/brand/fastfetch-emblem.png`), redrawn to say
+  what Ryoku is in one mark: a torii gate (the arch, and unmistakably Japanese)
+  framing a robed Greek marble philosopher inside a Greek-key meander ring (the
+  Greek half, stated twice), a vermillion rising sun, and a 力 hanko seal. The
+  old bust read as only-Greek with an ambiguous red circle. Bone line-art on a
+  transparent background (no baked backdrop), so it floats on the terminal's
+  paper instead of sitting in a box; the sun and seal carry the brand red.
+  Generated via fal.ai (recraft vector), recoloured to the brand palette and
+  seal-stamped locally.
 - `ryowalls/`: the palette tune is now per-image and one-time. Setting a
   wallpaper writes the tune keyed to that image (`ryoku-wallust.json` gains an
   `image` field); the daemon applies it only while that image is the wallpaper,
