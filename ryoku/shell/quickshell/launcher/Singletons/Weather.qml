@@ -60,6 +60,7 @@ Singleton {
         root.hourly = f.hourly;
         root.daily = f.daily;
         root.available = true;
+        wxCache.setText(text);           // cache the forecast so the next start opens on weather, not a bare date
     }
 
     function writeLoc() {
@@ -67,6 +68,11 @@ Singleton {
     }
 
     Component.onCompleted: {
+        // replay the last cached forecast instantly so the card opens on weather
+        // rather than a bare date; the fresh fetch below overwrites it a moment later.
+        var w = wxCache.text();
+        if (w && w.length > 0)
+            root.applyForecast(w);
         var c = Model.parseJson(locCache.text());
         if (c && typeof c.lat === "number" && typeof c.lon === "number") {
             root.city = c.city || "";
@@ -88,6 +94,13 @@ Singleton {
     FileView {
         id: locCache
         path: root.stateDir + "/weather-loc.json"
+        blockLoading: true
+        printErrors: false
+    }
+
+    FileView {
+        id: wxCache
+        path: root.stateDir + "/weather-cache.json"
         blockLoading: true
         printErrors: false
     }
