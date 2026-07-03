@@ -157,8 +157,8 @@ import Ryoku.PluginKit            // Theme, Motion, GlyphIcon, MicroLabel,
 ```
 
 Use `Theme` colors and `Motion` curves - mono eyebrows, hairline dividers, the
-brand accent, the project's morph timing. **Don't hardcode colors**; read them
-from `Theme`. The brand orange is the one fixed accent - use it sparingly.
+vermillion accent, the project's morph timing. **Don't hardcode colors**; read
+them from `Theme`. The vermillion accent is the one accent - use it sparingly.
 
 Your **settings are not QML** - you declare them as a `metadata.settings` schema
 in the manifest (below) and Ryoku renders native controls for them, both in

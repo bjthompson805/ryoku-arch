@@ -9,7 +9,7 @@ app-list, dropped from the pill so it has the room a Raycast/Alfred-class palett
 needs.
 
 It lives in `ryoku/shell/quickshell/launcher/`, a Quickshell component supervised
-by the `ryoku-shell` daemon (a peer of `pill`/`sidebar`), kept warm so it opens
+by the `ryoku-shell` daemon (a peer of `pill`/`ryoshot`), kept warm so it opens
 instantly and toggles with `ryoku-shell launcher`.
 
 ## Anatomy

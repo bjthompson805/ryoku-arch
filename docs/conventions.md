@@ -18,7 +18,7 @@ file next to the one you are editing.
 
 ## QML is one component per file
 
-`ryoku/shell/quickshell/` is the UI. Each surface (`pill`, `sidebar`, `ryoshot`)
+`ryoku/shell/quickshell/` is the UI. Each surface (`pill`, `launcher`, `ryoshot`)
 is its own directory, and each component is a single
 `.qml` file. Compose components; do not merge unrelated UI into one file.
 
