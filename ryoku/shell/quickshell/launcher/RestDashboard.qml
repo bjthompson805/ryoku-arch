@@ -62,6 +62,24 @@ Item {
         borderColor: Theme.border
         borderWidth: 1
 
+        // Backmost layer: the hands-of-creation art (samurai reaching to a
+        // marble goddess, red sun at the meeting point). Clipped to the card's
+        // rounded corners; the asset is faded to transparent at the sides so the
+        // clock and date read over the recessed card, not over the art.
+        ClippingRectangle {
+            anchors.fill: parent
+            radius: Metrics.radiusCard * root.s
+            color: "transparent"
+            Image {
+                anchors.fill: parent
+                source: "art/hands-adam.png"
+                fillMode: Image.PreserveAspectCrop
+                opacity: 0.6
+                asynchronous: true
+                smooth: true
+            }
+        }
+
         // Lit top edge: a hairline of palette sheen inset past the rounded
         // corners so the recessed panel catches light from above, the cue the
         // NowPlaying card gets from its blurred art bleed.
