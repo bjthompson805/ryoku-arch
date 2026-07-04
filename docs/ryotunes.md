@@ -18,6 +18,11 @@ The launcher surface (the `@` provider, the now-playing card) is documented in
   ~1.4s cold, no Python start-up) and returns songs instead of "(Official Video)"
   clips. A prefix cache shows the widest already-resolved prefix's rows the moment
   you keep typing, so refining a query feels instant.
+- **Instant play.** mpv resolves a YouTube stream with `yt-dlp` (~2s) before the
+  first sound; that wait was the old "lag". The engine pre-resolves the top hit's
+  direct audio URL in the background the moment results land (`prewarm`), so
+  pressing Play hands mpv a ready URL and sound starts in ~0.2s instead of ~2s. A
+  cold pick (not yet warm) still works, just at the old resolve latency.
 - **Covers for free.** InnerTube ships the album art with the search result, so
   the row shows it and the now-playing card shows the exact square cover with no
   second lookup. (For *other* players that expose no art, e.g. a browser, the card
@@ -48,8 +53,11 @@ The launcher surface (the `@` provider, the now-playing card) is documented in
 - **System-audio synergy.** Whatever is already playing (Spotify, a browser video,
   any app) can seed a station: the now-playing row's **YT Radio** verb reads the
   current track's title/artist and starts an endless YouTube Music radio from it.
-  Our own stream yields to other audio by fading out and pausing (not a hard kill),
-  so hand-off between players is smooth and two streams never stack.
+  Our own stream yields to other audio only when another player *starts* playing
+  while ours is (a deliberate hand-off): it fades out and pauses (not a hard kill),
+  so the switch is smooth and two streams never stack. Audio that was already
+  playing when the engine came up is a baseline it ignores, so a background browser
+  tab never silences the music.
 
 ## Architecture
 
@@ -66,14 +74,19 @@ pure JavaScript with `node` tests; the QML renders and drives processes.
   and the buffering flag for the card. `toggleShuffle()` drives mpv's
   `playlist-shuffle`/`unshuffle` then re-syncs the queue from mpv's reordered
   playlist (by videoId) so metadata stays correct; mpv runs with
-  `--prefetch-playlist=yes` for a gapless next track. Also the shared authority on
-  players:
+  `--prefetch-playlist=yes` for a gapless next track. To kill the play latency it
+  also pre-resolves the likely-played track's direct audio URL ahead of time
+  (`prewarm`, driven by the search provider) and hands mpv that URL, with the
+  videoId carried as a `#ryt=` fragment so shuffle and adoption still map the entry;
+  a cold pick falls back to the watch URL. Also the shared authority on players:
   `realPlayers()` (the `playerctld` proxy dropped and deduped by `dbusName`),
-  `isOurPlayer()`, `pauseOthers()` (take-over), and the fade-yield. IPC writes are
-  queued and flushed on connect, so a radio append that resolves before the socket
-  is up is never dropped. Kills any orphan `mpv` on startup so a restart mid-play
-  never leaves an unmanaged stream. Costs nothing at rest: nothing runs until the
-  first play.
+  `isOurPlayer()`, `pauseOthers()` (take-over), and the audio-focus yield (fade +
+  pause only when another player *starts* while ours plays, never for pre-existing
+  audio). IPC writes are queued and flushed on connect, so a radio append that
+  resolves before the socket is up is never dropped. On startup it adopts a live
+  orphan `mpv` from a previous instance over the socket, rebuilding the queue and
+  enriching skeleton covers from `/next`, so a reload never stops the music; a dead
+  or foreign one is swept. Costs nothing at rest: nothing runs until the first play.
 - `quickshell/launcher/providers/media/ytmusic/ytmusic.js` builds the InnerTube
   search body and parses the `musicResponsiveListItemRenderer` shelf into tracks
   (title, artist, album, duration, hi-res square cover); `parseFlat` keeps the
@@ -115,16 +128,17 @@ pure JavaScript with `node` tests; the QML renders and drives processes.
   -> prefix-cache hit shows rows now
   -> debounce -> curl InnerTube /search -> parse -> rows{icon: cover}
        (empty -> yt-dlp flat fallback)
+  -> prewarm top hit (yt-dlp -g, cached) so Play is instant
 
 play(track) -> Radio.play
-  -> pauseOthers (take over)  -> mpv loadfile (reuse over IPC, else cold-start)
+  -> pauseOthers (take over)  -> mpv loadfile streamUrl (pre-resolved if warm, else watch)
   -> curl InnerTube /next -> parseRadio -> loadfile append * (queue grows)
 
 mpv IPC playlist-pos -> Radio.index -> card cover / up-next follow
            core-idle -> Radio.buffering -> card buffering + frozen seekbar
                      -> tail near? extendRadio (append more)
 
-another player starts (past grace) -> fade mpv volume -> pause (yield)
+another player STARTS playing (not pre-existing) -> fade mpv volume -> pause (yield)
 tap a source strip -> resume it, pause the rest
 MPRIS row "YT Radio" -> Radio.playFromText -> curl /search -> play first hit
 
@@ -143,5 +157,10 @@ tap SAVED PLAYLISTS chip -> Radio.playCached(cached tracks)  [instant, no networ
   is rejected (a stale client version, or a cold rate-limited machine) search
   falls back to `yt-dlp` and radio simply does not extend that round. A signed-in
   default browser lifts `yt-dlp`'s rate limit via `--cookies-from-browser`.
+- Playback resolution stays on `yt-dlp` (mpv's `ytdl_hook`, or the `prewarm`
+  pre-resolve): YouTube gates the `/player` stream endpoint behind PoToken and
+  attestation, so the keyless InnerTube path that serves search and radio cannot
+  fetch a playable URL on its own. `yt-dlp` maintains that machinery; the
+  pre-resolve just moves its cost off the Play button.
 - Scope: this is the quick, always-playing path. Playlists, playlist import, a
   separate full-window deck, and library/likes sync are intentionally out of scope.

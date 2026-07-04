@@ -171,6 +171,7 @@ Provider {
             var rows = code === 0 ? YtMusic.parse(searchOut.text) : [];
             if (rows.length > 0) {
                 ytmusic.cachePut(searchProc.term, rows);
+                Radio.prewarm(rows[0].id);
                 Dispatcher.setBusy("ytmusic", false);
                 Dispatcher.notifyAsync();
             } else {
@@ -204,7 +205,9 @@ Provider {
                 Dispatcher.notifyAsync();
                 return;
             }
-            ytmusic.cachePut(fallbackProc.term, YtMusic.parseFlat(fallbackProc.out));
+            var frows = YtMusic.parseFlat(fallbackProc.out);
+            ytmusic.cachePut(fallbackProc.term, frows);
+            if (frows.length > 0) Radio.prewarm(frows[0].id);
             Dispatcher.setBusy("ytmusic", false);
             Dispatcher.notifyAsync();
         }

@@ -102,24 +102,6 @@ Singleton {
         return root.isOurPlayer(player) && root.active;
     }
 
-    // Some OTHER real player (a browser, Spotify) is producing sound.
-    function otherPlaying() {
-        var list = root.realPlayers();
-        for (var i = 0; i < list.length; i++)
-            if (list[i].isPlaying && !root.isOurPlayer(list[i]))
-                return true;
-        return false;
-    }
-
-    // Our own mpv stream is the one currently playing (gates the yield timer).
-    function ourMprisPlaying() {
-        var list = root.realPlayers();
-        for (var i = 0; i < list.length; i++)
-            if (root.isOurPlayer(list[i]) && list[i].isPlaying)
-                return true;
-        return false;
-    }
-
     // Take over the airwaves: pause every other real player so our stream owns
     // audio instead of stacking on a browser tab. Called on an explicit play.
     function pauseOthers() {
@@ -136,6 +118,11 @@ Singleton {
     // mistaken for "another player started" and bounced straight back.
     property double tookOverAt: 0
     readonly property int yieldGraceMs: 4000
+
+    // Non-our players seen playing at the previous yield-timer tick, so a player
+    // that STARTS playing (a deliberate hand-off) is told apart from one that was
+    // already playing. null until the engine comes up and the first tick primes it.
+    property var prevPlaying: null
 
     // Start mpv on `url`, or swap the running mpv to it over IPC (no audio gap).
     // The playlist is cleared so radio/playlist tracks refill from a clean slate.
@@ -155,6 +142,54 @@ Singleton {
 
     function watchUrl(id) { return "https://music.youtube.com/watch?v=" + id; }
 
+    // --- Fast play: pre-resolve the stream URL so play() starts near-instantly ---
+    // mpv's own ytdl_hook resolves each watch URL with yt-dlp (~2s) before the
+    // first sound; that wait is the "lag". We pre-resolve the likely-played
+    // track's direct audio URL in the background (prewarm, driven by the search
+    // provider) and hand mpv that URL, so the resolve overlaps the user's read
+    // time instead of stalling after they press play. Direct googlevideo URLs
+    // carry a short expiry, so cache briefly and fall back to the watch URL when
+    // cold. The videoId is appended as a "#ryt=" URL fragment (never sent to the
+    // server) so shuffle re-sync and adoption recover it from mpv's playlist
+    // filename, which is otherwise an opaque googlevideo URL, not a watch?v= one.
+    property var urlCache: ({})
+    readonly property int urlTtlMs: 20 * 60 * 1000
+    function cachedUrl(videoId) {
+        var e = root.urlCache[videoId];
+        return (e && (Date.now() - e.ts) < root.urlTtlMs) ? e.url : "";
+    }
+    // The URL to hand mpv for a track: the pre-resolved direct stream if warm,
+    // else the watch URL (mpv resolves it via ytdl_hook, the slower cold path).
+    function streamUrl(videoId) {
+        var c = root.cachedUrl(videoId);
+        return c.length > 0 ? c + "#ryt=" + videoId : root.watchUrl(videoId);
+    }
+    // Pre-resolve a track's audio URL in the background: one resolve at a time,
+    // skipped when the track is already warm. Safe to call on every search.
+    function prewarm(videoId) {
+        if (!videoId || root.cachedUrl(videoId).length > 0 || resolveProc.running)
+            return;
+        resolveProc.vid = videoId;
+        resolveProc.running = false;
+        resolveProc.running = true;
+    }
+    Process {
+        id: resolveProc
+        property string vid: ""
+        command: ["yt-dlp", "-f", "251/250/249/bestaudio", "-g", "--no-warnings",
+            "--no-playlist", root.watchUrl(vid)]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var url = String(this.text || "").trim().split("\n")[0];
+                if (url.indexOf("http") !== 0)
+                    return;
+                var c = root.urlCache;
+                c[resolveProc.vid] = { url: url, ts: Date.now() };
+                root.urlCache = c;
+            }
+        }
+    }
+
     // Play a track now and seed an endless radio from it. Reuses a running mpv
     // (no audio gap) via IPC; cold-starts mpv otherwise.
     function play(track) {
@@ -168,7 +203,7 @@ Singleton {
         // the yield timer does not treat that same audio as a reason to bow out.
         root.tookOverAt = Date.now();
         root.pauseOthers();
-        root.startOrReplace(root.watchUrl(track.id));
+        root.startOrReplace(root.streamUrl(track.id));
         radioProc.fetch(track.id, root.session);
     }
 
@@ -195,7 +230,7 @@ Singleton {
             root.pendingSeedVid = parsed.videoId;
             root.queue = [{ id: parsed.videoId, title: "", artist: "", album: "", cover: "", durationLabel: "" }];
             root.index = 0;
-            root.startOrReplace(root.watchUrl(parsed.videoId));
+            root.startOrReplace(root.streamUrl(parsed.videoId));
         } else {
             // playlist-only link: nothing plays until the fetch resolves, so
             // leave whatever is on the air (ours or another player) alone; the
@@ -217,7 +252,7 @@ Singleton {
         root.pauseOthers();
         root.queue = tracks.slice();
         root.index = 0;
-        root.startOrReplace(root.watchUrl(tracks[0].id));
+        root.startOrReplace(root.streamUrl(tracks[0].id));
         for (var i = 1; i < tracks.length; i++)
             root.mpvCmd(["loadfile", root.watchUrl(tracks[i].id), "append"]);
     }
@@ -236,7 +271,8 @@ Singleton {
     // Extract the 11-char videoId from a watch URL (for mapping mpv's playlist
     // entries back to our track objects after a shuffle).
     function videoIdFromUrl(url) {
-        var m = String(url || "").match(/v=([A-Za-z0-9_-]{11})/);
+        var s = String(url || "");
+        var m = s.match(/[#&]ryt=([A-Za-z0-9_-]{11})/) || s.match(/[?&]v=([A-Za-z0-9_-]{11})/);
         return m ? m[1] : "";
     }
 
@@ -264,6 +300,7 @@ Singleton {
         root.shuffled = false;
         root.pending = [];
         root.pendingSeedVid = "";
+        root.prevPlaying = null;
         root.engineUp = false;
         sockDial.stop();
         sockDial.tries = 0;
@@ -326,7 +363,7 @@ Singleton {
             // next track starts gaplessly without stealing bandwidth mid-song.
             "--prefetch-playlist=yes",
             "--input-ipc-server=" + root.ipcSocket,
-            "--ytdl-format=bestaudio/best", url]);
+            "--ytdl-format=251/250/249/bestaudio", url]);
         sockDial.tries = 0;
         sockDial.maxTries = 60;
         sockDial.start();
@@ -374,6 +411,7 @@ Singleton {
                 sockDial.stop();
                 sockDial.respawned = false;
                 root.engineUp = true;
+                root.prevPlaying = null;
                 mpvSock.write(JSON.stringify({ command: ["observe_property", 1, "playlist-pos"] }) + "\n");
                 // core-idle is true while mpv is loading/buffering and NOT actually
                 // producing sound; observing it lets the card show a buffering state
@@ -467,6 +505,11 @@ Singleton {
             if (aq.length > 0 && root.queue.length === 0) {
                 root.queue = aq;
                 root.index = acur;
+                // enrich the adopted skeletons: /next from the current track lifts
+                // its 16:9 placeholder to the real square cover (upgraded in place
+                // by the extend handler) and seeds the radio tail.
+                root.extending = true;
+                radioProc.fetch(aq[acur].id, root.session);
             } else if (root.queue.length === 0) {
                 root.stop();
             }
@@ -567,15 +610,24 @@ Singleton {
                         root.playlistResolved(radioProc.savePlaylistId, tracks);
                     return;
                 }
-                var have = {};
+                // Radio /next also returns rich metadata (title, square cover) for
+                // tracks already queued: the seed itself, and any adopted skeleton it
+                // revisits. Upgrade a bare skeleton (no title yet) in place so the card
+                // shows the real square cover instead of a cropped 16:9 thumbnail;
+                // dedup a track that already has metadata; append genuinely new ones.
+                var pos = {};
                 for (var i = 0; i < root.queue.length; i++)
-                    have[root.queue[i].id] = 1;
+                    pos[root.queue[i].id] = i;
                 var q = root.queue.slice();
                 for (var j = 0; j < tracks.length; j++) {
                     var t = tracks[j];
-                    if (have[t.id])
+                    var at = pos[t.id];
+                    if (at !== undefined) {
+                        if (!q[at].title)
+                            q[at] = t;
                         continue;
-                    have[t.id] = 1;
+                    }
+                    pos[t.id] = q.length;
                     q.push(t);
                     root.mpvCmd(["loadfile", root.watchUrl(t.id), "append"]);
                 }
@@ -605,21 +657,43 @@ Singleton {
         }
     }
 
-    // Graceful yield: once another player starts *after* our take-over grace
-    // window, fade our volume down and pause (not kill) so audio never stacks and
-    // the user can resume us from the sources strip. Gated on our own mpv actually
-    // playing, so it fires once (pausing clears the condition) and never fights.
+    // Audio-focus hand-off: yield only when ANOTHER player transitions into
+    // playing while our stream is playing (a deliberate switch), fading our
+    // volume down and pausing (not killing) so audio never stacks and the user
+    // can resume us from the sources strip. Players already playing when the
+    // engine comes up are a primed baseline and never trigger a yield, so a
+    // background browser tab no longer pauses our music seconds after it starts.
     Timer {
         interval: 1000
         repeat: true
         running: root.engineUp
         onTriggered: {
-            if (fade.running)
+            var list = root.realPlayers();
+            var nowPlaying = {};
+            var ourPlaying = false;
+            for (var i = 0; i < list.length; i++) {
+                var p = list[i];
+                if (!p.isPlaying)
+                    continue;
+                if (root.isOurPlayer(p))
+                    ourPlaying = true;
+                else
+                    nowPlaying[String(p.dbusName || p.identity || i)] = 1;
+            }
+            var prev = root.prevPlaying;
+            root.prevPlaying = nowPlaying;
+            // the first tick after the engine comes up only primes the baseline
+            if (prev === null || fade.running)
                 return;
             if (Date.now() - root.tookOverAt < root.yieldGraceMs)
                 return;
-            if (root.ourMprisPlaying() && root.otherPlaying())
-                fade.begin();
+            if (!ourPlaying)
+                return;
+            for (var k in nowPlaying)
+                if (!prev[k]) {
+                    fade.begin();
+                    return;
+                }
         }
     }
 

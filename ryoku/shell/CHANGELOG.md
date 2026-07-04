@@ -424,6 +424,29 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `quickshell/launcher` RyoTunes: a batch of fixes so the built-in music finally
+  feels native and fast, all in the engine (`Singletons/Radio.qml`) and its `@`
+  provider (`providers/media/ytmusic/YtMusic.qml`).
+  - **Playback no longer stops a few seconds in.** The "graceful yield" paused our
+    own stream whenever *any* other MPRIS player was playing, so a background
+    browser tab silenced the music ~4s after it started. The yield is now
+    audio-focus: it fires only when another player *transitions* into playing while
+    ours is (a deliberate hand-off), never for audio already playing when the engine
+    came up (a primed baseline). A player we take over on an explicit play stays a
+    baseline, so it never bounces the music straight back.
+  - **Play is near-instant, not a ~2s stall.** mpv resolved each track with yt-dlp
+    (~1.9s) before the first sound. The provider now pre-resolves the top hit's
+    direct audio URL in the background (`prewarm`) as results land, and `play()`
+    hands mpv that URL, so the resolve overlaps read time (first sound ~0.16s warm
+    vs ~2.1s cold). The videoId rides a `#ryt=` URL fragment (never sent to the
+    server) so shuffle and reload-adoption still recover it from the opaque stream
+    URL. Raw InnerTube `/player` is not a faster path: YouTube gates playback behind
+    PoToken/attestation, which yt-dlp maintains.
+  - **Adopted and radio covers are square, not a cropped 16:9 thumbnail.** A
+    reloaded stream was adopted as skeletons carrying only a 16:9 `ytimg` frame, and
+    radio `/next` dedup'd away the square version of an already-queued track. The
+    extend handler now upgrades a skeleton in place with the square cover and clean
+    title, and adoption enriches from the current track so the cover lifts within ~1s.
 - `quickshell/pill` link: the Bluetooth row and drill-in no longer present a
   dead toggle when bluetoothd is gone. The toggle hides without an adapter, the
   device list line becomes "Service off -- tap to start" (`pkexec systemctl
