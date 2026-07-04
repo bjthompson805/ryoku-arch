@@ -25,6 +25,8 @@ snap-pac
 # Networking
 networkmanager
 iwd
+# wireless-regdb: regulatory database; without it the WiFi domain caps at world-00 (low TX power)
+wireless-regdb
 # iw: ryoku-wifi-powersave (Game Mode) disables 802.11 power-save for low latency
 iw
 

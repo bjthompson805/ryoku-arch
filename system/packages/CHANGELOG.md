@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: add `wireless-regdb`, so the kernel can load `regulatory.db`.
+  Without it the WiFi regulatory domain stays at world `00`, which caps TX power
+  (weak uplink, TX rates collapse to the lowest MCS) and disables 6 GHz. The live
+  ISO already shipped it, but the installed target set did not, so every install
+  booted capped. Kernel-agnostic (shared `/usr/lib/firmware`), so stock `linux`
+  and CachyOS kernels are fixed identically.
 - `base.packages`: ship the Bluetooth stack, `bluez` + `bluez-utils`. The desktop
   has always had Bluetooth UI (Hub Connections > Bluetooth, the pill's link
   drill-in), but no install ever carried the daemon behind it: org.bluez never
