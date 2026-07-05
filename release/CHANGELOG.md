@@ -87,6 +87,15 @@
   detect pending updates, but it was not installed on Ryoku systems, so the
   update UI silently reported no updates. Bumped `ryoku` to `pkgrel=2`. Surfaced
   by a full end-to-end qemu desktop update test.
+- `ryoku-desktop`: ship the fastfetch emblem
+  (`ryoku/assets/brand/fastfetch-emblem.png`) into the base config tree at
+  `fastfetch/fastfetch-emblem.png`, so `ryoku materialize` lays it beside
+  `config.jsonc` on every update. The readout's logo is a fixed asset the config
+  references, but it only reached machines as an installer-time brand-asset seed
+  under `~/.local/share`, never through an update; when the emblem was redrawn and
+  renamed, updated desktops pointed at a file they never got and fastfetch
+  silently fell back to the Arch logo. It now rides the same delivery as the
+  config it serves.
 
 ### Added
 - `release/packages/` PKGBUILDs for the Ryoku desktop, built from the in-repo

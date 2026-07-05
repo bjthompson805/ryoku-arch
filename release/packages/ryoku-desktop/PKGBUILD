@@ -173,6 +173,12 @@ package() {
   install -Dm644 "$_repo/ryoku/shell/qt6ct/qt6ct.conf"     "$cfg/qt6ct/qt6ct.conf"
   install -Dm644 "$_repo/ryoku/apps/starship/starship.toml" "$cfg/starship.toml"
   install -Dm644 "$_repo/ryoku/apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"
+  # the fastfetch logo the config above draws. ships beside config.jsonc so
+  # `ryoku materialize` lays both together on every update; seeding it only as a
+  # brand asset (installer-time) left updated machines pointing at a file they
+  # never received, and fastfetch silently fell back to the Arch logo.
+  install -Dm644 "$_repo/ryoku/assets/brand/fastfetch-emblem.png" \
+    "$cfg/fastfetch/fastfetch-emblem.png"
   # pipewire: audio follows a newly connected device (BT headset, USB DAC)
   install -d "$cfg/pipewire"
   cp -a "$_repo/ryoku/apps/pipewire/." "$cfg/pipewire/"

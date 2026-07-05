@@ -91,3 +91,13 @@
 - `fish/`: route `go install` (`GOBIN`) and `cargo install` (`CARGO_INSTALL_ROOT`)
   to `~/.local/bin` and activate `mise`, so every language tool installs onto
   `PATH` and works from day one.
+
+### Fixed
+- `fastfetch/`: the readout fell back to the Arch logo on machines that updated
+  (fresh installs were fine). `config.jsonc` now points its emblem at
+  `~/.config/fastfetch/fastfetch-emblem.png`, laid beside the config by
+  `ryoku materialize`, instead of `~/.local/share/ryoku/assets/brand/`, which is
+  seeded only at install time. The emblem redraw above renamed the file, so
+  updated machines referenced an emblem they never received and fastfetch
+  silently used its built-in Arch logo. See the release changelog for the
+  packaging side.

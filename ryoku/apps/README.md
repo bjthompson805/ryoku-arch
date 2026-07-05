@@ -59,5 +59,6 @@ its `<name>.desktop` plus `quickshell/logo.svg` register it in the launcher.
 | `mimeapps.list` | `~/.config/mimeapps.list`                 |
 
 The `ryoku-fastfetch` wrapper must also land on `PATH` (for example
-`~/.local/bin/ryoku-fastfetch`) so fish can call it on terminal start. It expects
-the brand logo at `~/.local/share/ryoku/assets/brand/logo-mark.png`.
+`~/.local/bin/ryoku-fastfetch`) so fish can call it on terminal start. It draws
+the emblem at `~/.config/fastfetch/fastfetch-emblem.png`, laid there beside
+`config.jsonc` by `ryoku materialize` (and the package that ships it).
