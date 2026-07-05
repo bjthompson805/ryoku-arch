@@ -799,6 +799,7 @@ func (m *model) loadStep() {
 		} else {
 			m.kept, m.freeG = nil, 0
 		}
+		m.clampSwapToLayout() // keep default swap within the layout (backend-consistent)
 	case kPass:
 		m.pwStage, m.pw1, m.pwErr, m.input = 0, "", "", ""
 	case kNet:
@@ -1334,6 +1335,13 @@ func (m model) swapCeil() int {
 	return mx
 }
 
+// clampSwapToLayout pins the default swap into what the current layout can give
+// it (root floor + swapfile must both fit), so partReady's free-space gate
+// matches the backend's ryoku_min_root_gib and Tab never advances a layout the
+// backend would reject mid-install. Called on partition load; a no-op on a
+// roomy disk.
+func (m *model) clampSwapToLayout() { m.swapG = clamp(m.swapG, 0, m.swapCeil()) }
+
 func (m model) layoutRows() []lrow {
 	var rows []lrow
 	for i, k := range m.kept {
@@ -1790,7 +1798,11 @@ func (m model) partBody(inner int) string {
 	b.WriteString(m.diskBar(m.layoutSegs(), inner, m.selSeg()) + "\n\n")
 
 	if r := m.partBlockReason(); r != "" {
-		b.WriteString(bold(cRed, "⚠ "+r) + "\n\n")
+		b.WriteString(bold(cRed, "⚠ "+r) + "\n")
+		if m.picks["disk"] == "alongside" {
+			b.WriteString(fg(cDim, "  dual-boot guide: docs.ryoku.dev/docs/dual-boot") + "\n")
+		}
+		b.WriteString("\n")
 	}
 
 	rows := m.layoutRows()

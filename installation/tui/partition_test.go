@@ -144,6 +144,47 @@ func TestAlongsideSwapCeil(t *testing.T) {
 	}
 }
 
+// regression for the alongside dual-boot install that died mid-run: partReady's
+// free-space gate only checked freeG >= alongsideMinRootGiB, but the backend
+// (ryoku_min_root_gib) needs the free region to hold the 15G root floor AND the
+// swapfile. The 16G default swap wasn't clamped on load, so a 15..31G free
+// region passed Tab, then the backend aborted mid-install. After
+// clampSwapToLayout the layout must never promise more than fits:
+// alongsideMinRootGiB + swap <= freeG.
+func TestAlongsideSwapClampMatchesBackend(t *testing.T) {
+	// tight region: the 16G default swap can't coexist with the 15G root floor
+	// in 20G free, so clamp pins swap to exactly 20-15=5 and Tab stays open.
+	tight := alongsideModel(20, 16, true)
+	tight.clampSwapToLayout()
+	if tight.swapG != 5 {
+		t.Fatalf("tight swapG = %d, want 5 (20 - %d)", tight.swapG, alongsideMinRootGiB)
+	}
+	if alongsideMinRootGiB+tight.swapG > tight.freeG {
+		t.Fatalf("tight over-promises backend: %d + %d > %d free", alongsideMinRootGiB, tight.swapG, tight.freeG)
+	}
+	if !tight.partReady() {
+		t.Fatal("tight but installable region must stay Tab-ready after clamp")
+	}
+
+	// roomy region: 200G free comfortably holds root + the 16G default, so clamp
+	// must leave the default swap untouched (no over-shrink).
+	roomy := alongsideModel(200, 16, true)
+	roomy.clampSwapToLayout()
+	if roomy.swapG != 16 {
+		t.Fatalf("roomy swapG = %d, want 16 (default preserved)", roomy.swapG)
+	}
+
+	// the invariant holds across the whole installable range: once freeG clears
+	// the root floor, root + swap always fits the free region after clamp.
+	for _, freeG := range []int{15, 16, 20, 40, 200} {
+		m := alongsideModel(freeG, 16, true)
+		m.clampSwapToLayout()
+		if alongsideMinRootGiB+m.swapG > m.freeG {
+			t.Fatalf("freeG=%d: %d + %d swap > %d free after clamp", freeG, alongsideMinRootGiB, m.swapG, m.freeG)
+		}
+	}
+}
+
 // envHas: does installEnv carry an exact NAME=VALUE line. the strategy is a
 // literal contract with the backend; loose substring matching would let
 // "RYOKU_DISK_STRATEGY=" match "RYOKU_DISK_STRATEGY=whole".
