@@ -214,6 +214,19 @@ Rectangle {
                 onSelected: (k) => Wallhaven.searchTop(k)
             }
 
+            // a library can hold both images and video; filter by kind.
+            Segmented {
+                id: libType
+                anchors.left: parent.left
+                anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                segW: 74
+                visible: Wallhaven.source === "lib"
+                model: [{ key: "all", label: "All" }, { key: "images", label: "Images" }, { key: "live", label: "Live" }]
+                current: Wallhaven.libraryType
+                onSelected: (k) => Wallhaven.setLibraryType(k)
+            }
+
             // add your own mp4 to ~/Pictures/livewalls (Live source only).
             Rectangle {
                 id: addChip

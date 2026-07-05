@@ -48,6 +48,7 @@ Singleton {
     property string libraryBranch: ""
     property string libraryPath: ""
     property string libraryName: ""
+    property string libraryType: "all"      // all | images | live
     readonly property var libraries: cfg.libraries || []
 
     function setLibrary(lib) {
@@ -57,8 +58,14 @@ Singleton {
         libraryRepo = lib.repo;
         libraryBranch = lib.branch || "";
         libraryPath = lib.path || "";
+        libraryType = "all";
         results = []; selected = null; error = ""; page = 1; query = "";
         reload();
+    }
+    function setLibraryType(t) {
+        if (libraryType === t) return;
+        libraryType = t;
+        if (source === "lib") { page = 1; reload(); }
     }
     // accepts "owner/repo", "owner/repo@branch", "owner/repo/sub/dir", or a github URL.
     function addLibrary(input) {
@@ -179,7 +186,7 @@ Singleton {
             args = ["extras-search", "--json"];
             if (query.length > 0) args.push("--query", query);
         } else if (source === "lib") {
-            args = ["library-list", libraryRepo, "--page", "" + page, "--json"];
+            args = ["library-list", libraryRepo, "--page", "" + page, "--type", libraryType, "--json"];
             if (libraryBranch.length > 0) args.push("--branch", libraryBranch);
             if (libraryPath.length > 0) args.push("--path", libraryPath);
             if (query.length > 0) args.push("--query", query);

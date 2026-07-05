@@ -182,7 +182,7 @@ library-list)
 	# off the repo tree: a livewalls/registry.json (curated, like ryoku-extras) or a
 	# plain folder tree (each item dir = a video + a sibling poster, like Taiizor/Store).
 	# Smart: emits poster + stream URL + full-download URL; nothing is pulled here.
-	repo=""; branch=""; subpath=""; query=""; page=1
+	repo=""; branch=""; subpath=""; query=""; page=1; ltype="all"
 	while [ $# -gt 0 ]; do
 		case "$1" in
 		--repo) repo="$2"; shift 2 ;;
@@ -190,6 +190,7 @@ library-list)
 		--path) subpath="$2"; shift 2 ;;
 		--query) query="$2"; shift 2 ;;
 		--page) page="$2"; shift 2 ;;
+		--type) ltype="$2"; shift 2 ;;
 		--json) shift ;;
 		*) [ -z "$repo" ] && repo="$1"; shift ;;
 		esac
@@ -210,33 +211,54 @@ library-list)
 	from=$(( (page - 1) * 24 )); to=$(( page * 24 ))
 	regp="$(jq -r '[.tree[].path | select(endswith("livewalls/registry.json") or . == "registry.json")][0] // ""' "$ck")"
 	if [ -n "$regp" ]; then
-		curl -fsSL -A "$ua" "$rawb/$regp" 2>/dev/null | jq -c --arg rawb "$rawb" --arg q "$ql" --argjson from "$from" --argjson to "$to" '
+		curl -fsSL -A "$ua" "$rawb/$regp" 2>/dev/null | jq -c --arg rawb "$rawb" --arg q "$ql" --arg type "$ltype" --argjson from "$from" --argjson to "$to" '
 			def abs(p): if (p|test("^https?://")) then p else ($rawb + "/" + p) end;
 			[ .wallpapers[]?
+			  | select($type != "images")
 			  | select($q == "" or (.name|ascii_downcase|contains($q)) or (any((.tags // [])[]; ascii_downcase|contains($q))))
-			  | { id: .id, thumb: abs(.poster), video: abs(.video), dl: abs(.video), resolution: "", name: .name } ]
+			  | { id: .id, kind: "video", thumb: abs(.poster), video: abs(.video), dl: abs(.video), resolution: "", name: .name } ]
 			| .[$from:$to][]'
 		exit 0
 	fi
-	jq -c --arg rawb "$rawb" --arg sub "$subpath" --arg q "$ql" --argjson from "$from" --argjson to "$to" '
+	# a repo can hold videos (item dir = clip + sibling poster) AND standalone image
+	# wallpapers. Emit both with a kind, filtered by --type (all | live | images).
+	jq -c --arg rawb "$rawb" --arg sub "$subpath" --arg q "$ql" --arg type "$ltype" --argjson from "$from" --argjson to "$to" '
 		def enc: split("/") | map(@uri) | join("/");
+		def humanize: sub("-[0-9]+$";"") | gsub("[-_]";" ");
 		[.tree[].path] as $all
-		| ($all | map(select(test("\\.(mp4|webm)$";"i")) | select($sub == "" or startswith($sub)))) as $vids
-		| ($all | map(select(test("\\.(jpe?g|png|webp)$";"i")))) as $imgs
-		| [ $vids[]
-			| (sub("/[^/]+$";"")) as $dir
-			| ($dir | sub("^.*/";"")) as $iname
-			| ($imgs | map(select(startswith($dir + "/")))) as $dimgs
-			| ((($dimgs | map(select(test("thumb|poster|cover";"i"))))[0]) // ($dimgs[0]) // "") as $poster
-			| select($q == "" or ($iname | ascii_downcase | contains($q)) or ($dir | ascii_downcase | contains($q)))
-			| { id: ., thumb: (if $poster == "" then "" else ($rawb + "/" + ($poster|enc)) end), video: ($rawb + "/" + (.|enc)), dl: ($rawb + "/" + (.|enc)), resolution: "", name: $iname } ]
-		| .[$from:$to][]' "$ck"
+		| ($all | map(select($sub == "" or startswith($sub)))) as $scoped
+		| ($scoped | map(select(test("\\.(mp4|webm|mkv|mov)$";"i")))) as $vids
+		| ($scoped | map(select(test("\\.(jpe?g|png|webp)$";"i")))) as $imgs
+		| ($vids | map(sub("/[^/]+$";"")) | unique) as $viddirs
+		| ($vids | group_by(sub("/[^/]+$";"")) | map({key:(.[0]|sub("/[^/]+$";"")), value:length}) | from_entries) as $vpd
+		| (
+		    ($imgs | map(select((sub("/[^/]+$";"")) as $d | ($viddirs | index($d)) | not) | select(test("thumb|poster|cover";"i")|not))
+		      | map({ kind:"image", path:., dir:(sub("/[^/]+$";"")), thumb:., media:.,
+		              name: (sub("^.*/";"")|sub("\\.[^.]+$";"")|humanize) }))
+		    +
+		    ($vids | map(
+		      (sub("/[^/]+$";"")) as $dir
+		      | ($imgs | map(select(startswith($dir + "/")))) as $di
+		      | ((($di | map(select(test("thumb|poster|cover";"i"))))[0]) // ($di[0]) // "") as $poster
+		      | { kind:"video", path:., dir:$dir, thumb:$poster, media:.,
+		          name: (if ($vpd[$dir] // 2)==1 then ($dir|sub("^.*/";"")) else (.|sub("^.*/";"")|sub("\\.[^.]+$";"")) end | humanize) }))
+		  )
+		| map(select($type=="all" or ($type=="live" and .kind=="video") or ($type=="images" and .kind=="image")))
+		| map(select($q=="" or (.path|ascii_downcase|contains($q))))
+		| .[$from:$to][]
+		| { id:.path, kind:.kind, thumb:(if .thumb=="" then "" else ($rawb+"/"+(.thumb|enc)) end), video:(if .kind=="video" then ($rawb+"/"+(.media|enc)) else "" end), dl:($rawb+"/"+(.media|enc)), resolution:"", name:.name }' "$ck"
 	;;
 library-download)
-	# Full-quality download on Save, hashed filename so odd repo names stay sane.
+	# Full-quality download on Save. Videos land in livewalls, images in
+	# Wallpapers, so each pool stays clean and Super+W cycles them right.
 	id="${1:?id required}"; url="${2:?url required}"
-	dest="$HOME/Pictures/livewalls"; mkdir -p "$dest"
-	ext="${url##*.}"; ext="${ext%%\?*}"; case "$ext" in mp4|webm|mkv|mov) ;; *) ext="mp4" ;; esac
+	ext="${url##*.}"; ext="${ext%%\?*}"
+	case "$ext" in
+	mp4|webm|mkv|mov) dest="$HOME/Pictures/livewalls" ;;
+	jpg|jpeg|png|webp) dest="$HOME/Pictures/Wallpapers" ;;
+	*) ext="mp4"; dest="$HOME/Pictures/livewalls" ;;
+	esac
+	mkdir -p "$dest"
 	out="$dest/lib-$(printf '%s' "$url" | md5sum | cut -c1-12).$ext"
 	curl -fsSL -A "$ua" "$url" -o "$out"
 	printf '%s\n' "$out"
