@@ -129,6 +129,9 @@ Singleton {
         if (source === "moewalls") {
             args = ["moewalls-search", "--page", "" + page, "--json"];
             if (query.length > 0) args.push("--query", query);
+        } else if (source === "ryoku") {
+            args = ["extras-search", "--json"];
+            if (query.length > 0) args.push("--query", query);
         } else {
             args = ["search", "--query", query, "--page", "" + page, "--json"];
             if (topRange.length > 0) args.push("--top-range", topRange);
@@ -202,6 +205,8 @@ Singleton {
         _setAfter = true;
         if (source === "moewalls")
             dlProc.command = cmd(["moewalls-download", it.id, it.dl]);
+        else if (source === "ryoku")
+            dlProc.command = cmd(["extras-download", it.id, it.dl]);
         else
             dlProc.command = cmd(["download", it.id, it.path]);
         dlProc.running = true;

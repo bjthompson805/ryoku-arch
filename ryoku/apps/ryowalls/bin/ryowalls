@@ -135,6 +135,44 @@ moewalls-download)
 	curl -fsSL -A "$ua" "$url" -o "$out"
 	printf '%s\n' "$out"
 	;;
+extras-search)
+	# Curated live wallpapers from the ryoku-extras repo (livewalls/registry.json).
+	# Posters are in-repo (raw), clips are Release assets (absolute URLs in the
+	# registry). No key. --query filters by name/tag client-side (small catalogue).
+	query=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--query) query="$2"; shift 2 ;;
+		--page) shift 2 ;;
+		--json) shift ;;
+		*) shift ;;
+		esac
+	done
+	xbase="${RYOKU_EXTRAS_BASE:-https://raw.githubusercontent.com/neur0map/ryoku-extras/main}"
+	xbase="${xbase%/}"
+	resp="$(curl -fsSL -A "$ua" "$xbase/livewalls/registry.json")"
+	q="$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]')"
+	jq -c --arg base "$xbase" --arg q "$q" '.wallpapers[]
+		| select($q == "" or (.name|ascii_downcase|contains($q)) or (any((.tags // [])[]; ascii_downcase|contains($q))))
+		| {
+			id: .id,
+			thumb: ($base + "/" + .poster),
+			video: .video,
+			dl: .video,
+			resolution: "",
+			name: .name,
+			author: (.author // "")
+		}' <<<"$resp"
+	;;
+extras-download)
+	# Save a curated clip into livewalls. -L follows the Release redirect.
+	id="${1:?id required}"; url="${2:?url required}"
+	dest="$HOME/Pictures/livewalls"; mkdir -p "$dest"
+	ext="${url##*.}"; [ "${#ext}" -gt 5 ] && ext="mp4"
+	out="$dest/ryoku-$id.$ext"
+	curl -fsSL -A "$ua" "$url" -o "$out"
+	printf '%s\n' "$out"
+	;;
 live-list)
 	# Local live wallpapers the user dropped or downloaded. Newest first.
 	dir="$HOME/Pictures/livewalls"; mkdir -p "$dir"
@@ -152,7 +190,7 @@ live-import)
 	printf '%s\n' "$out"
 	;;
 *)
-	echo "usage: ryowalls search --query <q> --page <n> [--top-range <r>] [--ratios <r>] --json | download <id> <url> | palette <url> [flags] | moewalls-search [--query <q>] [--page <n>] --json | moewalls-download <id> <url> | live-list | live-import <src>" >&2
+	echo "usage: ryowalls search --query <q> --page <n> [--top-range <r>] [--ratios <r>] --json | download <id> <url> | palette <url> [flags] | moewalls-search [--query <q>] [--page <n>] --json | moewalls-download <id> <url> | extras-search [--query <q>] --json | extras-download <id> <url> | live-list | live-import <src>" >&2
 	exit 2
 	;;
 esac

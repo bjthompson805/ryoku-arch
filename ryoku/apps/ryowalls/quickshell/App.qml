@@ -88,8 +88,8 @@ Rectangle {
             anchors.right: winBtns.left
             anchors.rightMargin: 18
             anchors.verticalCenter: parent.verticalCenter
-            segW: 84
-            model: [{ key: "wallhaven", label: "Wallhaven" }, { key: "live", label: "Live" }, { key: "moewalls", label: "MoeWalls" }]
+            segW: 76
+            model: [{ key: "wallhaven", label: "Wallhaven" }, { key: "live", label: "Live" }, { key: "moewalls", label: "MoeWalls" }, { key: "ryoku", label: "Ryoku" }]
             current: Wallhaven.source
             onSelected: (k) => { app.mode = "browse"; Wallhaven.setSource(k); }
         }
@@ -151,7 +151,8 @@ Rectangle {
                     anchors.fill: parent
                     visible: input.text.length === 0
                     verticalAlignment: Text.AlignVCenter
-                    text: Wallhaven.source === "moewalls" ? "Search MoeWalls anime" : "Search wallhaven"
+                    text: Wallhaven.source === "moewalls" ? "Search MoeWalls anime"
+                        : (Wallhaven.source === "ryoku" ? "Search Ryoku wallpapers" : "Search wallhaven")
                     color: Theme.faint
                     font: input.font
                 }
@@ -234,7 +235,7 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
-                visible: Wallhaven.source !== "live"
+                visible: Wallhaven.source === "wallhaven" || Wallhaven.source === "moewalls"
                 IconBtn { name: "chevron-left"; dim: Wallhaven.page <= 1 || Wallhaven.searching; onClicked: Wallhaven.prevPage() }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -328,7 +329,8 @@ Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: Wallhaven.source === "live" ? "~/Pictures/livewalls"
-                : (Wallhaven.source === "moewalls" ? "moewalls.com" : "wallhaven.cc")
+                : (Wallhaven.source === "moewalls" ? "moewalls.com"
+                : (Wallhaven.source === "ryoku" ? "ryoku-extras" : "wallhaven.cc"))
             color: Theme.faint
             font.family: Theme.mono
             font.pixelSize: 11
