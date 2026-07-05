@@ -33,15 +33,32 @@ _bluetooth() {
   mkdir -p /var/lib/ryoku && : >"$marker"
 }
 
+# enable rtkit-daemon exactly once, so installs that predate the rtkit dependency
+# get realtime scheduling for PipeWire on upgrade. without it PipeWire runs
+# SCHED_OTHER and the audio thread underruns into crackling under load. Marker
+# keeps it one-shot: a user who later disables it stays disabled across upgrades.
+_rtkit() {
+  [ -e /usr/lib/systemd/system/rtkit-daemon.service ] || return 0
+  local marker=/var/lib/ryoku/rtkit-enabled
+  [ -e "$marker" ] && return 0
+  systemctl enable rtkit-daemon.service 2>/dev/null || true
+  if [ -d /run/systemd/system ]; then
+    systemctl start rtkit-daemon.service 2>/dev/null || true
+  fi
+  mkdir -p /var/lib/ryoku && : >"$marker"
+}
+
 post_install() {
   _refresh
   _bluetooth
+  _rtkit
   _hint
 }
 
 post_upgrade() {
   _refresh
   _bluetooth
+  _rtkit
   _hint
 }
 

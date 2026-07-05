@@ -42,8 +42,8 @@ ryoku_bootloader() {
   ryoku_windows_entry
 
   ryoku_boot_install_efi
-  log "enabling services: sddm, NetworkManager, bluetooth"
-  run arch-chroot /mnt systemctl enable sddm.service NetworkManager.service bluetooth.service
+  log "enabling services: sddm, NetworkManager, bluetooth, rtkit"
+  run arch-chroot /mnt systemctl enable sddm.service NetworkManager.service bluetooth.service rtkit-daemon.service
 }
 
 # finalize: runs after the AUR step. when limine-mkinitcpio-hook landed there,

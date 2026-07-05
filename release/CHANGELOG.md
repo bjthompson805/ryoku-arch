@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Fixed
+- Audio no longer crackles and pops under load. `ryoku-desktop` now depends on
+  `rtkit` and enables `rtkit-daemon` (once, on install and on upgrade, the same
+  one-shot pattern as `bluetooth.service`), and the installer enables it too. Without
+  it PipeWire could not get realtime scheduling (no realtime group, no PAM limits),
+  so its audio thread ran `SCHED_OTHER` and got preempted during a Discord video
+  call or over Bluetooth, underrunning the buffer into crackling. rtkit hands that
+  thread realtime priority over D-Bus with no per-user setup. This is the real fix
+  behind "EasyEffects made it stop": raising the buffer only masked the missing
+  realtime scheduling.
+- Bluetooth calls are less telephone-muffled and music is higher quality.
+  `ryoku-desktop` ships a system WirePlumber drop-in
+  (`/etc/wireplumber/wireplumber.conf.d/51-ryoku-bluetooth.conf`) that enables mSBC
+  wideband speech for the headset (HFP) profile and prefers hi-fi A2DP codecs
+  (LDAC, AptX, AAC) over plain SBC. Classic Bluetooth still cannot carry hi-fi
+  output and a mic at once, so a call is not A2DP quality, but this is the best the
+  profile allows. Users can override it in `~/.config/wireplumber/wireplumber.conf.d/`.
+
 ### Added
 - `ryoku-rashin` ships the `rashin` terminal command as a `/usr/bin/rashin`
   symlink to the daemon binary (argv0 dispatch, the busybox pattern), and
