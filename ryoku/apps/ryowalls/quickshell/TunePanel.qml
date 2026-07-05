@@ -11,11 +11,10 @@ Item {
     property bool advancedOpen: false
 
     readonly property var presets: [
-        { label: "Muted Dark",    tone: "dark",  character: "pastel",  comp: false, cs: "lab",      sat: 0 },
-        { label: "Vivid Dark",    tone: "dark",  character: "vivid",   comp: false, cs: "lch",      sat: 85 },
-        { label: "Complementary", tone: "dark",  character: "natural", comp: true,  cs: "lch",      sat: 80 },
-        { label: "Salient Pop",   tone: "dark",  character: "salient", comp: false, cs: "salience", sat: 70 },
-        { label: "Pastel Light",  tone: "light", character: "pastel",  comp: false, cs: "lab",      sat: 0 }
+        { label: "Muted Dark",   tone: "dark",  character: "pastel",  cs: "lab",      sat: 0 },
+        { label: "Vivid Dark",   tone: "dark",  character: "vivid",   cs: "lch",      sat: 85 },
+        { label: "Salient Pop",  tone: "dark",  character: "salient", cs: "salience", sat: 70 },
+        { label: "Pastel Light", tone: "light", character: "pastel",  cs: "lab",      sat: 0 }
     ]
 
     function set(key, val) {
@@ -26,7 +25,6 @@ Item {
         var c = Wallhaven.settings;
         c.tone = p.tone;
         c.character = p.character;
-        c.comp = p.comp;
         c.colorspace = p.cs;
         c.backend = "";
         c.saturation = p.sat;
@@ -36,7 +34,7 @@ Item {
     }
     function presetActive(p) {
         var c = Wallhaven.settings;
-        return c.tone === p.tone && c.character === p.character && c.comp === p.comp
+        return c.tone === p.tone && c.character === p.character
             && c.colorspace === p.cs && c.saturation === p.sat;
     }
 
@@ -104,13 +102,6 @@ Item {
                 current: Wallhaven.settings.character
                 onSelected: (k) => tune.set("character", k)
             }
-            ToggleRow {
-                label: "Complementary"
-                can: Wallhaven.compAvailable
-                on: Wallhaven.settings.comp
-                onToggled: (v) => tune.set("comp", v)
-            }
-
             SectionHead { text: "Adjust" }
             // live wallpaper: which second of the clip wallust samples for colours.
             SliderRow {

@@ -73,11 +73,7 @@ Singleton {
     // ---- tune: the look. Persisted to ryowalls.json, mirrored to the state file
     // ryoku-shell reads, so preview, Set Wallpaper and Super+W cycles match.
     // Defaults pass through to the wallust config until you change something.
-    readonly property bool paletteChanged: cfg.tone !== "dark" || cfg.character !== "natural" || cfg.comp
-    readonly property bool compAvailable: {
-        var salient = cfg.character === "salient" || (cfg.tone === "light" && cfg.character === "vivid");
-        return !salient;
-    }
+    readonly property bool paletteChanged: cfg.tone !== "dark" || cfg.character !== "natural"
     readonly property string paletteName: {
         var fam;
         if (cfg.tone === "light")
@@ -87,7 +83,7 @@ Singleton {
             fam = cfg.character === "pastel" ? "softdark"
                 : cfg.character === "vivid" ? "harddark"
                 : cfg.character === "salient" ? "saliencedark" : "dark";
-        return fam + (cfg.comp && root.compAvailable ? "comp" : "") + "16";
+        return fam + "16";
     }
     readonly property var tuneFlags: {
         var f = [];
@@ -105,7 +101,7 @@ Singleton {
     Timer { id: _retune; interval: 220; onTriggered: root._preview() }
 
     function resetTune() {
-        cfg.tone = "dark"; cfg.character = "natural"; cfg.comp = false;
+        cfg.tone = "dark"; cfg.character = "natural";
         cfg.colorspace = ""; cfg.backend = ""; cfg.saturation = 0; cfg.threshold = 0; cfg.contrast = false;
         cfgFile.writeAdapter();
     }
@@ -334,7 +330,6 @@ Singleton {
             property bool fitScreen: false
             property string tone: "dark"
             property string character: "natural"
-            property bool comp: false
             property string colorspace: ""
             property string backend: ""
             property int saturation: 0
