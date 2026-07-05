@@ -42,6 +42,48 @@ Singleton {
 
     function cmd(args) { return keyPrefix.concat(["ryowalls"]).concat(args); }
 
+    // ---- user-added libraries (any GitHub repo of wallpapers) ---------------
+    // Ryoku hosts nothing: the user points ryowalls at repos at their discretion.
+    property string libraryRepo: ""
+    property string libraryBranch: ""
+    property string libraryPath: ""
+    property string libraryName: ""
+    readonly property var libraries: cfg.libraries || []
+
+    function setLibrary(lib) {
+        source = "lib";
+        libraryName = lib.name || lib.repo;
+        libraryRepo = lib.repo;
+        libraryBranch = lib.branch || "";
+        libraryPath = lib.path || "";
+        results = []; selected = null; error = ""; page = 1; query = "";
+        reload();
+    }
+    // accepts "owner/repo", "owner/repo@branch", "owner/repo/sub/dir", or a github URL.
+    function addLibrary(input) {
+        var s = ("" + input).trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
+        if (s.length === 0) return;
+        var branch = "";
+        var at = s.indexOf("@");
+        if (at > 0) { branch = s.substring(at + 1); s = s.substring(0, at); }
+        var parts = s.split("/").filter(p => p.length > 0);
+        if (parts.length < 2) { error = "Use owner/repo"; return; }
+        var repo = parts[0] + "/" + parts[1];
+        var lib = { name: parts[1], repo: repo, branch: branch, path: parts.slice(2).join("/") };
+        var libs = (cfg.libraries || []).slice();
+        for (var i = 0; i < libs.length; i++)
+            if (libs[i].repo === repo) { setLibrary(libs[i]); return; }
+        libs.push(lib);
+        cfg.libraries = libs;
+        saveSettings();
+        setLibrary(lib);
+    }
+    function removeLibrary(repo) {
+        cfg.libraries = (cfg.libraries || []).filter(l => l.repo !== repo);
+        saveSettings();
+        if (source === "lib" && libraryRepo === repo) setSource("wallhaven");
+    }
+
     // switch library and load its first page. live has no query/pages.
     function setSource(s) {
         if (source === s) return;
@@ -129,8 +171,16 @@ Singleton {
         if (source === "moewalls") {
             args = ["moewalls-search", "--page", "" + page, "--json"];
             if (query.length > 0) args.push("--query", query);
+        } else if (source === "motionbgs") {
+            args = ["motionbgs-search", "--page", "" + page, "--json"];
+            if (query.length > 0) args.push("--query", query);
         } else if (source === "ryoku") {
             args = ["extras-search", "--json"];
+            if (query.length > 0) args.push("--query", query);
+        } else if (source === "lib") {
+            args = ["library-list", libraryRepo, "--page", "" + page, "--json"];
+            if (libraryBranch.length > 0) args.push("--branch", libraryBranch);
+            if (libraryPath.length > 0) args.push("--path", libraryPath);
             if (query.length > 0) args.push("--query", query);
         } else {
             args = ["search", "--query", query, "--page", "" + page, "--json"];
@@ -205,8 +255,12 @@ Singleton {
         _setAfter = true;
         if (source === "moewalls")
             dlProc.command = cmd(["moewalls-download", it.id, it.dl]);
+        else if (source === "motionbgs")
+            dlProc.command = cmd(["motionbgs-download", it.id, it.dl]);
         else if (source === "ryoku")
             dlProc.command = cmd(["extras-download", it.id, it.dl]);
+        else if (source === "lib")
+            dlProc.command = cmd(["library-download", it.id, it.dl]);
         else
             dlProc.command = cmd(["download", it.id, it.path]);
         dlProc.running = true;
@@ -344,6 +398,8 @@ Singleton {
             // whether mpvpaper pauses while a window covers it.
             property real frame: 1
             property bool pauseWhenCovered: false
+            // user-added wallpaper libraries: [{name, repo, branch, path}]
+            property var libraries: []
         }
     }
 

@@ -19,8 +19,25 @@ Rectangle {
     }
 
     property bool settingsOpen: false
+    property bool sourceMenuOpen: false
     property string mode: "browse"          // browse | tune
     readonly property bool fitOn: Wallhaven.ratios.length > 0
+
+    readonly property var builtins: [
+        { key: "wallhaven", label: "Wallhaven" },
+        { key: "live", label: "Live" },
+        { key: "moewalls", label: "MoeWalls" },
+        { key: "motionbgs", label: "motionbgs" },
+        { key: "ryoku", label: "Ryoku" }
+    ]
+    readonly property string sourceLabel: {
+        if (Wallhaven.source === "lib")
+            return Wallhaven.libraryName;
+        for (var i = 0; i < builtins.length; i++)
+            if (builtins[i].key === Wallhaven.source)
+                return builtins[i].label;
+        return "Wallhaven";
+    }
 
     // nearest wallhaven aspect for the primary monitor, for the Fit toggle.
     readonly property string screenRatio: {
@@ -81,17 +98,30 @@ Rectangle {
             IconBtn { name: "close"; danger: true; onClicked: Qt.quit() }
         }
 
-        // which library the grid browses: images (wallhaven), local live videos,
-        // or online anime video (moewalls).
-        Segmented {
-            id: sourceToggle
+        // source picker: built-in libraries plus any repos the user added. A
+        // dropdown (not a segmented row) so it scales to arbitrary libraries.
+        Rectangle {
+            id: sourceBtn
             anchors.right: winBtns.left
-            anchors.rightMargin: 18
+            anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            segW: 76
-            model: [{ key: "wallhaven", label: "Wallhaven" }, { key: "live", label: "Live" }, { key: "moewalls", label: "MoeWalls" }, { key: "ryoku", label: "Ryoku" }]
-            current: Wallhaven.source
-            onSelected: (k) => { app.mode = "browse"; Wallhaven.setSource(k); }
+            height: 34
+            width: srcRow.implicitWidth + 26
+            radius: Theme.radius
+            color: srcHover.hovered || app.sourceMenuOpen ? Theme.keyTop : Theme.surfaceLo
+            border.width: 1
+            border.color: app.sourceMenuOpen ? Theme.ember : Theme.line
+            Behavior on color { ColorAnimation { duration: Theme.quick } }
+            Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+            Row {
+                id: srcRow
+                anchors.centerIn: parent
+                spacing: 8
+                Text { anchors.verticalCenter: parent.verticalCenter; text: app.sourceLabel; color: Theme.bright; font.family: Theme.font; font.pixelSize: 13; font.weight: Font.Medium }
+                Icon { anchors.verticalCenter: parent.verticalCenter; name: "chevron-right"; size: 12; tint: Theme.dim; rotation: app.sourceMenuOpen ? 90 : 0; Behavior on rotation { NumberAnimation { duration: Theme.quick; easing.type: Theme.ease } } }
+            }
+            HoverHandler { id: srcHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: app.sourceMenuOpen = !app.sourceMenuOpen }
         }
     }
 
@@ -152,7 +182,9 @@ Rectangle {
                     visible: input.text.length === 0
                     verticalAlignment: Text.AlignVCenter
                     text: Wallhaven.source === "moewalls" ? "Search MoeWalls anime"
-                        : (Wallhaven.source === "ryoku" ? "Search Ryoku wallpapers" : "Search wallhaven")
+                        : (Wallhaven.source === "motionbgs" ? "Search motionbgs"
+                        : (Wallhaven.source === "ryoku" ? "Search Ryoku wallpapers"
+                        : (Wallhaven.source === "lib" ? "Search " + Wallhaven.libraryName : "Search wallhaven")))
                     color: Theme.faint
                     font: input.font
                 }
@@ -235,7 +267,7 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
-                visible: Wallhaven.source === "wallhaven" || Wallhaven.source === "moewalls"
+                visible: Wallhaven.source !== "live" && Wallhaven.source !== "ryoku"
                 IconBtn { name: "chevron-left"; dim: Wallhaven.page <= 1 || Wallhaven.searching; onClicked: Wallhaven.prevPage() }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -330,10 +362,94 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: Wallhaven.source === "live" ? "~/Pictures/livewalls"
                 : (Wallhaven.source === "moewalls" ? "moewalls.com"
-                : (Wallhaven.source === "ryoku" ? "ryoku-extras" : "wallhaven.cc"))
+                : (Wallhaven.source === "motionbgs" ? "motionbgs.com"
+                : (Wallhaven.source === "ryoku" ? "ryoku-extras"
+                : (Wallhaven.source === "lib" ? "github.com/" + Wallhaven.libraryRepo : "wallhaven.cc"))))
             color: Theme.faint
             font.family: Theme.mono
             font.pixelSize: 11
+        }
+    }
+
+    // source dropdown: built-ins, then user libraries, then an add field.
+    Item {
+        anchors.fill: parent
+        visible: app.sourceMenuOpen
+        z: 40
+        MouseArea { anchors.fill: parent; onClicked: app.sourceMenuOpen = false }
+        Rectangle {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: 64
+            anchors.rightMargin: 22
+            width: 244
+            height: menuCol.implicitHeight + 16
+            radius: Theme.radius
+            color: Theme.cardTop
+            border.width: 1
+            border.color: Theme.line
+            TapHandler {}
+            Column {
+                id: menuCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 8
+                spacing: 2
+
+                Repeater {
+                    model: app.builtins
+                    delegate: SrcRow {
+                        required property var modelData
+                        width: menuCol.width
+                        label: modelData.label
+                        active: Wallhaven.source === modelData.key
+                        onPick: { app.mode = "browse"; Wallhaven.setSource(modelData.key); app.sourceMenuOpen = false; }
+                    }
+                }
+
+                Rectangle { width: menuCol.width; height: 1; color: Theme.line; visible: Wallhaven.libraries.length > 0 }
+                Repeater {
+                    model: Wallhaven.libraries
+                    delegate: SrcRow {
+                        required property var modelData
+                        width: menuCol.width
+                        label: modelData.name
+                        sub: modelData.repo
+                        removable: true
+                        active: Wallhaven.source === "lib" && Wallhaven.libraryRepo === modelData.repo
+                        onPick: { app.mode = "browse"; Wallhaven.setLibrary(modelData); app.sourceMenuOpen = false; }
+                        onRemove: Wallhaven.removeLibrary(modelData.repo)
+                    }
+                }
+
+                Rectangle { width: menuCol.width; height: 1; color: Theme.line }
+                Rectangle {
+                    width: menuCol.width
+                    height: 34
+                    radius: Theme.radius
+                    color: addInput.activeFocus ? Theme.surfaceLo : "transparent"
+                    border.width: 1
+                    border.color: addInput.activeFocus ? Theme.ember : "transparent"
+                    Icon { id: pl; anchors.left: parent.left; anchors.leftMargin: 9; anchors.verticalCenter: parent.verticalCenter; name: "plus"; size: 13; tint: Theme.dim }
+                    TextInput {
+                        id: addInput
+                        anchors.left: pl.right
+                        anchors.leftMargin: 7
+                        anchors.right: parent.right
+                        anchors.rightMargin: 9
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: Theme.bright
+                        font.family: Theme.mono
+                        font.pixelSize: 12
+                        clip: true
+                        selectByMouse: true
+                        selectionColor: Theme.frameBg
+                        onAccepted: { if (text.trim().length > 0) { Wallhaven.addLibrary(text); text = ""; app.sourceMenuOpen = false; } }
+                        Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: addInput.text.length === 0; text: "add library:  owner/repo"; color: Theme.faint; font: addInput.font }
+                    }
+                }
+            }
         }
     }
 
@@ -348,6 +464,44 @@ Rectangle {
         title: "Add a live wallpaper"
         nameFilters: ["Video (*.mp4 *.webm *.mkv *.mov)"]
         onAccepted: Wallhaven.importLive(selectedFile)
+    }
+
+    component SrcRow: Rectangle {
+        id: sr
+        property string label: ""
+        property string sub: ""
+        property bool active: false
+        property bool removable: false
+        signal pick()
+        signal remove()
+        height: sr.sub.length > 0 ? 40 : 32
+        radius: Theme.radius
+        color: rowHov.hovered ? Theme.keyTop : "transparent"
+        Behavior on color { ColorAnimation { duration: Theme.quick } }
+        Rectangle { anchors.left: parent.left; anchors.leftMargin: 3; anchors.verticalCenter: parent.verticalCenter; width: 3; height: 14; radius: 1.5; color: Theme.ember; visible: sr.active }
+        Column {
+            anchors.left: parent.left
+            anchors.leftMargin: 13
+            anchors.right: xbtn.left
+            anchors.rightMargin: 6
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 1
+            Text { width: parent.width; text: sr.label; color: sr.active ? Theme.ember : Theme.cream; font.family: Theme.font; font.pixelSize: 13; font.weight: Font.Medium; elide: Text.ElideRight }
+            Text { width: parent.width; visible: sr.sub.length > 0; text: sr.sub; color: Theme.faint; font.family: Theme.mono; font.pixelSize: 9; elide: Text.ElideRight }
+        }
+        HoverHandler { id: rowHov; cursorShape: Qt.PointingHandCursor }
+        MouseArea { anchors.fill: parent; onClicked: sr.pick() }
+        Rectangle {
+            id: xbtn
+            anchors.right: parent.right
+            anchors.rightMargin: 6
+            anchors.verticalCenter: parent.verticalCenter
+            width: 20; height: 20; radius: 10
+            visible: sr.removable && rowHov.hovered
+            color: xma.containsMouse ? Qt.alpha(Theme.ember, 0.2) : "transparent"
+            Icon { anchors.centerIn: parent; name: "close"; size: 11; tint: xma.containsMouse ? Theme.ember : Theme.faint }
+            MouseArea { id: xma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: sr.remove() }
+        }
     }
 
     component IconBtn: Item {

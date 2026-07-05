@@ -135,6 +135,112 @@ moewalls-download)
 	curl -fsSL -A "$ua" "$url" -o "$out"
 	printf '%s\n' "$out"
 	;;
+motionbgs-search)
+	# motionbgs.com has no API: enumerate posters off the server-rendered listing
+	# (each carries the media id), then address the video by id via /dl/hd (1080p,
+	# streamed in the preview) and /dl/4k (the master, downloaded on Save). Grid
+	# shows only the small poster, so nothing heavy is pulled while browsing.
+	query=""; page=1
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--query) query="$2"; shift 2 ;;
+		--page) page="$2"; shift 2 ;;
+		--json) shift ;;
+		*) shift ;;
+		esac
+	done
+	mb="https://motionbgs.com"
+	if [ -n "$query" ]; then
+		q2="$(printf '%s' "$query" | tr '[:upper:] ' '[:lower:]-')"
+		path="/tag:$q2/"; [ "$page" -gt 1 ] && path="/tag:$q2/$page"
+	else
+		path="/"; [ "$page" -gt 1 ] && path="/$page"
+	fi
+	html="$(curl -fsSL -A "$ua" -e "$mb/" "$mb$path")"
+	# posters look like /i/c/{WxH}/media/{id}/{name}[.{res}].jpg. Take the media id
+	# from the path, skip tiny icon crops (<300px wide), dedupe by id, cap 24.
+	printf '%s' "$html" | grep -oE '/i/c/[0-9]+x[0-9]+/media/[0-9]+/[^"'"'"' ]+\.jpe?g' \
+		| awk -F'/' 'BEGIN{OFS="\t"} { split($4,c,"x"); if (c[1]+0 < 300) next; if (seen[$6]++) next; print $6, $0 }' \
+		| head -24 \
+		| while IFS="$(printf '\t')" read -r id poster; do
+			fname="${poster##*/}"
+			base="$(printf '%s' "$fname" | sed -E 's#\.[0-9]+x[0-9]+##; s#\.jpe?g$##')"
+			jq -cn --arg t "$mb$poster" --arg v "$mb/dl/hd/$id/" --arg d "$mb/dl/4k/$id/" \
+				--arg n "$(printf '%s' "$base" | tr '-' ' ')" --arg id "$id" \
+				'{id:$id,thumb:$t,video:$v,dl:$d,resolution:"",name:$n}'
+		done
+	;;
+motionbgs-download)
+	id="${1:?id required}"; url="${2:?url required}"
+	dest="$HOME/Pictures/livewalls"; mkdir -p "$dest"
+	out="$dest/motionbgs-$id.mp4"
+	curl -fsSL -A "$ua" -e "https://motionbgs.com/" "$url" -o "$out"
+	printf '%s\n' "$out"
+	;;
+library-list)
+	# Browse any GitHub repo of wallpapers the user added. Two shapes, auto-detected
+	# off the repo tree: a livewalls/registry.json (curated, like ryoku-extras) or a
+	# plain folder tree (each item dir = a video + a sibling poster, like Taiizor/Store).
+	# Smart: emits poster + stream URL + full-download URL; nothing is pulled here.
+	repo=""; branch=""; subpath=""; query=""; page=1
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--repo) repo="$2"; shift 2 ;;
+		--branch) branch="$2"; shift 2 ;;
+		--path) subpath="$2"; shift 2 ;;
+		--query) query="$2"; shift 2 ;;
+		--page) page="$2"; shift 2 ;;
+		--json) shift ;;
+		*) [ -z "$repo" ] && repo="$1"; shift ;;
+		esac
+	done
+	: "${repo:?owner/repo required}"
+	tok="${GITHUB_TOKEN:-}"; [ -z "$tok" ] && tok="$(gh auth token 2>/dev/null || true)"
+	auth=(); [ -n "$tok" ] && auth=(-H "Authorization: Bearer $tok")
+	[ -z "$branch" ] && branch="$(curl -fsSL -A "$ua" "${auth[@]}" "https://api.github.com/repos/$repo" 2>/dev/null | jq -r '.default_branch // "main"')"
+	rawb="https://raw.githubusercontent.com/$repo/$branch"
+	cache="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/ryowalls"; mkdir -p "$cache"
+	ck="$cache/tree-$(printf '%s' "$repo@$branch" | tr -c '[:alnum:]' '_').json"
+	# cache the tree for an hour so paging/searching does not re-hit the API.
+	if [ ! -s "$ck" ] || [ "$(( $(date +%s) - $(stat -c %Y "$ck" 2>/dev/null || echo 0) ))" -gt 3600 ]; then
+		curl -fsSL -A "$ua" "${auth[@]}" "https://api.github.com/repos/$repo/git/trees/$branch?recursive=1" -o "$ck.tmp" 2>/dev/null && mv "$ck.tmp" "$ck"
+	fi
+	[ -s "$ck" ] || { echo "could not read $repo" >&2; exit 4; }
+	ql="$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]')"
+	from=$(( (page - 1) * 24 )); to=$(( page * 24 ))
+	regp="$(jq -r '[.tree[].path | select(endswith("livewalls/registry.json") or . == "registry.json")][0] // ""' "$ck")"
+	if [ -n "$regp" ]; then
+		curl -fsSL -A "$ua" "$rawb/$regp" 2>/dev/null | jq -c --arg rawb "$rawb" --arg q "$ql" --argjson from "$from" --argjson to "$to" '
+			def abs(p): if (p|test("^https?://")) then p else ($rawb + "/" + p) end;
+			[ .wallpapers[]?
+			  | select($q == "" or (.name|ascii_downcase|contains($q)) or (any((.tags // [])[]; ascii_downcase|contains($q))))
+			  | { id: .id, thumb: abs(.poster), video: abs(.video), dl: abs(.video), resolution: "", name: .name } ]
+			| .[$from:$to][]'
+		exit 0
+	fi
+	jq -c --arg rawb "$rawb" --arg sub "$subpath" --arg q "$ql" --argjson from "$from" --argjson to "$to" '
+		def enc: split("/") | map(@uri) | join("/");
+		[.tree[].path] as $all
+		| ($all | map(select(test("\\.(mp4|webm)$";"i")) | select($sub == "" or startswith($sub)))) as $vids
+		| ($all | map(select(test("\\.(jpe?g|png|webp)$";"i")))) as $imgs
+		| [ $vids[]
+			| (sub("/[^/]+$";"")) as $dir
+			| ($dir | sub("^.*/";"")) as $iname
+			| ($imgs | map(select(startswith($dir + "/")))) as $dimgs
+			| ((($dimgs | map(select(test("thumb|poster|cover";"i"))))[0]) // ($dimgs[0]) // "") as $poster
+			| select($q == "" or ($iname | ascii_downcase | contains($q)) or ($dir | ascii_downcase | contains($q)))
+			| { id: ., thumb: (if $poster == "" then "" else ($rawb + "/" + ($poster|enc)) end), video: ($rawb + "/" + (.|enc)), dl: ($rawb + "/" + (.|enc)), resolution: "", name: $iname } ]
+		| .[$from:$to][]' "$ck"
+	;;
+library-download)
+	# Full-quality download on Save, hashed filename so odd repo names stay sane.
+	id="${1:?id required}"; url="${2:?url required}"
+	dest="$HOME/Pictures/livewalls"; mkdir -p "$dest"
+	ext="${url##*.}"; ext="${ext%%\?*}"; case "$ext" in mp4|webm|mkv|mov) ;; *) ext="mp4" ;; esac
+	out="$dest/lib-$(printf '%s' "$url" | md5sum | cut -c1-12).$ext"
+	curl -fsSL -A "$ua" "$url" -o "$out"
+	printf '%s\n' "$out"
+	;;
 extras-search)
 	# Curated live wallpapers from the ryoku-extras repo (livewalls/registry.json).
 	# Posters are in-repo (raw), clips are Release assets (absolute URLs in the

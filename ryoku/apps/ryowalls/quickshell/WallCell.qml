@@ -16,8 +16,11 @@ Rectangle {
 
     readonly property bool isVideo: !!(cell.item && cell.item.video && ("" + cell.item.video).length > 0)
     readonly property bool hasThumb: !!(cell.item && cell.item.thumb && ("" + cell.item.thumb).length > 0)
-    // local clips have no poster, so they loop always; moewalls loops on hover.
-    readonly property bool playing: cell.isVideo && (ma.containsMouse || !cell.hasThumb)
+    // only local clips loop in the grid (they are already on disk, free). Remote
+    // library/scrape clips show the poster + a play badge and never stream here;
+    // the hero preview streams the one selected clip, and Save is the only download.
+    readonly property bool isLocal: cell.isVideo && !("" + cell.item.video).startsWith("http")
+    readonly property bool playing: cell.isLocal && (ma.containsMouse || !cell.hasThumb)
 
     radius: Theme.radius
     color: Theme.surfaceLo
