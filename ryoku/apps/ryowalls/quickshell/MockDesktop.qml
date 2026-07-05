@@ -10,6 +10,13 @@ Item {
 
     readonly property real s: Math.max(0.7, height / 300)
 
+    readonly property bool selVideo: !!(Wallhaven.selected && Wallhaven.selected.video && ("" + Wallhaven.selected.video).length > 0)
+    readonly property bool selRemote: mock.selVideo && ("" + Wallhaven.selected.video).startsWith("http")
+    // remote clips can be big and re-stream on every loop, so they play only while
+    // you hover the preview; local clips are on disk and loop for free.
+    readonly property bool wantPreview: mock.selVideo && (!mock.selRemote || previewHover.hovered)
+    HoverHandler { id: previewHover }
+
     readonly property color cBg:     Wallhaven.col(0, "#16140f")
     readonly property color cFg:     Wallhaven.col(15, Wallhaven.col(7, "#e8e8e8"))
     readonly property color cRed:    Wallhaven.col(1, "#c1564b")
@@ -44,7 +51,7 @@ Item {
     // a live wallpaper loops as the backdrop instead of a still frame.
     MediaPlayer {
         id: liveMp
-        source: (Wallhaven.selected && Wallhaven.selected.video) ? Wallhaven.selected.video : ""
+        source: mock.wantPreview ? Wallhaven.selected.video : ""
         loops: MediaPlayer.Infinite
         videoOutput: liveOut
         onSourceChanged: source != "" ? play() : stop()
@@ -54,6 +61,25 @@ Item {
         anchors.fill: parent
         fillMode: VideoOutput.PreserveAspectCrop
         visible: liveMp.playbackState === MediaPlayer.PlayingState
+    }
+
+    // hint that a remote clip previews on hover (kept off the desktop mock chrome).
+    Rectangle {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 10
+        visible: mock.selRemote && !liveOut.visible
+        height: 22
+        width: hintRow.implicitWidth + 16
+        radius: height / 2
+        color: Qt.rgba(0, 0, 0, 0.5)
+        Row {
+            id: hintRow
+            anchors.centerIn: parent
+            spacing: 5
+            Icon { anchors.verticalCenter: parent.verticalCenter; name: "play"; size: 11; tint: Theme.bright }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: "hover to preview"; color: Theme.bright; font.family: Theme.mono; font.pixelSize: 9 }
+        }
     }
 
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.16) }

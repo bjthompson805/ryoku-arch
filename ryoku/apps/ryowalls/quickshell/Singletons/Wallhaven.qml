@@ -51,6 +51,7 @@ Singleton {
     readonly property var libraries: cfg.libraries || []
 
     function setLibrary(lib) {
+        if (!lib || !lib.repo) return;
         source = "lib";
         libraryName = lib.name || lib.repo;
         libraryRepo = lib.repo;
