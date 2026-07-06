@@ -9,6 +9,9 @@ Item {
     property bool open: false
     signal closed()
 
+    // re-probe on open so a just-installed upscaler flips Install to a live toggle.
+    onOpenChanged: if (open) Wallhaven.refreshCaps()
+
     visible: opacity > 0
     opacity: open ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
@@ -120,23 +123,41 @@ Item {
                 }
             }
 
-            // only shown when the machine has a Vulkan upscaler installed.
+            // shown when the GPU can upscale; offers Install via gpk if the tool is missing.
             Column {
                 width: parent.width
                 spacing: 5
-                visible: Wallhaven.upscaleImage
+                visible: Wallhaven.upscaleSupported
                 Item {
                     width: parent.width
-                    height: 24
+                    height: 30
                     Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Enhance on save (AI upscale)"; color: Theme.cream; font.family: Theme.font; font.pixelSize: 13; font.weight: Font.Medium }
                     Toggle {
+                        visible: Wallhaven.upscaleImage
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         on: Wallhaven.settings.upscale
                         onToggled: (v) => { Wallhaven.settings.upscale = v; Wallhaven.saveSettings(); }
                     }
+                    HubButton {
+                        visible: !Wallhaven.upscaleImage
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        icon: "download"
+                        label: "Install"
+                        onClicked: Wallhaven.installUpscaler()
+                    }
                 }
-                Text { width: parent.width; wrapMode: Text.WordWrap; text: "Sharpens low-res wallpapers on your GPU when you save them. Looks noticeably better, but saving takes longer and the file gets bigger (a lot for video)."; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: Wallhaven.upscaleImage
+                        ? "Sharpens low-res wallpapers on your GPU when you save them. Looks noticeably better, but saving takes longer and the file gets bigger (a lot for video)."
+                        : "Needs a Vulkan upscaler (waifu2x for images, video2x for video). Install opens gpk in a terminal; reopen Settings when it finishes."
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                }
             }
 
             Rectangle { width: parent.width; height: 1; color: Theme.line }

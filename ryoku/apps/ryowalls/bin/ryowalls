@@ -354,11 +354,13 @@ live-import)
 	printf '%s\n' "$out"
 	;;
 caps)
-	# what enhancement the machine can do, so the UI only offers what works.
-	img=false; vid=false
+	# what enhancement the machine can do, so the UI offers, installs, or hides.
+	# vulkan = a GPU that can run the upscalers at all; img/vid = tools installed.
+	vk=false; img=false; vid=false
+	[ -n "$(ls /usr/share/vulkan/icd.d/*.json 2>/dev/null)" ] && vk=true
 	{ command -v waifu2x-ncnn-vulkan || command -v realesrgan-ncnn-vulkan; } >/dev/null 2>&1 && img=true
 	command -v video2x >/dev/null 2>&1 && vid=true
-	jq -cn --argjson img "$img" --argjson vid "$vid" '{upscaleImage:$img,upscaleVideo:$vid}'
+	jq -cn --argjson vk "$vk" --argjson img "$img" --argjson vid "$vid" '{vulkan:$vk,upscaleImage:$img,upscaleVideo:$vid}'
 	;;
 *)
 	echo "usage: ryowalls search --query <q> --page <n> [--top-range <r>] [--ratios <r>] --json | download <id> <url> | palette <url> [flags] | moewalls-search [--query <q>] [--page <n>] --json | moewalls-download <id> <url> | extras-search [--query <q>] --json | extras-download <id> <url> | live-list | live-import <src>" >&2

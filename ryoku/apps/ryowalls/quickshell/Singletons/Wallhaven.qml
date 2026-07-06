@@ -40,16 +40,31 @@ Singleton {
     readonly property var keyPrefix: source === "wallhaven" && apiKey.length > 0
         ? ["env", "WALLHAVEN_API_KEY=" + apiKey] : []
 
-    // upscaling is offered only when the machine can do it (a Vulkan upscaler is
-    // installed); the toggle then injects RYOWALLS_UPSCALE so downloads enhance.
+    // upscaleSupported = a Vulkan GPU that could run an upscaler; upscaleImage = the
+    // tool is actually installed. The toggle shows when supported; if the tool is
+    // missing it offers Install (via gpk) instead. RYOWALLS_UPSCALE is injected only
+    // once a tool is present and the toggle is on.
+    property bool upscaleSupported: false
     property bool upscaleImage: false
     Process {
         id: capsProc
         running: true
         command: ["ryowalls", "caps"]
         stdout: StdioCollector {
-            onStreamFinished: { try { root.upscaleImage = !!JSON.parse(text).upscaleImage; } catch (e) {} }
+            onStreamFinished: {
+                try {
+                    var c = JSON.parse(text);
+                    root.upscaleSupported = !!c.vulkan;
+                    root.upscaleImage = !!c.upscaleImage;
+                } catch (e) {}
+            }
         }
+    }
+    function refreshCaps() { capsProc.running = false; capsProc.running = true; }
+    // open a terminal and let gpk install the upscalers (it needs a tty for the
+    // privilege prompt). refreshCaps on the next settings open picks them up.
+    function installUpscaler() {
+        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "gpk waifu2x-ncnn-vulkan; gpk video2x"]);
     }
 
     function cmd(args) {
