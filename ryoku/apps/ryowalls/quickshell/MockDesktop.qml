@@ -12,10 +12,15 @@ Item {
 
     readonly property bool selVideo: !!(Wallhaven.selected && Wallhaven.selected.video && ("" + Wallhaven.selected.video).length > 0)
     readonly property bool selRemote: mock.selVideo && ("" + Wallhaven.selected.video).startsWith("http")
-    // remote clips can be big and re-stream on every loop, so they play only while
-    // you hover the preview; local clips are on disk and loop for free.
-    readonly property bool wantPreview: mock.selVideo && (!mock.selRemote || previewHover.hovered)
-    HoverHandler { id: previewHover }
+    // the preview auto-plays the selected clip so you see it move. a remote clip
+    // re-streams on every loop, so after a while it pauses on the current frame:
+    // you get the motion, but a clip left selected does not drain data forever.
+    readonly property bool wantPreview: mock.selVideo
+    Timer {
+        interval: 15000
+        running: mock.selRemote && liveMp.playbackState === MediaPlayer.PlayingState
+        onTriggered: liveMp.pause()
+    }
 
     readonly property color cBg:     Wallhaven.col(0, "#16140f")
     readonly property color cFg:     Wallhaven.col(15, Wallhaven.col(7, "#e8e8e8"))
@@ -60,26 +65,8 @@ Item {
         id: liveOut
         anchors.fill: parent
         fillMode: VideoOutput.PreserveAspectCrop
-        visible: liveMp.playbackState === MediaPlayer.PlayingState
-    }
-
-    // hint that a remote clip previews on hover (kept off the desktop mock chrome).
-    Rectangle {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 10
-        visible: mock.selRemote && !liveOut.visible
-        height: 22
-        width: hintRow.implicitWidth + 16
-        radius: height / 2
-        color: Qt.rgba(0, 0, 0, 0.5)
-        Row {
-            id: hintRow
-            anchors.centerIn: parent
-            spacing: 5
-            Icon { anchors.verticalCenter: parent.verticalCenter; name: "play"; size: 11; tint: Theme.bright }
-            Text { anchors.verticalCenter: parent.verticalCenter; text: "hover to preview"; color: Theme.bright; font.family: Theme.mono; font.pixelSize: 9 }
-        }
+        // keep the last frame up once a heavy clip pauses, instead of snapping back.
+        visible: liveMp.playbackState === MediaPlayer.PlayingState || liveMp.playbackState === MediaPlayer.PausedState
     }
 
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.16) }

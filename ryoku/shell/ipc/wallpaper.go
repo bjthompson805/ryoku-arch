@@ -210,11 +210,13 @@ func (d *daemon) showAny(pic string) error {
 }
 
 // showLiveWallpaper: play the video, looping and muted, on the background layer.
-// -f forks so this returns at once. auto-pause (mpv pauses while a window fully
-// covers the wallpaper) rides the ryowalls "pause when covered" toggle.
+// -f forks so this returns at once. panscan=1.0 crops the clip to fill the screen
+// (a 16:9 clip on a 16:10 panel otherwise letterboxes, and awww shows through the
+// bands). auto-pause (mpv pauses while a window covers the wallpaper) rides the
+// ryowalls "pause when covered" toggle.
 func (d *daemon) showLiveWallpaper(pic string) error {
 	stopLive()
-	args := []string{"-f", "-o", "no-audio loop-file=inf hwdec=auto", "ALL", pic}
+	args := []string{"-f", "-o", "no-audio loop-file=inf hwdec=auto panscan=1.0", "ALL", pic}
 	if livePauseWhenCovered() {
 		args = append([]string{"-p"}, args...)
 	}
