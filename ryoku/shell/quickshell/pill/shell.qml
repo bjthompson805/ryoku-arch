@@ -781,6 +781,7 @@ ShellRoot {
                     smoothing: Config.frameSmoothing
                     edge: overlay.powerEdge
                     alongCenter: overlay.barVertical ? topBar.powerCenter : -1
+                    hoverOpen: !overlay.barVertical
                     s: overlay.s
                     active: !overlay.surfaceOpen && !overlay.monFullscreen
                     pinned: root.popout === "power" && root.popoutMon === overlay.modelData.name

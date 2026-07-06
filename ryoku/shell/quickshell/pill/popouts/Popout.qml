@@ -43,13 +43,18 @@ Item {
     property real hoverH: 0                // hover-band depth from the edge (0 = frameThickness)
     property real s: 1
     property bool pinned: false           // force open (IPC / inspection)
+    // false = the popout never opens from an edge hover band; it opens only
+    // when pinned (a bar module tap) and then stays while the body is hovered.
+    // caelestia's power button is click-only like this; an edge band on a bar
+    // edge would otherwise overlap the modules it sits behind.
+    property bool hoverOpen: true
 
     readonly property bool atLeft: edge === "left"
     readonly property bool atRight: edge === "right"
     readonly property bool atTop: edge === "top"
     readonly property bool atBottom: edge === "bottom"
     readonly property bool vertical: atLeft || atRight   // body grows horizontally
-    readonly property bool hovered: triggerHH.hovered || bodyHH.hovered
+    readonly property bool hovered: (hoverOpen && triggerHH.hovered) || bodyHH.hovered
     // host gates this off while a centre surface is open or a window is
     // fullscreen, so an edge hover never fights a modal surface.
     property bool active: true
@@ -91,8 +96,8 @@ Item {
     // deliberate hot-spot, not a tall invisible line that opens before the
     // pointer even hits the frame.
     readonly property real bandSpan: Math.min(vertical ? openH : openW, 220 * s)
-    readonly property real triggerW: vertical ? frameThickness : bandSpan
-    readonly property real triggerH: vertical ? bandSpan : frameThickness
+    readonly property real triggerW: !hoverOpen ? 0 : (vertical ? frameThickness : bandSpan)
+    readonly property real triggerH: !hoverOpen ? 0 : (vertical ? bandSpan : frameThickness)
     readonly property real triggerX: atLeft ? 0
                                    : atRight ? (width - frameThickness)
                                    : (alongX + (openW - bandSpan) / 2)

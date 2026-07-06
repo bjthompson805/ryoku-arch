@@ -96,6 +96,12 @@
   on close. Before, they grew from a fixed frame inset that landed inside
   the swelled band, so opening lumped the popout and band into one stuck
   slab, and the power menu even opened on the edge opposite its button.
+- Hovering the clock (or anything) on a side bar no longer opens the power
+  menu. The power popout carried a tall invisible hover band that, sitting
+  by the power button at the bottom, overlapped the clock and status
+  modules above it. The side-bar power menu is now click-only (open it by
+  tapping the power button, like the reference), with no edge band behind
+  its neighbours; the island/top-bar power keeps its edge hover.
 
 ### Security
 - `ipc`: the `ryoku-shell` control socket is now created owner-only (0700). It
