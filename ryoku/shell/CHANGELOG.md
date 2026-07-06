@@ -424,6 +424,15 @@
   `~/.config/ryoku/theme.json`). Wallpaper-driven themes are unaffected.
 
 ### Fixed
+- `ipc/wallpaper.go`: a live wallpaper could vanish a while after being set and
+  revert to the previous one. `stopLive` fired an async `pkill` and relaunched at
+  once, and `mpvpaper -f` forks, so a just-launched instance was invisible to the
+  next kill: instances leaked, and a leftover one still playing an earlier
+  wallpaper reclaimed the background layer. `stopLive` now waits for every
+  mpvpaper to actually exit (escalating to SIGKILL), and a launch waits until the
+  new instance is really up (its ipc socket appears) before returning, so exactly
+  one ever plays and a stale one cannot win. Setting an image over a video clears
+  the video reliably now, too.
 - `ipc/wallpaper.go`: the "pause live wallpaper when covered" toggle only paused
   for a fullscreen window, so a wallpaper hidden behind ordinary tiled windows
   kept playing at full tilt. It now pauses whenever the desktop is covered on

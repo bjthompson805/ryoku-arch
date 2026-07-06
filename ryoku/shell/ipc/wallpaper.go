@@ -202,7 +202,21 @@ func isVideo(p string) bool {
 }
 
 func liveAlive() bool { return exec.Command("pgrep", "-x", liveDaemon).Run() == nil }
-func stopLive()       { _ = exec.Command("pkill", "-x", liveDaemon).Run() }
+// stopLive terminates every mpvpaper and waits for it to exit, so a following
+// awww image or a fresh mpvpaper is never raced by a lingering one: an async
+// pkill let the old instance and a just-launched one coexist and leak.
+func stopLive() {
+	if exec.Command("pkill", "-x", liveDaemon).Run() != nil {
+		return
+	}
+	for range 40 {
+		if !liveAlive() {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	_ = exec.Command("pkill", "-9", "-x", liveDaemon).Run()
+}
 
 // showAny: route a video to mpvpaper and an image to awww, stopping the other
 // backend so exactly one paints.
@@ -220,12 +234,22 @@ func (d *daemon) showAny(pic string) error {
 // fires under Hyprland, which keeps sending frame callbacks to covered layers.
 func (d *daemon) showLiveWallpaper(pic string) error {
 	stopLive()
-	opts := "no-audio loop-file=inf hwdec=auto panscan=1.0 input-ipc-server=" + liveSockPath()
-	err := exec.Command(liveDaemon, "-f", "-o", opts, "ALL", pic).Run()
-	// setting a video while something is already fullscreen should start paused;
-	// the delay gives mpv a beat to create its socket
+	sock := liveSockPath()
+	_ = os.Remove(sock) // the killed instance's stale socket
+	opts := "no-audio loop-file=inf hwdec=auto panscan=1.0 input-ipc-server=" + sock
+	if err := exec.Command(liveDaemon, "-f", "-o", opts, "ALL", pic).Run(); err != nil {
+		return err
+	}
+	// wait until mpvpaper is really up (its ipc socket appears) before returning,
+	// so a later stopLive can see and kill it instead of racing a forking child.
+	for range 80 {
+		if _, err := os.Stat(sock); err == nil {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
 	time.AfterFunc(time.Second, livePauseReconcile)
-	return err
+	return nil
 }
 
 func liveSockPath() string {
