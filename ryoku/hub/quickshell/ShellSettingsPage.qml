@@ -576,8 +576,6 @@ Item {
                         options: [
                             { "key": "top", "label": "Top" },
                             { "key": "bottom", "label": "Bottom" },
-                            { "key": "left", "label": "Left" },
-                            { "key": "right", "label": "Right" }
                         ]
                         current: draft.barPosition
                         onChosen: (k) => page.edit("barPosition", k)

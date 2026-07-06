@@ -35,7 +35,6 @@ Item {
     signal calendarRequested()
     signal surfaceRequested(string name)
 
-    readonly property bool vertical: position === "left" || position === "right"
     readonly property real moduleSpan: Math.round(bar.band * 0.76)
 
     property int seedWsId: -1
@@ -71,7 +70,6 @@ Item {
 
         // ---- horizontal composition (top / bottom) ----------------------
         Row {
-            visible: !bar.vertical
             anchors.left: parent.left
             anchors.leftMargin: 24 * bar.s
             anchors.verticalCenter: parent.verticalCenter
@@ -121,7 +119,6 @@ Item {
         }
 
         BarModule {
-            visible: !bar.vertical
             anchors.centerIn: parent
             s: bar.s
             height: bar.moduleSpan
@@ -137,7 +134,6 @@ Item {
         }
 
         Row {
-            visible: !bar.vertical
             anchors.right: parent.right
             anchors.rightMargin: 24 * bar.s
             anchors.verticalCenter: parent.verticalCenter
@@ -203,137 +199,5 @@ Item {
             }
         }
 
-        // ---- vertical composition (left / right), the caelestia column --
-        Column {
-            visible: bar.vertical
-            anchors.top: parent.top
-            anchors.topMargin: 20 * bar.s
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 8 * bar.s
-
-            BarModule {
-                anchors.horizontalCenter: parent.horizontalCenter
-                s: bar.s
-                vertical: true
-                width: bar.moduleSpan
-                padY: 9 * bar.s
-                onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
-
-                Text {
-                    text: "力"
-                    color: Theme.brand
-                    font.family: Theme.fontJp
-                    font.weight: Font.Medium
-                    font.pixelSize: 13 * bar.s
-                }
-            }
-
-            BarModule {
-                anchors.horizontalCenter: parent.horizontalCenter
-                s: bar.s
-                vertical: true
-                width: bar.moduleSpan
-                padY: Config.barStyle === "caelestia" ? 4 * bar.s : 9 * bar.s
-                interactive: false
-
-                BarWorkspaces {
-                    s: bar.s
-                    vertical: true
-                    activeWsId: bar.activeWsId
-                }
-            }
-        }
-
-        Column {
-            id: vBottomCol
-            visible: bar.vertical
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 20 * bar.s
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 8 * bar.s
-
-            BarModule {
-                id: vMediaMod
-                anchors.horizontalCenter: parent.horizontalCenter
-                s: bar.s
-                vertical: true
-                width: bar.moduleSpan
-                visible: Config.barShowMedia && vMedia.present
-                onTapped: vMedia.toggle()
-                onWheeled: (steps) => bar.nudgeVolume(steps)
-
-                BarMedia {
-                    id: vMedia
-                    s: bar.s
-                    vertical: true
-                }
-            }
-
-            BarModule {
-                anchors.horizontalCenter: parent.horizontalCenter
-                s: bar.s
-                vertical: true
-                width: bar.moduleSpan
-                visible: vTray.count > 0
-                padY: 11 * bar.s
-                interactive: false
-
-                BarTray {
-                    id: vTray
-                    s: bar.s
-                    vertical: true
-                    trayWindow: bar.trayWindow
-                    menuEdgeY: 0
-                }
-            }
-
-            BarModule {
-                anchors.horizontalCenter: parent.horizontalCenter
-                s: bar.s
-                vertical: true
-                width: bar.moduleSpan
-                padY: 9 * bar.s
-                onTapped: bar.calendarRequested()
-
-                BarClock {
-                    s: bar.s
-                    vertical: true
-                }
-            }
-
-            BarModule {
-                anchors.horizontalCenter: parent.horizontalCenter
-                s: bar.s
-                vertical: true
-                width: bar.moduleSpan
-                padY: 9 * bar.s
-                visible: Config.barShowStatus
-                interactive: false
-
-                BarStatus {
-                    id: vStatus
-                    s: bar.s
-                    vertical: true
-                    onRequestPopout: (name, center) => bar.popoutRequested(name, center)
-                    onRequestSurface: (name) => bar.surfaceRequested(name)
-                }
-            }
-
-            BarModule {
-                id: vPowerMod
-                anchors.horizontalCenter: parent.horizontalCenter
-                s: bar.s
-                vertical: true
-                width: bar.moduleSpan
-                padY: 10 * bar.s
-                onTapped: bar.popoutRequested("power", vPowerMod.mapToItem(null, vPowerMod.width / 2, vPowerMod.height / 2).y)
-
-                MaterialIcon {
-                    text: "power_settings_new"
-                    color: Theme.verm
-                    font.pixelSize: 14 * bar.s
-                }
-            }
-        }
     }
 }

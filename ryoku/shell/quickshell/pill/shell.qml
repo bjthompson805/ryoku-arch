@@ -264,7 +264,6 @@ ShellRoot {
         function bluetooth(mon: string): void { root.togglePopout(mon, "bluetooth"); }
         function batteryPopout(mon: string): void { root.togglePopout(mon, "battery"); }
         function clipboard(mon: string): void { root.toggleSurface(mon, "clipboard"); }
-        function wallpaper(mon: string): void { root.toggleSurface(mon, "wallpaper"); }
         function sysinfo(mon: string): void { root.toggleSurface(mon, "sysinfo"); }
         function stash(mon: string): void { root.toggleSurface(mon, "stash"); }
         // stash-send <file>: open the stash and jump straight to its LocalSend
@@ -312,7 +311,7 @@ ShellRoot {
         var fn = parts[0];
         var mon = parts.length > 1 ? parts[1] : "";
         switch (fn) {
-        case "calendar": case "clipboard": case "wallpaper":
+        case "calendar": case "clipboard":
         case "link": case "inbox": case "battery": case "sysinfo":
         case "stash": case "toolkit": case "utilities": case "workspaces":
             root.toggleSurface(mon, fn); return true;
@@ -363,7 +362,7 @@ ShellRoot {
             // track the real pill, not the legacy islandHeight knob, or a fat
             // empty strip opens above the windows.
             readonly property real restHeight: 37 * s
-            readonly property string barPos: Config.barEnabled ? Config.barPosition : ""
+            readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
             readonly property bool barTop: barPos === "top"
             // only the classic fused island reserves its own strip, and only
             // while islandReserve is on; floating/none/auto-hidden (or reserve
@@ -405,7 +404,7 @@ ShellRoot {
             id: sideReserve
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property string barPos: Config.barEnabled ? Config.barPosition : ""
+            readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
             readonly property bool active: barPos === "bottom" || barPos === "left" || barPos === "right"
             // a vertical band needs room for stacked content; floor it at 30.
             readonly property real minBand: barPos === "left" || barPos === "right" ? 30 : 0
@@ -445,7 +444,7 @@ ShellRoot {
             // the options (Bar.qml). inverted rect is oversized 50px (its
             // anchors.margins), so the on-screen edge is border - 50; the
             // bar adds `barBand` inside that.
-            readonly property string barPos: Config.barEnabled ? Config.barPosition : ""
+            readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
             readonly property bool barTop: barPos === "top"
             readonly property bool barBottom: barPos === "bottom"
             readonly property bool barLeft: barPos === "left"
@@ -456,13 +455,6 @@ ShellRoot {
             readonly property real barBand: Math.max(Config.barHeight, barVertical ? 30 : 0) * s
             readonly property real barVisibleH: frameTopVisible + barBand
 
-            // mixer/power popouts follow the bar: on a side (vertical) bar they
-            // sit on that edge and grow from the bar's inner edge, fused with it
-            // as one body; on a top/bottom/absent bar they stay the island
-            // frame's left/right-centre features on the thin lip.
-            readonly property string mixerEdge: barVertical ? barPos : "left"
-            readonly property string powerEdge: barVertical ? barPos : "right"
-            readonly property real vBarThick: barVertical ? barVisibleH : 16
 
             // island appearance, read from the live config. the frame is
             // the same across styles; only the centre island changes.
@@ -656,11 +648,6 @@ ShellRoot {
                 visible: !overlay.monFullscreen
 
                 Keys.onEscapePressed: if (!pill.linkBack()) root.close()
-                Keys.onLeftPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperMove(-1); e.accepted = true; } }
-                Keys.onRightPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperMove(1); e.accepted = true; } }
-                Keys.onReturnPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
-                Keys.onEnterPressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
-                Keys.onSpacePressed: (e) => { if (pill.wallpaperOpen) { pill.wallpaperActivate(); e.accepted = true; } }
 
                 // frame and pill share one blob field, so the pill reads
                 // as the frame swelling open at top-centre, not a bar on top.
