@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Window
 import QtQuick.Dialogs
 import Quickshell
 import "Singletons"
@@ -22,6 +23,11 @@ Rectangle {
     property bool sourceMenuOpen: false
     property string mode: "browse"          // browse | tune
     readonly property bool fitOn: Wallhaven.ratios.length > 0
+
+    // re-check the upscaler tools when the window regains focus, e.g. after the
+    // gpk install terminal closes, so Install clears to the toggle on its own.
+    readonly property bool windowActive: Window.active
+    onWindowActiveChanged: if (windowActive) Wallhaven.refreshCaps()
 
     readonly property var builtins: [
         { key: "wallhaven", label: "Wallhaven" },

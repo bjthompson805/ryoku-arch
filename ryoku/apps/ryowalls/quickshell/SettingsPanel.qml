@@ -164,9 +164,9 @@ Item {
                     width: parent.width
                     wrapMode: Text.WordWrap
                     text: !Wallhaven.upscaleImage
-                        ? "Needs a Vulkan upscaler (waifu2x for images, video2x for video). Install opens gpk: pick the package, confirm the build, then reopen Settings."
+                        ? "Needs a Vulkan upscaler (waifu2x for images, video2x for video). Install opens gpk: pick the package and confirm the build."
                         : (!Wallhaven.upscaleVideo
-                            ? "Images enhance on save already. Video needs video2x: Install opens gpk, pick it and confirm (an AUR build, takes a while), then reopen Settings."
+                            ? "Images enhance on save already. Video needs video2x: Install opens gpk, pick it and confirm (an AUR build, takes a while)."
                             : "Sharpens low-res wallpapers on your GPU when you save them. Looks noticeably better, but saving takes longer and the file gets bigger (a lot for video).")
                     color: Theme.dim
                     font.family: Theme.font
