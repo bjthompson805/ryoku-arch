@@ -37,8 +37,8 @@ Item {
     property real openH: 200
     // size tracks the content's implicit size (the mixer grows as its device
     // picker expands or a stream appears); melt rather than snap.
-    Behavior on openW { NumberAnimation { duration: Motion.morph; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.morphCurve } }
-    Behavior on openH { NumberAnimation { duration: Motion.morph; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.morphCurve } }
+    Behavior on openW { NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
+    Behavior on openH { NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
     property real hoverW: 0                // hover-band span along the edge (0 = match body)
     property real hoverH: 0                // hover-band depth from the edge (0 = frameThickness)
     property real s: 1
@@ -129,9 +129,9 @@ Item {
             to: "open"
             NumberAnimation {
                 property: "prog"
-                duration: Motion.morph
+                duration: Motion.spatial
                 easing.type: Easing.BezierSpline
-                easing.bezierCurve: Motion.morphCurve
+                easing.bezierCurve: Motion.spatialCurve
             }
         },
         Transition {
@@ -149,12 +149,13 @@ Item {
     // clamped to the body's own extent so it retracts cleanly on close, and
     // points back toward the edge the body grows from.
     BlobRect {
+        id: bodyBlob
         readonly property real reach: root.frameThickness + root.smoothing
         readonly property real neckW: root.vertical ? Math.max(0, Math.min(reach, root.bodyW)) : 0
         readonly property real neckH: root.vertical ? 0 : Math.max(0, Math.min(reach, root.bodyH))
         group: root.group
         radius: root.radius
-        deformScale: 0.0006
+        deformScale: 0.000015
         x: root.bodyX - (root.atLeft ? neckW : 0)
         y: root.bodyY - (root.atTop ? neckH : 0)
         implicitWidth: root.bodyW > 0 ? root.bodyW + neckW : 0
@@ -171,7 +172,8 @@ Item {
         height: root.bodyH
         clip: true
         visible: root.prog > 0.004
-        opacity: Math.max(0, Math.min(1, (root.prog - 0.15) / 0.55))
+        opacity: root.shouldOpen ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Motion.effects; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.effectsCurve } }
 
         HoverHandler { id: bodyHH }
 
@@ -181,6 +183,7 @@ Item {
             height: root.openH
             x: root.atRight ? (bodyClip.width - root.openW) : 0
             y: root.atBottom ? (bodyClip.height - root.openH) : 0
+            transform: Matrix4x4 { matrix: bodyBlob.deformMatrix }
         }
     }
 

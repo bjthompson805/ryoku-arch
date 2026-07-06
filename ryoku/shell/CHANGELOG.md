@@ -92,6 +92,17 @@
   stay one toggle away in Settings -> Shell.
 
 ### Fixed
+- Blob motion matches the reference shell now. The blobs already render
+  identically, but five things made the melt feel less smooth: the deform
+  spring used explicit Euler (the energy-injecting form our own ported comment
+  warns against) -> switched to the semi-implicit closed form so it settles
+  instead of wobbling on frame hitches; the render loop was basic (on-demand,
+  GUI-thread) -> threaded (vsync-locked) so the per-frame spring gets regular
+  deltas; popouts opened on a no-overshoot curve -> the spatial spring (500ms);
+  deformScale was ~40x too large so any motion slammed the stretch cap -> cut
+  to the reference's subtle value; and popout content was rigid over a
+  deforming blob -> it now transforms by the blob's deform matrix and fades on
+  the effects curve, so content and blob move as one body.
 - Bar mode no longer swallows notifications and the volume OSD. The island
   logic only summoned the drop panel for open surfaces, so a toast or a
   volume change rendered nothing while the bar was on; both now melt out of

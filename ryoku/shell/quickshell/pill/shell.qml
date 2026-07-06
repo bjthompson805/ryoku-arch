@@ -1,10 +1,12 @@
 //@ pragma UseQApplication
-// basic (render-on-demand) loop, not threaded: the bar is static between
-// interactions, but the threaded loop spins the render thread every vsync on
-// NVIDIA whenever a live MultiEffect (the bead glow, card shadows, art blur) is
-// in the scene (measured ~5% idle here). on-demand rendering idles properly;
-// the morph is a short scripted timeline and stays smooth on the GUI thread.
-//@ pragma DefaultEnv QSG_RENDER_LOOP = basic
+// threaded render loop: the blob melt is a per-frame spring (plugin/blobrect.cpp)
+// plus scene-graph animations; threaded is vsync-locked and frees the GUI thread, so
+// the spring gets regular frame deltas and never stutters behind layout/JS. (basic
+// idled ~5% cheaper on NVIDIA with the island's live MultiEffects in the scene, but
+// smoothness wins and blobs snap to rest when idle.)
+//@ pragma DefaultEnv QSG_RENDER_LOOP=threaded
+//@ pragma DefaultEnv QS_DROP_EXPENSIVE_FONTS=1
+//@ pragma DefaultEnv QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
 
 import QtQuick
 import Quickshell
