@@ -747,9 +747,10 @@ ShellRoot {
                     ]
                 }
 
-                // mixer popout: on a side bar it grows from the bar's inner
-                // edge at the bare-band centre and melts back into it; on a
-                // top/bottom/absent bar it's the left-centre frame feature.
+                // mixer popout: on a side bar the now-playing module owns it --
+                // hovering that module opens the mixer at its centre (a tap still
+                // plays/pauses, the wheel still nudges volume); on a top/bottom or
+                // absent bar it stays the left-centre frame feature on the thin lip.
                 Popout {
                     id: mixerPop
                     group: blobGroup
@@ -757,6 +758,9 @@ ShellRoot {
                     radius: Config.frameRadius
                     smoothing: Config.frameSmoothing
                     edge: overlay.mixerEdge
+                    hoverOpen: !overlay.barVertical
+                    triggerHovered: overlay.barVertical && topBar.mediaHovered
+                    alongCenter: overlay.barVertical ? topBar.mediaCenter : -1
                     s: overlay.s
                     active: !overlay.surfaceOpen && !overlay.monFullscreen
                     pinned: root.popout === "mixer" && root.popoutMon === overlay.modelData.name

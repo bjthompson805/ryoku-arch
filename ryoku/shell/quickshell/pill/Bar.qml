@@ -43,6 +43,15 @@ Item {
     // emerge right at the button instead of the frame's mid-edge.
     readonly property real powerCenter: vertical ? height - 20 * s - vPowerMod.height / 2 : 0
 
+    // the now-playing module owns the mixer popout: its hover opens the mixer
+    // and its centre positions it, so the popout emerges from the module (not
+    // an edge band). mapToItem tracks it as the bottom column relayouts.
+    readonly property bool mediaHovered: vertical && vMediaMod.visible && vMediaMod.hovered
+    readonly property real mediaCenter: (vertical && vMediaMod.visible)
+        ? (bar.height + bar.s + vBottomCol.y + vMediaMod.y + vMediaMod.height,
+           vMediaMod.mapToItem(bar, 0, vMediaMod.height / 2).y)
+        : 0
+
     property int seedWsId: -1
     readonly property int activeWsId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : seedWsId
 
@@ -248,6 +257,7 @@ Item {
         }
 
         Column {
+            id: vBottomCol
             visible: bar.vertical
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 20 * bar.s
@@ -255,6 +265,7 @@ Item {
             spacing: 8 * bar.s
 
             BarModule {
+                id: vMediaMod
                 anchors.horizontalCenter: parent.horizontalCenter
                 s: bar.s
                 vertical: true

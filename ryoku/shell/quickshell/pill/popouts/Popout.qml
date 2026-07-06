@@ -48,13 +48,18 @@ Item {
     // caelestia's power button is click-only like this; an edge band on a bar
     // edge would otherwise overlap the modules it sits behind.
     property bool hoverOpen: true
+    // a bar module owns this popout: it drives this true while the module (not
+    // an edge band) is hovered, and feeds `alongCenter` its own centre, so the
+    // popout emerges from the module. this is caelestia's per-module ownership
+    // (currentName/currentCenter) with a fixed module->popout mapping.
+    property bool triggerHovered: false
 
     readonly property bool atLeft: edge === "left"
     readonly property bool atRight: edge === "right"
     readonly property bool atTop: edge === "top"
     readonly property bool atBottom: edge === "bottom"
     readonly property bool vertical: atLeft || atRight   // body grows horizontally
-    readonly property bool hovered: (hoverOpen && triggerHH.hovered) || bodyHH.hovered
+    readonly property bool hovered: (hoverOpen && triggerHH.hovered) || triggerHovered || bodyHH.hovered
     // host gates this off while a centre surface is open or a window is
     // fullscreen, so an edge hover never fights a modal surface.
     property bool active: true

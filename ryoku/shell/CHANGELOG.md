@@ -102,6 +102,12 @@
   modules above it. The side-bar power menu is now click-only (open it by
   tapping the power button, like the reference), with no edge band behind
   its neighbours; the island/top-bar power keeps its edge hover.
+- Side-bar popouts open from their own module, not an invisible edge band, so
+  hovering one module can never open another's popout (the reference's
+  per-module ownership). The now-playing module owns the mixer (hover opens it
+  there; a tap still plays/pauses, the wheel still nudges volume); the power
+  button owns the power menu (click). This removes the last stray edge band
+  from a side bar; top/bottom/island popouts keep their thin-lip band.
 
 ### Security
 - `ipc`: the `ryoku-shell` control socket is now created owner-only (0700). It
