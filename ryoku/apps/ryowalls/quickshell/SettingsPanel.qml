@@ -16,13 +16,17 @@ Item {
     opacity: open ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
 
+    // the scrim tap co-fires with taps on the card's controls (overlapping
+    // TapHandlers all see the tap; a MouseArea would steal it from the toggles
+    // instead), so click-out is gated on the cursor not being over the card.
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.55)
-        TapHandler { onTapped: sp.closed() }
+        TapHandler { onTapped: if (!cardHover.hovered) sp.closed() }
     }
 
     Rectangle {
+        id: card
         anchors.centerIn: parent
         width: 460
         height: col.implicitHeight + 44
@@ -35,7 +39,7 @@ Item {
         border.color: Theme.line
         scale: sp.open ? 1 : 0.96
         Behavior on scale { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
-        TapHandler {}
+        HoverHandler { id: cardHover }
 
         Column {
             id: col
@@ -119,7 +123,11 @@ Item {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     on: Wallhaven.settings.pauseWhenCovered
-                    onToggled: (v) => { Wallhaven.settings.pauseWhenCovered = v; Wallhaven.saveSettings(); }
+                    onToggled: (v) => {
+                        Wallhaven.settings.pauseWhenCovered = v;
+                        Wallhaven.saveSettings();
+                        Quickshell.execDetached(["ryoku-shell", "wallpaper", "pause-sync"]);
+                    }
                 }
             }
 
@@ -140,7 +148,8 @@ Item {
                             visible: !Wallhaven.upscaleImage || !Wallhaven.upscaleVideo
                             anchors.verticalCenter: parent.verticalCenter
                             icon: "download"
-                            label: "Install"
+                            label: !Wallhaven.upscaleImage && !Wallhaven.upscaleVideo ? "Install both"
+                                : (!Wallhaven.upscaleImage ? "Install waifu2x" : "Install video2x")
                             onClicked: Wallhaven.installUpscaler()
                         }
                         Toggle {
@@ -155,9 +164,9 @@ Item {
                     width: parent.width
                     wrapMode: Text.WordWrap
                     text: !Wallhaven.upscaleImage
-                        ? "Needs a Vulkan upscaler (waifu2x for images, video2x for video). Install opens gpk in a terminal; reopen Settings when it finishes."
+                        ? "Needs a Vulkan upscaler (waifu2x for images, video2x for video). Install opens gpk: pick the package, confirm the build, then reopen Settings."
                         : (!Wallhaven.upscaleVideo
-                            ? "Images enhance on save. Video needs video2x; Install adds it (an AUR build, takes a while)."
+                            ? "Images enhance on save already. Video needs video2x: Install opens gpk, pick it and confirm (an AUR build, takes a while), then reopen Settings."
                             : "Sharpens low-res wallpapers on your GPU when you save them. Looks noticeably better, but saving takes longer and the file gets bigger (a lot for video).")
                     color: Theme.dim
                     font.family: Theme.font

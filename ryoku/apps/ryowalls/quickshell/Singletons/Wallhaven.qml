@@ -61,12 +61,14 @@ Singleton {
     }
     function refreshCaps() { capsProc.running = false; capsProc.running = true; }
     // gpk needs a tty for its privilege prompt, so installs open a terminal.
-    // --hold keeps the window up when gpk exits, so errors stay readable.
+    // One window, sequential (parallel gpk fights over the pacman lock);
+    // --hold keeps it up when gpk exits, so errors stay readable.
     function installUpscaler() {
-        if (!upscaleImage)
-            Quickshell.execDetached(["kitty", "--hold", "-e", "gpk", "waifu2x-ncnn-vulkan"]);
-        if (!upscaleVideo)
-            Quickshell.execDetached(["kitty", "--hold", "-e", "gpk", "video2x"]);
+        var steps = [];
+        if (!upscaleImage) steps.push("echo ':: waifu2x-ncnn-vulkan (image upscaler)'; gpk waifu2x-ncnn-vulkan");
+        if (!upscaleVideo) steps.push("echo ':: video2x (video upscaler)'; gpk video2x");
+        if (steps.length > 0)
+            Quickshell.execDetached(["kitty", "--hold", "-e", "sh", "-c", steps.join("; ")]);
     }
 
     function cmd(args) {

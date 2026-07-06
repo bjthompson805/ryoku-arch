@@ -401,7 +401,7 @@ Rectangle {
             color: Theme.cardTop
             border.width: 1
             border.color: Theme.line
-            TapHandler {}
+            MouseArea { anchors.fill: parent }
             Column {
                 id: menuCol
                 anchors.left: parent.left

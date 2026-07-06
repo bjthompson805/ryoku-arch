@@ -139,6 +139,9 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 
 	var pic string
 	switch mode {
+	case "pause-sync": // ryowalls toggled pause-when-covered; apply it now
+		livePauseReconcile()
+		return nil
 	case "init":
 		if cur := readState(); cur != "" && isFile(cur) {
 			pic = cur
@@ -218,7 +221,11 @@ func (d *daemon) showAny(pic string) error {
 func (d *daemon) showLiveWallpaper(pic string) error {
 	stopLive()
 	opts := "no-audio loop-file=inf hwdec=auto panscan=1.0 input-ipc-server=" + liveSockPath()
-	return exec.Command(liveDaemon, "-f", "-o", opts, "ALL", pic).Run()
+	err := exec.Command(liveDaemon, "-f", "-o", opts, "ALL", pic).Run()
+	// setting a video while something is already fullscreen should start paused;
+	// the delay gives mpv a beat to create its socket
+	time.AfterFunc(time.Second, livePauseReconcile)
+	return err
 }
 
 func liveSockPath() string {
