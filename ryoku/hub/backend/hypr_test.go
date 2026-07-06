@@ -37,6 +37,68 @@ func TestGenLuaEmitsChangedLeavesOnly(t *testing.T) {
 	}
 }
 
+// the expanded option set follows the same diff rule: only divergences land,
+// nested subsections only materialise when a leaf inside them diverged.
+func TestGenLuaEmitsNewLeaves(t *testing.T) {
+	o := defaultOverrides()
+	o.Appearance.DimInactive = true
+	o.Appearance.RoundingPower = 2.5
+	o.Appearance.BlurVibrancy = 0.3
+	o.Appearance.GlowEnabled = true
+	o.Appearance.SnapEnabled = true
+	o.Input.LeftHanded = true
+	o.Input.MiddleClickPaste = false
+	o.Input.SwipeDistance = 420
+	o.Cursor.InactiveTimeout = 5
+	out := genLua(o, true)
+	for _, want := range []string{
+		"dim_inactive = true", "rounding_power = 2.5", "vibrancy = 0.3",
+		"glow = { enabled = true }", "snap = { enabled = true }",
+		"left_handed = true", "misc = { middle_click_paste = false }",
+		"gestures = { workspace_swipe_distance = 420 }",
+		"cursor = { inactive_timeout = 5 }",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	for _, not := range []string{"dim_strength", "noise", "render_power", "tap_and_drag", "scroll_factor", "hide_on_key_press"} {
+		if strings.Contains(out, not) {
+			t.Errorf("unchanged %q was emitted:\n%s", not, out)
+		}
+	}
+}
+
+// a store written before the option expansion misses every new field; the
+// on-disk overlay must keep the new defaults, so a regenerated settings.lua
+// stays diff-clean for an untouched system. (parseOverrides would pin kb_*,
+// that path is the save flow; upgrades go through loadOverrides.)
+func TestLoadOverridesOldStoreKeepsNewDefaults(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	old := `{"appearance":{"gapsIn":12,"gapsOut":18,"borderSize":2,"rounding":2,` +
+		`"activeOpacity":1,"inactiveOpacity":0.94,"blurEnabled":true,"blurSize":4,` +
+		`"blurPasses":1,"shadowEnabled":true,"shadowRange":45,"animations":true,` +
+		`"layout":"dwindle","activeBorder":"#e0563b","inactiveBorder":"#313a4d"},` +
+		`"cursor":{"theme":"Bibata-Modern-Ice","size":24}}`
+	if err := os.MkdirAll(filepath.Join(dir, "ryoku"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ryoku", "hypr.json"), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o := loadOverrides()
+	if o.Appearance.RoundingPower != 4 || o.Appearance.BlurVibrancy != 0.17 || !o.Appearance.ResizeOnBorder {
+		t.Errorf("new appearance defaults lost: %+v", o.Appearance)
+	}
+	if !o.Input.TapAndDrag || !o.Input.MiddleClickPaste || o.Input.SwipeDistance != 300 {
+		t.Errorf("new input defaults lost: %+v", o.Input)
+	}
+	if out := genLua(o, true); strings.Contains(out, "hl.config") {
+		t.Errorf("legacy store produced config divergence:\n%s", out)
+	}
+}
+
 // border colours only land when "follow wallpaper" is off, in the rgb() form
 // Hyprland wants.
 func TestGenLuaBorderColours(t *testing.T) {
@@ -59,11 +121,45 @@ func TestGenLuaAnimationsToggle(t *testing.T) {
 	}
 }
 
-func TestGenLuaTouchpadHyphenKey(t *testing.T) {
+// the touchpad tap key is snake_case in the hl API (the conf syntax's
+// tap-to-click is rejected by the Lua config and would kill the whole block).
+func TestGenLuaTouchpadTapKey(t *testing.T) {
 	o := defaultOverrides()
 	o.Input.TapToClick = false
-	if !strings.Contains(genLua(o, true), `["tap-to-click"] = false`) {
-		t.Errorf("hyphenated touchpad key not bracket-quoted:\n%s", genLua(o, true))
+	if !strings.Contains(genLua(o, true), `tap_to_click = false`) {
+		t.Errorf("touchpad tap key not emitted as tap_to_click:\n%s", genLua(o, true))
+	}
+}
+
+// legacy pretty-action keys map onto the real hl field names; a bad mapping
+// here errors inside settings.lua and silently disables everything after it.
+func TestGenWindowRuleFieldNames(t *testing.T) {
+	for action, want := range map[string]string{
+		"noblur":          "no_blur = true",
+		"noshadow":        "no_shadow = true",
+		"noborder":        "border_size = 0",
+		"norounding":      "rounding = 0",
+		"nodim":           "no_dim = true",
+		"noanim":          "no_anim = true",
+		"nofocus":         "no_focus = true",
+		"stayfocused":     "stay_focused = true",
+		"keepaspectratio": "keep_aspect_ratio = true",
+		"opaque":          "opaque = true",
+		"xray":            "xray = true",
+		"pseudo":          "pseudo = true",
+		"maximize":        "maximize = true",
+		"immediate":       "immediate = true",
+	} {
+		got := genWindowRule(0, WindowRule{Class: "x", Action: action})
+		if !strings.Contains(got, want) {
+			t.Errorf("action %q: got %q, want it to carry %q", action, got, want)
+		}
+	}
+	if got := genWindowRule(0, WindowRule{Class: "x", Action: "idleinhibit", Value: "focus"}); !strings.Contains(got, `idle_inhibit = "focus"`) {
+		t.Errorf("idleinhibit rule malformed: %q", got)
+	}
+	if got := genWindowRule(0, WindowRule{Class: "x", Action: "idleinhibit", Value: "bogus"}); !strings.Contains(got, `idle_inhibit = "always"`) {
+		t.Errorf("idleinhibit bad value not clamped: %q", got)
 	}
 }
 
@@ -149,9 +245,13 @@ func TestParseOverridesPartialKeepsDefaults(t *testing.T) {
 func TestLiveLuaIsFullAndParses(t *testing.T) {
 	lua := liveLua(defaultOverrides())
 	for _, want := range []string{
-		"gaps_in = 12", "rounding = 2", "active_opacity = 1.0",
-		"kb_layout = \"us\"", "follow_mouse = 2",
-		"[\"tap-to-click\"] = true", "animations = { enabled = true }",
+		"gaps_in = 12", "rounding = 2", "rounding_power = 4.0", "active_opacity = 1.0",
+		"dim_inactive = false", "vibrancy = 0.17", "render_power = 4",
+		"glow = { enabled = false", "resize_on_border = true", "snap = { enabled = false }",
+		"kb_layout = \"us\"", "follow_mouse = 2", "left_handed = false",
+		"tap_to_click = true", "tap_and_drag = true", "scroll_factor = 1.0",
+		"cursor = { inactive_timeout = 0", "middle_click_paste = true",
+		"workspace_swipe_invert = true", "animations = { enabled = true }",
 		"setcursor Bibata-Modern-Ice 24",
 	} {
 		if !strings.Contains(lua, want) {
@@ -320,5 +420,23 @@ func TestGenLayerRule(t *testing.T) {
 	got = genLayerRule(1, LayerRule{Namespace: "bar", Action: "ignorealpha", Value: "0.3"})
 	if !strings.Contains(got, "ignore_alpha = 0.3") {
 		t.Errorf("ignorealpha value missing: %q", got)
+	}
+	// dim_around is a bool in the hl API; the stored value must not leak in.
+	got = genLayerRule(2, LayerRule{Namespace: "bar", Action: "dimaround", Value: "0.4"})
+	if !strings.Contains(got, "dim_around = true") {
+		t.Errorf("dimaround not emitted as bool: %q", got)
+	}
+	// layers have no shadow effect anymore; a stored legacy rule must vanish
+	// rather than emit a field the runtime rejects.
+	if got := genLayerRule(3, LayerRule{Namespace: "bar", Action: "noshadow"}); got != "" {
+		t.Errorf("legacy noshadow layer rule emitted: %q", got)
+	}
+	got = genLayerRule(4, LayerRule{Namespace: "bar", Action: "xray"})
+	if !strings.Contains(got, "xray = true") {
+		t.Errorf("xray layer rule malformed: %q", got)
+	}
+	got = genLayerRule(5, LayerRule{Namespace: "osd", Action: "abovelock"})
+	if !strings.Contains(got, "above_lock = true") {
+		t.Errorf("abovelock layer rule malformed: %q", got)
 	}
 }

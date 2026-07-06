@@ -18,17 +18,47 @@ Item {
         { "key": "tile", "label": "Tile" },
         { "key": "pin", "label": "Pin" },
         { "key": "fullscreen", "label": "Fullscreen" },
-        { "key": "center", "label": "Center" },
+        { "key": "maximize", "label": "Maximize" },
+        { "key": "center", "label": "Centre" },
+        { "key": "size", "label": "Size (WxH)" },
+        { "key": "move", "label": "Move (X,Y)" },
+        { "key": "workspace", "label": "Workspace" },
+        { "key": "opacity", "label": "Opacity" },
         { "key": "noblur", "label": "No blur" },
         { "key": "noborder", "label": "No border" },
         { "key": "noshadow", "label": "No shadow" },
-        { "key": "opacity", "label": "Opacity" },
-        { "key": "size", "label": "Size (WxH)" },
-        { "key": "move", "label": "Move (XxY)" },
-        { "key": "workspace", "label": "Workspace" }
+        { "key": "norounding", "label": "Square corners" },
+        { "key": "nodim", "label": "Never dim" },
+        { "key": "noanim", "label": "No animations" },
+        { "key": "opaque", "label": "Force opaque" },
+        { "key": "xray", "label": "Blur X-ray" },
+        { "key": "nofocus", "label": "Never take focus" },
+        { "key": "stayfocused", "label": "Hold focus (dialogs)" },
+        { "key": "keepaspectratio", "label": "Keep aspect ratio" },
+        { "key": "pseudo", "label": "Pseudo-tile" },
+        { "key": "immediate", "label": "Immediate (tearing)" },
+        { "key": "idleinhibit", "label": "Block idle/sleep" },
+        { "key": "suppressevent", "label": "Ignore app request" }
     ]
-    // actions whose effect needs a free-form value the user types.
-    readonly property var valueActions: ["opacity", "size", "move", "workspace"]
+    // actions carrying a value: the text ones are free-form, idleinhibit and
+    // suppressevent pick from a fixed set (via the inline Dropdown below).
+    readonly property var valueActions: ["opacity", "size", "move", "workspace", "idleinhibit", "suppressevent"]
+    readonly property var textValueActions: ["opacity", "size", "move", "workspace"]
+    readonly property var idleInhibitOptions: [
+        { "key": "always", "label": "Always" },
+        { "key": "focus", "label": "Focus" },
+        { "key": "fullscreen", "label": "Fullscreen" }
+    ]
+    readonly property var suppressEventOptions: [
+        { "key": "maximize", "label": "Maximize" },
+        { "key": "fullscreen", "label": "Fullscreen" },
+        { "key": "activate", "label": "Activate" },
+        { "key": "activatefocus", "label": "Activate focus" }
+    ]
+    function actionValueDefault(k) {
+        return k === "idleinhibit" ? "always"
+            : k === "suppressevent" ? "maximize" : "";
+    }
 
     // every mutation replaces the whole list with a new array: editList wants
     // a fresh ref and the Repeater rebuilds its rows on each change, so text
@@ -37,6 +67,15 @@ Item {
         var a = store.windowRules.slice();
         a[i] = Object.assign({}, a[i]);
         a[i][key] = val;
+        store.editList("windowRules", a);
+    }
+    // switching action resets the value to that action's default: the two
+    // enumerated actions seed their first choice, everything else clears it.
+    function setAction(i, key) {
+        var a = store.windowRules.slice();
+        a[i] = Object.assign({}, a[i]);
+        a[i].action = key;
+        a[i].value = page.actionValueDefault(key);
         store.editList("windowRules", a);
     }
     function addRule() {
@@ -125,12 +164,15 @@ Item {
                     required property var modelData
 
                     readonly property bool needsValue: page.valueActions.indexOf(rrow.modelData.action) >= 0
+                    readonly property bool textValue: page.textValueActions.indexOf(rrow.modelData.action) >= 0
+                    readonly property bool choiceValue: rrow.modelData.action === "idleinhibit"
+                        || rrow.modelData.action === "suppressevent"
                     readonly property string valueHint: {
                         var a = rrow.modelData.action;
-                        return a === "opacity" ? "0.0-1.0"
-                            : a === "size" ? "1500x850"
-                            : a === "move" ? "100x100"
-                            : a === "workspace" ? "3" : "";
+                        return a === "opacity" ? "0.0 - 1.0"
+                            : a === "size" ? "1200x800"
+                            : a === "move" ? "100,60"
+                            : a === "workspace" ? "2" : "";
                     }
                     // fixed widths for action/value/delete; the two match
                     // fields split whatever space is left.
@@ -235,11 +277,11 @@ Item {
                             fieldWidth: rrow.ddW
                             options: page.actionOptions
                             current: rrow.modelData.action
-                            onChosen: (k) => page.patch(rrow.index, "action", k)
+                            onChosen: (k) => page.setAction(rrow.index, k)
                         }
 
                         Rectangle {
-                            visible: rrow.needsValue
+                            visible: rrow.textValue
                             width: rrow.valW
                             height: 30
                             radius: Theme.radius
@@ -274,6 +316,17 @@ Item {
                                     font: valInput.font
                                 }
                             }
+                        }
+
+                        Dropdown {
+                            visible: rrow.choiceValue
+                            width: rrow.valW
+                            height: 30
+                            fieldWidth: rrow.valW
+                            options: rrow.modelData.action === "idleinhibit"
+                                ? page.idleInhibitOptions : page.suppressEventOptions
+                            current: rrow.modelData.value || page.actionValueDefault(rrow.modelData.action)
+                            onChosen: (k) => page.patch(rrow.index, "value", k)
                         }
 
                         Item {

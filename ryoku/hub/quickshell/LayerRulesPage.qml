@@ -14,17 +14,28 @@ Item {
     readonly property var actionOptions: [
         { "key": "blur", "label": "Blur" },
         { "key": "blurpopups", "label": "Blur popups" },
-        { "key": "noanim", "label": "No animation" },
-        { "key": "noshadow", "label": "No shadow" },
         { "key": "ignorealpha", "label": "Ignore alpha" },
-        { "key": "dimaround", "label": "Dim around" }
+        { "key": "noanim", "label": "No animations" },
+        { "key": "dimaround", "label": "Dim around" },
+        { "key": "xray", "label": "Blur X-ray" },
+        { "key": "abovelock", "label": "Show above lockscreen" }
     ]
-    readonly property var valueActions: ["ignorealpha", "dimaround"]
+    // only ignorealpha carries a value now; dimaround emits a plain bool.
+    readonly property var valueActions: ["ignorealpha"]
 
     function patch(i, key, val) {
         var a = store.layerRules.slice();
         a[i] = Object.assign({}, a[i]);
         a[i][key] = val;
+        store.editList("layerRules", a);
+    }
+    // switching action seeds ignorealpha's default and clears the value for
+    // every valueless action so nothing stale lingers in the draft.
+    function setAction(i, key) {
+        var a = store.layerRules.slice();
+        a[i] = Object.assign({}, a[i]);
+        a[i].action = key;
+        a[i].value = key === "ignorealpha" ? "0.5" : "";
         store.editList("layerRules", a);
     }
     function addRule() {
@@ -54,7 +65,7 @@ Item {
         anchors.rightMargin: 18
         anchors.verticalCenter: addBtn.verticalCenter
         wrapMode: Text.WordWrap
-        text: "Rules for layer-shell surfaces, matched by namespace (e.g. the bar, a launcher). Advanced: a wrong namespace simply matches nothing."
+        text: "Rules for layer-shell surfaces, matched by namespace (e.g. launcher, overview, bar). A namespace that matches nothing simply has no effect."
         color: Theme.subtle
         font.family: Theme.font
         font.pixelSize: 13
@@ -113,8 +124,7 @@ Item {
                     required property var modelData
 
                     readonly property bool needsValue: page.valueActions.indexOf(lrow.modelData.action) >= 0
-                    readonly property string valueHint: lrow.modelData.action === "ignorealpha" ? "0.0-1.0"
-                        : lrow.modelData.action === "dimaround" ? "0.0-1.0" : ""
+                    readonly property string valueHint: lrow.modelData.action === "ignorealpha" ? "0.0 - 1.0" : ""
                     readonly property real gap: 10
                     readonly property real ddW: 160
                     readonly property real valW: 110
@@ -179,7 +189,7 @@ Item {
                             fieldWidth: lrow.ddW
                             options: page.actionOptions
                             current: lrow.modelData.action
-                            onChosen: (k) => page.patch(lrow.index, "action", k)
+                            onChosen: (k) => page.setAction(lrow.index, k)
                         }
 
                         Rectangle {

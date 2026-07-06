@@ -326,6 +326,11 @@ Item {
                     current: page.pickFrom(page.grpIds)
                     onChosen: (k) => page.setOption(page.grpIds, k)
                 }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Numlock on at login"
+                    checked: store.numlockByDefault
+                    onToggled: (v) => store.edit("numlockByDefault", v)
+                }
             }
 
             SettingSection {
@@ -414,6 +419,27 @@ Item {
                     current: store.accelProfile
                     onChosen: (k) => store.edit("accelProfile", k)
                 }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Left-handed buttons"
+                    checked: store.leftHanded
+                    onToggled: (v) => store.edit("leftHanded", v)
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Natural scroll"
+                    checked: store.mouseNaturalScroll
+                    onToggled: (v) => store.edit("mouseNaturalScroll", v)
+                }
+                SliderRow {
+                    width: Math.min(parent.width, 460); label: "Scroll speed"
+                    from: 0.2; to: 3; step: 0.1; decimals: 1
+                    value: store.mouseScrollFactor
+                    onModified: (v) => store.edit("mouseScrollFactor", v)
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Middle-click pastes"
+                    checked: store.middleClickPaste
+                    onToggled: (v) => store.edit("middleClickPaste", v)
+                }
             }
 
             SettingSection {
@@ -430,9 +456,30 @@ Item {
                     onToggled: (v) => store.edit("tapToClick", v)
                 }
                 ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Tap and drag"
+                    checked: store.tapAndDrag
+                    onToggled: (v) => store.edit("tapAndDrag", v)
+                }
+                ToggleRow {
                     width: Math.min(parent.width, 460); label: "Disable while typing"
                     checked: store.disableWhileTyping
                     onToggled: (v) => store.edit("disableWhileTyping", v)
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Click by finger count"
+                    checked: store.clickfinger
+                    onToggled: (v) => store.edit("clickfinger", v)
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Emulate middle click"
+                    checked: store.middleEmulation
+                    onToggled: (v) => store.edit("middleEmulation", v)
+                }
+                SliderRow {
+                    width: Math.min(parent.width, 460); label: "Scroll speed"
+                    from: 0.2; to: 3; step: 0.1; decimals: 1
+                    value: store.touchScrollFactor
+                    onModified: (v) => store.edit("touchScrollFactor", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Swipe between workspaces"
@@ -445,6 +492,25 @@ Item {
                     options: [{ "key": "3", "label": "3" }, { "key": "4", "label": "4" }]
                     current: String(store.swipeFingers)
                     onChosen: (k) => store.edit("swipeFingers", parseInt(k, 10))
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Natural swipe direction"
+                    visible: store.workspaceSwipe
+                    checked: store.swipeInvert
+                    onToggled: (v) => store.edit("swipeInvert", v)
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Swipe past the last workspace to add one"
+                    visible: store.workspaceSwipe
+                    checked: store.swipeCreateNew
+                    onToggled: (v) => store.edit("swipeCreateNew", v)
+                }
+                SliderRow {
+                    width: Math.min(parent.width, 460); label: "Swipe distance"
+                    visible: store.workspaceSwipe
+                    from: 100; to: 600; step: 20; decimals: 0
+                    value: store.swipeDistance
+                    onModified: (v) => store.edit("swipeDistance", v)
                 }
             }
 

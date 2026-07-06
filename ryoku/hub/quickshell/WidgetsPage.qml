@@ -120,6 +120,24 @@ Item {
         page.committedVals = c;
     }
 
+    // a later external write (e.g. a desktop widget drag or right-click) has
+    // reloaded into the adapter. pull it into any key the user hasn't locally
+    // edited and move that key's baseline forward, so it isn't flagged dirty
+    // or resurrected on Save. locally-edited keys keep the user's draft.
+    function adoptExternal() {
+        var c = {};
+        for (var i = 0; i < page.keys.length; i++) {
+            var k = page.keys[i];
+            if (page.sameVal(draft[k], page.committedVals[k])) {
+                draft[k] = adapter[k];
+                c[k] = adapter[k];
+            } else {
+                c[k] = page.committedVals[k];
+            }
+        }
+        page.committedVals = c;
+    }
+
     function flush() {
         for (var i = 0; i < page.keys.length; i++) {
             var k = page.keys[i];
@@ -187,10 +205,11 @@ Item {
         id: cfg
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/widgets.json"
         blockLoading: true
-        watchChanges: false
+        watchChanges: true
         printErrors: false
         atomicWrites: true
-        onLoaded: { if (!page.loaded) { page.adopt(); page.loaded = true; } }
+        onFileChanged: reload()
+        onLoaded: { if (!page.loaded) { page.adopt(); page.loaded = true; } else { page.adoptExternal(); } }
         onLoadFailed: { if (!page.loaded) { page.adopt(); page.loaded = true; } }
 
         JsonAdapter {

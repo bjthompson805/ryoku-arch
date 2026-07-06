@@ -17,41 +17,69 @@ Item {
     property var committed: ({})
     property var defaults: ({})
 
-    // draft: appearance.
-    property int gapsIn: 8
-    property int gapsOut: 26
-    property int borderSize: 3
-    property int rounding: 16
-    property real activeOpacity: 0.96
-    property real inactiveOpacity: 0.90
+    // draft: appearance. initial values mirror defaultOverrides() in the Go
+    // backend (the shipped decoration.lua baseline); adopt() replaces them as
+    // soon as `hypr get` returns.
+    property int gapsIn: 12
+    property int gapsOut: 18
+    property int borderSize: 2
+    property int rounding: 2
+    property real roundingPower: 4
+    property real activeOpacity: 1
+    property real inactiveOpacity: 0.94
+    property bool dimInactive: false
+    property real dimStrength: 0.5
     property bool blurEnabled: true
-    property int blurSize: 8
-    property int blurPasses: 3
+    property int blurSize: 4
+    property int blurPasses: 1
+    property bool blurXray: false
+    property real blurVibrancy: 0.17
+    property real blurNoise: 0.01
     property bool shadowEnabled: true
-    property int shadowRange: 30
+    property int shadowRange: 45
+    property int shadowPower: 4
+    property bool glowEnabled: false
+    property int glowRange: 10
+    property string glowColor: "#ee33cc"
     property bool animations: true
     property string layout: "dwindle"
     property string activeBorder: "#e0563b"
     property string inactiveBorder: "#313a4d"
+    property bool resizeOnBorder: true
+    property bool snapEnabled: false
 
     // draft: input.
     property string kbLayout: "us"
     property string kbVariant: ""
     property string kbOptions: ""
+    property bool numlockByDefault: false
     property int followMouse: 2
     property real sensitivity: 0
     property string accelProfile: ""
+    property bool leftHanded: false
+    property bool mouseNaturalScroll: false
+    property real mouseScrollFactor: 1
+    property bool middleClickPaste: true
     property bool naturalScroll: false
     property bool tapToClick: true
+    property bool tapAndDrag: true
+    property bool clickfinger: false
+    property bool middleEmulation: false
+    property real touchScrollFactor: 1
     property bool disableWhileTyping: true
     property int repeatRate: 25
     property int repeatDelay: 600
     property bool workspaceSwipe: false
     property int swipeFingers: 3
+    property bool swipeInvert: true
+    property bool swipeCreateNew: true
+    property int swipeDistance: 300
 
     // draft: cursor.
     property string cursorTheme: "Bibata-Modern-Ice"
     property int cursorSize: 24
+    property int cursorInactiveTimeout: 0
+    property bool cursorHideOnKeyPress: false
 
     // draft: lists.
     property var env: []
@@ -69,48 +97,59 @@ Item {
     // the JS array which triggers, but scalar edits route through this too.)
     property int rev: 0
 
+    // one key list per domain: store property name == backend JSON key. cursor
+    // keys live on the store as cursor<Key> to avoid clashing with appearance.
+    readonly property var appearanceKeys: [
+        "gapsIn", "gapsOut", "borderSize", "rounding", "roundingPower",
+        "activeOpacity", "inactiveOpacity", "dimInactive", "dimStrength",
+        "blurEnabled", "blurSize", "blurPasses", "blurXray", "blurVibrancy", "blurNoise",
+        "shadowEnabled", "shadowRange", "shadowPower",
+        "glowEnabled", "glowRange", "glowColor",
+        "animations", "layout", "activeBorder", "inactiveBorder",
+        "resizeOnBorder", "snapEnabled"
+    ]
+    readonly property var inputKeys: [
+        "kbLayout", "kbVariant", "kbOptions", "numlockByDefault",
+        "followMouse", "sensitivity", "accelProfile", "leftHanded",
+        "mouseNaturalScroll", "mouseScrollFactor", "middleClickPaste",
+        "naturalScroll", "tapToClick", "tapAndDrag", "clickfinger",
+        "middleEmulation", "touchScrollFactor", "disableWhileTyping",
+        "repeatRate", "repeatDelay",
+        "workspaceSwipe", "swipeFingers", "swipeInvert", "swipeCreateNew", "swipeDistance"
+    ]
+    readonly property var cursorKeys: ["theme", "size", "inactiveTimeout", "hideOnKeyPress"]
+
+    function cursorProp(k) { return "cursor" + k.charAt(0).toUpperCase() + k.slice(1); }
+
     function snapshot() {
+        var a = {}, i = {}, c = {};
+        for (var n = 0; n < store.appearanceKeys.length; n++)
+            a[store.appearanceKeys[n]] = store[store.appearanceKeys[n]];
+        for (n = 0; n < store.inputKeys.length; n++)
+            i[store.inputKeys[n]] = store[store.inputKeys[n]];
+        for (n = 0; n < store.cursorKeys.length; n++)
+            c[store.cursorKeys[n]] = store[store.cursorProp(store.cursorKeys[n])];
         return {
-            "appearance": {
-                "gapsIn": store.gapsIn, "gapsOut": store.gapsOut, "borderSize": store.borderSize,
-                "rounding": store.rounding, "activeOpacity": store.activeOpacity,
-                "inactiveOpacity": store.inactiveOpacity, "blurEnabled": store.blurEnabled,
-                "blurSize": store.blurSize, "blurPasses": store.blurPasses,
-                "shadowEnabled": store.shadowEnabled, "shadowRange": store.shadowRange,
-                "animations": store.animations, "layout": store.layout,
-                "activeBorder": store.activeBorder, "inactiveBorder": store.inactiveBorder
-            },
-            "input": {
-                "kbLayout": store.kbLayout, "kbVariant": store.kbVariant, "kbOptions": store.kbOptions,
-                "followMouse": store.followMouse, "sensitivity": store.sensitivity,
-                "accelProfile": store.accelProfile, "naturalScroll": store.naturalScroll,
-                "tapToClick": store.tapToClick, "disableWhileTyping": store.disableWhileTyping,
-                "repeatRate": store.repeatRate, "repeatDelay": store.repeatDelay,
-                "workspaceSwipe": store.workspaceSwipe, "swipeFingers": store.swipeFingers
-            },
-            "cursor": { "theme": store.cursorTheme, "size": store.cursorSize },
+            "appearance": a, "input": i, "cursor": c,
             "env": store.env, "windowRules": store.windowRules, "layerRules": store.layerRules,
             "autostart": store.autostart, "keybinds": store.keybinds,
             "anim": { "items": store.animItems, "curves": store.animCurves }
         };
     }
 
+    // adopt expects a complete doc (the backend always marshals every field;
+    // a partial store was already overlaid on the defaults in Go).
     function adopt(o) {
         var a = o.appearance || {}, i = o.input || {}, c = o.cursor || {};
-        store.gapsIn = a.gapsIn; store.gapsOut = a.gapsOut; store.borderSize = a.borderSize;
-        store.rounding = a.rounding; store.activeOpacity = a.activeOpacity;
-        store.inactiveOpacity = a.inactiveOpacity; store.blurEnabled = a.blurEnabled;
-        store.blurSize = a.blurSize; store.blurPasses = a.blurPasses;
-        store.shadowEnabled = a.shadowEnabled; store.shadowRange = a.shadowRange;
-        store.animations = a.animations; store.layout = a.layout;
-        store.activeBorder = a.activeBorder; store.inactiveBorder = a.inactiveBorder;
-        store.kbLayout = i.kbLayout; store.kbVariant = i.kbVariant; store.kbOptions = i.kbOptions;
-        store.followMouse = i.followMouse; store.sensitivity = i.sensitivity;
-        store.accelProfile = i.accelProfile; store.naturalScroll = i.naturalScroll;
-        store.tapToClick = i.tapToClick; store.disableWhileTyping = i.disableWhileTyping;
-        store.repeatRate = i.repeatRate; store.repeatDelay = i.repeatDelay;
-        store.workspaceSwipe = !!i.workspaceSwipe; store.swipeFingers = i.swipeFingers || 3;
-        store.cursorTheme = c.theme; store.cursorSize = c.size;
+        for (var n = 0; n < store.appearanceKeys.length; n++)
+            if (a[store.appearanceKeys[n]] !== undefined)
+                store[store.appearanceKeys[n]] = a[store.appearanceKeys[n]];
+        for (n = 0; n < store.inputKeys.length; n++)
+            if (i[store.inputKeys[n]] !== undefined)
+                store[store.inputKeys[n]] = i[store.inputKeys[n]];
+        for (n = 0; n < store.cursorKeys.length; n++)
+            if (c[store.cursorKeys[n]] !== undefined)
+                store[store.cursorProp(store.cursorKeys[n])] = c[store.cursorKeys[n]];
         store.env = o.env || []; store.windowRules = o.windowRules || []; store.layerRules = o.layerRules || [];
         store.autostart = o.autostart || []; store.keybinds = o.keybinds || [];
         var an = o.anim || {};
@@ -193,24 +232,20 @@ Item {
     // holds the whole doc; an Appearance reset must leave user env/rules alone.
     function resetAppearance() {
         var a = store.defaults.appearance || {}, c = store.defaults.cursor || {};
-        store.gapsIn = a.gapsIn; store.gapsOut = a.gapsOut; store.borderSize = a.borderSize;
-        store.rounding = a.rounding; store.activeOpacity = a.activeOpacity;
-        store.inactiveOpacity = a.inactiveOpacity; store.blurEnabled = a.blurEnabled;
-        store.blurSize = a.blurSize; store.blurPasses = a.blurPasses;
-        store.shadowEnabled = a.shadowEnabled; store.shadowRange = a.shadowRange;
-        store.animations = a.animations; store.layout = a.layout;
-        store.activeBorder = a.activeBorder; store.inactiveBorder = a.inactiveBorder;
-        store.cursorTheme = c.theme; store.cursorSize = c.size;
+        for (var n = 0; n < store.appearanceKeys.length; n++)
+            if (a[store.appearanceKeys[n]] !== undefined)
+                store[store.appearanceKeys[n]] = a[store.appearanceKeys[n]];
+        for (n = 0; n < store.cursorKeys.length; n++)
+            if (c[store.cursorKeys[n]] !== undefined)
+                store[store.cursorProp(store.cursorKeys[n])] = c[store.cursorKeys[n]];
         store.rev++;
         store.queuePreview();
     }
     function resetInput() {
         var i = store.defaults.input || {};
-        store.kbLayout = i.kbLayout; store.kbVariant = i.kbVariant; store.kbOptions = i.kbOptions;
-        store.followMouse = i.followMouse; store.sensitivity = i.sensitivity;
-        store.accelProfile = i.accelProfile; store.naturalScroll = i.naturalScroll;
-        store.tapToClick = i.tapToClick; store.disableWhileTyping = i.disableWhileTyping;
-        store.repeatRate = i.repeatRate; store.repeatDelay = i.repeatDelay;
+        for (var n = 0; n < store.inputKeys.length; n++)
+            if (i[store.inputKeys[n]] !== undefined)
+                store[store.inputKeys[n]] = i[store.inputKeys[n]];
         store.rev++;
         store.queuePreview();
     }

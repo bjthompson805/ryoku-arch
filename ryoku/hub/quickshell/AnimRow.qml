@@ -3,7 +3,7 @@ import QtQuick
 import "Singletons"
 
 // one animation leaf in the Animations list: enable switch, speed stepper,
-// bezier picker. laid out compactly so the whole tree reads as a table. the
+// style + bezier pickers. laid out compactly so the whole tree reads as a table. the
 // page owns the values and persists.
 Rectangle {
     id: row
@@ -13,9 +13,23 @@ Rectangle {
     property real speed: 1.0
     property string bezier: ""
     property var curveNames: []
+    property string style: ""
     signal toggled(bool v)
     signal speedEdited(real v)
     signal bezierPicked(string b)
+    signal stylePicked(string s)
+
+    function styleOptionsFor(leaf) {
+        if (leaf.indexOf("windows") === 0)
+            return [{ "key": "", "label": "Default" }, { "key": "slide", "label": "Slide" }, { "key": "popin 80%", "label": "Pop in" }, { "key": "gnomed", "label": "Gnomed" }];
+        if (leaf.indexOf("workspaces") === 0 || leaf.indexOf("specialWorkspace") === 0)
+            return [{ "key": "", "label": "Default" }, { "key": "slide", "label": "Slide" }, { "key": "slidevert", "label": "Slide vertical" }, { "key": "fade", "label": "Fade" }, { "key": "slidefade", "label": "Slide + fade" }, { "key": "slidefadevert", "label": "Slide + fade vertical" }];
+        if (leaf.indexOf("layers") === 0)
+            return [{ "key": "", "label": "Default" }, { "key": "slide", "label": "Slide" }, { "key": "popin 90%", "label": "Pop in" }, { "key": "fade", "label": "Fade" }];
+        return [];
+    }
+    readonly property var styleOptions: row.styleOptionsFor(row.leaf)
+    readonly property bool hasStyle: row.styleOptions.length > 0
 
     height: 46
     radius: Theme.radius
@@ -28,7 +42,8 @@ Rectangle {
         anchors.left: parent.left
         anchors.leftMargin: 14
         anchors.verticalCenter: parent.verticalCenter
-        width: 150
+        anchors.right: controls.left
+        anchors.rightMargin: 12
         elide: Text.ElideRight
         text: row.leaf
         color: row.on ? Theme.bright : Theme.dim
@@ -38,6 +53,7 @@ Rectangle {
     }
 
     Row {
+        id: controls
         anchors.right: parent.right
         anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
@@ -107,6 +123,18 @@ Rectangle {
                 font.weight: Font.DemiBold
             }
             Step { glyph: "+"; onHit: row.speedEdited(Math.min(10, Math.round((row.speed + 0.1) * 10) / 10)) }
+        }
+
+        Dropdown {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: row.hasStyle
+            width: 150
+            fieldWidth: 150
+            label: ""
+            options: row.styleOptions
+            current: row.style
+            placeholder: row.style
+            onChosen: (k) => row.stylePicked(k)
         }
 
         Dropdown {

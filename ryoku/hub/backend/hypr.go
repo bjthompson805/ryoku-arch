@@ -30,42 +30,70 @@ type Appearance struct {
 	GapsOut         int     `json:"gapsOut"`
 	BorderSize      int     `json:"borderSize"`
 	Rounding        int     `json:"rounding"`
+	RoundingPower   float64 `json:"roundingPower"`
 	ActiveOpacity   float64 `json:"activeOpacity"`
 	InactiveOpacity float64 `json:"inactiveOpacity"`
+	DimInactive     bool    `json:"dimInactive"`
+	DimStrength     float64 `json:"dimStrength"`
 	BlurEnabled     bool    `json:"blurEnabled"`
 	BlurSize        int     `json:"blurSize"`
 	BlurPasses      int     `json:"blurPasses"`
+	BlurXray        bool    `json:"blurXray"`
+	BlurVibrancy    float64 `json:"blurVibrancy"`
+	BlurNoise       float64 `json:"blurNoise"`
 	ShadowEnabled   bool    `json:"shadowEnabled"`
 	ShadowRange     int     `json:"shadowRange"`
+	ShadowPower     int     `json:"shadowPower"`
+	GlowEnabled     bool    `json:"glowEnabled"`
+	GlowRange       int     `json:"glowRange"`
+	GlowColor       string  `json:"glowColor"`
 	Animations      bool    `json:"animations"`
 	Layout          string  `json:"layout"`
 	ActiveBorder    string  `json:"activeBorder"`
 	InactiveBorder  string  `json:"inactiveBorder"`
+	ResizeOnBorder  bool    `json:"resizeOnBorder"`
+	SnapEnabled     bool    `json:"snapEnabled"`
 }
 
-// Input: the input keyword (keyboard, pointer, touchpad).
+// Input: the input keyword (keyboard, pointer, touchpad) + the pointer-adjacent
+// misc/gestures keys the Input page edits alongside them.
 type Input struct {
 	KbLayout           string  `json:"kbLayout"`
 	KbVariant          string  `json:"kbVariant"`
 	KbOptions          string  `json:"kbOptions"`
+	NumlockByDefault   bool    `json:"numlockByDefault"`
 	FollowMouse        int     `json:"followMouse"`
 	Sensitivity        float64 `json:"sensitivity"`
 	AccelProfile       string  `json:"accelProfile"`
+	LeftHanded         bool    `json:"leftHanded"`
+	MouseNaturalScroll bool    `json:"mouseNaturalScroll"`
+	MouseScrollFactor  float64 `json:"mouseScrollFactor"`
+	MiddleClickPaste   bool    `json:"middleClickPaste"`
 	NaturalScroll      bool    `json:"naturalScroll"`
 	TapToClick         bool    `json:"tapToClick"`
+	TapAndDrag         bool    `json:"tapAndDrag"`
+	Clickfinger        bool    `json:"clickfinger"`
+	MiddleEmulation    bool    `json:"middleEmulation"`
+	TouchScrollFactor  float64 `json:"touchScrollFactor"`
 	DisableWhileTyping bool    `json:"disableWhileTyping"`
 	RepeatRate         int     `json:"repeatRate"`
 	RepeatDelay        int     `json:"repeatDelay"`
 	WorkspaceSwipe     bool    `json:"workspaceSwipe"`
 	SwipeFingers       int     `json:"swipeFingers"`
+	SwipeInvert        bool    `json:"swipeInvert"`
+	SwipeCreateNew     bool    `json:"swipeCreateNew"`
+	SwipeDistance      int     `json:"swipeDistance"`
 }
 
-// Cursor: theme + size. live = `hyprctl setcursor`. persisted as env (so spawned
-// apps see it) + a start hook that wins over the base autostart's setcursor
-// (which registers earlier).
+// Cursor: theme + size + the cursor-section niceties. live = `hyprctl
+// setcursor`. persisted as env in settings.lua (so spawned apps see it) + a
+// start hook that wins over the base autostart's setcursor (which registers
+// earlier).
 type Cursor struct {
-	Theme string `json:"theme"`
-	Size  int    `json:"size"`
+	Theme           string `json:"theme"`
+	Size            int    `json:"size"`
+	InactiveTimeout int    `json:"inactiveTimeout"`
+	HideOnKeyPress  bool   `json:"hideOnKeyPress"`
 }
 
 type EnvVar struct {
@@ -154,21 +182,30 @@ type Overrides struct {
 func defaultOverrides() Overrides {
 	return Overrides{
 		Appearance: Appearance{
-			GapsIn: 12, GapsOut: 18, BorderSize: 2, Rounding: 2,
+			GapsIn: 12, GapsOut: 18, BorderSize: 2, Rounding: 2, RoundingPower: 4,
 			ActiveOpacity: 1, InactiveOpacity: 0.94,
+			DimInactive: false, DimStrength: 0.5,
 			BlurEnabled: true, BlurSize: 4, BlurPasses: 1,
-			ShadowEnabled: true, ShadowRange: 45,
+			BlurXray: false, BlurVibrancy: 0.17, BlurNoise: 0.01,
+			ShadowEnabled: true, ShadowRange: 45, ShadowPower: 4,
+			GlowEnabled: false, GlowRange: 10, GlowColor: "#ee33cc",
 			Animations: true, Layout: "dwindle",
 			ActiveBorder: "#e0563b", InactiveBorder: "#313a4d",
+			ResizeOnBorder: true, SnapEnabled: false,
 		},
 		Input: Input{
-			KbLayout: "us", KbVariant: "", KbOptions: "",
+			KbLayout: "us", KbVariant: "", KbOptions: "", NumlockByDefault: false,
 			FollowMouse: 2, Sensitivity: 0, AccelProfile: "",
-			NaturalScroll: false, TapToClick: true, DisableWhileTyping: true,
+			LeftHanded: false, MouseNaturalScroll: false, MouseScrollFactor: 1,
+			MiddleClickPaste: true,
+			NaturalScroll: false, TapToClick: true, TapAndDrag: true,
+			Clickfinger: false, MiddleEmulation: false, TouchScrollFactor: 1,
+			DisableWhileTyping: true,
 			RepeatRate: 25, RepeatDelay: 600,
 			WorkspaceSwipe: false, SwipeFingers: 3,
+			SwipeInvert: true, SwipeCreateNew: true, SwipeDistance: 300,
 		},
-		Cursor:      Cursor{Theme: "Bibata-Modern-Ice", Size: 24},
+		Cursor:      Cursor{Theme: "Bibata-Modern-Ice", Size: 24, InactiveTimeout: 0, HideOnKeyPress: false},
 		Env:         []EnvVar{},
 		WindowRules: []WindowRule{},
 		Autostart:   []Autostart{},
@@ -334,6 +371,10 @@ func runHypr(args []string) error {
 	switch args[0] {
 	case "get":
 		o := loadOverrides()
+		// a pre-migration theme.lua folds into the store once, so the UI shows
+		// the live look instead of fighting it. no reload needed: the folded
+		// values equal what the stale copy already applied.
+		_ = healThemeLua(&o)
 		_ = writeGeneratedLua(o) // re-emit settings.lua if a deploy wiped it
 		return printJSON(o)
 	case "defaults":
@@ -367,8 +408,11 @@ func runHypr(args []string) error {
 	case "restore":
 		// revert the live session to the saved state by reloading (settings.lua +
 		// base modules). resets every keyword exactly, including ones eval can't
-		// push back to a default.
+		// push back to a default. the cursor is set imperatively (setcursor), so a
+		// reload alone would leave a previewed cursor live; re-assert the saved one.
 		hyprReload()
+		o := loadOverrides()
+		_ = exec.Command("hyprctl", "setcursor", o.Cursor.Theme, fmt.Sprintf("%d", o.Cursor.Size)).Run()
 		return nil
 	case "cursors":
 		return printJSON(listCursorThemes())
@@ -452,6 +496,15 @@ func genLua(o Overrides, follow bool) string {
 		b.WriteString(g)
 		b.WriteString("\n")
 	}
+	// cursor divergence exports env too: env.lua exports the base theme early
+	// and a later hl.env wins, so spawned apps see the picked cursor (the start
+	// hook's setcursor only reaches the compositor + XWayland).
+	if d := defaultOverrides().Cursor; o.Cursor.Theme != d.Theme || o.Cursor.Size != d.Size {
+		fmt.Fprintf(&b, "hl.env(%s, %s)\n", luaStr("XCURSOR_THEME"), luaStr(o.Cursor.Theme))
+		fmt.Fprintf(&b, "hl.env(%s, %s)\n", luaStr("XCURSOR_SIZE"), luaStr(fmt.Sprintf("%d", o.Cursor.Size)))
+		fmt.Fprintf(&b, "hl.env(%s, %s)\n", luaStr("HYPRCURSOR_THEME"), luaStr(o.Cursor.Theme))
+		fmt.Fprintf(&b, "hl.env(%s, %s)\n\n", luaStr("HYPRCURSOR_SIZE"), luaStr(fmt.Sprintf("%d", o.Cursor.Size)))
+	}
 	for _, e := range o.Env {
 		if strings.TrimSpace(e.Key) == "" {
 			continue
@@ -490,7 +543,7 @@ func genLua(o Overrides, follow bool) string {
 // silently win over what the UI shows.
 func genConfig(o Overrides, follow bool) string {
 	d := defaultOverrides()
-	var general, deco, input []string
+	var general, deco, input, cursor, misc, gestures []string
 
 	a, da := o.Appearance, d.Appearance
 	if a.GapsIn != da.GapsIn {
@@ -505,6 +558,12 @@ func genConfig(o Overrides, follow bool) string {
 	if a.Layout != da.Layout {
 		general = append(general, fmt.Sprintf("layout = %s", luaStr(a.Layout)))
 	}
+	if a.ResizeOnBorder != da.ResizeOnBorder {
+		general = append(general, fmt.Sprintf("resize_on_border = %t", a.ResizeOnBorder))
+	}
+	if a.SnapEnabled != da.SnapEnabled {
+		general = append(general, fmt.Sprintf("snap = { enabled = %t }", a.SnapEnabled))
+	}
 	if !follow {
 		general = append(general, fmt.Sprintf("[\"col.active_border\"] = %s", luaStr(luaRGB(a.ActiveBorder))))
 		general = append(general, fmt.Sprintf("[\"col.inactive_border\"] = %s", luaStr(luaRGB(a.InactiveBorder))))
@@ -513,11 +572,20 @@ func genConfig(o Overrides, follow bool) string {
 	if a.Rounding != da.Rounding {
 		deco = append(deco, fmt.Sprintf("rounding = %d", a.Rounding))
 	}
+	if a.RoundingPower != da.RoundingPower {
+		deco = append(deco, fmt.Sprintf("rounding_power = %s", luaNum(a.RoundingPower)))
+	}
 	if a.ActiveOpacity != da.ActiveOpacity {
 		deco = append(deco, fmt.Sprintf("active_opacity = %s", luaNum(a.ActiveOpacity)))
 	}
 	if a.InactiveOpacity != da.InactiveOpacity {
 		deco = append(deco, fmt.Sprintf("inactive_opacity = %s", luaNum(a.InactiveOpacity)))
+	}
+	if a.DimInactive != da.DimInactive {
+		deco = append(deco, fmt.Sprintf("dim_inactive = %t", a.DimInactive))
+	}
+	if a.DimStrength != da.DimStrength {
+		deco = append(deco, fmt.Sprintf("dim_strength = %s", luaNum(a.DimStrength)))
 	}
 	var blur []string
 	if a.BlurEnabled != da.BlurEnabled {
@@ -529,6 +597,15 @@ func genConfig(o Overrides, follow bool) string {
 	if a.BlurPasses != da.BlurPasses {
 		blur = append(blur, fmt.Sprintf("passes = %d", a.BlurPasses))
 	}
+	if a.BlurXray != da.BlurXray {
+		blur = append(blur, fmt.Sprintf("xray = %t", a.BlurXray))
+	}
+	if a.BlurVibrancy != da.BlurVibrancy {
+		blur = append(blur, fmt.Sprintf("vibrancy = %s", luaNum(a.BlurVibrancy)))
+	}
+	if a.BlurNoise != da.BlurNoise {
+		blur = append(blur, fmt.Sprintf("noise = %s", luaNum(a.BlurNoise)))
+	}
 	if len(blur) > 0 {
 		deco = append(deco, "blur = { "+strings.Join(blur, ", ")+" }")
 	}
@@ -539,8 +616,24 @@ func genConfig(o Overrides, follow bool) string {
 	if a.ShadowRange != da.ShadowRange {
 		shadow = append(shadow, fmt.Sprintf("range = %d", a.ShadowRange))
 	}
+	if a.ShadowPower != da.ShadowPower {
+		shadow = append(shadow, fmt.Sprintf("render_power = %d", a.ShadowPower))
+	}
 	if len(shadow) > 0 {
 		deco = append(deco, "shadow = { "+strings.Join(shadow, ", ")+" }")
+	}
+	var glow []string
+	if a.GlowEnabled != da.GlowEnabled {
+		glow = append(glow, fmt.Sprintf("enabled = %t", a.GlowEnabled))
+	}
+	if a.GlowRange != da.GlowRange {
+		glow = append(glow, fmt.Sprintf("range = %d", a.GlowRange))
+	}
+	if a.GlowColor != da.GlowColor {
+		glow = append(glow, fmt.Sprintf("color = %s", luaStr(luaRGB(a.GlowColor))))
+	}
+	if len(glow) > 0 {
+		deco = append(deco, "glow = { "+strings.Join(glow, ", ")+" }")
 	}
 
 	in, di := o.Input, d.Input
@@ -560,6 +653,9 @@ func genConfig(o Overrides, follow bool) string {
 			input = append(input, fmt.Sprintf("kb_options = %s", luaStr(in.KbOptions)))
 		}
 	}
+	if in.NumlockByDefault != di.NumlockByDefault {
+		input = append(input, fmt.Sprintf("numlock_by_default = %t", in.NumlockByDefault))
+	}
 	if in.FollowMouse != di.FollowMouse {
 		input = append(input, fmt.Sprintf("follow_mouse = %d", in.FollowMouse))
 	}
@@ -568,6 +664,15 @@ func genConfig(o Overrides, follow bool) string {
 	}
 	if in.AccelProfile != di.AccelProfile {
 		input = append(input, fmt.Sprintf("accel_profile = %s", luaStr(in.AccelProfile)))
+	}
+	if in.LeftHanded != di.LeftHanded {
+		input = append(input, fmt.Sprintf("left_handed = %t", in.LeftHanded))
+	}
+	if in.MouseNaturalScroll != di.MouseNaturalScroll {
+		input = append(input, fmt.Sprintf("natural_scroll = %t", in.MouseNaturalScroll))
+	}
+	if in.MouseScrollFactor != di.MouseScrollFactor {
+		input = append(input, fmt.Sprintf("scroll_factor = %s", luaNum(in.MouseScrollFactor)))
 	}
 	if in.RepeatRate != di.RepeatRate {
 		input = append(input, fmt.Sprintf("repeat_rate = %d", in.RepeatRate))
@@ -580,13 +685,47 @@ func genConfig(o Overrides, follow bool) string {
 		touch = append(touch, fmt.Sprintf("natural_scroll = %t", in.NaturalScroll))
 	}
 	if in.TapToClick != di.TapToClick {
-		touch = append(touch, fmt.Sprintf("[\"tap-to-click\"] = %t", in.TapToClick))
+		touch = append(touch, fmt.Sprintf("tap_to_click = %t", in.TapToClick))
+	}
+	if in.TapAndDrag != di.TapAndDrag {
+		touch = append(touch, fmt.Sprintf("tap_and_drag = %t", in.TapAndDrag))
+	}
+	if in.Clickfinger != di.Clickfinger {
+		touch = append(touch, fmt.Sprintf("clickfinger_behavior = %t", in.Clickfinger))
+	}
+	if in.MiddleEmulation != di.MiddleEmulation {
+		touch = append(touch, fmt.Sprintf("middle_button_emulation = %t", in.MiddleEmulation))
+	}
+	if in.TouchScrollFactor != di.TouchScrollFactor {
+		touch = append(touch, fmt.Sprintf("scroll_factor = %s", luaNum(in.TouchScrollFactor)))
 	}
 	if in.DisableWhileTyping != di.DisableWhileTyping {
 		touch = append(touch, fmt.Sprintf("disable_while_typing = %t", in.DisableWhileTyping))
 	}
 	if len(touch) > 0 {
 		input = append(input, "touchpad = { "+strings.Join(touch, ", ")+" }")
+	}
+
+	c, dc := o.Cursor, d.Cursor
+	if c.InactiveTimeout != dc.InactiveTimeout {
+		cursor = append(cursor, fmt.Sprintf("inactive_timeout = %d", c.InactiveTimeout))
+	}
+	if c.HideOnKeyPress != dc.HideOnKeyPress {
+		cursor = append(cursor, fmt.Sprintf("hide_on_key_press = %t", c.HideOnKeyPress))
+	}
+
+	if in.MiddleClickPaste != di.MiddleClickPaste {
+		misc = append(misc, fmt.Sprintf("middle_click_paste = %t", in.MiddleClickPaste))
+	}
+
+	if in.SwipeInvert != di.SwipeInvert {
+		gestures = append(gestures, fmt.Sprintf("workspace_swipe_invert = %t", in.SwipeInvert))
+	}
+	if in.SwipeCreateNew != di.SwipeCreateNew {
+		gestures = append(gestures, fmt.Sprintf("workspace_swipe_create_new = %t", in.SwipeCreateNew))
+	}
+	if in.SwipeDistance != di.SwipeDistance {
+		gestures = append(gestures, fmt.Sprintf("workspace_swipe_distance = %d", in.SwipeDistance))
 	}
 
 	var sections []string
@@ -599,6 +738,15 @@ func genConfig(o Overrides, follow bool) string {
 	if len(input) > 0 {
 		sections = append(sections, "  input = { "+strings.Join(input, ", ")+" }")
 	}
+	if len(cursor) > 0 {
+		sections = append(sections, "  cursor = { "+strings.Join(cursor, ", ")+" }")
+	}
+	if len(misc) > 0 {
+		sections = append(sections, "  misc = { "+strings.Join(misc, ", ")+" }")
+	}
+	if len(gestures) > 0 {
+		sections = append(sections, "  gestures = { "+strings.Join(gestures, ", ")+" }")
+	}
 	if !o.Appearance.Animations {
 		sections = append(sections, "  animations = { enabled = false }")
 	}
@@ -606,6 +754,16 @@ func genConfig(o Overrides, follow bool) string {
 		return ""
 	}
 	return "hl.config({\n" + strings.Join(sections, ",\n") + ",\n})\n\n"
+}
+
+// windowRuleField maps the pretty boolean action keys the UI stores onto the
+// hl.window_rule field names where they differ. a wrong name here errors inside
+// settings.lua and silently disables everything after it, so keep this in step
+// with the live API (see hypr_test.go's field-name table).
+var windowRuleField = map[string]string{
+	"nodim": "no_dim", "noanim": "no_anim", "noblur": "no_blur",
+	"noshadow": "no_shadow", "nofocus": "no_focus", "stayfocused": "stay_focused",
+	"keepaspectratio": "keep_aspect_ratio",
 }
 
 func genWindowRule(i int, r WindowRule) string {
@@ -624,8 +782,23 @@ func genWindowRule(i int, r WindowRule) string {
 	}
 	var prop string
 	switch r.Action {
-	case "float", "tile", "pin", "fullscreen", "center", "noblur", "noborder", "noshadow", "immediate":
-		prop = r.Action + " = true"
+	case "float", "tile", "pin", "fullscreen", "maximize", "center", "immediate", "pseudo",
+		"opaque", "xray", "nodim", "noanim", "noblur", "noshadow", "nofocus", "stayfocused",
+		"keepaspectratio", "norounding", "noborder":
+		// boolean effects; the stored action keys stay stable, the emitted Lua
+		// field is the hl API name (which is not always the action key).
+		field := windowRuleField[r.Action]
+		switch r.Action {
+		case "norounding":
+			prop = "rounding = 0"
+		case "noborder":
+			prop = "border_size = 0"
+		default:
+			if field == "" {
+				field = r.Action
+			}
+			prop = field + " = true"
+		}
 	case "opacity":
 		prop = fmt.Sprintf("opacity = %s", luaNum(parseFloat(r.Value, 1)))
 	case "size":
@@ -636,6 +809,18 @@ func genWindowRule(i int, r WindowRule) string {
 		prop = fmt.Sprintf("move = { %d, %d }", x, y)
 	case "workspace":
 		prop = fmt.Sprintf("workspace = %s", luaStr(r.Value))
+	case "idleinhibit":
+		v := r.Value
+		if v != "always" && v != "focus" && v != "fullscreen" {
+			v = "always"
+		}
+		prop = fmt.Sprintf("idle_inhibit = %s", luaStr(v))
+	case "suppressevent":
+		v := r.Value
+		if v != "maximize" && v != "fullscreen" && v != "activate" && v != "activatefocus" {
+			v = "maximize"
+		}
+		prop = fmt.Sprintf("suppress_event = %s", luaStr(v))
 	default:
 		return ""
 	}
@@ -656,12 +841,20 @@ func genLayerRule(i int, r LayerRule) string {
 		prop = "no_anim = true"
 	case "blurpopups":
 		prop = "blur_popups = true"
+	case "xray":
+		prop = "xray = true"
+	case "abovelock":
+		prop = "above_lock = true"
 	case "noshadow":
-		prop = "no_shadow = true"
+		// legacy action: layer surfaces lost their shadow effect in Hyprland's
+		// rule rewrite. drop it instead of emitting a field the runtime rejects
+		// (one bad line would kill the whole generated file).
+		return ""
 	case "ignorealpha":
 		prop = fmt.Sprintf("ignore_alpha = %s", luaNum(parseFloat(r.Value, 0.5)))
 	case "dimaround":
-		prop = fmt.Sprintf("dim_around = %s", luaNum(parseFloat(r.Value, 0.4)))
+		// bool in the hl API; the dim amount is decoration:dim_around.
+		prop = "dim_around = true"
 	default:
 		return ""
 	}
@@ -719,12 +912,14 @@ func genStartHook(o Overrides) string {
 // default. genConfig stays diff-based for settings.lua; the live preview needs
 // to reset any key, not only push it away from the baseline.
 func fullConfigLua(o Overrides, follow bool) string {
-	a, in := o.Appearance, o.Input
+	a, in, c := o.Appearance, o.Input, o.Cursor
 	general := []string{
 		fmt.Sprintf("gaps_in = %d", a.GapsIn),
 		fmt.Sprintf("gaps_out = %d", a.GapsOut),
 		fmt.Sprintf("border_size = %d", a.BorderSize),
 		fmt.Sprintf("layout = %s", luaStr(a.Layout)),
+		fmt.Sprintf("resize_on_border = %t", a.ResizeOnBorder),
+		fmt.Sprintf("snap = { enabled = %t }", a.SnapEnabled),
 	}
 	if !follow {
 		general = append(general,
@@ -733,27 +928,44 @@ func fullConfigLua(o Overrides, follow bool) string {
 	}
 	deco := []string{
 		fmt.Sprintf("rounding = %d", a.Rounding),
+		fmt.Sprintf("rounding_power = %s", luaNum(a.RoundingPower)),
 		fmt.Sprintf("active_opacity = %s", luaNum(a.ActiveOpacity)),
 		fmt.Sprintf("inactive_opacity = %s", luaNum(a.InactiveOpacity)),
-		fmt.Sprintf("blur = { enabled = %t, size = %d, passes = %d }", a.BlurEnabled, a.BlurSize, a.BlurPasses),
-		fmt.Sprintf("shadow = { enabled = %t, range = %d }", a.ShadowEnabled, a.ShadowRange),
+		fmt.Sprintf("dim_inactive = %t", a.DimInactive),
+		fmt.Sprintf("dim_strength = %s", luaNum(a.DimStrength)),
+		fmt.Sprintf("blur = { enabled = %t, size = %d, passes = %d, xray = %t, vibrancy = %s, noise = %s }",
+			a.BlurEnabled, a.BlurSize, a.BlurPasses, a.BlurXray, luaNum(a.BlurVibrancy), luaNum(a.BlurNoise)),
+		fmt.Sprintf("shadow = { enabled = %t, range = %d, render_power = %d }",
+			a.ShadowEnabled, a.ShadowRange, a.ShadowPower),
+		fmt.Sprintf("glow = { enabled = %t, range = %d, color = %s }",
+			a.GlowEnabled, a.GlowRange, luaStr(luaRGB(a.GlowColor))),
 	}
 	input := []string{
 		fmt.Sprintf("kb_layout = %s", luaStr(in.KbLayout)),
 		fmt.Sprintf("kb_variant = %s", luaStr(in.KbVariant)),
 		fmt.Sprintf("kb_options = %s", luaStr(in.KbOptions)),
+		fmt.Sprintf("numlock_by_default = %t", in.NumlockByDefault),
 		fmt.Sprintf("follow_mouse = %d", in.FollowMouse),
 		fmt.Sprintf("sensitivity = %s", luaNum(in.Sensitivity)),
 		fmt.Sprintf("accel_profile = %s", luaStr(in.AccelProfile)),
+		fmt.Sprintf("left_handed = %t", in.LeftHanded),
+		fmt.Sprintf("natural_scroll = %t", in.MouseNaturalScroll),
+		fmt.Sprintf("scroll_factor = %s", luaNum(in.MouseScrollFactor)),
 		fmt.Sprintf("repeat_rate = %d", in.RepeatRate),
 		fmt.Sprintf("repeat_delay = %d", in.RepeatDelay),
-		fmt.Sprintf("touchpad = { natural_scroll = %t, [\"tap-to-click\"] = %t, disable_while_typing = %t }",
-			in.NaturalScroll, in.TapToClick, in.DisableWhileTyping),
+		fmt.Sprintf("touchpad = { natural_scroll = %t, tap_to_click = %t, tap_and_drag = %t, "+
+			"clickfinger_behavior = %t, middle_button_emulation = %t, scroll_factor = %s, disable_while_typing = %t }",
+			in.NaturalScroll, in.TapToClick, in.TapAndDrag,
+			in.Clickfinger, in.MiddleEmulation, luaNum(in.TouchScrollFactor), in.DisableWhileTyping),
 	}
 	return "hl.config({\n" +
 		"  general = { " + strings.Join(general, ", ") + " },\n" +
 		"  decoration = { " + strings.Join(deco, ", ") + " },\n" +
 		"  input = { " + strings.Join(input, ", ") + " },\n" +
+		fmt.Sprintf("  cursor = { inactive_timeout = %d, hide_on_key_press = %t },\n", c.InactiveTimeout, c.HideOnKeyPress) +
+		fmt.Sprintf("  misc = { middle_click_paste = %t },\n", in.MiddleClickPaste) +
+		fmt.Sprintf("  gestures = { workspace_swipe_invert = %t, workspace_swipe_create_new = %t, workspace_swipe_distance = %d },\n",
+			in.SwipeInvert, in.SwipeCreateNew, in.SwipeDistance) +
 		fmt.Sprintf("  animations = { enabled = %t },\n", a.Animations) +
 		"})\n"
 }

@@ -14,10 +14,9 @@ import (
 // ~/.config/hypr/themes/<slug>/:
 //   theme.json    metadata + the look (appearance store values).
 //   init.lua      real Hyprland Lua loaded as the active theme. motion design
-//                 (bezier curves, per-leaf animation feel) + the decoration
-//                 nuances the store can't express (rounding power, blur
-//                 vibrancy, shadow). the "actual system change", not only
-//                 colours.
+//                 only (bezier curves, per-leaf animation feel); the decoration
+//                 nuances now live in the look. the "actual system change", not
+//                 only colours.
 //   colors.json   the 16-colour palette, used only when colours don't follow
 //                 the wallpaper.
 //
@@ -116,6 +115,58 @@ func loadThemeFile(slug string) (ThemeFile, error) {
 		return t, err
 	}
 	return t, json.Unmarshal(b, &t)
+}
+
+// healThemeLua migrates a pre-migration ~/.config/hypr/theme.lua in place.
+// themes used to carry rounding_power / blur vibrancy / noise as raw Lua in
+// init.lua; those moved into theme.json's look once the store could express
+// them, but an already-applied theme left the old copy behind, where it kept
+// beating the new Appearance sliders (a slider moved back to the shipped
+// default diffs away in settings.lua and the stale block wins on reload).
+// heal = fold the theme's nuance keys into store fields still at the shipped
+// defaults (the live look does not move) and rewrite theme.lua from the
+// installed, motion-only init.lua. returns true when it changed anything;
+// the caller persists the store and regenerates settings.lua.
+func healThemeLua(o *Overrides) bool {
+	st := loadThemeState()
+	if st.Slug == "" {
+		return false
+	}
+	cur, err := os.ReadFile(activeThemeLuaPath())
+	if err != nil || !strings.Contains(string(cur), "hl.config") {
+		return false
+	}
+	tf, err := loadThemeFile(st.Slug)
+	if err != nil {
+		return false
+	}
+	init, err := os.ReadFile(filepath.Join(themesDir(), st.Slug, "init.lua"))
+	if err != nil || strings.Contains(string(init), "hl.config") {
+		// theme gone or not yet migrated on disk: leave the copy alone.
+		return false
+	}
+	var look struct {
+		RoundingPower *float64 `json:"roundingPower"`
+		BlurVibrancy  *float64 `json:"blurVibrancy"`
+		BlurNoise     *float64 `json:"blurNoise"`
+	}
+	if len(tf.Look) > 0 {
+		_ = json.Unmarshal(tf.Look, &look)
+	}
+	d := defaultOverrides().Appearance
+	if look.RoundingPower != nil && o.Appearance.RoundingPower == d.RoundingPower {
+		o.Appearance.RoundingPower = *look.RoundingPower
+	}
+	if look.BlurVibrancy != nil && o.Appearance.BlurVibrancy == d.BlurVibrancy {
+		o.Appearance.BlurVibrancy = *look.BlurVibrancy
+	}
+	if look.BlurNoise != nil && o.Appearance.BlurNoise == d.BlurNoise {
+		o.Appearance.BlurNoise = *look.BlurNoise
+	}
+	if atomicWrite(activeThemeLuaPath(), init, 0o644) != nil {
+		return false
+	}
+	return saveOverrides(*o) == nil
 }
 
 func listThemes() ThemesResponse {

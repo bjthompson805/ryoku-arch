@@ -27,7 +27,7 @@ Item {
             onStreamFinished: {
                 try {
                     var d = JSON.parse(this.text);
-                    page.liveAnims = (d[0] || []).filter((a) => a.overridden);
+                    page.liveAnims = (d[0] || []).filter((a) => a.overridden && a.name.indexOf("__") !== 0);
                     page.liveCurves = d[1] || [];
                     if (page.selectedCurve === "" && page.liveCurves.length > 0)
                         page.selectedCurve = page.liveCurves[0].name;
@@ -271,10 +271,12 @@ Item {
                         on: page.itemOf(modelData.name).enabled
                         speed: page.itemOf(modelData.name).speed
                         bezier: page.itemOf(modelData.name).bezier
+                        style: page.itemOf(modelData.name).style
                         curveNames: page.curveNames()
                         onToggled: (v) => page.upsertItem(modelData.name, "enabled", v)
                         onSpeedEdited: (v) => page.upsertItem(modelData.name, "speed", v)
                         onBezierPicked: (b) => page.upsertItem(modelData.name, "bezier", b)
+                        onStylePicked: (s) => page.upsertItem(modelData.name, "style", s)
                     }
                 }
             }

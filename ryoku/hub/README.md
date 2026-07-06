@@ -53,9 +53,12 @@ autostart, environment, the shell's look, the lock screen, and the update channe
   sync, mirroring, and enable/disable. Apply to the live session, or save a named
   profile keyed to the connected displays' hardware identity so it returns
   automatically when you plug them in again. Backed by `ryoku-monitor`.
-- **Appearance** window gaps, rounding, border thickness, active/inactive opacity,
-  blur, shadows, tiling layout, animations, border colours (follow the wallpaper
-  palette or fix them), and the cursor theme and size. A **Wallpaper** tab retheme
+- **Appearance** window gaps, rounding and corner softness, border thickness,
+  active/inactive opacity, inactive dimming, blur (size, passes, X-ray,
+  vibrancy, noise), shadows (range, sharpness), the window glow, tiling layout
+  (dwindle, master, scrolling), edge resize and floating snap, animations,
+  border colours (follow the wallpaper palette or fix them), and the cursor:
+  theme, size, and hide-on-idle/typing. A **Wallpaper** tab retheme
   the desktop (the wallust palette follows the pick, via `ryoku-shell wallpaper`),
   and a **Comfort** tab controls backlight and the night light.
 - **Lockscreen** the full qylock theme catalogue as a bento grid, fetched live from
@@ -68,15 +71,21 @@ autostart, environment, the shell's look, the lock screen, and the update channe
   flow stays untouched. **Preview** shows an installed skin live;
   **Refresh** re-syncs. Backed by `ryoku-hub lock`.
 - **Animations** the live Hyprland animation tree (read via `hyprctl animations`)
-  with per-leaf enable, speed, and bezier, plus a visual bezier-curve editor that
+  with per-leaf enable, speed, bezier, and style (pop-in, slide, fade variants),
+  plus a visual bezier-curve editor that
   previews as you drag. Curves and overrides persist to `settings.lua` on Save.
-- **Input** keyboard layout/variant/options, pointer sensitivity, follow-mouse,
-  acceleration, touchpad behaviour (including a workspace-swipe gesture), and key repeat.
+- **Input** keyboard layout/variant/options, numlock, pointer feel (sensitivity,
+  acceleration, left-handed, scroll speed, natural scroll, middle-click paste),
+  touchpad behaviour (tap, tap-and-drag, finger-count clicks, scroll speed, and
+  the workspace-swipe gesture with direction/distance tuning), and key repeat.
 - **Keybinds** the full shortcut legend, read live from `binds.lua` so it never
   drifts, plus a Custom editor for your own shortcuts layered on top.
-- **Window Rules** float, size, pin, place, or restyle windows by class or title.
-- **Layer Rules** blur, dim, or disable animations on layer-shell surfaces (bars,
-  launchers, notification daemons) matched by namespace.
+- **Window Rules** float, size, pin, place, or restyle windows by class or
+  title, with the full effect set: opacity, blur/border/shadow/rounding/dim
+  suppression, focus control, aspect ratio, idle inhibit, and app-request
+  suppression.
+- **Layer Rules** blur, dim, X-ray, or disable animations on layer-shell
+  surfaces (bars, launchers, notification daemons) matched by namespace.
 - **Autostart** commands run at login, after the base Ryoku autostart.
 - **Environment** environment variables for the Hyprland session.
 - **Shell** the live editor for the screen frame, the top island (its style: the

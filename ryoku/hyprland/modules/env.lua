@@ -1,6 +1,7 @@
-hl.env("XCURSOR_THEME",   "Bibata-Modern-Ice")
-hl.env("XCURSOR_SIZE",    "24")
-hl.env("HYPRCURSOR_SIZE", "24")
+hl.env("XCURSOR_THEME",     "Bibata-Modern-Ice")
+hl.env("XCURSOR_SIZE",      "24")
+hl.env("HYPRCURSOR_THEME",  "Bibata-Modern-Ice")
+hl.env("HYPRCURSOR_SIZE",   "24")
 
 -- VA-API/GLX vendor hints: nvidia only. mesa (AMD/Intel) auto-detects, and
 -- forcing them there breaks video decode + Xwayland GL. gate on the driver.

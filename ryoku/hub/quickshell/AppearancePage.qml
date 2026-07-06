@@ -99,6 +99,7 @@ Item {
     property int brightness: -1
     property bool nightOn: false
     property int nightTemp: 4000
+    property string comfortError: ""
 
     function refreshComfort() { brightGetProc.running = true; nightStatusProc.running = true; }
     function setBrightness(v) {
@@ -126,7 +127,14 @@ Item {
             }
         }
     }
-    Process { id: brightSetProc }
+    Process {
+        id: brightSetProc
+        onExited: (code, status) => {
+            page.comfortError = code === 0 ? "" : "Couldn't set brightness.";
+            if (page.comfortError !== "")
+                comfortErrorClear.restart();
+        }
+    }
     Process {
         id: nightStatusProc
         command: [page.scriptsDir + "ryoku-cmd-nightlight", "status"]
@@ -142,8 +150,16 @@ Item {
             }
         }
     }
-    Process { id: nightProc }
+    Process {
+        id: nightProc
+        onExited: (code, status) => {
+            page.comfortError = code === 0 ? "" : "Couldn't change the night light.";
+            if (page.comfortError !== "")
+                comfortErrorClear.restart();
+        }
+    }
     Timer { id: nightDebounce; interval: 300; onTriggered: if (page.nightOn) page.setNight(true) }
+    Timer { id: comfortErrorClear; interval: 6000; onTriggered: page.comfortError = "" }
 
     onGroupChanged: {
         if (page.group === "wallpaper")
@@ -254,6 +270,11 @@ Item {
                         from: 0; to: 30; value: store.rounding
                         onModified: (v) => store.edit("rounding", v)
                     }
+                    SliderRow {
+                        width: parent.width; label: "Corner softness"
+                        from: 2; to: 8; step: 0.5; decimals: 1; value: store.roundingPower
+                        onModified: (v) => store.edit("roundingPower", v)
+                    }
                     NumberField {
                         width: parent.width; label: "Border thickness"; unit: "px"
                         from: 0; to: 12; value: store.borderSize
@@ -261,7 +282,7 @@ Item {
                     }
                     ChoiceRow {
                         width: parent.width; label: "Tiling layout"
-                        options: [{ "key": "dwindle", "label": "Dwindle" }, { "key": "master", "label": "Master" }]
+                        options: [{ "key": "dwindle", "label": "Dwindle" }, { "key": "master", "label": "Master" }, { "key": "scrolling", "label": "Scrolling" }]
                         current: store.layout
                         onChosen: (k) => store.edit("layout", k)
                     }
@@ -279,6 +300,21 @@ Item {
                         width: parent.width; label: "Outer (screen edge)"; unit: "px"
                         from: 0; to: 60; value: store.gapsOut
                         onModified: (v) => store.edit("gapsOut", v)
+                    }
+                }
+
+                SettingSection {
+                    width: parent.width
+                    title: "BEHAVIOUR"
+                    ToggleRow {
+                        width: parent.width; label: "Drag to resize at window edges"
+                        checked: store.resizeOnBorder
+                        onToggled: (v) => store.edit("resizeOnBorder", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Snap floating windows"
+                        checked: store.snapEnabled
+                        onToggled: (v) => store.edit("snapEnabled", v)
                     }
                 }
             }
@@ -300,6 +336,17 @@ Item {
                         from: 0.4; to: 1; step: 0.01; value: store.inactiveOpacity
                         onModified: (v) => store.edit("inactiveOpacity", v)
                     }
+                    ToggleRow {
+                        width: parent.width; label: "Dim inactive windows"
+                        checked: store.dimInactive
+                        onToggled: (v) => store.edit("dimInactive", v)
+                    }
+                    SliderRow {
+                        width: parent.width; label: "Dim strength"; percent: true
+                        from: 0; to: 1; step: 0.05; value: store.dimStrength
+                        visible: store.dimInactive
+                        onModified: (v) => store.edit("dimStrength", v)
+                    }
                 }
 
                 SettingSection {
@@ -320,6 +367,21 @@ Item {
                         from: 1; to: 6; value: store.blurPasses
                         onModified: (v) => store.edit("blurPasses", v)
                     }
+                    ToggleRow {
+                        width: parent.width; label: "X-ray (blur shows the wallpaper)"
+                        checked: store.blurXray
+                        onToggled: (v) => store.edit("blurXray", v)
+                    }
+                    SliderRow {
+                        width: parent.width; label: "Vibrancy"
+                        from: 0; to: 0.5; step: 0.01; decimals: 2; value: store.blurVibrancy
+                        onModified: (v) => store.edit("blurVibrancy", v)
+                    }
+                    SliderRow {
+                        width: parent.width; label: "Noise"
+                        from: 0; to: 0.1; step: 0.005; decimals: 3; value: store.blurNoise
+                        onModified: (v) => store.edit("blurNoise", v)
+                    }
                 }
 
                 SettingSection {
@@ -335,10 +397,37 @@ Item {
                         from: 0; to: 60; value: store.shadowRange
                         onModified: (v) => store.edit("shadowRange", v)
                     }
+                    NumberField {
+                        width: parent.width; label: "Shadow sharpness"
+                        from: 1; to: 4; value: store.shadowPower
+                        onModified: (v) => store.edit("shadowPower", v)
+                    }
                     ToggleRow {
                         width: parent.width; label: "Animations"
                         checked: store.animations
                         onToggled: (v) => store.edit("animations", v)
+                    }
+                }
+
+                SettingSection {
+                    width: parent.width
+                    title: "GLOW"
+                    ToggleRow {
+                        width: parent.width; label: "Glow behind windows"
+                        checked: store.glowEnabled
+                        onToggled: (v) => store.edit("glowEnabled", v)
+                    }
+                    NumberField {
+                        width: parent.width; label: "Range"; unit: "px"
+                        from: 4; to: 60; value: store.glowRange
+                        visible: store.glowEnabled
+                        onModified: (v) => store.edit("glowRange", v)
+                    }
+                    ColorField {
+                        width: parent.width; label: "Colour"
+                        value: store.glowColor
+                        visible: store.glowEnabled
+                        onModified: (v) => store.edit("glowColor", v)
                     }
                 }
             }
@@ -399,6 +488,24 @@ Item {
                     width: Math.min(parent.width, 460); label: "Size"; unit: "px"
                     from: 12; to: 64; step: 4; value: store.cursorSize
                     onModified: (v) => store.edit("cursorSize", v)
+                }
+                NumberField {
+                    width: Math.min(parent.width, 460); label: "Hide after idle"; unit: "s"
+                    from: 0; to: 30; value: store.cursorInactiveTimeout
+                    onModified: (v) => store.edit("cursorInactiveTimeout", v)
+                }
+                Text {
+                    width: Math.min(parent.width, 620)
+                    wrapMode: Text.WordWrap
+                    text: "0 seconds keeps the cursor always visible."
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Hide while typing"
+                    checked: store.cursorHideOnKeyPress
+                    onToggled: (v) => store.edit("cursorHideOnKeyPress", v)
                 }
                 Text {
                     width: Math.min(parent.width, 620)
@@ -545,6 +652,15 @@ Item {
                     font.family: Theme.font
                     font.pixelSize: 12
                 }
+            }
+            Text {
+                visible: page.comfortError !== ""
+                width: Math.min(parent.width, 620)
+                wrapMode: Text.WordWrap
+                text: page.comfortError
+                color: Theme.ember
+                font.family: Theme.font
+                font.pixelSize: 12
             }
         }
     }
