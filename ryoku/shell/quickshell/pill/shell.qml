@@ -50,7 +50,7 @@ ShellRoot {
     // these is the pinned popout, the overlay grabs the keyboard the way an open
     // surface does and hands it back on close; the pointer-only popouts and
     // voice stay keyboardFocus None.
-    readonly property var kbPopouts: ["clipboard", "link", "keyring", "stash", "toolkit", "utilities", "workspaces"]
+    readonly property var kbPopouts: ["clipboard", "link", "keyring", "stash", "toolkit", "utilities", "calendar"]
     property string prevPopout: ""
     onPopoutChanged: {
         if (kbPopouts.indexOf(prevPopout) >= 0 && kbPopouts.indexOf(popout) < 0)
@@ -242,15 +242,21 @@ ShellRoot {
             root.popout = "";
             return;
         }
+        root.popoutCenter = -1;   // keybind/IPC: no owning icon, so centre on the bar
         root.popout = name;
         root.popoutMon = mon;
     }
 
-    // open a popout at a bar icon: record the icon's along-axis centre, then pin
-    // the popout (toggle). the blob grows from the icon on any bar edge.
+    // open a popout at a bar icon: record the icon's along-axis centre so the
+    // blob grows from the icon on any bar edge.
     function togglePopoutAt(mon, name, center) {
+        if (root.popout === name && root.popoutMon === mon) {
+            root.popout = "";
+            return;
+        }
         root.popoutCenter = center;
-        root.togglePopout(mon, name);
+        root.popout = name;
+        root.popoutMon = mon;
     }
 
     // open the Hub on its Updates section. the update island is an entry
@@ -276,16 +282,17 @@ ShellRoot {
         function bluetooth(mon: string): void { root.togglePopout(mon, "bluetooth"); }
         function batteryPopout(mon: string): void { root.togglePopout(mon, "battery"); }
         function clipboard(mon: string): void { root.togglePopout(mon, "clipboard"); }
-        function stash(mon: string): void { root.toggleSurface(mon, "stash"); }
+        function stash(mon: string): void { root.togglePopout(mon, "stash"); }
         // stash-send <file>: open the stash and jump straight to its LocalSend
         // picker for the given file, so the file manager can hand a file to the
         // deck's send flow. show() (not toggle) so it never closes an open deck.
         function stashSend(mon: string, file: string): void {
-            root.show(mon, "stash");
+            root.popoutMon = mon;
+            root.popout = "stash";
             Stash.openSendPicker(file);
         }
-        function toolkit(mon: string): void { root.toggleSurface(mon, "toolkit"); }
-        function utilities(mon: string): void { root.toggleSurface(mon, "utilities"); }
+        function toolkit(mon: string): void { root.togglePopout(mon, "toolkit"); }
+        function utilities(mon: string): void { root.togglePopout(mon, "utilities"); }
         function workspaces(mon: string): void { root.toggleSurface(mon, "workspaces"); }
         function keyringPrompt(payload: string): void {
             Keyring.apply(payload);
@@ -323,11 +330,11 @@ ShellRoot {
         var mon = parts.length > 1 ? parts[1] : "";
         switch (fn) {
         case "battery":
-        case "stash": case "toolkit": case "utilities": case "workspaces":
+        case "workspaces":
             root.toggleSurface(mon, fn); return true;
         case "mixer": case "power":
             root.togglePopout(mon, fn); return true;
-        case "network": case "bluetooth": case "calendar": case "clipboard": case "link": case "inbox":
+        case "network": case "bluetooth": case "calendar": case "clipboard": case "link": case "inbox": case "stash": case "toolkit": case "utilities":
             root.togglePopout(mon, fn); return true;
         case "batteryPopout":
             root.togglePopout(mon, "battery"); return true;
@@ -637,6 +644,7 @@ ShellRoot {
                 Region { x: clipboardPop.bodyX; y: clipboardPop.bodyY; width: clipboardPop.bodyW; height: clipboardPop.bodyH }
                 Region { x: linkPop.bodyX; y: linkPop.bodyY; width: linkPop.bodyW; height: linkPop.bodyH }
                 Region { x: inboxPop.bodyX; y: inboxPop.bodyY; width: inboxPop.bodyW; height: inboxPop.bodyH }
+                Region { x: deckPop.bodyX; y: deckPop.bodyY; width: deckPop.bodyW; height: deckPop.bodyH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
             }
@@ -994,6 +1002,32 @@ ShellRoot {
                         id: inboxContent
                         s: overlay.s
                         open: inboxPop.prog > 0.5
+                        onCloseRequested: root.popout = ""
+                    }
+                }
+
+                // control deck popout (Super+D): the dashboard, from the bar
+                // edge. one popout for the stash/toolkit/utilities entry points.
+                Popout {
+                    id: deckPop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.popoutCenter
+                    s: overlay.s
+                    active: !overlay.surfaceOpen && !overlay.monFullscreen
+                    pinned: (root.popout === "stash" || root.popout === "toolkit" || root.popout === "utilities")
+                            && root.popoutMon === overlay.modelData.name
+                    openW: deckContent.implicitWidth
+                    openH: deckContent.implicitHeight
+
+                    DeckPopout {
+                        id: deckContent
+                        s: overlay.s
+                        open: deckPop.prog > 0.5
                         onCloseRequested: root.popout = ""
                     }
                 }

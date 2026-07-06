@@ -54,9 +54,6 @@ Item {
     readonly property bool held: pinned || forcePinned
     readonly property bool calendarOpen: surface === "calendar"
     readonly property bool batteryOpen: surface === "battery"
-    readonly property bool stashOpen: surface === "stash"
-    readonly property bool toolkitOpen: surface === "toolkit"
-    readonly property bool utilitiesOpen: surface === "utilities"
     readonly property bool voiceOpen: surface === "voice"
     readonly property bool workspacesOpen: surface === "workspaces"
     readonly property bool keyringOpen: surface === "keyring"
@@ -78,7 +75,6 @@ Item {
     readonly property real calendarW: 318 * s
     readonly property real calendarH: calendar.implicitHeight + 32 * s
     readonly property real batteryW: 316 * s
-    readonly property real deckW: 590 * s
     readonly property real voiceW: 320 * s
     readonly property real toastW: 342 * s
     readonly property real keyringW: 380 * s
@@ -88,14 +84,11 @@ Item {
     readonly property string mode: keyringOpen ? "keyring" : baseMode
     readonly property string baseMode: calendarOpen ? "calendar"
         : (batteryOpen ? "battery"
-        : (stashOpen ? "stash"
-        : (toolkitOpen ? "toolkit"
-        : (utilitiesOpen ? "utilities"
         : (voiceOpen ? "voice"
         : (workspacesOpen ? "workspaces"
         : (osdActive && !held ? "osd"
         : (toastActive && !held ? "toast"
-        : (expanded ? "hover" : "rest")))))))))
+        : (expanded ? "hover" : "rest"))))))
 
     signal requestSurface(string name)
     signal requestClose()
@@ -144,9 +137,6 @@ Item {
     readonly property var surfaceSize: ({
         calendar:  () => Qt.size(calendarW, calendarH),
         battery:   () => Qt.size(batteryW, battery.implicitHeight + 26 * s),
-        stash:     () => Qt.size(deckW, deck.implicitHeight + 28 * s),
-        toolkit:   () => Qt.size(deckW, deck.implicitHeight + 28 * s),
-        utilities: () => Qt.size(deckW, deck.implicitHeight + 28 * s),
         keyring:   () => Qt.size(keyringW, keyring.implicitHeight + 32 * s),
         voice:     () => Qt.size(voiceW, voice.implicitHeight + 26 * s),
         workspaces: () => Qt.size(workspaces.desiredW, workspaces.implicitHeight + 32 * s),
@@ -284,12 +274,9 @@ Item {
      * Null = nothing open, so Ame falls back to the pill's own hover/wake anchor.
      */
     readonly property var ameSurface: calendarOpen ? calendar
-        : (stashOpen ? deck
-        : (toolkitOpen ? deck
-        : (utilitiesOpen ? deck
         : (voiceOpen ? voice
         : (workspacesOpen ? workspaces
-        : (batteryOpen ? battery : null))))))
+        : (batteryOpen ? battery : null)))
 
     Ame {
         id: ame
@@ -792,18 +779,6 @@ Item {
         open: pill.batteryOpen
         morphCloseness: pill.morphCloseness
         shown: pill.displayedSurface === "battery"
-        openProgress: pill.openProgress
-        openW: pill.openW
-        openH: pill.openH
-        onRequestClose: pill.requestClose()
-    }
-
-    DeckSurface {
-        id: deck
-        s: pill.s
-        open: pill.stashOpen || pill.toolkitOpen || pill.utilitiesOpen
-        morphCloseness: pill.morphCloseness
-        shown: pill.displayedSurface === "stash" || pill.displayedSurface === "toolkit" || pill.displayedSurface === "utilities"
         openProgress: pill.openProgress
         openW: pill.openW
         openH: pill.openH
