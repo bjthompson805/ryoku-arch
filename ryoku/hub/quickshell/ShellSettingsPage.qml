@@ -18,7 +18,7 @@ Item {
         "frameRadius", "frameBorder", "frameSmoothing", "frameOpacity",
         "shadowStrength", "shadowSize", "surfaceColor",
         "islandWidth", "islandHeight", "islandRestCorner", "islandOpenCorner",
-        "islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide",
+        "islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide", "islandReserve",
         "barEnabled", "barPosition", "barStyle", "barHeight", "barShowTitle", "barShowMedia", "barShowStatus",
         "fontFamily", "fontScale"
     ]
@@ -35,7 +35,7 @@ Item {
         "shadowStrength": 0.63, "shadowSize": 12, "surfaceColor": "#0f1115",
         "islandWidth": 109, "islandHeight": 34, "islandRestCorner": 6, "islandOpenCorner": 28,
         "islandGap": 0, "islandSmoothing": 24, "islandOpacity": 1,
-        "islandStyle": "floating", "islandAutohide": true,
+        "islandStyle": "floating", "islandAutohide": true, "islandReserve": true,
         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30, "barShowTitle": true, "barShowMedia": true, "barShowStatus": true,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
@@ -69,6 +69,7 @@ Item {
         property real islandOpacity: 1
         property string islandStyle: "floating"
         property bool islandAutohide: true
+        property bool islandReserve: true
         property bool barEnabled: true
         property string barPosition: "top"
         property string barStyle: "noctalia"
@@ -227,6 +228,7 @@ Item {
             property real islandOpacity: 1
             property string islandStyle: "floating"
             property bool islandAutohide: true
+            property bool islandReserve: true
             property bool barEnabled: true
             property string barPosition: "top"
             property string barStyle: "noctalia"
@@ -469,6 +471,22 @@ Item {
                         width: parent.width; label: "Reveal on hover"
                         checked: draft.islandAutohide
                         onToggled: (v) => page.edit("islandAutohide", v)
+                    }
+                    ToggleRow {
+                        visible: draft.islandStyle === "island" && !draft.islandAutohide
+                        width: parent.width; label: "Reserve space below the island"
+                        checked: draft.islandReserve
+                        onToggled: (v) => page.edit("islandReserve", v)
+                    }
+                    Text {
+                        visible: draft.islandStyle === "island" && !draft.islandAutohide && !draft.islandReserve
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Windows rise to the frame and the island floats over them, closing the top gap."
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
                     }
                 }
 

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Changed
+- **The island's top gap is closable.** The strip reserved under the fused
+  island now tracks the compact pill instead of the legacy height knob (the
+  old reserve left a fat empty band above the windows), and a new
+  `islandReserve` setting drops the strip entirely: windows rise to the
+  frame and the island floats over them, so the top edge sits as tight as
+  the other three.
 - **The bar skins are the references now, not our riff on them.** After fair
   pushback that the plate slabs looked bad on round shells, the two bar
   styles are carried one-to-one from the credited shells: `noctalia` (fully

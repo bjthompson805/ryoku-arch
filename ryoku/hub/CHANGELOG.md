@@ -9,7 +9,9 @@
   content toggles; the **Status glyphs** toggle covers the bar's
   network/battery/inbox cluster. The bar defaults flipped on to match the
   shell's new default face (the reset baseline follows), and the island's
-  dead Width/Height knobs gave way to a note: the island sizes itself.
+  dead Width/Height knobs gave way to a note: the island sizes itself. A
+  **Reserve space below the island** toggle closes the top gap when off
+  (windows rise to the frame, the island floats over them).
 
 ### Fixed
 - **Live preview and touchpad toggles work again.** Every appearance/input

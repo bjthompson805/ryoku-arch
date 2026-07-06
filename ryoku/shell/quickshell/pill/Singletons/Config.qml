@@ -42,8 +42,12 @@ Singleton {
     // and keybinds still work).
     // islandAutohide: hide at rest, reveal on top-centre hover. applies to
     // island + floating; "none" is always hidden.
+    // islandReserve: claim a strip under the fused island so tiles sit below
+    // it. off = windows rise to the frame and the island floats over them,
+    // closing the top gap.
     property alias islandStyle:    adapter.islandStyle
     property alias islandAutohide: adapter.islandAutohide
+    property alias islandReserve:  adapter.islandReserve
 
     // top bar = the default face, drawn on the frame's thickened edge
     // (Bar.qml). barPosition picks the edge: a "top" bar replaces the resting
@@ -102,6 +106,7 @@ Singleton {
             property real islandOpacity: 1
             property string islandStyle: "floating"
             property bool islandAutohide: true
+            property bool islandReserve: true
             property bool barEnabled: true
             property string barPosition: "top"
             property string barStyle: "noctalia"

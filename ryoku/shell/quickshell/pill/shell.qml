@@ -336,14 +336,20 @@ ShellRoot {
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
             readonly property real topGap: Config.islandGap * s
-            readonly property real restHeight: Config.islandHeight * s
+            // the compact rest pill's height, mirrored from Pill.qml's rest
+            // composition (one text line + ticks + padding). the reserve must
+            // track the real pill, not the legacy islandHeight knob, or a fat
+            // empty strip opens above the windows.
+            readonly property real restHeight: 37 * s
             readonly property string barPos: Config.barEnabled ? Config.barPosition : ""
             readonly property bool barTop: barPos === "top"
-            // only the classic fused island reserves its own strip so tiles
-            // sit below it. floating/none/auto-hidden float over content,
-            // so the reserved top collapses to a small even gap matching
-            // the other three edges. a non-top bar leaves the island alone.
-            readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide && !barTop
+            // only the classic fused island reserves its own strip, and only
+            // while islandReserve is on; floating/none/auto-hidden (or reserve
+            // off) float over content, so the reserved top collapses to a
+            // small even gap matching the other three edges. a non-top bar
+            // leaves the island alone.
+            readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide
+                && !barTop && Config.islandReserve
             readonly property real evenTop: 22 * s
             // the bar swells one frame edge into a band; reserve exactly the
             // visible bar (frame edge + band, the same numbers as the
