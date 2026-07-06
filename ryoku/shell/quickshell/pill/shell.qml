@@ -337,20 +337,22 @@ ShellRoot {
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
             readonly property real topGap: Config.islandGap * s
             readonly property real restHeight: Config.islandHeight * s
+            readonly property string barPos: Config.barEnabled ? Config.barPosition : ""
+            readonly property bool barTop: barPos === "top"
             // only the classic fused island reserves its own strip so tiles
             // sit below it. floating/none/auto-hidden float over content,
             // so the reserved top collapses to a small even gap matching
-            // the other three edges.
-            readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide && !Config.barEnabled
+            // the other three edges. a non-top bar leaves the island alone.
+            readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide && !barTop
             readonly property real evenTop: 22 * s
-            // bar swells the frame's top into a band; reserve exactly the
-            // visible bar (frame top + band, the same numbers as the
-            // overlay's barVisibleH) so tiles tuck right under it with only
+            // the bar swells one frame edge into a band; reserve exactly the
+            // visible bar (frame edge + band, the same numbers as the
+            // overlay's barVisibleH) so tiles tuck right against it with only
             // gaps_out between. anything else opens a dead strip that grows
             // with fontScale / monitor height.
             readonly property real barBand: Config.barHeight * s
             readonly property real barVisibleH: Math.max(0, Config.frameBorder - 50) + barBand
-            readonly property real zone: Config.barEnabled ? barVisibleH : (reservesIsland ? (restHeight + topGap) : evenTop)
+            readonly property real zone: barTop ? barVisibleH : (reservesIsland ? (restHeight + topGap) : evenTop)
 
             screen: modelData
             color: "transparent"
@@ -366,6 +368,42 @@ ShellRoot {
         }
     }
 
+    // a bottom/left/right bar claims its own edge strip, independent of the
+    // island reserve above (which keeps owning the top).
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            id: sideReserve
+            required property var modelData
+            readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
+            readonly property string barPos: Config.barEnabled ? Config.barPosition : ""
+            readonly property bool active: barPos === "bottom" || barPos === "left" || barPos === "right"
+            // a vertical band needs room for stacked content; floor it at 30.
+            readonly property real minBand: barPos === "left" || barPos === "right" ? 30 : 0
+            readonly property real zone: Math.max(0, Config.frameBorder - 50) + Math.max(Config.barHeight, minBand) * s
+
+            screen: modelData
+            visible: active
+            color: "transparent"
+            exclusionMode: ExclusionMode.Normal
+            exclusiveZone: active ? zone : 0
+            aboveWindows: true
+
+            anchors {
+                top: barPos === "left" || barPos === "right"
+                bottom: barPos !== "top"
+                left: barPos !== "right"
+                right: barPos !== "left"
+            }
+            implicitHeight: barPos === "bottom" ? zone : 100
+            implicitWidth: zone
+
+            mask: emptySideReserve
+            Region { id: emptySideReserve }
+        }
+    }
+
     Variants {
         model: Quickshell.screens
 
@@ -375,12 +413,19 @@ ShellRoot {
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
             readonly property real topGap: Config.islandGap * s
 
-            // bar mode: the frame's top border swells into a band carrying
+            // bar mode: the frame's chosen edge swells into a band carrying
             // the options (Bar.qml). inverted rect is oversized 50px (its
-            // anchors.margins), so the on-screen top is borderTop - 50; the
-            // bar adds `barBand` below that.
+            // anchors.margins), so the on-screen edge is border - 50; the
+            // bar adds `barBand` inside that.
+            readonly property string barPos: Config.barEnabled ? Config.barPosition : ""
+            readonly property bool barTop: barPos === "top"
+            readonly property bool barBottom: barPos === "bottom"
+            readonly property bool barLeft: barPos === "left"
+            readonly property bool barRight: barPos === "right"
+            readonly property bool barVertical: barLeft || barRight
             readonly property real frameTopVisible: Math.max(0, Config.frameBorder - 50)
-            readonly property real barBand: Config.barHeight * s
+            // a vertical band needs room for stacked content; floor it at 30.
+            readonly property real barBand: Math.max(Config.barHeight, barVertical ? 30 : 0) * s
             readonly property real barVisibleH: frameTopVisible + barBand
 
             // island appearance, read from the live config. the frame is
@@ -389,16 +434,17 @@ ShellRoot {
             //   floating = detached pill, hangs below the frame, floats
             //              over content.
             //   none     = no resting island at all.
-            // bar mode always fuses: a summoned surface is the bar swelling
-            // open downward, never a detached pill colliding with the band.
-            readonly property bool fused: Config.islandStyle === "island" || Config.barEnabled
-            readonly property bool styleNone: Config.islandStyle === "none" || Config.barEnabled
+            // a TOP bar always fuses: a summoned surface is the band swelling
+            // open downward, never a detached pill colliding with it. bars on
+            // the other edges leave the island to its configured style.
+            readonly property bool fused: Config.islandStyle === "island" || barTop
+            readonly property bool styleNone: Config.islandStyle === "none" || barTop
             readonly property bool autohide: Config.islandAutohide && !styleNone
             // where the pill sits below the screen top. fused rides the
             // frame neck; floating/none hang lower so they read as detached;
-            // bar mode clears the band so content drops out of the bar.
+            // a top bar clears the band so content drops out of it.
             readonly property real floatTopGap: (18 + Config.islandGap) * s
-            readonly property real pillTop: Config.barEnabled ? (barVisibleH + topGap)
+            readonly property real pillTop: barTop ? (barVisibleH + topGap)
                 : (fused ? topGap : floatTopGap)
             // rest visibility. fused/floating show at rest unless
             // auto-hidden; none never shows at rest. an explicit summon
@@ -407,12 +453,12 @@ ShellRoot {
             // toast or OSD does NOT pop a hidden island, so none and the
             // auto-hidden styles stay clean. notifications and the volume
             // OSD still surface in the always-on island and floating
-            // styles, where the island is present anyway, and in bar mode
-            // they drop out of the band like any summoned surface (the band
-            // is always present, so nothing hidden pops).
+            // styles, where the island is present anyway, and under a top
+            // bar they drop out of the band like any summoned surface (the
+            // band is always present, so nothing hidden pops).
             readonly property bool idleShown: styleNone ? false : !autohide
             readonly property bool islandShown: !monFullscreen
-                && (Config.barEnabled
+                && (barTop
                     ? (pill.surfaceOpen || pill.toastActive || pill.osdActive)
                     : (idleShown || pill.surfaceOpen || pill.held || (autohide && pill.hoverLatch)))
             // auto-hide reveal trigger: thin strip under the top frame,
@@ -455,6 +501,12 @@ ShellRoot {
                 : (modal ? fullRegion
                 : (Config.barEnabled ? barRegion
                 : (islandShown ? pillRegion : idleRegion)))
+
+            // the bar band's input strip, per edge.
+            readonly property real barMaskX: barRight ? width - barVisibleH : 0
+            readonly property real barMaskY: barBottom ? height - barVisibleH : 0
+            readonly property real barMaskW: barVertical ? barVisibleH : width
+            readonly property real barMaskH: barVertical ? height : barVisibleH
             Region { id: hiddenRegion }
             Region {
                 id: pillRegion
@@ -512,22 +564,33 @@ ShellRoot {
                 id: barRegion
                 // bar strip catches input for its options; the edge popouts
                 // keep their hover triggers and bodies so mixer/power still open.
-                // a toast dropped out of the band (bar mode) extends the grab
-                // over the panel so its actions stay clickable.
-                x: 0
-                y: 0
-                width: overlay.width
-                height: overlay.barVisibleH
+                // with a top bar the island drops out of the band, so the grab
+                // extends over the panel (toast actions stay clickable); other
+                // edges keep the island's own regions.
+                x: overlay.barMaskX
+                y: overlay.barMaskY
+                width: overlay.barMaskW
+                height: overlay.barMaskH
                 Region {
                     x: pill.x
                     y: 0
                     width: overlay.islandShown ? pill.width : 0
                     height: overlay.islandShown ? (pill.y + Math.max(pill.height, pill.targetH) + 6 * pill.s) : 0
                 }
+                Region {
+                    x: overlay.autohide && !overlay.islandShown ? pill.x : 0
+                    y: 0
+                    width: overlay.autohide && !overlay.islandShown ? pill.width : 0
+                    height: overlay.autohide && !overlay.islandShown ? overlay.revealTrigger : 0
+                }
+                Region { x: activityStrip.x; y: activityStrip.y; width: overlay.islandShown ? activityStrip.width : 0; height: activityStrip.height }
+                Region { x: updateIsland.x; y: updateIsland.y; width: overlay.islandShown ? updateIsland.width : 0; height: updateIsland.height }
                 Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
                 Region { x: mixerPop.bodyX; y: mixerPop.bodyY; width: mixerPop.bodyW; height: mixerPop.bodyH }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
                 Region { x: powerPop.bodyX; y: powerPop.bodyY; width: powerPop.bodyW; height: powerPop.bodyH }
+                Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
+                Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
             }
 
             MouseArea {
@@ -581,10 +644,10 @@ ShellRoot {
                     anchors.margins: -50
                     group: blobGroup
                     radius: Config.frameRadius
-                    borderTop: Config.barEnabled ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
-                    borderBottom: Config.frameBorder
-                    borderLeft: Config.frameBorder
-                    borderRight: Config.frameBorder
+                    borderTop: overlay.barTop ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
+                    borderBottom: overlay.barBottom ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
+                    borderLeft: overlay.barLeft ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
+                    borderRight: overlay.barRight ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
                     opacity: Config.frameOpacity
                     visible: !overlay.monFullscreen
                 }
@@ -594,16 +657,19 @@ ShellRoot {
                 Bar {
                     id: topBar
                     visible: Config.barEnabled && !overlay.monFullscreen
-                    x: 0
-                    y: 0
-                    width: overlay.width
-                    height: overlay.barVisibleH
+                    x: overlay.barMaskX
+                    y: overlay.barMaskY
+                    width: overlay.barMaskW
+                    height: overlay.barMaskH
                     s: overlay.s
-                    contentTop: 0
+                    position: overlay.barPos
+                    frameEdge: overlay.frameTopVisible
+                    band: overlay.barBand
                     // hold the clock away until the drop panel has fully
                     // melted back into the band, not just until the surface
                     // state clears -- otherwise it overprints the retract.
-                    surfaceOpen: overlay.surfaceOpen || pillBlob.visible
+                    // only a top bar hosts the drop, so only it dodges.
+                    surfaceOpen: overlay.barTop && (overlay.surfaceOpen || pillBlob.visible)
                     trayWindow: overlay
                     onCalendarRequested: root.toggleSurface(overlay.modelData.name, "calendar")
                     onPowerRequested: root.togglePopout(overlay.modelData.name, "power")
@@ -640,7 +706,7 @@ ShellRoot {
                     // pixel-identical to the band itself, so snapping
                     // straight to zero at the inner edge is invisible and
                     // the pocket regime is never entered.
-                    readonly property real bandInnerY: Math.max(0, (Config.barEnabled ? overlay.barBand : 0) + Config.frameBorder - 50)
+                    readonly property real bandInnerY: Math.max(0, (overlay.barTop ? overlay.barBand : 0) + Config.frameBorder - 50)
                     height: {
                         const h = (pill.y + pill.height) * reveal;
                         return h > bandInnerY ? h : 0;

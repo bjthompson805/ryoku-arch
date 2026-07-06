@@ -5,30 +5,33 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import Quickshell.Wayland
-import Quickshell.Services.SystemTray
-import Quickshell.Widgets
 import "Singletons"
 
-// bar content riding the frame's thickened top edge. when the bar is on, the
-// frame's top border swells into a band (BlobInvertedRect.borderTop in
-// shell.qml) and this draws the options directly on it, in the frame's own
-// scene: no separate program, no seam.
+// bar content riding one of the frame's thickened edges. the chosen edge
+// swells into a band (BlobInvertedRect in shell.qml) and this draws the
+// options directly on it, in the frame's own scene: no separate program, no
+// seam. modules sit on BarPlate slabs (sharp washi plates or fully rounded
+// capsules, per Config.barStyle) that lift on hover.
 //
-// the band is composed of module plates (BarPlate): sharp slabs with a faint
-// warm fill that lifts on hover, so every module reads as touchable. left =
-// the 力 seal (launcher) + workspace strip + focused title; centre = the clock
-// plate (the anchor the calendar drops from); right = now-playing, the status
-// cluster, tray, power. a wheel over bare band nudges the sink volume and the
-// OSD panel narrates it.
+// top/bottom = the horizontal composition: seal + workspace strip + focused
+// title on the left, the clock (the anchor a summoned surface drops from,
+// top bar only) in the centre, now-playing + status + tray + power on the
+// right. left/right = the caelestia composition: seal and workspaces at the
+// top, stacked clock in the middle, art + status + tray + power falling to
+// the bottom. a wheel over bare band nudges the sink volume either way.
 Item {
     id: bar
 
     required property real s
-    // frame's own top-edge thickness, content sits below it.
-    required property real contentTop
+    // which frame edge carries the band: top | bottom | left | right.
+    property string position: "top"
+    // the frame's own visible edge thickness and the band it swelled by;
+    // content centres in the band, clear of the frame's outer lip.
+    property real frameEdge: 0
+    property real band: 0
     // window the tray menus anchor to.
     required property var trayWindow
-    // a summoned surface drops out of the bar over the centre; the clock
+    // a summoned surface drops out of a top bar over the centre; the clock
     // fades under it so the two never overprint.
     property bool surfaceOpen: false
 
@@ -36,9 +39,8 @@ Item {
     signal powerRequested()
     signal surfaceRequested(string name)
 
-    readonly property var loc: Qt.locale("en_US")
-    readonly property real bandH: height - contentTop
-    readonly property real plateH: Math.round(bandH * 0.74)
+    readonly property bool vertical: position === "left" || position === "right"
+    readonly property real plateSpan: Math.round(bar.band * 0.78)
 
     // quickshell's refreshWorkspaces/refreshMonitors parse nothing out of
     // this Hyprland's IPC, so Hyprland.focusedWorkspace stays null on a
@@ -57,12 +59,6 @@ Item {
         }
     }
 
-    SystemClock {
-        id: clock
-        // the bar shows HH:mm; minute precision avoids a needless per-second tick.
-        precision: SystemClock.Minutes
-    }
-
     // wheel anywhere on the bare band = sink volume. plates sit above this
     // handler and take their own wheel where they care (workspaces, media).
     readonly property var sink: Pipewire.defaultAudioSink
@@ -76,12 +72,18 @@ Item {
         onWheel: (w) => bar.nudgeVolume(w.angleDelta.y > 0 ? 1 : -1)
     }
 
+    // the band area content occupies: inset from the frame's outer lip so the
+    // options read as riding the band, not the screen edge.
     Item {
-        anchors.fill: parent
-        anchors.topMargin: bar.contentTop
+        id: face
+        x: bar.position === "left" ? bar.frameEdge : 0
+        y: bar.position === "top" ? bar.frameEdge : 0
+        width: bar.vertical ? bar.band : bar.width
+        height: bar.vertical ? bar.height : bar.band
 
-        // left: seal + workspaces + focused title.
+        // ---- horizontal composition (top / bottom) ----------------------
         Row {
+            visible: !bar.vertical
             anchors.left: parent.left
             anchors.leftMargin: 26 * bar.s
             anchors.verticalCenter: parent.verticalCenter
@@ -90,7 +92,7 @@ Item {
             BarPlate {
                 anchors.verticalCenter: parent.verticalCenter
                 s: bar.s
-                height: bar.plateH
+                height: bar.plateSpan
                 padX: 9 * bar.s
                 onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
 
@@ -106,7 +108,7 @@ Item {
             BarPlate {
                 anchors.verticalCenter: parent.verticalCenter
                 s: bar.s
-                height: bar.plateH
+                height: bar.plateSpan
                 padX: 7 * bar.s
                 interactive: false
 
@@ -132,79 +134,40 @@ Item {
             }
         }
 
-        // centre: the clock plate, the fixed anchor a summoned surface drops
-        // from. fades while a panel is open so the two never overprint.
         BarPlate {
             id: clockPlate
+            visible: !bar.vertical
             anchors.centerIn: parent
             s: bar.s
-            height: bar.plateH
+            height: bar.plateSpan
             padX: 12 * bar.s
             opacity: bar.surfaceOpen ? 0 : 1
             interactive: !bar.surfaceOpen
             Behavior on opacity { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
             onTapped: bar.calendarRequested()
 
-            Row {
-                spacing: 7 * bar.s
-
-                Row {
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 0
-                    Text {
-                        text: Qt.formatTime(clock.date, "HH")
-                        color: Theme.cream
-                        font.family: Theme.font
-                        font.pixelSize: 12.5 * bar.s
-                        font.weight: Font.DemiBold
-                        font.features: ({ "tnum": 1 })
-                    }
-                    Text {
-                        text: ":"
-                        color: Theme.brand
-                        font.family: Theme.font
-                        font.pixelSize: 12.5 * bar.s
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        text: Qt.formatTime(clock.date, "mm")
-                        color: Theme.cream
-                        font.family: Theme.font
-                        font.pixelSize: 12.5 * bar.s
-                        font.weight: Font.DemiBold
-                        font.features: ({ "tnum": 1 })
-                    }
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: bar.loc.toString(clock.date, "ddd d MMM").toUpperCase()
-                    color: Theme.dim
-                    font.family: Theme.mono
-                    font.pixelSize: 8.5 * bar.s
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 1.1 * bar.s
-                }
+            BarClock {
+                s: bar.s
             }
         }
 
-        // right: now-playing, status cluster, tray, power.
         Row {
+            visible: !bar.vertical
             anchors.right: parent.right
             anchors.rightMargin: 26 * bar.s
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8 * bar.s
 
             BarPlate {
-                id: mediaPlate
                 anchors.verticalCenter: parent.verticalCenter
                 s: bar.s
-                height: bar.plateH
-                visible: Config.barShowMedia && mediaRow.present
-                onTapped: mediaRow.toggle()
+                height: bar.plateSpan
+                visible: Config.barShowMedia && hMedia.present
+                onTapped: hMedia.toggle()
                 onWheeled: (steps) => bar.nudgeVolume(steps)
 
                 BarMedia {
-                    id: mediaRow
+                    id: hMedia
                     s: bar.s
                 }
             }
@@ -212,7 +175,7 @@ Item {
             BarPlate {
                 anchors.verticalCenter: parent.verticalCenter
                 s: bar.s
-                height: bar.plateH
+                height: bar.plateSpan
                 visible: Config.barShowStatus
                 interactive: false
 
@@ -222,63 +185,162 @@ Item {
                 }
             }
 
-            // system tray: quiet plate, surfaces on hover.
             BarPlate {
                 anchors.verticalCenter: parent.verticalCenter
                 s: bar.s
-                height: bar.plateH
-                visible: trayRow.count > 0
+                height: bar.plateSpan
+                visible: hTray.count > 0
                 quiet: true
                 interactive: false
 
-                Row {
-                    id: trayRow
-                    spacing: 9 * bar.s
-                    readonly property int count: SystemTray.items ? SystemTray.items.values.length : 0
-
-                    Repeater {
-                        model: SystemTray.items
-                        delegate: Item {
-                            id: trayItem
-                            required property var modelData
-                            width: 16 * bar.s
-                            height: 16 * bar.s
-                            anchors.verticalCenter: parent.verticalCenter
-                            opacity: trayArea.containsMouse ? 1 : 0.78
-                            Behavior on opacity { NumberAnimation { duration: Motion.hover } }
-
-                            IconImage {
-                                anchors.fill: parent
-                                source: trayItem.modelData ? trayItem.modelData.icon : ""
-                            }
-                            MouseArea {
-                                id: trayArea
-                                anchors.fill: parent
-                                anchors.margins: -3 * bar.s
-                                hoverEnabled: true
-                                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: (e) => {
-                                    if (!trayItem.modelData)
-                                        return;
-                                    if (e.button === Qt.RightButton && trayItem.modelData.hasMenu)
-                                        trayItem.modelData.display(bar.trayWindow, trayItem.x, bar.height);
-                                    else
-                                        trayItem.modelData.activate();
-                                }
-                            }
-                        }
-                    }
+                BarTray {
+                    id: hTray
+                    s: bar.s
+                    trayWindow: bar.trayWindow
+                    menuEdgeY: bar.height
                 }
             }
 
             BarPlate {
                 anchors.verticalCenter: parent.verticalCenter
                 s: bar.s
-                height: bar.plateH
+                height: bar.plateSpan
                 padX: 9 * bar.s
                 quiet: true
                 onTapped: bar.powerRequested()
+
+                GlyphIcon {
+                    width: 14 * bar.s
+                    height: 14 * bar.s
+                    name: "shutdown"
+                    color: Theme.dim
+                    stroke: 1.7
+                }
+            }
+        }
+
+        // ---- vertical composition (left / right) ------------------------
+        Column {
+            visible: bar.vertical
+            anchors.top: parent.top
+            anchors.topMargin: 22 * bar.s
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 8 * bar.s
+
+            BarPlate {
+                anchors.horizontalCenter: parent.horizontalCenter
+                s: bar.s
+                vertical: true
+                width: bar.plateSpan
+                padY: 8 * bar.s
+                onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
+
+                Text {
+                    text: "力"
+                    color: Theme.brand
+                    font.family: Theme.fontJp
+                    font.weight: Font.Medium
+                    font.pixelSize: 13 * bar.s
+                }
+            }
+
+            BarPlate {
+                anchors.horizontalCenter: parent.horizontalCenter
+                s: bar.s
+                vertical: true
+                width: bar.plateSpan
+                padY: 7 * bar.s
+                interactive: false
+
+                BarWorkspaces {
+                    s: bar.s
+                    vertical: true
+                    activeWsId: bar.activeWsId
+                }
+            }
+        }
+
+        BarPlate {
+            visible: bar.vertical
+            anchors.centerIn: parent
+            s: bar.s
+            vertical: true
+            width: bar.plateSpan
+            padY: 9 * bar.s
+            onTapped: bar.calendarRequested()
+
+            BarClock {
+                s: bar.s
+                vertical: true
+            }
+        }
+
+        Column {
+            visible: bar.vertical
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 22 * bar.s
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 8 * bar.s
+
+            BarPlate {
+                anchors.horizontalCenter: parent.horizontalCenter
+                s: bar.s
+                vertical: true
+                width: bar.plateSpan
+                visible: Config.barShowMedia && vMedia.present
+                onTapped: vMedia.toggle()
+                onWheeled: (steps) => bar.nudgeVolume(steps)
+
+                BarMedia {
+                    id: vMedia
+                    s: bar.s
+                    vertical: true
+                }
+            }
+
+            BarPlate {
+                anchors.horizontalCenter: parent.horizontalCenter
+                s: bar.s
+                vertical: true
+                width: bar.plateSpan
+                padY: 9 * bar.s
+                visible: Config.barShowStatus
+                interactive: false
+
+                BarStatus {
+                    s: bar.s
+                    vertical: true
+                    onRequestSurface: (name) => bar.surfaceRequested(name)
+                }
+            }
+
+            BarPlate {
+                anchors.horizontalCenter: parent.horizontalCenter
+                s: bar.s
+                vertical: true
+                width: bar.plateSpan
+                visible: vTray.count > 0
+                quiet: true
+                interactive: false
+
+                BarTray {
+                    id: vTray
+                    s: bar.s
+                    vertical: true
+                    trayWindow: bar.trayWindow
+                    menuEdgeY: 0
+                }
+            }
+
+            BarPlate {
+                anchors.horizontalCenter: parent.horizontalCenter
+                s: bar.s
+                vertical: true
+                width: bar.plateSpan
+                padY: 8 * bar.s
+                quiet: true
+                onTapped: bar.powerRequested()
+
                 GlyphIcon {
                     width: 14 * bar.s
                     height: 14 * bar.s

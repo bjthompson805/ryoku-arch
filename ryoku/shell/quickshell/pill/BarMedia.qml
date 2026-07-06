@@ -1,53 +1,39 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell.Services.Mpris
 import "Singletons"
 
-// now-playing module: art thumb, ping-pong title, play state. click toggles
-// playback, wheel nudges the sink volume (the OSD panel narrates the change).
-// hidden with no player, so the plate only exists when there is music.
+// now-playing module: art thumb, ping-pong title, play state, all read from
+// the shared Media pick (wallpaper-filtered). click toggles playback, wheel
+// nudges the sink volume (the OSD panel narrates the change). hidden with no
+// player, so the plate only exists when there is music. a vertical bar keeps
+// only the art thumb (state tinted), the noctalia idiom.
 Row {
     id: media
 
     property real s: 1
+    property bool vertical: false
 
-    // the live wallpaper (mpvpaper) registers on MPRIS too; a bare video
-    // filename is scenery, not music, so it never counts as a player here.
-    function isWallpaper(p) {
-        return /\.(mp4|webm|mkv|gif)$/i.test(p.trackTitle || "");
-    }
-    readonly property var player: {
-        var l = Mpris.players.values.filter((p) => p && !isWallpaper(p));
-        for (var i = 0; i < l.length; i++)
-            if (l[i].isPlaying)
-                return l[i];
-        return l.length > 0 ? l[0] : null;
-    }
-    readonly property bool playing: player !== null && player.isPlaying
-    readonly property bool present: player !== null && (player.trackTitle || "").length > 0
-    readonly property string line: {
-        if (!player)
-            return "";
-        var t = player.trackTitle || "";
-        var a = Theme.joinArtists(player.trackArtists, player.trackArtist);
-        return a.length > 0 ? t + " · " + a : t;
-    }
+    readonly property var player: Media.player
+    readonly property bool playing: Media.playing
+    readonly property bool present: Media.present
+    readonly property string line: Media.line
 
     function toggle() {
-        if (player && player.canTogglePlaying)
-            player.togglePlaying();
+        Media.toggle();
     }
 
     spacing: 8 * s
-
-    // art thumb: sharp square, hairline edge; kanji seal while artless.
+    // art thumb, hairline edge; kanji seal while artless. round under the
+    // capsule skin, sharp under plates. carries the play state alone on a
+    // vertical bar (accent edge while sounding).
     Rectangle {
         anchors.verticalCenter: parent.verticalCenter
-        width: 17 * media.s
-        height: 17 * media.s
+        width: (media.vertical ? 19 : 17) * media.s
+        height: (media.vertical ? 19 : 17) * media.s
+        radius: Config.barStyle === "capsule" ? width / 2 : 0
         color: Qt.alpha(Theme.bright, 0.05)
         border.width: 1
-        border.color: Theme.hair
+        border.color: media.vertical && media.playing ? Qt.alpha(Theme.verm, 0.8) : Theme.hair
         clip: true
 
         Image {
@@ -69,6 +55,7 @@ Row {
     }
 
     Marquee {
+        visible: !media.vertical
         id: title
         anchors.verticalCenter: parent.verticalCenter
         readonly property real natW: titleMetrics.advanceWidth
@@ -90,6 +77,7 @@ Row {
 
     // state tick: a vermilion play wedge while sounding, a paused hairline pair.
     Item {
+        visible: !media.vertical
         anchors.verticalCenter: parent.verticalCenter
         width: 8 * media.s
         height: 9 * media.s

@@ -5,18 +5,22 @@ import "Singletons"
 // status cluster: network, battery, notifications, dnd. each glyph is its own
 // click target routing to the surface that owns it (link, battery, inbox), so
 // the bar answers "am I online / charged / pinged" at a glance and one click.
-Row {
+// `vertical` stacks the glyphs for a side bar.
+Grid {
     id: status
 
     property real s: 1
+    property bool vertical: false
 
     signal requestSurface(string name)
 
+    columns: vertical ? 1 : 4
     spacing: 10 * s
+    verticalItemAlignment: Grid.AlignVCenter
+    horizontalItemAlignment: Grid.AlignHCenter
 
     // network: wifi arcs or an ethernet plug tick; faint when offline.
     Item {
-        anchors.verticalCenter: parent.verticalCenter
         width: 17 * status.s
         height: 17 * status.s
 
@@ -42,9 +46,9 @@ Row {
         }
     }
 
-    // battery: cell + tight percentage, only on machines that have one.
+    // battery: cell + tight percentage, only on machines that have one. the
+    // vertical bar keeps just the cell; the percentage has no room sideways.
     Item {
-        anchors.verticalCenter: parent.verticalCenter
         visible: Battery.present
         width: battRow.implicitWidth
         height: battRow.implicitHeight
@@ -55,12 +59,13 @@ Row {
 
             BatteryGlyph {
                 anchors.verticalCenter: parent.verticalCenter
-                s: status.s * 0.9
+                s: status.s * (status.vertical ? 0.72 : 0.9)
                 frac: Battery.frac
                 charging: Battery.charging
                 low: Battery.low
             }
             Text {
+                visible: !status.vertical
                 anchors.verticalCenter: parent.verticalCenter
                 text: Battery.pct
                 color: Battery.low ? Theme.vermLit : (Battery.charging ? Theme.flameGlow : Theme.subtle)
@@ -80,7 +85,6 @@ Row {
 
     // notifications: bell with an ember dot while something waits.
     Item {
-        anchors.verticalCenter: parent.verticalCenter
         width: 16 * status.s
         height: 16 * status.s
 
@@ -110,7 +114,6 @@ Row {
     }
 
     GlyphIcon {
-        anchors.verticalCenter: parent.verticalCenter
         visible: Flags.dnd
         width: 15 * status.s
         height: 15 * status.s

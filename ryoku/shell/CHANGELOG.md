@@ -3,6 +3,27 @@
 ## Unreleased
 
 ### Added
+- **The bar moves and wears two skins.** `barPosition` places the band on any
+  frame edge: top, bottom, left, or right. The chosen edge swells and claims
+  its own strip; left/right bars recompose vertically (the caelestia layout:
+  seal and workspaces up top, a stacked hour-over-minute clock in the middle,
+  art-only now-playing, status, tray and power falling to the bottom), with a
+  band floor so stacked content always fits. `barStyle` picks the skin:
+  `plates` keeps the sharp washi slabs, `capsule` renders every module as a
+  fully rounded tonal pill (the caelestia idiom) for shells riced round, and
+  the workspace block, media art and hover fills all follow the choice. Only
+  a top bar replaces the resting island; bottom and side bars live alongside
+  it, so the island keeps its configured style next to them.
+- **The island rest face is redesigned.** The cramped stacked date and the
+  squiggle are gone: the clock is the hero (tabular, vermilion colon), under
+  it one tracked mono date line, and under that a row of precise
+  registration ticks, one per workspace: the active one stretches into an
+  accent dash, occupied ones read brighter, and each tick is clickable.
+  While music plays the date line hands over to a now-playing marquee with a
+  three-bar eq pulsing beside it (wallpaper video filtered out), so the
+  island answers "what is sounding" at a glance, dynamic-island style. The
+  shared player pick moved to a `Media` singleton the bar and island both
+  read.
 - **The top bar is a real bar now, and the default face.** The band used to be
   naked text floating on the frame's thickened edge; it is now composed of
   module plates: sharp slabs with a faint warm fill and a hairline edge that

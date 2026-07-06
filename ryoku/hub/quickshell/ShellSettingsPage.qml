@@ -19,7 +19,7 @@ Item {
         "shadowStrength", "shadowSize", "surfaceColor",
         "islandWidth", "islandHeight", "islandRestCorner", "islandOpenCorner",
         "islandGap", "islandSmoothing", "islandOpacity", "islandStyle", "islandAutohide",
-        "barEnabled", "barHeight", "barShowTitle", "barShowMedia", "barShowStatus",
+        "barEnabled", "barPosition", "barStyle", "barHeight", "barShowTitle", "barShowMedia", "barShowStatus",
         "fontFamily", "fontScale"
     ]
     readonly property var vizKeys: [
@@ -36,7 +36,7 @@ Item {
         "islandWidth": 109, "islandHeight": 34, "islandRestCorner": 6, "islandOpenCorner": 28,
         "islandGap": 0, "islandSmoothing": 24, "islandOpacity": 1,
         "islandStyle": "floating", "islandAutohide": true,
-        "barEnabled": true, "barHeight": 26, "barShowTitle": true, "barShowMedia": true, "barShowStatus": true,
+        "barEnabled": true, "barPosition": "top", "barStyle": "plates", "barHeight": 26, "barShowTitle": true, "barShowMedia": true, "barShowStatus": true,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
@@ -70,6 +70,8 @@ Item {
         property string islandStyle: "floating"
         property bool islandAutohide: true
         property bool barEnabled: true
+        property string barPosition: "top"
+        property string barStyle: "plates"
         property real barHeight: 26
         property bool barShowTitle: true
         property bool barShowMedia: true
@@ -226,6 +228,8 @@ Item {
             property string islandStyle: "floating"
             property bool islandAutohide: true
             property bool barEnabled: true
+            property string barPosition: "top"
+            property string barStyle: "plates"
             property real barHeight: 26
             property bool barShowTitle: true
             property bool barShowMedia: true
@@ -544,21 +548,41 @@ Item {
 
                 SettingSection {
                     width: parent.width
-                    title: "TOP BAR"
+                    title: "BAR"
                     ToggleRow {
-                        width: parent.width; label: "Enable top bar"
+                        width: parent.width; label: "Enable bar"
                         checked: draft.barEnabled
                         onToggled: (v) => page.edit("barEnabled", v)
                     }
+                    ChoiceRow {
+                        width: parent.width; label: "Position"
+                        options: [
+                            { "key": "top", "label": "Top" },
+                            { "key": "bottom", "label": "Bottom" },
+                            { "key": "left", "label": "Left" },
+                            { "key": "right", "label": "Right" }
+                        ]
+                        current: draft.barPosition
+                        onChosen: (k) => page.edit("barPosition", k)
+                    }
+                    ChoiceRow {
+                        width: parent.width; label: "Style"
+                        options: [
+                            { "key": "plates", "label": "Plates" },
+                            { "key": "capsule", "label": "Capsules" }
+                        ]
+                        current: draft.barStyle
+                        onChosen: (k) => page.edit("barStyle", k)
+                    }
                     NumberField {
-                        width: parent.width; label: "Height"; unit: "px"
+                        width: parent.width; label: "Thickness"; unit: "px"
                         from: 18; to: 48; value: draft.barHeight
                         onModified: (v) => page.edit("barHeight", v)
                     }
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        text: "A bar across the frame's top edge: workspaces and the focused window on the left, the clock in the centre, now-playing, tray and power on the right. Windows tuck in right below it. Tap the clock for the calendar; it drops out of the bar. While the bar is on, the resting pill island is hidden and surfaces still open from their keybinds."
+                        text: "A bar riding one edge of the frame. Plates are the sharp washi slabs; Capsules are fully rounded pills for shells riced round. A top bar hides the resting island and summoned panels drop out of it; bottom, left and right bars keep the island at the top centre. Windows tuck in right against the band."
                         color: Theme.faint
                         font.family: Theme.font
                         font.pixelSize: 12

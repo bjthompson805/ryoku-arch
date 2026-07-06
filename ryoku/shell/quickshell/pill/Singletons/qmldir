@@ -22,3 +22,4 @@ singleton Keyring Keyring.qml
 singleton Events Events.qml
 singleton Performance Performance.qml
 singleton Network Network.qml
+singleton Media Media.qml

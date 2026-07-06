@@ -1,33 +1,44 @@
 import QtQuick
 import "Singletons"
 
-// bar module plate: the sharp-cornered slab every bar module sits on. a faint
-// warm fill with a hairline edge; hover lifts the fill (the noctalia 10%-tint
-// mechanic in Ryoku's brutalist skin) so a module reads as touchable before
-// it's clicked. content is centred; the plate sizes to it plus padding.
+// bar module plate: the slab every bar module sits on, in one of two skins.
+//   plates  = sharp washi slab, faint warm fill, hairline edge (the house
+//             brutalist idiom).
+//   capsule = fully rounded tonal pill, no hairline (the caelestia idiom),
+//             for shells riced round.
+// both lift on hover so a module reads as touchable before it's clicked.
+// content is centred; the plate hugs it plus padding on the main axis.
 Item {
     id: plate
 
     property real s: 1
-    // plate height comes from the bar (a fraction of the band); width hugs content.
+    property bool vertical: false
     property real padX: 10 * s
+    property real padY: 9 * s
     default property alias content: slot.data
     property bool interactive: true
     // quiet = no resting fill; the plate only surfaces on hover (tray, title).
     property bool quiet: false
     readonly property alias hovered: hoverArea.containsMouse
+    readonly property bool capsule: Config.barStyle === "capsule"
 
     signal tapped()
     signal wheeled(int steps)
 
-    implicitWidth: slot.implicitWidth + 2 * padX
+    implicitWidth: vertical ? width : slot.implicitWidth + 2 * padX
+    implicitHeight: vertical ? slot.implicitHeight + 2 * padY : height
 
     Rectangle {
         anchors.fill: parent
-        color: hoverArea.containsMouse && plate.interactive
-            ? Qt.alpha(Theme.bright, 0.10)
-            : (plate.quiet ? "transparent" : Qt.alpha(Theme.bright, 0.045))
-        border.width: 1
+        radius: plate.capsule ? Math.min(width, height) / 2 : 0
+        color: {
+            if (hoverArea.containsMouse && plate.interactive)
+                return plate.capsule ? Qt.alpha(Theme.cream, 0.16) : Qt.alpha(Theme.bright, 0.10);
+            if (plate.quiet)
+                return "transparent";
+            return plate.capsule ? Qt.alpha(Theme.cream, 0.075) : Qt.alpha(Theme.bright, 0.045);
+        }
+        border.width: plate.capsule ? 0 : 1
         border.color: hoverArea.containsMouse && plate.interactive
             ? Qt.alpha(Theme.bright, 0.22)
             : (plate.quiet ? "transparent" : Theme.hair)

@@ -194,7 +194,7 @@ Item {
 
     readonly property size targetSize: {
         const f = surfaceSize[mode];
-        return f ? f() : Qt.size(Math.max(restW, restRow.implicitWidth + 36 * s), restH);
+        return f ? f() : Qt.size(Math.max(restW, restCol.implicitWidth + 32 * s), restH);
     }
     readonly property real targetW: targetSize.width
     readonly property real targetH: targetSize.height
@@ -390,81 +390,129 @@ Item {
         Behavior on opacity { NumberAnimation { duration: pill.mode === "rest" ? Motion.fast : 260 } }
 
         Column {
+            id: restCol
             anchors.centerIn: parent
-            spacing: 2 * pill.s
+            spacing: 3 * pill.s
 
-            // Clock + date: tabular HH:MM with a vermilion colon beside a stacked
-            // mono weekday/date, the dossier masthead idiom.
+            // the clock hero: tabular HH:MM around the vermilion colon.
             Row {
-                id: restRow
+                id: restClock
                 anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 9 * pill.s
+                spacing: 0
 
-                Row {
-                    id: restClock
+                Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 0
+                    text: clock.hh
+                    color: Theme.cream
+                    font.family: Theme.font
+                    font.pixelSize: 15.5 * pill.s
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.3 * pill.s
+                    font.features: { "tnum": 1 }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: ":"
+                    color: Theme.brand
+                    font.family: Theme.font
+                    font.pixelSize: 15.5 * pill.s
+                    font.weight: Font.Bold
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: clock.mm
+                    color: Theme.cream
+                    font.family: Theme.font
+                    font.pixelSize: 15.5 * pill.s
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.3 * pill.s
+                    font.features: { "tnum": 1 }
+                }
+            }
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: clock.hh
-                        color: Theme.cream
-                        font.family: Theme.font
-                        font.pixelSize: 14 * pill.s
-                        font.weight: Font.DemiBold
-                        font.features: { "tnum": 1 }
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: ":"
-                        color: Theme.brand
-                        font.family: Theme.font
-                        font.pixelSize: 14 * pill.s
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: clock.mm
-                        color: Theme.cream
-                        font.family: Theme.font
-                        font.pixelSize: 14 * pill.s
-                        font.weight: Font.DemiBold
-                        font.features: { "tnum": 1 }
-                    }
+            // the context line: the date at rest, the sounding track while
+            // music plays (with a tiny eq pulsing beside it).
+            Item {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Media.playing ? nowLine.implicitWidth : dateLine.implicitWidth
+                height: Math.max(dateLine.implicitHeight, nowLine.implicitHeight)
+
+                Text {
+                    id: dateLine
+                    anchors.centerIn: parent
+                    visible: !Media.playing
+                    text: clock.weekday + " " + clock.daymon
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: 6.5 * pill.s
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.6 * pill.s
+                    font.capitalization: Font.AllUppercase
                 }
 
-                Column {
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 1 * pill.s
+                Row {
+                    id: nowLine
+                    anchors.centerIn: parent
+                    visible: Media.playing
+                    spacing: 5 * pill.s
 
-                    Text {
-                        text: clock.weekday
-                        color: Theme.dim
-                        font.family: Theme.mono
-                        font.pixelSize: 6 * pill.s
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 1.3 * pill.s
-                        font.capitalization: Font.AllUppercase
+                    Row {
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 1.6 * pill.s
+
+                        Repeater {
+                            model: 3
+                            delegate: Rectangle {
+                                id: eqBar
+                                required property int index
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 1.8 * pill.s
+                                color: Theme.verm
+                                height: 3 * pill.s
+
+                                SequentialAnimation on height {
+                                    running: Media.playing && rest.visible && pill.mode === "rest"
+                                    loops: Animation.Infinite
+                                    NumberAnimation {
+                                        to: (5.5 + (eqBar.index % 3) * 1.6) * pill.s
+                                        duration: 340 + eqBar.index * 90
+                                        easing.type: Easing.InOutSine
+                                    }
+                                    NumberAnimation {
+                                        to: 2.2 * pill.s
+                                        duration: 300 + eqBar.index * 70
+                                        easing.type: Easing.InOutSine
+                                    }
+                                }
+                            }
+                        }
                     }
-                    Text {
-                        text: clock.daymon
-                        color: Theme.faint
-                        font.family: Theme.mono
-                        font.pixelSize: 6 * pill.s
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 1.3 * pill.s
-                        font.capitalization: Font.AllUppercase
+
+                    Marquee {
+                        anchors.verticalCenter: parent.verticalCenter
+                        readonly property real natW: nowMetrics.advanceWidth
+                        width: Math.min(natW + 2, 108 * pill.s)
+                        active: Media.playing && rest.visible
+                        text: Media.line
+                        color: Theme.subtle
+                        pixelSize: 7 * pill.s
+                        weight: Font.Medium
+
+                        TextMetrics {
+                            id: nowMetrics
+                            text: Media.line
+                            font.family: Theme.font
+                            font.pixelSize: 7 * pill.s
+                            font.weight: Font.Medium
+                        }
                     }
                 }
             }
 
-            WorkspaceWave {
+            WorkspaceTicks {
                 anchors.horizontalCenter: parent.horizontalCenter
                 screenName: pill.screenName
                 s: pill.s
-                // the auto-hidden pill stays in the scene at opacity 0; gate the
-                // wave on it so a hidden pill triggers no repaints.
-                live: pill.opacity > 0.01
             }
         }
 

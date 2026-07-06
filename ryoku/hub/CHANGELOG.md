@@ -3,8 +3,10 @@
 ## Unreleased
 
 ### Changed
-- Shell -> Bar gained a **Status glyphs** toggle for the bar's new
-  network/battery/inbox cluster, and the bar defaults flipped on to match the
+- Shell -> Bar now places the bar on any frame edge (Top / Bottom / Left /
+  Right) and picks its skin (Plates / Capsules), next to the thickness and
+  content toggles; the **Status glyphs** toggle covers the bar's
+  network/battery/inbox cluster. The bar defaults flipped on to match the
   shell's new default face (the reset baseline follows).
 
 ### Fixed

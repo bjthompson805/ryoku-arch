@@ -45,14 +45,19 @@ Singleton {
     property alias islandStyle:    adapter.islandStyle
     property alias islandAutohide: adapter.islandAutohide
 
-    // top bar = the default face, drawn on the frame's thickened top edge
-    // (Bar.qml) in place of the resting island. when on, the island only shows
-    // for summoned surfaces, toasts and the OSD. Settings -> Shell -> Bar turns
-    // it off for the pure island styles.
-    // barHeight = the band the top edge swells by (scaled per monitor, like
+    // top bar = the default face, drawn on the frame's thickened edge
+    // (Bar.qml). barPosition picks the edge: a "top" bar replaces the resting
+    // island (the island still summons for surfaces, toasts and the OSD);
+    // bottom/left/right bars live on their own edge and the island keeps its
+    // usual top-centre life beside them. barStyle picks the skin: "plates" =
+    // sharp washi slabs with hairlines, "capsule" = fully rounded tonal pills
+    // (the caelestia idiom) for shells riced round.
+    // barHeight = the band the edge swells by (scaled per monitor, like
     // island geometry). barShowTitle / barShowMedia / barShowStatus gate the
     // focused-window title, the now-playing readout, and the status cluster.
     property alias barEnabled:    adapter.barEnabled
+    property alias barPosition:   adapter.barPosition
+    property alias barStyle:      adapter.barStyle
     property alias barHeight:     adapter.barHeight
     property alias barShowTitle:  adapter.barShowTitle
     property alias barShowMedia:  adapter.barShowMedia
@@ -99,6 +104,8 @@ Singleton {
             property string islandStyle: "floating"
             property bool islandAutohide: true
             property bool barEnabled: true
+            property string barPosition: "top"
+            property string barStyle: "plates"
             property real barHeight: 26
             property bool barShowTitle: true
             property bool barShowMedia: true

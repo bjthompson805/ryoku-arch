@@ -3,19 +3,23 @@ import QtQuick
 import Quickshell.Hyprland
 import "Singletons"
 
-// workspace strip: mono numerals in fixed cells with a vermilion block riding
+// workspace strip: mono numerals in fixed cells with an accent block riding
 // behind the active one. the block's leading edge chases the target fast while
 // the trailing edge settles slower (the caelestia trail), so a switch reads as
 // the block stretching across and contracting, not teleporting. numerals under
 // the block flip to paper for contrast. click jumps, wheel walks neighbours.
+// `vertical` stacks the cells for a side bar; the trail then runs on y.
 Item {
     id: strip
 
     property real s: 1
     property int activeWsId: 1
+    property bool vertical: false
+    readonly property bool capsule: Config.barStyle === "capsule"
 
-    readonly property real cellW: 20 * s
-    readonly property real cellH: 17 * s
+    readonly property real cellW: vertical ? 17 * s : 20 * s
+    readonly property real cellH: vertical ? 20 * s : 17 * s
+    readonly property real cellSpan: vertical ? cellH : cellW
 
     // ids 1..10, desktop-relative block like the Super+N binds.
     readonly property int base: Math.floor((activeWsId - 1) / 10) * 10
@@ -40,8 +44,8 @@ Item {
         return n;
     }
 
-    implicitWidth: shown * cellW
-    implicitHeight: cellH
+    implicitWidth: vertical ? cellW : shown * cellW
+    implicitHeight: vertical ? shown * cellH : cellH
 
     readonly property int activeIdx: Math.max(0, Math.min(shown - 1, activeWsId - base - 1))
 
@@ -56,9 +60,9 @@ Item {
     }
 
     // active block: leading edge fast, trailing edge slow. both edges land on
-    // the active cell, so at rest it is exactly one cell wide.
+    // the active cell, so at rest it is exactly one cell.
     Item {
-        readonly property real target: strip.activeIdx * strip.cellW
+        readonly property real target: strip.activeIdx * strip.cellSpan
         property real lead: target
         property real trailEdge: target
         onTargetChanged: {
@@ -68,17 +72,20 @@ Item {
         Behavior on lead { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
         Behavior on trailEdge { NumberAnimation { duration: Motion.trail; easing.type: Easing.OutCubic } }
 
-        x: Math.min(lead, trailEdge)
-        width: Math.abs(lead - trailEdge) + strip.cellW
-        height: strip.cellH
+        x: strip.vertical ? 0 : Math.min(lead, trailEdge)
+        y: strip.vertical ? Math.min(lead, trailEdge) : 0
+        width: strip.vertical ? strip.cellW : Math.abs(lead - trailEdge) + strip.cellW
+        height: strip.vertical ? Math.abs(lead - trailEdge) + strip.cellH : strip.cellH
 
         Rectangle {
             anchors.fill: parent
+            radius: strip.capsule ? Math.min(width, height) / 2 : 0
             color: Theme.verm
         }
     }
 
-    Row {
+    Grid {
+        columns: strip.vertical ? 1 : strip.shown
         Repeater {
             model: strip.shown
             delegate: Item {

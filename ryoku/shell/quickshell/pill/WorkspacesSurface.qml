@@ -28,7 +28,7 @@ PillSurface {
     ameForm: "off"
 
     // pill sets this: the monitor this surface lives on, so the strip shows
-    // that screen's workspaces (matches the pill's WorkspaceWave).
+    // that screen's workspaces (matches the pill's workspace ticks).
     property string screenName: ""
 
     // monitor geometry (logical, matching hyprctl client coords)
