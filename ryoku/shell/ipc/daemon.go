@@ -27,7 +27,6 @@ var components = []component{
 	{"launcher", true},
 	{"visualizer", true},
 	{"widgets", true},
-	{"plugins", true},
 }
 
 // pillSurfaces maps a client command to the pill IpcHandler function it toggles.
