@@ -17,19 +17,21 @@ import Ryoku.Blobs
 import "Singletons"
 import "popouts"
 
-// washi pill. per monitor, two layer-shell windows:
-//   reserve = zero-content strip claiming an exclusive zone the height of
-//             the rest pill, so tiled windows sit below the pill even
-//             while it's expanded or a surface is open.
-//   overlay = full-screen transparent Overlay layer hosting the one
-//             morphing pill, anchored at top-centre. never moves windows,
-//             never re-parented; grows in place, so every surface grows
-//             out of the rest pill instead of popping as a separate panel.
+// the ryoku shell surface. per monitor, the layer-shell windows are:
+//   reserve      = zero-content top strip, mapped only for a TOP bar, claiming
+//                  its exclusive zone so tiled windows sit below the band.
+//   sideReserve  = the same for a bottom/left/right bar's own edge.
+//   overlay      = full-screen transparent Overlay layer: the rounded frame,
+//                  the bar riding one edge, and every summoned surface as an
+//                  edge popout growing from the bar (see popouts/). never moves
+//                  windows; grows in place.
+//   OsdWindow    = the volume/brightness OSD, bottom-centre above the bar.
+//   ToastWindow  = notification toasts, top-right.
 //
-// input routing = the window mask. collapsed -> mask is the pill rect, rest
-// of the screen clicks through. expanded (hover/pin) or surface open ->
-// mask cleared, whole layer catches clicks. backdrop press dismisses;
-// keyboard focus taken on demand so Escape closes the open surface.
+// input routing = the overlay window mask: the bar strip and open popout bodies
+// catch clicks, the rest of the screen clicks through. a modal (keyboard) popout
+// clears the mask so a backdrop press dismisses; keyboard focus is taken on
+// demand so Escape closes it.
 ShellRoot {
     id: root
 
@@ -279,7 +281,7 @@ ShellRoot {
         function power(mon: string): void { root.togglePopout(mon, "power"); }
         function link(mon: string): void { root.togglePopout(mon, "link"); }
         function inbox(mon: string): void { root.togglePopout(mon, "inbox"); }
-        function battery(mon: string): void { root.toggleSurface(mon, "battery"); }
+        function battery(mon: string): void { root.togglePopout(mon, "battery"); }
         // status-cluster quick popouts (the compact hover panels; a keybind can
         // also pin one). distinct from the deep surfaces above; side bar only.
         function network(mon: string): void { root.togglePopout(mon, "network"); }
@@ -335,9 +337,7 @@ ShellRoot {
         var fn = parts[0];
         var mon = parts.length > 1 ? parts[1] : "";
         switch (fn) {
-        case "battery":
-            root.toggleSurface(mon, fn); return true;
-        case "mixer": case "power":
+        case "battery": case "mixer": case "power":
             root.togglePopout(mon, fn); return true;
         case "network": case "bluetooth": case "calendar": case "clipboard": case "link": case "inbox": case "stash": case "toolkit": case "utilities": case "workspaces":
             root.togglePopout(mon, fn); return true;
@@ -378,32 +378,19 @@ ShellRoot {
             id: reserve
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property real topGap: Config.islandGap * s
-            // the compact rest pill's height, mirrored from Pill.qml's rest
-            // composition (one text line + ticks + padding). the reserve must
-            // track the real pill, not the legacy islandHeight knob, or a fat
-            // empty strip opens above the windows.
-            readonly property real restHeight: 37 * s
             readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
             readonly property bool barTop: barPos === "top"
-            // only the classic fused island reserves its own strip, and only
-            // while islandReserve is on; floating/none/auto-hidden (or reserve
-            // off) float over content, so the reserved top collapses to a
-            // small even gap matching the other three edges. a non-top bar
-            // leaves the island alone.
-            readonly property bool reservesIsland: Config.islandStyle === "island" && !Config.islandAutohide
-                && !barTop && Config.islandReserve
-            readonly property real evenTop: 22 * s
-            // the bar swells one frame edge into a band; reserve exactly the
-            // visible bar (frame edge + band, the same numbers as the
-            // overlay's barVisibleH) so tiles tuck right against it with only
-            // gaps_out between. anything else opens a dead strip that grows
-            // with fontScale / monitor height.
+            // a TOP bar reserves the visible bar strip (frame edge + band, the
+            // same numbers as the overlay's barVisibleH) so tiles tuck right
+            // against it. bottom/left/right bars reserve their own edge in
+            // sideReserve; with no island there is nothing else to reserve at
+            // the top, so this window only maps for a top bar.
             readonly property real barBand: Config.barHeight * s
             readonly property real barVisibleH: Math.max(0, Config.frameBorder - 50) + barBand
-            readonly property real zone: barTop ? barVisibleH : (reservesIsland ? (restHeight + topGap) : evenTop)
+            readonly property real zone: barVisibleH
 
             screen: modelData
+            visible: barTop
             color: "transparent"
             exclusionMode: ExclusionMode.Normal
             exclusiveZone: zone
@@ -460,7 +447,6 @@ ShellRoot {
             id: overlay
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
-            readonly property real topGap: Config.islandGap * s
 
             // bar mode: the frame's chosen edge swells into a band carrying
             // the options (Bar.qml). inverted rect is oversized 50px (its
@@ -477,42 +463,6 @@ ShellRoot {
             readonly property real barBand: Math.max(Config.barHeight, barVertical ? 30 : 0) * s
             readonly property real barVisibleH: frameTopVisible + barBand
 
-
-            // island appearance, read from the live config. the frame is
-            // the same across styles; only the centre island changes.
-            //   fused    = classic pill, neck melted into the top frame.
-            //   floating = detached pill, hangs below the frame, floats
-            //              over content.
-            //   none     = no resting island at all.
-            // a TOP bar always fuses: a summoned surface is the band swelling
-            // open downward, never a detached pill colliding with it. bars on
-            // the other edges leave the island to its configured style.
-            readonly property bool fused: Config.islandStyle === "island" || barTop
-            readonly property bool styleNone: Config.islandStyle === "none" || barTop
-            readonly property bool autohide: Config.islandAutohide && !styleNone
-            // where the pill sits below the screen top. fused rides the
-            // frame neck; floating/none hang lower so they read as detached;
-            // a top bar clears the band so content drops out of it.
-            readonly property real floatTopGap: (18 + Config.islandGap) * s
-            readonly property real pillTop: barTop ? (barVisibleH + topGap)
-                : (fused ? topGap : floatTopGap)
-            // rest visibility. fused/floating show at rest unless
-            // auto-hidden; none never shows at rest. an explicit summon
-            // brings a hidden island in: open surface (a keybind), peek or
-            // pin, or (auto-hidden) a hover of the top centre. a passing
-            // toast or OSD does NOT pop a hidden island, so none and the
-            // auto-hidden styles stay clean. notifications and the volume
-            // OSD still surface in the always-on island and floating
-            // styles, where the island is present anyway, and under a top
-            // bar they drop out of the band like any summoned surface (the
-            // band is always present, so nothing hidden pops).
-            readonly property bool idleShown: styleNone ? false : !autohide
-            readonly property bool islandShown: !monFullscreen
-                && (pill.surfaceOpen || pill.toastActive || pill.osdActive
-                    || (!Config.barEnabled && (idleShown || pill.held || (autohide && pill.hoverLatch))))
-            // auto-hide reveal trigger: thin strip under the top frame,
-            // hover brings the hidden island down.
-            readonly property real revealTrigger: pillTop + 14 * s
             readonly property string surface: root.openMon === modelData.name ? root.openSurface : ""
             readonly property bool surfaceOpen: surface.length > 0
             // voice is excluded: it must not grab the keyboard, so Handy's
@@ -522,7 +472,7 @@ ShellRoot {
             // pinned on this monitor: grabs the keyboard like an open surface.
             readonly property bool kbPopout: root.popoutMon === modelData.name
                 && root.kbPopouts.indexOf(root.popout) >= 0
-            readonly property bool modal: focusSurface || pill.held || kbPopout
+            readonly property bool modal: focusSurface || kbPopout
 
             // true if this monitor's active workspace has a fullscreen window.
             readonly property bool monFullscreen: {
@@ -536,7 +486,6 @@ ShellRoot {
             onMonFullscreenChanged: if (monFullscreen) {
                 if (root.openMon === modelData.name) root.close();
                 if (root.peekMon === modelData.name) root.peekMon = "";
-                pill.pinned = false;
             }
 
             screen: modelData
@@ -551,9 +500,7 @@ ShellRoot {
             anchors { top: true; left: true; right: true; bottom: true }
 
             mask: monFullscreen ? hiddenRegion
-                : (modal ? fullRegion
-                : (Config.barEnabled ? barRegion
-                : (islandShown ? pillRegion : idleRegion)))
+                : (modal ? fullRegion : barRegion)
 
             // the bar band's input strip, per edge.
             readonly property real barMaskX: barRight ? width - barVisibleH : 0
@@ -572,53 +519,6 @@ ShellRoot {
             }
             Region { id: hiddenRegion }
             Region {
-                id: pillRegion
-                readonly property real baseW: Math.max(pill.width, pill.targetW)
-                readonly property real baseX: pill.x + (pill.width - baseW) / 2
-                readonly property real musicPad: 0
-                x: baseX
-                y: 0
-                width: baseW + musicPad
-                height: pill.y + Math.max(pill.height, pill.targetH) + 6 * pill.s
-                // edge popouts grab input at their frame-edge trigger and
-                // over the open body, so hovering the centre-left/right
-                // border opens them while the rest stays click-through.
-                Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
-                Region { x: mixerPop.bodyX; y: mixerPop.bodyY; width: mixerPop.bodyW; height: mixerPop.bodyH }
-                Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
-                Region { x: powerPop.bodyX; y: powerPop.bodyY; width: powerPop.bodyW; height: powerPop.bodyH }
-                // plugin frame popouts: aggregate trigger+body input grab.
-                Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
-                Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
-                // activity strip rides left of the pill, outside the body:
-                // grab input over it so its chips (REC stop, stash) get
-                // hover/clicks instead of passing through.
-                Region { x: activityStrip.x; y: activityStrip.y; width: activityStrip.width; height: activityStrip.height }
-                // update island rides top-right, outside the body: grab
-                // input for its hover and the click that opens the Hub,
-                // instead of passing through to a window.
-                Region { x: updateIsland.x; y: updateIsland.y; width: updateIsland.width; height: updateIsland.height }
-            }
-            Region {
-                id: idleRegion
-                // reveal trigger: thin strip under the top frame, sized to
-                // the rest pill, catches the hover bringing an auto-hidden
-                // island down. zero for 'none', which never reveals, so
-                // the top centre stays click-through.
-                x: overlay.autohide ? pill.x : 0
-                y: 0
-                width: overlay.autohide ? pill.width : 0
-                height: overlay.autohide ? overlay.revealTrigger : 0
-                // edge popouts stay part of the frame in every island
-                // style, so their hover triggers + open bodies always catch.
-                Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
-                Region { x: mixerPop.bodyX; y: mixerPop.bodyY; width: mixerPop.bodyW; height: mixerPop.bodyH }
-                Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
-                Region { x: powerPop.bodyX; y: powerPop.bodyY; width: powerPop.bodyW; height: powerPop.bodyH }
-                Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
-                Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
-            }
-            Region {
                 id: fullRegion
                 width: overlay.width
                 height: overlay.height
@@ -632,22 +532,8 @@ ShellRoot {
                 // edges keep the island's own regions.
                 x: overlay.barMaskX
                 y: overlay.barMaskY
-                width: overlay.barMaskW
-                height: overlay.barMaskH
-                Region {
-                    x: pill.x
-                    y: 0
-                    width: overlay.islandShown ? pill.width : 0
-                    height: overlay.islandShown ? (pill.y + Math.max(pill.height, pill.targetH) + 6 * pill.s) : 0
-                }
-                Region {
-                    x: overlay.autohide && !overlay.islandShown ? pill.x : 0
-                    y: 0
-                    width: overlay.autohide && !overlay.islandShown ? pill.width : 0
-                    height: overlay.autohide && !overlay.islandShown ? overlay.revealTrigger : 0
-                }
-                Region { x: activityStrip.x; y: activityStrip.y; width: overlay.islandShown ? activityStrip.width : 0; height: activityStrip.height }
-                Region { x: updateIsland.x; y: updateIsland.y; width: overlay.islandShown ? updateIsland.width : 0; height: updateIsland.height }
+                width: Config.barEnabled ? overlay.barMaskW : 0
+                height: Config.barEnabled ? overlay.barMaskH : 0
                 Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
                 Region { x: mixerPop.bodyX; y: mixerPop.bodyY; width: mixerPop.bodyW; height: mixerPop.bodyH }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
@@ -672,24 +558,12 @@ ShellRoot {
                 enabled: overlay.modal
                 acceptedButtons: Qt.AllButtons
                 onPressed: (mouse) => {
-                    if (overlay.kbPopout) {
-                        // a press on the bar strip belongs to the bar: its icons
-                        // sit on top and take their own clicks, and the band is
-                        // inert, so clicking anywhere on the bar leaves the popout
-                        // open and the bar usable. only a true backdrop press
-                        // (off the bar and the popout body) dismisses.
-                        if (overlay.inBarStrip(mouse.x, mouse.y)) return;
-                        root.popout = "";
-                        return;
-                    }
-                    if (mouse.x >= pill.x && mouse.x <= pill.x + pill.width
-                            && mouse.y >= pill.y && mouse.y <= pill.y + pill.height)
-                        return;
-                    if (overlay.surfaceOpen) root.close();
-                    else {
-                        pill.pinned = false;
-                        root.peekMon = "";
-                    }
+                    // a press on the bar strip belongs to the bar (its icons take
+                    // their own clicks, the band is inert), so it never dismisses.
+                    // only a true backdrop press dismisses the modal popout.
+                    if (overlay.inBarStrip(mouse.x, mouse.y)) return;
+                    if (overlay.kbPopout) root.popout = "";
+                    else if (overlay.surfaceOpen) root.close();
                 }
             }
 
@@ -702,7 +576,7 @@ ShellRoot {
 
                 Keys.onEscapePressed: {
                     if (overlay.kbPopout) root.popout = "";
-                    else if (!pill.linkBack()) root.close();
+                    else root.close();
                 }
 
                 // frame and pill share one blob field, so the pill reads
@@ -756,69 +630,11 @@ ShellRoot {
                     // melted back into the band, not just until the surface
                     // state clears -- otherwise it overprints the retract.
                     // only a top bar hosts the drop, so only it dodges.
-                    surfaceOpen: overlay.barTop && (overlay.surfaceOpen || pillBlob.visible)
+                    surfaceOpen: false
                     trayWindow: overlay
                     onCalendarRequested: root.toggleSurface(overlay.modelData.name, "calendar")
                     onPopoutRequested: (name, center) => root.togglePopoutAt(overlay.modelData.name, name, center)
                     onSurfaceRequested: (name) => root.toggleSurface(overlay.modelData.name, name)
-                }
-
-                BlobRect {
-                    // fused pill body, in the frame's field: neck melts
-                    // into the top border (or the bar band). blobs only
-                    // leave the SDF field by collapsing to zero (field
-                    // ignores `visible`, do not "fix" that), so presence
-                    // rides geometry. bar and island share one morph: the
-                    // blob tracks the LIVE pill geometry, so panel and
-                    // content grow and shrink in lockstep. (an earlier bar
-                    // close held the panel at full size while the pill
-                    // melted to rest inside it -- content visibly collapsed
-                    // in a dead slab, then the slab blinked away. never
-                    // desync the two geometries.)
-                    id: pillBlob
-                    group: blobGroup
-                    property real reveal: 0
-                    x: pill.x
-                    y: 0
-                    readonly property bool present: overlay.fused && overlay.islandShown
-                    visible: height > 0
-                    width: pill.width
-                    // reveal curtain, floored at the border's inner edge. a
-                    // blob whose bottom edge retreats INSIDE the band makes
-                    // the field carve its melt pocket (the shader's border
-                    // sink) across the blob's full width, and a nearly-flat
-                    // blob can't fill that pocket -- the band opens a
-                    // trapezoid hole to the desktop until the rect finally
-                    // leaves the field at zero. a band-flush blob is
-                    // pixel-identical to the band itself, so snapping
-                    // straight to zero at the inner edge is invisible and
-                    // the pocket regime is never entered.
-                    readonly property real bandInnerY: Math.max(0, (overlay.barTop ? overlay.barBand : 0) + Config.frameBorder - 50)
-                    height: {
-                        const h = (pill.y + pill.height) * reveal;
-                        return h > bandInnerY ? h : 0;
-                    }
-                    topLeftRadius: 0
-                    topRightRadius: 0
-                    bottomLeftRadius: pill.morphRadius
-                    bottomRightRadius: pill.morphRadius
-                    deformScale: 0
-                    opacity: Config.islandOpacity
-                    states: State {
-                        name: "shown"
-                        when: pillBlob.present
-                        PropertyChanges { pillBlob.reveal: 1 }
-                    }
-                    transitions: [
-                        Transition {
-                            to: "shown"
-                            NumberAnimation { property: "reveal"; duration: Motion.emphasized; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedCurve }
-                        },
-                        Transition {
-                            from: "shown"
-                            NumberAnimation { property: "reveal"; to: 0; duration: Motion.morph; easing.type: Easing.OutCubic }
-                        }
-                    ]
                 }
 
                 // mixer popout: on a side bar the volume status icon owns it --
@@ -1165,122 +981,25 @@ ShellRoot {
                     }
                 }
 
-                // the island field: a second blob field (not the frame's) that
-                // carries the detached floating-pill island style, kept out of
-                // the frame field so it never fuses the border.
-                BlobGroup {
-                    id: islandGroup
-                    color: Config.matchWallpaper ? Wallust.surface : Config.surfaceColor
-                    borderColor: Wallust.border
-                    borderWidth: 1.5
-                    smoothing: Config.islandSmoothing
-                }
-
-                BlobRect {
-                    // island body, in the island field (never the frame
-                    // field, so it can't fuse the border).
-                    //   fused                = unused (collapsed to nothing).
-                    //   detached (float/none)= IS the visible floating
-                    //                          pill, rounded rect below the
-                    //                          frame.
-                    // height carries the same reveal curtain as pillBlob.
-                    id: islandBlob
-                    group: islandGroup
-                    x: pill.x
-                    y: overlay.fused ? 0 : pill.y
-                    readonly property bool present: overlay.fused ? false
-                                                                  : overlay.islandShown
-                    property real reveal: present ? 1 : 0
-                    visible: reveal > 0
-                    width: pill.width
-                    height: (overlay.fused ? (pill.y + pill.height) : pill.height) * reveal
-                    topLeftRadius: overlay.fused ? 0 : pill.morphRadius
-                    topRightRadius: overlay.fused ? 0 : pill.morphRadius
-                    bottomLeftRadius: pill.morphRadius
-                    bottomRightRadius: pill.morphRadius
-                    deformScale: 0
-                    opacity: Config.islandOpacity
-                    Behavior on reveal {
-                        NumberAnimation {
-                            duration: Motion.morph
-                            easing.type: Motion.easeMorph
-                            easing.bezierCurve: Motion.morphCurve
-                        }
-                    }
-                }
-
-                Pill {
-                    id: pill
-                    anchors.top: parent.top
-                    anchors.topMargin: overlay.pillTop
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    s: overlay.s
-                    screenName: overlay.modelData.name
-                    barWindow: overlay
-                    surface: overlay.surface
-                    forcePinned: root.peekMon === overlay.modelData.name
-                    satelliteHover: updateIsland.hovered || activityStrip.hovered
-
-                    opacity: overlay.islandShown ? 1 : 0
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Motion.morph
-                            easing.type: Motion.easeMorph
-                            easing.bezierCurve: Motion.morphCurve
-                        }
-                    }
-                    transform: Translate {
-                        y: overlay.monFullscreen ? -(pill.height + overlay.pillTop + 10 * overlay.s) : 0
-                        Behavior on y {
-                            NumberAnimation {
-                                duration: Motion.morph
-                                easing.type: Motion.easeMorph
-                                easing.bezierCurve: Motion.morphCurve
-                            }
-                        }
-                    }
-
-                    onRequestSurface: (name) => root.toggleSurface(overlay.modelData.name, name)
-                    onRequestClose: root.close()
-                }
-
-                Item {
-                    // neck/reveal hover zone: covers only the strip ABOVE
-                    // the pill body (blob neck up into the frame), plus
-                    // the thin reveal trigger while auto-hidden. MUST NOT
-                    // overlap the body. the body's own hover is read by a
-                    // HoverHandler on the pill, and a covering sibling
-                    // here would swallow hover from the surfaces and tray
-                    // icons beneath.
-                    enabled: !overlay.styleNone
-                    x: pill.x
-                    y: 0
-                    width: pill.width
-                    height: overlay.islandShown ? Math.max(0, pill.y) : overlay.revealTrigger
-                    HoverHandler { onHoveredChanged: pill.externalHover = hovered }
-                }
-
-                ActivityStrip {
-                    id: activityStrip
-                    s: overlay.s
-                    visible: overlay.islandShown && !overlay.surfaceOpen && !pill.toastActive && !pill.osdActive && width > 1
-                    x: pill.x - width - 18 * overlay.s
-                    y: Math.max(pill.y + pill.height / 2 - height / 2, 22)
-                    onRequestSurface: (name) => root.toggleSurface(overlay.modelData.name, name)
-                }
-
-                UpdateIsland {
-                    id: updateIsland
-                    s: overlay.s
-                    active: overlay.islandShown && !overlay.surfaceOpen && !pill.toastActive && !pill.osdActive
-                    anchors.right: parent.right
-                    anchors.rightMargin: 20 * overlay.s
-                    y: overlay.pillTop + (pill.restH - height) / 2
-                    onActivated: root.openUpdates()
-                }
             }
 
             onSurfaceOpenChanged: if (focusSurface) focusScope.forceActiveFocus()
+        }
+    }
+
+    // volume / brightness OSD, re-homed from the floating pill into its own
+    // small bottom-centre layer window, just above the bar.
+    Variants {
+        model: Quickshell.screens
+        OsdWindow {}
+    }
+
+    // notification toasts, re-homed from the floating pill into their own small
+    // top-right layer window. clicking one opens the inbox popout on its monitor.
+    Variants {
+        model: Quickshell.screens
+        ToastWindow {
+            onOpenInbox: root.togglePopout(modelData.name, "inbox")
         }
     }
 }
