@@ -303,12 +303,24 @@ func voxtypeServiceEnabled() bool {
 	return userctl("is-enabled", "--quiet", "voxtype.service") == nil
 }
 
-// ensureVoxtypeUnit installs the user service the first time (voxtype setup
-// systemd writes ~/.config/systemd/user/voxtype.service and enables it). Guarded
-// on the unit file so a later Hub "off" (which disables it) is not undone.
+// ensureVoxtypeUnit installs the user service (voxtype setup systemd writes
+// ~/.config/systemd/user/voxtype.service and enables it) and drops in a
+// resilience override: without it, a crash-loop (e.g. the mic being killed
+// repeatedly) trips systemd's start rate-limit and marks the service failed,
+// leaving dictation dead until the next login. StartLimitIntervalSec=0 keeps it
+// restarting no matter what, so the daemon is always there when the mic is free.
 func ensureVoxtypeUnit() {
-	if fileExists(voxtypeUnitPath()) || !onPath("voxtype") {
+	if !onPath("voxtype") {
 		return
 	}
-	_ = exec.Command("voxtype", "setup", "systemd").Run()
+	if !fileExists(voxtypeUnitPath()) {
+		_ = exec.Command("voxtype", "setup", "systemd").Run()
+	}
+	dropin := filepath.Join(configHome(), "systemd", "user", "voxtype.service.d", "ryoku-resilient.conf")
+	want := "# Ryoku: never give up restarting the daemon; a mic-capture crash-loop\n" +
+		"# must not permanently disable dictation.\n" +
+		"[Unit]\nStartLimitIntervalSec=0\n\n[Service]\nRestart=always\nRestartSec=2\n"
+	if readFileString(dropin) != want && atomicWrite(dropin, []byte(want), 0o644) == nil {
+		_ = userctl("daemon-reload")
+	}
 }
