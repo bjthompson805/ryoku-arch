@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell.Widgets
 import "Singletons"
 
 // now-playing module: art thumb, ping-pong title, play state, all read from
@@ -26,21 +27,22 @@ Row {
     // art thumb: the noctalia circle, hairline edge; a music glyph while
     // artless. carries the play state alone on a vertical bar (accent ring
     // while sounding).
-    Rectangle {
+    ClippingRectangle {
         anchors.verticalCenter: parent.verticalCenter
-        width: (media.vertical ? 20 : 18) * media.s
-        height: (media.vertical ? 20 : 18) * media.s
+        width: (media.vertical ? 20 : 14) * media.s
+        height: width
         radius: width / 2
         color: Qt.alpha(Theme.bright, 0.05)
         border.width: 1
         border.color: media.playing ? Qt.alpha(Theme.verm, 0.8) : Theme.hair
-        clip: true
         Image {
             anchors.fill: parent
             anchors.margins: 1
             source: media.player ? (media.player.trackArtUrl || "") : ""
+            sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+            cache: true
             visible: status === Image.Ready
         }
         MaterialIcon {
