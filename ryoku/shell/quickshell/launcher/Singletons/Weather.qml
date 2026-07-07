@@ -17,7 +17,13 @@ Singleton {
     id: root
 
     readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku"
-    readonly property string unit: Model.unitFor(Quickshell.env("LC_MEASUREMENT") || Quickshell.env("LANG") || "")
+    // unit override from the launcher config: "" follows the locale (Fahrenheit
+    // only for US/LR/MM), "C"/"F" force it. a change refetches in the new unit.
+    property string unitOverride: ""
+    readonly property string unit: unitOverride === "C" ? "celsius"
+        : unitOverride === "F" ? "fahrenheit"
+        : Model.unitFor(Quickshell.env("LC_MEASUREMENT") || Quickshell.env("LANG") || "")
+    onUnitChanged: if (root.located) root.fetchWeather()
 
     // public contract, identical to the old wttr.in version.
     property string temp: ""
@@ -42,11 +48,26 @@ Singleton {
     function fetchWeather() {
         if (!root.located || wxProc.running)
             return;
+        // build the URL with the unit wanted right now, so a unit switch can't
+        // race the command binding and fetch the old unit.
+        wxProc.command = ["curl", "-s", "--max-time", "10",
+            "https://api.open-meteo.com/v1/forecast?latitude=" + root.lat
+            + "&longitude=" + root.lon
+            + "&current=temperature_2m,weather_code,is_day,relative_humidity_2m"
+            + "&hourly=temperature_2m,weather_code&forecast_hours=24"
+            + "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&forecast_days=5"
+            + "&timezone=auto&temperature_unit=" + root.unit];
         wxProc.running = true;
     }
 
     function applyForecast(text) {
-        var f = Model.parseForecast(Model.parseJson(text), root.unit);
+        var json = Model.parseJson(text);
+        // format in the unit the response is actually in (Open-Meteo echoes it
+        // in current_units), so a reading never wears the wrong symbol after a
+        // unit switch or a cached replay.
+        var respUnit = json && json.current_units && json.current_units.temperature_2m === "\u00b0F"
+            ? "fahrenheit" : "celsius";
+        var f = Model.parseForecast(json, respUnit);
         if (!f.available)
             return;
         root.tempNow = f.tempNow;
@@ -125,13 +146,6 @@ Singleton {
 
     Process {
         id: wxProc
-        command: ["curl", "-s", "--max-time", "10",
-            "https://api.open-meteo.com/v1/forecast?latitude=" + root.lat
-            + "&longitude=" + root.lon
-            + "&current=temperature_2m,weather_code,is_day,relative_humidity_2m"
-            + "&hourly=temperature_2m,weather_code&forecast_hours=24"
-            + "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&forecast_days=5"
-            + "&timezone=auto&temperature_unit=" + root.unit]
         stdout: StdioCollector {
             onStreamFinished: root.applyForecast(this.text)
         }

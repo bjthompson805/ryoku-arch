@@ -47,7 +47,8 @@ Item {
     readonly property bool isDay: sun ? sun.isDay : (now.getHours() >= 6 && now.getHours() < 20)
     // fixed sky colour for the phase: golden sun by day, cool moonlight by night.
     readonly property color phaseColor: isDay ? Theme.sunGold : Theme.moonGlow
-    readonly property bool wxReady: Weather.available
+    readonly property bool wxReady: Weather.available && LauncherConfig.showWeather
+    readonly property real cardRadius: Math.max(0, LauncherConfig.radius - 4)
 
     SystemClock {
         id: clock
@@ -56,39 +57,25 @@ Item {
 
     Squircle {
         anchors.fill: parent
-        radius: Metrics.radiusCard
+        radius: root.cardRadius
         power: 4
         color: Theme.cardBot
         borderColor: Theme.border
         borderWidth: 1
 
-        // Backmost layer: the launcher's hero art (ships as the hands of
-        // creation, a samurai reaching to a marble goddess, red sun where they
-        // meet). Clipped to the card's rounded corners, under the wave and text.
-        //
-        // TO SWAP THE IMAGE: drop your file into launcher/art/ and point the
-        // `source` below at it. That is the whole job. Guidelines so it looks
-        // right with no other edits:
-        //   - Format: PNG. Quickshell's Qt has no webp plugin, so a .webp shows
-        //     nothing. Use .png (or .jpg).
-        //   - Size: about 1600x640 or wider. The card is a ~5:1 banner and the
-        //     image is cover-cropped to it, so the horizontal centre always
-        //     shows and the top/bottom get trimmed. Keep your subject centred.
-        //   - Legibility: the clock sits far left, the date far right. Keep
-        //     those zones dark, or bake a transparent left/right fade into the
-        //     PNG (the shipped asset does), so the text stays readable on any
-        //     wallpaper.
-        //   - `opacity` below dims it so it reads as atmosphere, not a photo.
-        //     Raise it for a bolder image, lower it to make it whisper.
+        // Backmost layer: the launcher's hero art, dimmed so it reads as
+        // atmosphere. The image and its strength come from the Hub's App
+        // Launcher page (launcher.json); empty falls back to the shipped
+        // hands-of-creation art. Cover-cropped to the ~5:1 card, subject centred.
         ClippingRectangle {
             anchors.fill: parent
-            radius: Metrics.radiusCard * root.s
+            radius: root.cardRadius * root.s
             color: "transparent"
             Image {
                 anchors.fill: parent
-                source: "art/hands-adam.png"   // <- swap this file (PNG, ~1600x640+, centred subject)
+                source: LauncherConfig.heroImage !== "" ? LauncherConfig.heroImage : "art/hands-adam.png"
                 fillMode: Image.PreserveAspectCrop
-                opacity: 0.6                     // <- image strength: higher = bolder, lower = subtler
+                opacity: LauncherConfig.heroStrength
                 asynchronous: true
                 smooth: true
             }
@@ -102,8 +89,8 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.topMargin: 1
-            anchors.leftMargin: Metrics.radiusCard * root.s
-            anchors.rightMargin: Metrics.radiusCard * root.s
+            anchors.leftMargin: root.cardRadius * root.s
+            anchors.rightMargin: root.cardRadius * root.s
             height: 1
             color: Theme.sheen
         }
@@ -116,7 +103,7 @@ Item {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 42 * root.s
-            radius: Metrics.radiusCard * root.s
+            radius: root.cardRadius * root.s
             color: "transparent"
 
             Canvas {
@@ -235,6 +222,7 @@ Item {
             spacing: 4 * root.s
 
             Text {
+                visible: LauncherConfig.showGreeting
                 text: root.greeting
                 color: Theme.subtle
                 font.family: Theme.font

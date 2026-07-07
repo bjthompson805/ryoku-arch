@@ -37,6 +37,13 @@ ShellRoot {
         value: root.open && root.anyPlaying
     }
 
+    // launcher weather units from the config: "auto" follows the locale.
+    Binding {
+        target: Weather
+        property: "unitOverride"
+        value: LauncherConfig.weatherUnit === "auto" ? "" : LauncherConfig.weatherUnit
+    }
+
     function focusedMonitor() {
         var m = Hyprland.focusedMonitor;
         return m && m.name ? m.name : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");

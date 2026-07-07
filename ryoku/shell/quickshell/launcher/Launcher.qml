@@ -227,7 +227,7 @@ Item {
 
     Squircle {
         anchors.fill: parent
-        radius: Metrics.radiusWindow
+        radius: LauncherConfig.radius
         power: 4
         color: Theme.cardTop
         borderColor: Theme.border
