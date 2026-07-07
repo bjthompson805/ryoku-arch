@@ -16,7 +16,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    // frame = rounded screen border the pill swells out of.
+    // frame = rounded screen border the popouts swell out of.
     property alias frameRadius:    adapter.frameRadius
     property alias frameBorder:    adapter.frameBorder
     property alias frameSmoothing: adapter.frameSmoothing
@@ -24,7 +24,7 @@ Singleton {
     property alias shadowStrength: adapter.shadowStrength
     property alias shadowSize:     adapter.shadowSize
 
-    // surface = warm dark fill shared by frame + pill + island. one blob field,
+    // surface = warm dark fill shared by the frame and its popouts. one blob field,
     // so a single colour reads as one continuous surface.
     property alias surfaceColor:   adapter.surfaceColor
 
