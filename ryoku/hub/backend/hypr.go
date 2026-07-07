@@ -26,33 +26,37 @@ import (
 
 // Appearance: general / decoration / animations keywords.
 type Appearance struct {
-	GapsIn          int     `json:"gapsIn"`
-	GapsOut         int     `json:"gapsOut"`
-	BorderSize      int     `json:"borderSize"`
-	Rounding        int     `json:"rounding"`
-	RoundingPower   float64 `json:"roundingPower"`
-	ActiveOpacity   float64 `json:"activeOpacity"`
-	InactiveOpacity float64 `json:"inactiveOpacity"`
-	DimInactive     bool    `json:"dimInactive"`
-	DimStrength     float64 `json:"dimStrength"`
-	BlurEnabled     bool    `json:"blurEnabled"`
-	BlurSize        int     `json:"blurSize"`
-	BlurPasses      int     `json:"blurPasses"`
-	BlurXray        bool    `json:"blurXray"`
-	BlurVibrancy    float64 `json:"blurVibrancy"`
-	BlurNoise       float64 `json:"blurNoise"`
-	ShadowEnabled   bool    `json:"shadowEnabled"`
-	ShadowRange     int     `json:"shadowRange"`
-	ShadowPower     int     `json:"shadowPower"`
-	GlowEnabled     bool    `json:"glowEnabled"`
-	GlowRange       int     `json:"glowRange"`
-	GlowColor       string  `json:"glowColor"`
-	Animations      bool    `json:"animations"`
-	Layout          string  `json:"layout"`
-	ActiveBorder    string  `json:"activeBorder"`
-	InactiveBorder  string  `json:"inactiveBorder"`
-	ResizeOnBorder  bool    `json:"resizeOnBorder"`
-	SnapEnabled     bool    `json:"snapEnabled"`
+	GapsIn           int     `json:"gapsIn"`
+	GapsOut          int     `json:"gapsOut"`
+	BorderSize       int     `json:"borderSize"`
+	Rounding         int     `json:"rounding"`
+	RoundingPower    float64 `json:"roundingPower"`
+	ActiveOpacity    float64 `json:"activeOpacity"`
+	InactiveOpacity  float64 `json:"inactiveOpacity"`
+	DimInactive      bool    `json:"dimInactive"`
+	DimStrength      float64 `json:"dimStrength"`
+	BlurEnabled      bool    `json:"blurEnabled"`
+	BlurSize         int     `json:"blurSize"`
+	BlurPasses       int     `json:"blurPasses"`
+	BlurXray         bool    `json:"blurXray"`
+	BlurVibrancy     float64 `json:"blurVibrancy"`
+	BlurNoise        float64 `json:"blurNoise"`
+	ShadowEnabled    bool    `json:"shadowEnabled"`
+	ShadowRange      int     `json:"shadowRange"`
+	ShadowPower      int     `json:"shadowPower"`
+	GlowEnabled      bool    `json:"glowEnabled"`
+	GlowRange        int     `json:"glowRange"`
+	GlowColor        string  `json:"glowColor"`
+	Animations       bool    `json:"animations"`
+	Layout           string  `json:"layout"`
+	ActiveBorder     string  `json:"activeBorder"`
+	InactiveBorder   string  `json:"inactiveBorder"`
+	ResizeOnBorder   bool    `json:"resizeOnBorder"`
+	SnapEnabled      bool    `json:"snapEnabled"`
+	WobblyWindows    bool    `json:"wobblyWindows"`
+	WindowStyle      string  `json:"windowStyle"`
+	AnimatedBorder   bool    `json:"animatedBorder"`
+	BorderAngleSpeed float64 `json:"borderAngleSpeed"`
 }
 
 // Input: the input keyword (keyboard, pointer, touchpad) + the pointer-adjacent
@@ -192,16 +196,18 @@ func defaultOverrides() Overrides {
 			Animations: true, Layout: "dwindle",
 			ActiveBorder: "#e0563b", InactiveBorder: "#313a4d",
 			ResizeOnBorder: true, SnapEnabled: false,
+			WobblyWindows: false, WindowStyle: "pop",
+			AnimatedBorder: false, BorderAngleSpeed: 3,
 		},
 		Input: Input{
 			KbLayout: "us", KbVariant: "", KbOptions: "", NumlockByDefault: false,
 			FollowMouse: 2, Sensitivity: 0, AccelProfile: "",
 			LeftHanded: false, MouseNaturalScroll: false, MouseScrollFactor: 1,
 			MiddleClickPaste: true,
-			NaturalScroll: false, TapToClick: true, TapAndDrag: true,
+			NaturalScroll:    false, TapToClick: true, TapAndDrag: true,
 			Clickfinger: false, MiddleEmulation: false, TouchScrollFactor: 1,
 			DisableWhileTyping: true,
-			RepeatRate: 25, RepeatDelay: 600,
+			RepeatRate:         25, RepeatDelay: 600,
 			WorkspaceSwipe: false, SwipeFingers: 3,
 			SwipeInvert: true, SwipeCreateNew: true, SwipeDistance: 300,
 		},
@@ -488,6 +494,12 @@ func genLua(o Overrides, follow bool) string {
 	if cfg := genConfig(o, follow); cfg != "" {
 		b.WriteString(cfg)
 	}
+	if m := genMotion(o, false); m != "" {
+		b.WriteString(m)
+	}
+	if ab := genAnimatedBorder(o, follow, false); ab != "" {
+		b.WriteString(ab)
+	}
 	if anim := genAnimBlock(o); anim != "" {
 		b.WriteString(anim)
 		b.WriteString("\n")
@@ -564,7 +576,13 @@ func genConfig(o Overrides, follow bool) string {
 	if a.SnapEnabled != da.SnapEnabled {
 		general = append(general, fmt.Sprintf("snap = { enabled = %t }", a.SnapEnabled))
 	}
-	if !follow {
+	if a.AnimatedBorder {
+		// the active border is a rotating gradient (genAnimatedBorder); only the
+		// inactive colour is a plain override, and only when colours are fixed.
+		if !follow {
+			general = append(general, fmt.Sprintf("[\"col.inactive_border\"] = %s", luaStr(luaRGB(a.InactiveBorder))))
+		}
+	} else if !follow {
 		general = append(general, fmt.Sprintf("[\"col.active_border\"] = %s", luaStr(luaRGB(a.ActiveBorder))))
 		general = append(general, fmt.Sprintf("[\"col.inactive_border\"] = %s", luaStr(luaRGB(a.InactiveBorder))))
 	}
@@ -1021,11 +1039,105 @@ func genGesture(o Overrides) string {
 	return fmt.Sprintf("hl.gesture({ fingers = %d, direction = \"horizontal\", action = \"workspace\" })\n", n)
 }
 
+// wobbleCurve = an easeOutBack overshoot: a moved window shoots a touch past its
+// mark and springs back, so a dragged float trails the cursor and settles with a
+// little wobble. only emitted when the toggle is on.
+const wobbleCurve = "hl.curve(\"ryokuWobble\", { type = \"bezier\", points = { { 0.34, 1.56 }, { 0.64, 1 } } })\n"
+
+// genMotion: the window-motion toggles the Look tab owns (spring drag, open and
+// close style), kept out of the diff-based hl.config so wobble can define its own
+// curve. full marks a live preview, which restates the base feel too so eval can
+// switch a toggle back off; settings.lua (full = false) writes only what diverges.
+func genMotion(o Overrides, full bool) string {
+	a := o.Appearance
+	var b strings.Builder
+	switch {
+	case a.WobblyWindows:
+		b.WriteString(wobbleCurve)
+		b.WriteString("hl.animation({ leaf = \"windowsMove\", enabled = true, speed = 5, bezier = \"ryokuWobble\" })\n")
+	case full:
+		// reset the drag back to the base windows feel for the preview.
+		b.WriteString("hl.animation({ leaf = \"windowsMove\", enabled = true, speed = 3.2, bezier = \"ryokuSettle\" })\n")
+	}
+	switch a.WindowStyle {
+	case "slide", "gnomed":
+		fmt.Fprintf(&b, "hl.animation({ leaf = \"windowsIn\", enabled = true, speed = 3.8, bezier = \"ryokuBloom\", style = %s })\n", luaStr(a.WindowStyle))
+		fmt.Fprintf(&b, "hl.animation({ leaf = \"windowsOut\", enabled = true, speed = 2.4, bezier = \"ryokuSettle\", style = %s })\n", luaStr(a.WindowStyle))
+	default:
+		if full {
+			b.WriteString("hl.animation({ leaf = \"windowsIn\", enabled = true, speed = 3.8, bezier = \"ryokuBloom\", style = \"popin 78%\" })\n")
+			b.WriteString("hl.animation({ leaf = \"windowsOut\", enabled = true, speed = 2.4, bezier = \"ryokuSettle\", style = \"popin 86%\" })\n")
+		}
+	}
+	return b.String()
+}
+
+// gradientBorderBlock re-reads the live wallust accents at load time (like
+// decoration.lua) so the rotating border re-themes with the wallpaper on reload.
+const gradientBorderBlock = "do\n" +
+	"  local ok, wc = pcall(dofile, os.getenv(\"HOME\") .. \"/.cache/wallust/hypr-colors.lua\")\n" +
+	"  local function rgb(h, f) if type(h) ~= \"string\" then h = f end return \"rgb(\" .. h:gsub(\"#\", \"\") .. \")\" end\n" +
+	"  hl.config({ general = { [\"col.active_border\"] = { colors = { rgb(ok and wc and wc.active, \"#e0563b\"), rgb(ok and wc and wc.inactive, \"#313a4d\") }, angle = 45 } } })\n" +
+	"end\n"
+
+// solidBorderBlock restores the plain wallust active border, for a preview that
+// switches the rotating border back off.
+const solidBorderBlock = "do\n" +
+	"  local ok, wc = pcall(dofile, os.getenv(\"HOME\") .. \"/.cache/wallust/hypr-colors.lua\")\n" +
+	"  local function rgb(h, f) if type(h) ~= \"string\" then h = f end return \"rgb(\" .. h:gsub(\"#\", \"\") .. \")\" end\n" +
+	"  hl.config({ general = { [\"col.active_border\"] = rgb(ok and wc and wc.active, \"#e0563b\") } })\n" +
+	"end\n"
+
+// borderAngleHyprSpeed maps the friendly 1..10 rotation speed the UI shows onto
+// Hyprland's deciseconds-per-turn (higher is slower there), so a bigger slider
+// value spins faster. clamped so a stray value can't stall the sweep.
+func borderAngleHyprSpeed(friendly float64) float64 {
+	if friendly < 1 {
+		friendly = 1
+	}
+	if friendly > 10 {
+		friendly = 10
+	}
+	return 110 - friendly*10
+}
+
+// genAnimatedBorder: a rotating gradient on the active window border. off writes
+// nothing to settings.lua (the base solid border stands); a live preview instead
+// stops the sweep and restores the solid border so the toggle reads at once. the
+// gradient reads the wallust accents at load time when colours follow the
+// wallpaper, and uses the fixed border colours otherwise.
+func genAnimatedBorder(o Overrides, follow, full bool) string {
+	a := o.Appearance
+	if !a.AnimatedBorder {
+		if !full {
+			return ""
+		}
+		var b strings.Builder
+		b.WriteString("hl.animation({ leaf = \"borderangle\", enabled = false, speed = 1, bezier = \"linear\" })\n")
+		if follow {
+			b.WriteString(solidBorderBlock) // fullConfigLua emits no border while following
+		}
+		return b.String()
+	}
+	var b strings.Builder
+	if follow {
+		b.WriteString(gradientBorderBlock)
+	} else {
+		grad := fmt.Sprintf("{ colors = { %s, %s }, angle = 45 }", luaStr(luaRGB(a.ActiveBorder)), luaStr(luaRGB(a.InactiveBorder)))
+		fmt.Fprintf(&b, "hl.config({ general = { [\"col.active_border\"] = %s } })\n", grad)
+	}
+	fmt.Fprintf(&b, "hl.animation({ leaf = \"borderangle\", enabled = true, speed = %s, bezier = \"linear\", style = \"loop\" })\n",
+		luaNum(borderAngleHyprSpeed(a.BorderAngleSpeed)))
+	return b.String()
+}
+
 // liveLua = full-config preview + cursor, applied flash-free via hyprctl eval
 // (appearance / input / cursor). rules, keybinds, env, autostart are not
 // previewed; they apply on Save via reload.
 func liveLua(o Overrides) string {
-	return fullConfigLua(o, loadThemeState().FollowWallpaper) + genAnimBlock(o) + genGesture(o) +
+	follow := loadThemeState().FollowWallpaper
+	return fullConfigLua(o, follow) + genMotion(o, true) + genAnimatedBorder(o, follow, true) +
+		genAnimBlock(o) + genGesture(o) +
 		fmt.Sprintf("hl.exec_cmd(%s)\n", luaStr(fmt.Sprintf("hyprctl setcursor %s %d", o.Cursor.Theme, o.Cursor.Size)))
 }
 

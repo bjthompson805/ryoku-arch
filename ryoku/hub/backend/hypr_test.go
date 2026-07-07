@@ -311,6 +311,123 @@ func TestGenAnimBlock(t *testing.T) {
 	}
 }
 
+// genMotion: the wobble toggle defines its overshoot curve and drives windowsMove.
+// off it stays out of settings.lua, but a live preview resets the leaf so the
+// toggle can be switched back off.
+func TestGenMotionWobble(t *testing.T) {
+	if genMotion(defaultOverrides(), false) != "" {
+		t.Errorf("default motion must be empty in settings.lua, got:\n%s", genMotion(defaultOverrides(), false))
+	}
+	o := defaultOverrides()
+	o.Appearance.WobblyWindows = true
+	on := genMotion(o, false)
+	if !strings.Contains(on, `hl.curve("ryokuWobble"`) {
+		t.Errorf("wobble must define its curve:\n%s", on)
+	}
+	if !strings.Contains(on, `hl.animation({ leaf = "windowsMove", enabled = true, speed = 5, bezier = "ryokuWobble" })`) {
+		t.Errorf("wobble must drive windowsMove:\n%s", on)
+	}
+	off := genMotion(defaultOverrides(), true)
+	if !strings.Contains(off, `leaf = "windowsMove", enabled = true, speed = 3.2, bezier = "ryokuSettle"`) {
+		t.Errorf("preview must reset windowsMove when wobble is off:\n%s", off)
+	}
+}
+
+// genMotion window style: only slide/gnomed diverge; the default pop writes
+// nothing to settings.lua and the live preview restates the base popin so the
+// choice can reset.
+func TestGenMotionWindowStyle(t *testing.T) {
+	o := defaultOverrides()
+	o.Appearance.WindowStyle = "slide"
+	got := genMotion(o, false)
+	if !strings.Contains(got, `leaf = "windowsIn", enabled = true, speed = 3.8, bezier = "ryokuBloom", style = "slide"`) {
+		t.Errorf("slide must set windowsIn style:\n%s", got)
+	}
+	if !strings.Contains(got, `leaf = "windowsOut", enabled = true, speed = 2.4, bezier = "ryokuSettle", style = "slide"`) {
+		t.Errorf("slide must set windowsOut style:\n%s", got)
+	}
+	if strings.Contains(genMotion(defaultOverrides(), false), "windowsIn") {
+		t.Error("default pop must not pin windowsIn in settings.lua")
+	}
+	if !strings.Contains(genMotion(defaultOverrides(), true), `style = "popin 78%"`) {
+		t.Error("preview must restate the base popin so the style can reset")
+	}
+}
+
+// borderAngleHyprSpeed maps friendly 1..10 to Hyprland deciseconds (higher there
+// is slower), inverted so a bigger slider value spins faster, and clamps.
+func TestBorderAngleHyprSpeed(t *testing.T) {
+	for in, want := range map[float64]float64{1: 100, 3: 80, 10: 10, 0: 100, 99: 10} {
+		if got := borderAngleHyprSpeed(in); got != want {
+			t.Errorf("borderAngleHyprSpeed(%v) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+// genAnimatedBorder: off is silent in settings.lua; on with fixed colours writes
+// a gradient active border as a colors table (a string is rejected by the hl API)
+// plus the looping sweep, and genConfig drops its solid active border so the
+// gradient wins.
+func TestGenAnimatedBorderFixed(t *testing.T) {
+	if genAnimatedBorder(defaultOverrides(), false, false) != "" {
+		t.Error("animated border off must be silent in settings.lua")
+	}
+	o := defaultOverrides()
+	o.Appearance.AnimatedBorder = true
+	got := genAnimatedBorder(o, false, false)
+	if !strings.Contains(got, `["col.active_border"] = { colors = { "rgb(e0563b)", "rgb(313a4d)" }, angle = 45 }`) {
+		t.Errorf("fixed animated border must be a colors table:\n%s", got)
+	}
+	if !strings.Contains(got, `leaf = "borderangle", enabled = true, speed = 80.0, bezier = "linear", style = "loop"`) {
+		t.Errorf("animated border must loop the sweep:\n%s", got)
+	}
+	if strings.Contains(genConfig(o, false), "col.active_border") {
+		t.Errorf("genConfig must drop the solid active border when animated:\n%s", genConfig(o, false))
+	}
+	if !strings.Contains(genConfig(o, false), "col.inactive_border") {
+		t.Error("genConfig must still set the fixed inactive border")
+	}
+}
+
+// genAnimatedBorder while colours follow the wallpaper reads the live wallust
+// accents at load time, so the sweep re-themes on reload; a preview turning it
+// off stops the sweep and restores a solid border.
+func TestGenAnimatedBorderFollow(t *testing.T) {
+	o := defaultOverrides()
+	o.Appearance.AnimatedBorder = true
+	got := genAnimatedBorder(o, true, false)
+	if !strings.Contains(got, "hypr-colors.lua") || !strings.Contains(got, "colors = {") {
+		t.Errorf("following animated border must read wallust accents into a gradient:\n%s", got)
+	}
+	if !strings.Contains(got, `style = "loop"`) {
+		t.Errorf("following animated border must loop:\n%s", got)
+	}
+	off := genAnimatedBorder(defaultOverrides(), true, true)
+	if !strings.Contains(off, "enabled = false") || !strings.Contains(off, "hypr-colors.lua") {
+		t.Errorf("preview off must stop the sweep and restore the solid border:\n%s", off)
+	}
+}
+
+// genLua and liveLua must stay valid Lua with the motion and border toggles on,
+// across follow-wallpaper and fixed colours.
+func TestMotionTogglesParse(t *testing.T) {
+	luac, err := exec.LookPath("luac")
+	if err != nil {
+		t.Skip("luac not available")
+	}
+	o := defaultOverrides()
+	o.Appearance.WobblyWindows = true
+	o.Appearance.WindowStyle = "gnomed"
+	o.Appearance.AnimatedBorder = true
+	for _, lua := range []string{genLua(o, false), genLua(o, true), liveLua(o)} {
+		cmd := exec.Command(luac, "-p", "-")
+		cmd.Stdin = strings.NewReader(lua)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("motion toggles do not parse: %v\n%s\n%s", err, out, lua)
+		}
+	}
+}
+
 // genGesture only emits when workspace swipe is on, fingers clamped to >= 3.
 func TestGenGesture(t *testing.T) {
 	if genGesture(defaultOverrides()) != "" {

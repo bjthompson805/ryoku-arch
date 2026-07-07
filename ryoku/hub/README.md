@@ -56,11 +56,13 @@ autostart, environment, the shell's look, the lock screen, and the update channe
 - **Appearance** window gaps, rounding and corner softness, border thickness,
   active/inactive opacity, inactive dimming, blur (size, passes, X-ray,
   vibrancy, noise), shadows (range, sharpness), the window glow, tiling layout
-  (dwindle, master, scrolling), edge resize and floating snap, animations,
-  border colours (follow the wallpaper palette or fix them), and the cursor:
-  theme, size, and hide-on-idle/typing. A **Wallpaper** tab retheme
-  the desktop (the wallust palette follows the pick, via `ryoku-shell wallpaper`),
-  and a **Comfort** tab controls backlight and the night light.
+  (dwindle, master, scrolling), edge resize and floating snap, animations
+  (including wobbly windows for a spring in the drag, and the window open/close
+  style), border colours (follow the wallpaper palette or fix them) with an
+  optional rotating gradient border, and the cursor: theme, size, and
+  hide-on-idle/typing. A **Wallpaper** tab retheme the desktop (the wallust
+  palette follows the pick, via `ryoku-shell wallpaper`), and a **Comfort** tab
+  controls backlight and the night light.
 - **Lockscreen** the full qylock theme catalogue as a bento grid, fetched live from
   upstream so new and fixed skins appear without a Ryoku release. Each tile previews
   the real lockscreen (a local gif for the two vendored clockwork skins, the upstream

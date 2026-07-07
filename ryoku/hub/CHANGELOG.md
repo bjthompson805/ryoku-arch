@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- The Appearance page's **Look** tab gains window-motion toggles. **Wobbly
+  windows** gives a dragged floating window a spring: it trails the cursor and
+  settles with a little overshoot (a native `windowsMove` bezier, no plugin, so
+  it works on a stock Hyprland). **Open / close** picks the window open and close
+  style (Pop, Slide, Gnome). The **Borders** tab gains a **Rotating gradient
+  border**: the active window's border sweeps a gradient of your accent colours
+  (wallpaper-derived while colours follow the wallpaper, the fixed pair
+  otherwise) at an adjustable speed. All three preview live and persist to
+  `settings.lua`.
 - An **App Launcher** page (Desktop): tune the command palette (Super+Space)
   from the Hub. Set its corner roundness, the home card's weather units
   (Auto/C/F), whether the greeting and weather show, and the backdrop. The

@@ -407,6 +407,19 @@ Item {
                         checked: store.animations
                         onToggled: (v) => store.edit("animations", v)
                     }
+                    ToggleRow {
+                        width: parent.width; label: "Wobbly windows"
+                        checked: store.wobblyWindows
+                        visible: store.animations
+                        onToggled: (v) => store.edit("wobblyWindows", v)
+                    }
+                    ChoiceRow {
+                        width: parent.width; label: "Open / close"
+                        options: [{ "key": "pop", "label": "Pop" }, { "key": "slide", "label": "Slide" }, { "key": "gnomed", "label": "Gnome" }]
+                        current: store.windowStyle
+                        visible: store.animations
+                        onChosen: (k) => store.edit("windowStyle", k)
+                    }
                 }
 
                 SettingSection {
@@ -463,6 +476,30 @@ Item {
                     width: parent.width; label: "Inactive window"
                     value: store.inactiveBorder
                     onModified: (v) => store.edit("inactiveBorder", v)
+                }
+            }
+
+            SettingSection {
+                width: parent.width
+                title: "ANIMATED BORDER"
+                ToggleRow {
+                    width: parent.width; label: "Rotating gradient border"
+                    checked: store.animatedBorder
+                    onToggled: (v) => store.edit("animatedBorder", v)
+                }
+                SliderRow {
+                    width: parent.width; label: "Rotation speed"
+                    from: 1; to: 10; step: 1; decimals: 0; value: store.borderAngleSpeed
+                    visible: store.animatedBorder
+                    onModified: (v) => store.edit("borderAngleSpeed", v)
+                }
+                Text {
+                    width: Math.min(parent.width, 620)
+                    wrapMode: Text.WordWrap
+                    text: "The active window's border sweeps a rotating gradient of your accent colours. Needs a border thickness above 0."
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 12
                 }
             }
         }

@@ -47,6 +47,10 @@ Item {
     property string inactiveBorder: "#313a4d"
     property bool resizeOnBorder: true
     property bool snapEnabled: false
+    property bool wobblyWindows: false
+    property string windowStyle: "pop"
+    property bool animatedBorder: false
+    property real borderAngleSpeed: 3
 
     // draft: input.
     property string kbLayout: "us"
@@ -106,7 +110,8 @@ Item {
         "shadowEnabled", "shadowRange", "shadowPower",
         "glowEnabled", "glowRange", "glowColor",
         "animations", "layout", "activeBorder", "inactiveBorder",
-        "resizeOnBorder", "snapEnabled"
+        "resizeOnBorder", "snapEnabled",
+        "wobblyWindows", "windowStyle", "animatedBorder", "borderAngleSpeed"
     ]
     readonly property var inputKeys: [
         "kbLayout", "kbVariant", "kbOptions", "numlockByDefault",
