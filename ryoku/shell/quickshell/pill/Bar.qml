@@ -28,6 +28,7 @@ Item {
     required property var trayWindow
 
     signal popoutRequested(string name, real center)
+    signal hoverPopoutRequested(string name, real center, bool hovered)
 
     readonly property real moduleSpan: Math.round(bar.band * 0.76)
 
@@ -133,12 +134,14 @@ Item {
             spacing: 8 * bar.s
 
             BarModule {
+                id: mediaMod
                 anchors.verticalCenter: parent.verticalCenter
                 s: bar.s
                 height: bar.moduleSpan
                 visible: Config.barShowMedia && hMedia.present
                 onTapped: hMedia.toggle()
                 onWheeled: (steps) => bar.nudgeVolume(steps)
+                onHoveredChanged: bar.hoverPopoutRequested("media", mediaMod.mapToItem(null, mediaMod.width / 2, mediaMod.height / 2).x, mediaMod.hovered)
 
                 BarMedia {
                     id: hMedia

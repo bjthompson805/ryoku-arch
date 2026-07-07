@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+- **The now-playing module opens a transport on hover.** Hovering the bar's
+  media module grows a compact popout from the frame edge at the module: an
+  elapsed / total line you can drag to seek, over a prev / play-pause / next
+  cluster. It melts open through the shared blob field like every other popout
+  and stays open while the pointer is on the module or the panel.
+
 ### Changed
 - **The wallpaper picker is a full-screen switcher now.** Super+C opens a
   Super+Tab-style overlay instead of the pill filmstrip: images and live video

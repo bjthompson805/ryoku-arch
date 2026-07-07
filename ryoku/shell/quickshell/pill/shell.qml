@@ -46,6 +46,13 @@ ShellRoot {
     // sits. set by togglePopoutAt from the bar's click.
     property real popoutCenter: 0
 
+    // media hover popout: the now-playing module drives this while hovered,
+    // feeding its centre. distinct from the clicked `popout` above so hover
+    // and click never clobber each other.
+    property string hoverPopout: ""
+    property string hoverPopoutMon: ""
+    property real hoverPopoutCenter: 0
+
     // popouts that need the keyboard (search / password fields). while one of
     // these is the pinned popout, the overlay grabs the keyboard the way an open
     // surface does and hands it back on close; the pointer-only popouts and
@@ -234,6 +241,25 @@ ShellRoot {
         root.popoutCenter = center;
         root.popout = name;
         root.popoutMon = mon;
+    }
+
+    // media hover popout: open at the module's centre; on unhover a short grace
+    // lets the pointer cross the bar edge to the body, whose own hover latch
+    // then holds the popout open for the transport buttons.
+    Timer {
+        id: hoverPopoutClose
+        interval: 160
+        onTriggered: { root.hoverPopout = ""; root.hoverPopoutMon = ""; }
+    }
+    function setHoverPopout(mon, name, center, hovered) {
+        if (hovered) {
+            hoverPopoutClose.stop();
+            root.hoverPopoutCenter = center;
+            root.hoverPopoutMon = mon;
+            root.hoverPopout = name;
+        } else if (root.hoverPopout === name && root.hoverPopoutMon === mon) {
+            hoverPopoutClose.restart();
+        }
     }
 
     // open the Hub on its Updates section. the update island is an entry
@@ -515,6 +541,7 @@ ShellRoot {
                 Region { x: voicePop.bodyX; y: voicePop.bodyY; width: voicePop.bodyW; height: voicePop.bodyH }
                 Region { x: keyringPop.bodyX; y: keyringPop.bodyY; width: keyringPop.bodyW; height: keyringPop.bodyH }
                 Region { x: workspacesPop.bodyX; y: workspacesPop.bodyY; width: workspacesPop.bodyW; height: workspacesPop.bodyH }
+                Region { x: mediaPop.bodyX; y: mediaPop.bodyY; width: mediaPop.bodyW; height: mediaPop.bodyH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
             }
@@ -590,6 +617,7 @@ ShellRoot {
                     band: overlay.barBand
                     trayWindow: overlay
                     onPopoutRequested: (name, center) => root.togglePopoutAt(overlay.modelData.name, name, center)
+                    onHoverPopoutRequested: (name, center, hovered) => root.setHoverPopout(overlay.modelData.name, name, center, hovered)
                 }
 
                 // mixer popout: on a side bar the volume status icon owns it --
@@ -732,6 +760,32 @@ ShellRoot {
                         id: calContent
                         s: overlay.s
                         open: calendarPop.prog > 0.5
+                    }
+                }
+
+                // media hover popout: hovering the now-playing module grows a
+                // compact transport (elapsed line + prev/play/next) from the bar
+                // edge at the module; the body's hover latch keeps it open for
+                // the buttons. gated off while a clicked popout is up.
+                Popout {
+                    id: mediaPop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.hoverPopoutCenter
+                    s: overlay.s
+                    active: !overlay.monFullscreen && root.popout === ""
+                    triggerHovered: root.hoverPopout === "media" && root.hoverPopoutMon === overlay.modelData.name
+                    openW: mediaContent.implicitWidth
+                    openH: mediaContent.implicitHeight
+
+                    MediaPopout {
+                        id: mediaContent
+                        s: overlay.s
+                        open: mediaPop.prog > 0.5
                     }
                 }
 
