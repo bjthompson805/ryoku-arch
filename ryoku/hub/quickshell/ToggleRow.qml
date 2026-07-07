@@ -14,6 +14,10 @@ Item {
     implicitWidth: 320
     implicitHeight: 38
 
+    // a locked toggle (e.g. voice typing before a model is downloaded) reads dim.
+    opacity: row.enabled ? 1.0 : 0.45
+    Behavior on opacity { NumberAnimation { duration: Theme.quick } }
+
     Text {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter

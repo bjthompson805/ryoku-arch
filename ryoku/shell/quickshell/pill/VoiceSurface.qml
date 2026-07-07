@@ -3,13 +3,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// voice dictation surface grown from the pill centre. Super+` starts Voxtype's
-// transcription and opens this; tapping again stops. VoiceBars runs cava on
-// the default mic, the Ryoku wave sits flat in silence and swells with the
-// live spectrum as you speak. island reads as listening.
-//
-// deliberately non-focus-grabbing in the shell, so the keystrokes Voxtype types
-// land in the app you're dictating into, not the pill.
+// The dictation surface grown from the pill centre. Super+` starts Voxtype and
+// opens this; tapping again stops. VoiceBars runs cava on the mic, so the wave
+// lies flat in silence and swells as you speak. When dictation is off it shows
+// a plain "off" note instead. It never grabs focus, so Voxtype's keystrokes
+// land in the app you're dictating into, not here.
 PillSurface {
     id: root
 
@@ -18,12 +16,15 @@ PillSurface {
     mRight: 18
     mBottom: 13
 
+    // dictation isn't running: show a plain "off" note in place of the wave.
+    property bool off: false
     ameForm: "off"
 
     implicitHeight: 30 * root.s
 
-    // run cava only while the surface is live, never leave it running.
-    onOpenChanged: VoiceBars.active = root.open
+    // run cava only while we're actually listening, never leave it running.
+    onOpenChanged: VoiceBars.active = root.open && !root.off
+    onOffChanged: VoiceBars.active = root.open && !root.off
     Component.onDestruction: VoiceBars.active = false
 
     // mic energy 0..1. mic glyph + wave brighten as user speaks, rest dim.
@@ -39,6 +40,7 @@ PillSurface {
 
     Row {
         anchors.fill: parent
+        visible: !root.off
         spacing: 12 * root.s
 
         GlyphIcon {
@@ -99,7 +101,7 @@ PillSurface {
 
             Timer {
                 interval: 33
-                running: root.open
+                running: root.open && !root.off
                 repeat: true
                 onTriggered: {
                     wave.phase = (wave.phase + 0.22) % 6.28318;
@@ -107,5 +109,33 @@ PillSurface {
                 }
             }
         }
+    }
+
+    // dictation off: a quiet note where the wave would be, auto-dismissed.
+    Row {
+        anchors.centerIn: parent
+        spacing: 8 * root.s
+        visible: root.off
+        GlyphIcon {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 15 * root.s
+            height: 15 * root.s
+            name: "mic-off"
+            color: Theme.iconDim
+            stroke: 1.7
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Dictation off"
+            color: Theme.subtle
+            font.family: Theme.font
+            font.pixelSize: 12 * root.s
+        }
+    }
+
+    Timer {
+        running: root.off && root.open
+        interval: 1800
+        onTriggered: root.requestClose()
     }
 }

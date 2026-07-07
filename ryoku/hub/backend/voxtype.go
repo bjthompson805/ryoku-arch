@@ -303,12 +303,10 @@ func voxtypeServiceEnabled() bool {
 	return userctl("is-enabled", "--quiet", "voxtype.service") == nil
 }
 
-// ensureVoxtypeUnit installs the user service (voxtype setup systemd writes
-// ~/.config/systemd/user/voxtype.service and enables it) and drops in a
-// resilience override: without it, a crash-loop (e.g. the mic being killed
-// repeatedly) trips systemd's start rate-limit and marks the service failed,
-// leaving dictation dead until the next login. StartLimitIntervalSec=0 keeps it
-// restarting no matter what, so the daemon is always there when the mic is free.
+// ensureVoxtypeUnit installs the user service (voxtype setup systemd writes and
+// enables the unit) and adds a resilience drop-in: StartLimitIntervalSec=0 so a
+// crash-loop (the mic getting killed over and over) can't trip systemd's restart
+// rate-limit and leave dictation dead until the next login.
 func ensureVoxtypeUnit() {
 	if !onPath("voxtype") {
 		return

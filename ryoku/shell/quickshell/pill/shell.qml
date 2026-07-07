@@ -40,6 +40,9 @@ ShellRoot {
     // monitor. hover is the usual trigger; this is the keybind path.
     property string popout: ""
     property string popoutMon: ""
+    // voiceShow with the dictation service off: the popout says so instead of
+    // drawing a wave that would record nothing.
+    property bool voiceOff: false
     // along-axis centre of the bar icon that opened the current popout (window
     // coords), so the popout blob grows from that icon on whatever edge the bar
     // sits. set by togglePopoutAt from the bar's click.
@@ -311,7 +314,8 @@ ShellRoot {
             if (root.popout === "keyring")
                 root.popout = "";
         }
-        function voiceShow(mon: string): void { root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
+        function voiceShow(mon: string): void { root.voiceOff = false; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
+        function voiceOff(mon: string): void { root.voiceOff = true; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
         function voiceHide(): void { if (root.popout === "voice") root.popout = ""; }
         function peek(mon: string): void { root.peek(mon); }
         function hide(): void { root.popout = ""; }
@@ -343,7 +347,9 @@ ShellRoot {
             root.togglePopout(mon, "plugin:" + (parts.length > 2 ? parts[2] : ""));
             return true;
         case "voiceShow":
-            root.popoutCenter = -1; root.popoutMon = mon; root.popout = "voice"; return true;
+            root.voiceOff = false; root.popoutCenter = -1; root.popoutMon = mon; root.popout = "voice"; return true;
+        case "voiceOff":
+            root.voiceOff = true; root.popoutCenter = -1; root.popoutMon = mon; root.popout = "voice"; return true;
         case "voiceHide":
             if (root.popout === "voice") root.popout = "";
             return true;
@@ -939,6 +945,7 @@ ShellRoot {
                     VoicePopout {
                         id: voiceContent
                         s: overlay.s
+                        off: root.voiceOff
                         open: voicePop.prog > 0.5
                         onCloseRequested: root.popout = ""
                     }

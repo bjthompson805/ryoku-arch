@@ -166,6 +166,16 @@ func voxtypeRecord(verb string) {
 	go func() { _ = cmd.Wait() }()
 }
 
+// dictationReady reports whether a Super+` tap can actually dictate: Voxtype
+// installed and its user service running. When it can't, the pill shows an
+// "off" note instead of a listening wave that would capture nothing.
+func dictationReady() bool {
+	if _, err := exec.LookPath("voxtype"); err != nil {
+		return false
+	}
+	return exec.Command("systemctl", "--user", "is-active", "--quiet", "voxtype.service").Run() == nil
+}
+
 // startCliphist starts the wl-paste watchers that feed clipboard history, once.
 func startCliphist() {
 	for _, kind := range []string{"text", "image"} {

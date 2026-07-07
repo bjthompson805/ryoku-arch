@@ -5,11 +5,10 @@ import Quickshell
 import Quickshell.Io
 import "Singletons"
 
-// System > Dictation. Voice typing with Voxtype: switch it on, pick a
-// speech-to-text engine and model, and add an API key for the cloud engines.
-// The shell owns Super+` and the pill mic-wave; this page only shapes
-// ~/.config/voxtype/config.toml and the voxtype user service through
-// `ryoku-hub voxtype`. Local models download in Voxtype's own terminal TUI.
+// System > Dictation. Switch voice typing on, pick a speech-to-text engine and
+// model, download models in place, and drop in an API key for the cloud engine.
+// The shell owns Super+` and the pill's mic-wave; this page just shapes
+// ~/.config/voxtype/config.toml and the user service through `ryoku-hub voxtype`.
 Item {
     id: page
     readonly property bool previewDirty: false
@@ -22,6 +21,7 @@ Item {
     property bool openaiKeySet: false
     property string downloading: ""    // preset key whose model is downloading, or ""
     property string busyError: ""
+    property string notice: ""    // one-shot info banner, e.g. after a download
 
     readonly property var sel: {
         for (var i = 0; i < page.presets.length; i++)
@@ -32,6 +32,9 @@ Item {
     readonly property string keyKind: page.sel !== null ? page.sel.keyKind : ""
     readonly property bool needsKey: page.keyKind !== ""
     readonly property bool keyOnFile: page.openaiKeySet
+    // can voice typing be switched on yet? a local model has to be downloaded,
+    // or a cloud engine needs its key. otherwise the toggle stays locked.
+    readonly property bool usable: page.sel !== null && (page.sel.cloud ? page.keyOnFile : page.sel.present)
 
     function reload() { getProc.running = true; }
 
@@ -72,6 +75,7 @@ Item {
         if (page.downloading !== "")
             return;
         page.busyError = "";
+        page.notice = "";
         page.downloading = key;
         dlProc.command = ["ryoku-hub", "voxtype", "download", key];
         dlProc.running = true;
@@ -142,6 +146,7 @@ Item {
             page.downloading = "";
             if (code === 0) {
                 page.selected = k;
+                page.notice = "Model downloaded. If dictation doesn't respond, a reboot may be needed to apply it.";
                 page.apply(null);
             } else {
                 page.busyError = "Download failed (voxtype exited " + code + ").";
@@ -226,7 +231,30 @@ Item {
             width: Math.min(parent.width - 8, 620)
             spacing: 24
 
-            // --- DICTATION ------------------------------------------------
+            // a one-shot info note (tap to dismiss), e.g. after a model download.
+            Rectangle {
+                visible: page.notice !== ""
+                width: parent.width
+                height: noticeText.implicitHeight + 20
+                radius: Theme.radius
+                color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.10)
+                border.width: 1
+                border.color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.35)
+                Text {
+                    id: noticeText
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: 12
+                    text: page.notice
+                    color: Theme.cream
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.notice = "" }
+            }
+
             SettingSection {
                 width: parent.width
                 title: "DICTATION"
@@ -235,19 +263,24 @@ Item {
                     width: Math.min(parent.width, 460)
                     label: "Voice typing"
                     checked: page.voiceOn
+                    // switch off any time; switch on only once there's a model to use.
+                    enabled: page.voiceOn || page.usable
                     onToggled: (on) => page.setEnabled(on)
                 }
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: "Tap Super+` to dictate into whatever app has focus; tap again to stop. The pill grows a live mic wave while you speak."
-                    color: Theme.dim
+                    text: (page.voiceOn || page.usable)
+                        ? "Tap Super+` to dictate into whatever app has focus; tap again to stop. The pill grows a live mic wave while you speak."
+                        : (page.sel && page.sel.cloud
+                            ? "Add an API key below before you can switch this on."
+                            : "Download a model below before you can switch this on.")
+                    color: (page.voiceOn || page.usable) ? Theme.dim : Theme.ember
                     font.family: Theme.font
                     font.pixelSize: 12
                 }
             }
 
-            // --- ENGINE & MODEL -------------------------------------------
             SettingSection {
                 width: parent.width
                 title: "ENGINE & MODEL"
@@ -364,7 +397,6 @@ Item {
                 }
             }
 
-            // --- API KEY --------------------------------------------------
             SettingSection {
                 width: parent.width
                 visible: page.needsKey
@@ -432,7 +464,6 @@ Item {
                 }
             }
 
-            // --- package --------------------------------------------------
             SettingSection {
                 width: parent.width
                 title: "PACKAGE"
@@ -452,7 +483,6 @@ Item {
                 }
             }
 
-            // --- error ----------------------------------------------------
             Rectangle {
                 visible: page.busyError !== ""
                 width: parent.width

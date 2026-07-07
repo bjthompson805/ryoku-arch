@@ -12,6 +12,7 @@ Item {
 
     property real s: 1
     property bool open: false
+    property bool off: false
     signal closeRequested()
 
     implicitWidth: 320 * root.s
@@ -21,6 +22,7 @@ Item {
         id: voice
         anchors.fill: parent
         s: root.s
+        off: root.off
         open: true
         shown: true
         openProgress: 1
