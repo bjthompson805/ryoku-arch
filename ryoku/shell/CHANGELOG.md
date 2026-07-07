@@ -112,6 +112,15 @@
   stay one toggle away in Settings -> Shell.
 
 ### Fixed
+- `ipc/wallpaper.go`: setting a live (video) wallpaper could silently do
+  nothing. Every `wallpaper set` was gated behind `ensureWallDaemon()` (the
+  awww image daemon), yet a video plays through mpvpaper and never needs awww;
+  awww is not autostarted either, so a session that boots on a live wallpaper
+  never starts it. If awww then failed to come up, the set returned success
+  with nothing painted (ryowalls reported "Wallpaper set" while the wallpaper
+  stayed put). The daemon now chooses the backend by file type: a video goes
+  straight to mpvpaper with no awww dependency, only image sets ensure awww,
+  and a failed mpvpaper launch surfaces as a real error instead of a no-op.
 - Blob motion matches the reference shell now. The blobs already render
   identically, but five things made the melt feel less smooth: the deform
   spring used explicit Euler (the energy-injecting form our own ported comment

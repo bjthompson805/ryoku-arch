@@ -125,9 +125,16 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 		d.scheduleTheme()
 		return nil
 	}
+	// pause-sync = reconcile the live wallpaper's paused state (ryowalls toggled
+	// pause-when-covered). mpvpaper only, so it needs no wallpaper daemon.
+	if mode == "pause-sync" {
+		livePauseReconcile()
+		return nil
+	}
 	// only init cares if a wallpaper is already up. a video is the exception:
-	// its mpvpaper died with the previous session and a live awww doesn't restore
-	// it, so relaunch it. next/set skip the probe and let ensureWallDaemon check.
+	// its mpvpaper died with the previous session, so relaunch it (mpvpaper, no
+	// awww). a live wallpaper never starts awww, which is why the set/next paths
+	// below must not depend on it.
 	if mode == "init" {
 		if cur := readState(); isVideo(cur) && isFile(cur) {
 			if !liveAlive() {
@@ -139,44 +146,26 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 			return nil
 		}
 	}
-	if !ensureWallDaemon() {
-		return nil
-	}
 
-	// refresh = repaint the current wallpaper on every output with no transition
-	// (hotplug fills the new monitor without re-animating the rest). palette
-	// already matches, so no retheme / state write.
-	if mode == "refresh" {
-		pic := readState()
+	// resolve the target for this op before choosing a backend.
+	var pic string
+	switch mode {
+	case "set":
+		if !isFile(arg) {
+			return nil
+		}
+		pic = arg
+	case "refresh":
+		pic = readState()
 		if pic == "" || !isFile(pic) {
 			pic = popBag()
 		}
-		if pic == "" {
-			return nil
-		}
-		if isVideo(pic) {
-			return d.showLiveWallpaper(pic)
-		}
-		stopLive()
-		return d.showWallpaperInstant(pic)
-	}
-
-	var pic string
-	switch mode {
-	case "pause-sync": // ryowalls toggled pause-when-covered; apply it now
-		livePauseReconcile()
-		return nil
 	case "init":
 		if cur := readState(); cur != "" && isFile(cur) {
 			pic = cur
 		} else {
 			pic = popBag()
 		}
-	case "set":
-		if !isFile(arg) {
-			return nil
-		}
-		pic = arg
 	default: // next
 		pic = popBag()
 	}
@@ -184,6 +173,35 @@ func (d *daemon) wallpaperApply(mode, arg string) error {
 		return nil
 	}
 
+	// backend by file type. a video plays through mpvpaper and never touches the
+	// awww image daemon, so route it straight to the live backend: awww failing
+	// to start must not silently drop a live wallpaper (it once gated every set).
+	// refresh only repaints a hot-plugged output, so it skips the state write and
+	// retheme; every other mode records the pick and re-themes.
+	if isVideo(pic) {
+		if err := d.showLiveWallpaper(pic); err != nil {
+			return err
+		}
+		if mode == "refresh" {
+			return nil
+		}
+		_ = os.MkdirAll(stateDir(), 0o755)
+		_ = os.WriteFile(wallState(), []byte(pic+"\n"), 0o644)
+		d.scheduleTheme()
+		return nil
+	}
+
+	// images need awww, so its start-or-fail gate applies only from here on.
+	if !ensureWallDaemon() {
+		return nil
+	}
+	// refresh = repaint the current image on every output with no transition
+	// (hotplug fills the new monitor without re-animating the rest). palette
+	// already matches, so no retheme / state write.
+	if mode == "refresh" {
+		stopLive()
+		return d.showWallpaperInstant(pic)
+	}
 	if err := d.showAny(pic); err != nil {
 		return err
 	}
