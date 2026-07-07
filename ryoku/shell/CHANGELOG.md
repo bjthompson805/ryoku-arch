@@ -6,8 +6,9 @@
 - **The wallpaper picker is a full-screen switcher now.** Super+C opens a
   Super+Tab-style overlay instead of the pill filmstrip: images and live video
   wallpapers ride two endless belts, the top drifting right and the bottom
-  drifting left, sorted into colour groups. The belts idle-drift on their own
-  and a scroll (or the arrows) pushes them faster before they ease back; a
+  drifting left, sorted into colour groups. The belts idle-drift on their own,
+  settle to a stop while the pointer is over them, and a scroll (or the arrows)
+  pushes them faster before they ease back; a
   swatch strip filters by colour and an All/Images/Live row by kind. Tiles are
   cut-cornered with a colour chip, a LIVE tag on video and a dot on the
   wallpaper already set; hover or the centre pick lights one, a click or Enter

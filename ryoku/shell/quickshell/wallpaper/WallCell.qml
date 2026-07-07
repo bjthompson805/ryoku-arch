@@ -16,6 +16,8 @@ Item {
     required property color bg      // rows-stage colour the cuts blend into
     property bool selected: false
     property bool topRow: true      // which pair of corners to slice
+    property bool live: true         // on-screen; gates the thumbnail decode
+    property bool beltMoving: false  // belt drifting/scrolling; holds video off
     signal entered()
     signal chosen()
 
@@ -23,6 +25,20 @@ Item {
     readonly property int cut: Math.round(16 * s)
     readonly property int inset: cut + Math.round(6 * s)
     readonly property color accent: cell.selected ? Theme.brand : Qt.alpha(Theme.cream, 0.45)
+
+    // play a clip only when it's the settled pick, after a short dwell, so a
+    // drift or a cursor sweep never spins media pipelines up and down.
+    readonly property bool wantVideo: cell.isLive && cell.selected && !cell.beltMoving
+    property bool videoArmed: false
+    onWantVideoChanged: {
+        if (cell.wantVideo)
+            armT.restart();
+        else {
+            armT.stop();
+            cell.videoArmed = false;
+        }
+    }
+    Timer { id: armT; interval: 170; onTriggered: cell.videoArmed = true }
 
     scale: cell.selected ? 1.05 : 1.0
     transformOrigin: Item.Center
@@ -36,13 +52,13 @@ Item {
         cache: true
         fillMode: Image.PreserveAspectCrop
         sourceSize: Qt.size(Math.ceil(cell.width * 1.4), Math.ceil(cell.height * 1.4))
-        source: (cell.item && cell.item.thumb) ? "file://" + cell.item.thumb : ""
+        source: (cell.live && cell.item && cell.item.thumb) ? "file://" + cell.item.thumb : ""
     }
 
     // live preview only for the picked video, so idle tiles never open a pipeline.
     Loader {
         anchors.fill: parent
-        active: cell.isLive && cell.selected
+        active: cell.wantVideo && cell.videoArmed
         asynchronous: true
         source: "VideoPreview.qml"
         onLoaded: item.path = cell.item.path

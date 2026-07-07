@@ -218,6 +218,7 @@ Item {
                 gap: rows.cGap
                 bg: Theme.cardTop
                 running: body.active
+                hovering: rowsHover.hovered
                 highlightKey: body.hoverEntry ? body.hoverEntry.path : ""
                 onEntered: (e) => body.hoverEntry = e
                 onChosen: (e) => body.apply(e)
@@ -235,6 +236,7 @@ Item {
                 gap: rows.cGap
                 bg: Theme.cardTop
                 running: body.active
+                hovering: rowsHover.hovered
                 highlightKey: body.hoverEntry ? body.hoverEntry.path : ""
                 onEntered: (e) => body.hoverEntry = e
                 onChosen: (e) => body.apply(e)

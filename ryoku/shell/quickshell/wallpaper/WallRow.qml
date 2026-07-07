@@ -1,10 +1,11 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 
-// A row of tiles on an endless belt. It drifts on its own (dir +1 rightwards,
-// -1 leftwards); a scroll adds a boost that eases back to the idle drift. A
-// short set is repeated so the belt always fills the width, a full one loops
-// as-is, and only the tiles near the viewport build their visual.
+// A row of tiles on an endless belt. It idle-drifts (dir +1 rightwards, -1
+// leftwards), eases to a stop while the pointer is over the rows so a pick sits
+// still, and a scroll adds a boost that decays back. Tiles stay alive and just
+// slide (no per-tile create/destroy), so a fast scroll never churns; off-screen
+// ones drop their thumbnail. A short set is repeated so the belt always fills.
 Item {
     id: row
     clip: true
@@ -19,6 +20,7 @@ Item {
     required property bool topRow
     property string highlightKey: ""
     property bool running: true
+    property bool hovering: false
 
     signal entered(var entry)
     signal chosen(var entry)
@@ -42,6 +44,9 @@ Item {
     property real pos: 0
     property real boost: 0
     readonly property real base: 26 * s
+    property real speed: 26 * s     // eased toward 0 while hovering, else base
+    // "moving" gates video playback: only settled belts play the picked clip.
+    readonly property bool moving: Math.abs(row.dir * row.speed + row.boost) > 18
 
     function boostBy(delta) {
         row.boost = Math.max(-2400, Math.min(2400, row.boost + delta));
@@ -59,10 +64,12 @@ Item {
         running: row.running && row.setW > 0
         onTriggered: {
             var dt = Math.min(0.05, frameTime);
+            var target = row.hovering ? 0 : row.base;
+            row.speed += (target - row.speed) * Math.min(1, 8 * dt);
             row.boost -= row.boost * Math.min(1, 3.5 * dt);
             if (Math.abs(row.boost) < 0.5)
                 row.boost = 0;
-            var v = row.dir * row.base + row.boost;
+            var v = row.dir * row.speed + row.boost;
             row.pos = (((row.pos + v * dt) % row.setW) + row.setW) % row.setW;
         }
     }
@@ -79,21 +86,19 @@ Item {
 
             readonly property real raw: (((index * row.step + row.pos) % row.setW) + row.setW) % row.setW
             x: raw < row.width ? raw : (raw > row.setW - 2 * row.cellW ? raw - row.setW : raw)
-            readonly property bool shown: x + width > -row.cellW && x < row.width + row.cellW
+            visible: x + width > -1 && x < row.width + 1
 
-            Loader {
+            WallCell {
                 anchors.fill: parent
-                active: slot.shown
-                asynchronous: true
-                sourceComponent: WallCell {
-                    s: row.s
-                    item: slot.modelData
-                    bg: row.bg
-                    topRow: row.topRow
-                    selected: !!slot.modelData && slot.modelData.path === row.highlightKey
-                    onEntered: row.entered(slot.modelData)
-                    onChosen: row.chosen(slot.modelData)
-                }
+                s: row.s
+                item: slot.modelData
+                bg: row.bg
+                topRow: row.topRow
+                live: slot.visible
+                beltMoving: row.moving
+                selected: !!slot.modelData && slot.modelData.path === row.highlightKey
+                onEntered: row.entered(slot.modelData)
+                onChosen: row.chosen(slot.modelData)
             }
         }
     }
