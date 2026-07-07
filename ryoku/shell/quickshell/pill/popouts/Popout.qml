@@ -91,9 +91,12 @@ Item {
 
     anchors.fill: parent
 
-    // edge position (cross-axis): start/center/end, with an inset so the body
-    // never sits flush in a corner.
-    readonly property real edgeInset: frameThickness + 12 * s
+    // along-axis position: start / center / end (or a clamped alongCenter),
+    // inset from the perpendicular frame wall so the body never sits in the
+    // corner. the wall is the on-screen frame lip (frameBorder - 50, the same
+    // the frame border and barVisibleH use), NOT the bar's full thickness --
+    // using frameThickness held a corner popout a whole band's width off.
+    readonly property real edgeInset: Math.max(0, Config.frameBorder - 50) + 12 * s
     function alignPos(span, sz) {
         if (effectiveAlong >= 0)
             return Math.max(edgeInset, Math.min(span - sz - edgeInset, effectiveAlong - sz / 2));
@@ -104,11 +107,22 @@ Item {
     readonly property real alongX: alignPos(width, openW)
     readonly property real alongY: alignPos(height, openH)
 
+    // a popout clamped against a side wall fuses INTO it rather than floating an
+    // inset off it: the body edge reaches the screen edge with a neck through the
+    // blob field and that corner squares off, so a corner popout reads as the
+    // frame swelling out of the corner -- no gap, the same way the growing edge
+    // fuses into the bar. top/bottom bar only (along-axis is X); a centred
+    // popout is never at a wall, so it stays put.
+    readonly property bool hugLeft: !vertical && width > 0 && openW > 0 && alongX <= edgeInset + 0.5
+    readonly property bool hugRight: !vertical && width > 0 && openW > 0 && alongX >= width - openW - edgeInset - 0.5
+
     // body geometry in window coords; grows inward from the border.
     readonly property real curW: vertical ? Math.max(0, openW * prog) : openW
     readonly property real curH: vertical ? openH : Math.max(0, openH * prog)
     readonly property real bodyX: atLeft ? frameThickness
                                  : atRight ? (width - frameThickness - curW)
+                                 : hugRight ? (width - curW)
+                                 : hugLeft ? 0
                                  : alongX
     readonly property real bodyY: atTop ? frameThickness
                                  : atBottom ? (height - frameThickness - curH)
@@ -170,17 +184,19 @@ Item {
         readonly property real reach: root.frameThickness + root.smoothing
         readonly property real neckW: root.vertical ? reach : 0
         readonly property real neckH: root.vertical ? 0 : reach
+        readonly property real hugNeckL: root.hugLeft ? reach : 0
+        readonly property real hugNeckR: root.hugRight ? reach : 0
         group: root.group
         // edge-side corners flush (fused into the frame border), inner corners
         // rounded -- so the body is continuous with the frame edge it grows from.
-        topLeftRadius: (root.atTop || root.atLeft) ? 0 : root.radius
-        topRightRadius: (root.atTop || root.atRight) ? 0 : root.radius
-        bottomLeftRadius: (root.atBottom || root.atLeft) ? 0 : root.radius
-        bottomRightRadius: (root.atBottom || root.atRight) ? 0 : root.radius
+        topLeftRadius: (root.atTop || root.atLeft || root.hugLeft) ? 0 : root.radius
+        topRightRadius: (root.atTop || root.atRight || root.hugRight) ? 0 : root.radius
+        bottomLeftRadius: (root.atBottom || root.atLeft || root.hugLeft) ? 0 : root.radius
+        bottomRightRadius: (root.atBottom || root.atRight || root.hugRight) ? 0 : root.radius
         deformScale: 0.000015
-        x: root.bodyX - (root.atLeft ? neckW : 0)
+        x: root.bodyX - (root.atLeft ? neckW : 0) - hugNeckL
         y: root.bodyY - (root.atTop ? neckH : 0)
-        implicitWidth: root.bodyW > 0 ? root.bodyW + neckW : 0
+        implicitWidth: root.bodyW > 0 ? root.bodyW + neckW + hugNeckL + hugNeckR : 0
         implicitHeight: root.bodyH > 0 ? root.bodyH + neckH : 0
     }
 
