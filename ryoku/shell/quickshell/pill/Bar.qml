@@ -31,6 +31,10 @@ Item {
     signal hoverPopoutRequested(string name, real center, bool hovered)
 
     readonly property real moduleSpan: Math.round(bar.band * 0.76)
+    // the bell's along-axis centre (from the status cluster), so the toast
+    // popout can grow from the bell like the inbox does. -1 when the status
+    // cluster is hidden (no bell), so the toast falls back to the bar end.
+    readonly property real bellCenter: Config.barShowStatus ? hStatus.bellCenter : -1
 
     property int seedWsId: -1
     readonly property int activeWsId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : seedWsId
@@ -157,6 +161,7 @@ Item {
                 interactive: false
 
                 BarStatus {
+                    id: hStatus
                     s: bar.s
                     onRequestPopout: (name, center) => bar.popoutRequested(name, center)
                 }

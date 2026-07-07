@@ -27,6 +27,16 @@ Grid {
         requestPopout(name, vertical ? p.y : p.x);
     }
 
+    // the bell's along-axis centre in window coords, kept live so the toast
+    // popout grows from the bell without a click (Notifs.popups drives it).
+    // recomputes when the cluster's layout shifts (icon widths, battery text,
+    // scale) or a popup arrives; the bell is stationary otherwise.
+    readonly property real bellCenter: {
+        void status.width; void status.height; void status.s; void Notifs.popups;
+        const p = bellIcon.mapToItem(null, bellIcon.width / 2, bellIcon.height / 2);
+        return vertical ? p.y : p.x;
+    }
+
     readonly property real glyphPx: 14 * s
 
     columns: vertical ? 1 : 8

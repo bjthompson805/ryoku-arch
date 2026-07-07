@@ -15,6 +15,14 @@
   section brings back the classic 1..5 run with empties dimmed.
 
 ### Changed
+- **Notification toasts grow from the bell.** A toast now melts out of the bar
+  edge at the notifications bell like the inbox does, and dismisses on its own
+  timer, instead of appearing in a separate top-right window. Clicking it still
+  opens the full inbox.
+- **A popout in a corner fuses into the wall.** A popout clamped against a
+  screen edge (the power menu, a toast) now reaches that wall and melts into the
+  frame border through the shared blob field, squaring off the corner, instead
+  of floating a bar's-width inset off it and leaving a gap.
 - **Ryoku Settings' Shell section matches the bar-and-popouts shell.** The
   Island tab is gone with the island; the live knobs it still drove (the
   volume/brightness OSD and notification toasts) moved to a Notifications
@@ -39,8 +47,8 @@
   `Super+D` control deck, `Super+Tab` workspaces, the wifi/bluetooth link
   surface, the keyring prompt, voice dictation and the notification inbox all
   moved off the pill; keyboard panels hold the keyboard while open and release
-  it on close. The volume/brightness OSD and notification toasts became small
-  edge windows (the OSD floats above the bar, toasts stack at the top-right).
+  it on close. The volume/brightness OSD became a small edge window that floats
+  above the bar.
   Left/right bar positions and the sysinfo panel were dropped. `Pill.qml`, the
   island blob fields and the island-reserve machinery are deleted.
 - **The bar skins are the references now, not our riff on them.** After fair

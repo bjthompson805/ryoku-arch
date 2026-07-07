@@ -26,7 +26,6 @@ import "popouts"
 //                  edge popout growing from the bar (see popouts/). never moves
 //                  windows; grows in place.
 //   OsdWindow    = the volume/brightness OSD, bottom-centre above the bar.
-//   ToastWindow  = notification toasts, top-right.
 //
 // input routing = the overlay window mask: the bar strip and open popout bodies
 // catch clicks, the rest of the screen clicks through. a modal (keyboard) popout
@@ -542,6 +541,7 @@ ShellRoot {
                 Region { x: keyringPop.bodyX; y: keyringPop.bodyY; width: keyringPop.bodyW; height: keyringPop.bodyH }
                 Region { x: workspacesPop.bodyX; y: workspacesPop.bodyY; width: workspacesPop.bodyW; height: workspacesPop.bodyH }
                 Region { x: mediaPop.bodyX; y: mediaPop.bodyY; width: mediaPop.bodyW; height: mediaPop.bodyH }
+                Region { x: toastPop.bodyX; y: toastPop.bodyY; width: toastPop.bodyW; height: toastPop.bodyH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
             }
@@ -865,6 +865,34 @@ ShellRoot {
                     }
                 }
 
+                // notification toasts: grow from the bar edge at the bell (like
+                // the inbox), auto-open while a popup is live and melt shut when
+                // it expires. clicking opens the full inbox at the bell. defers
+                // to any clicked popout so it never fights the inbox; hidden on
+                // fullscreen and when the bar is off (no bell to grow from).
+                Popout {
+                    id: toastPop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    align: "end"
+                    hoverOpen: false
+                    s: overlay.s
+                    active: Config.barEnabled && !overlay.monFullscreen && root.popout === ""
+                    pinned: Notifs.popups.length > 0
+                    openW: toastContent.implicitWidth
+                    openH: toastContent.implicitHeight
+
+                    ToastPopout {
+                        id: toastContent
+                        s: overlay.s
+                        open: toastPop.prog > 0.5
+                        onOpenCenter: root.togglePopoutAt(overlay.modelData.name, "inbox", topBar.bellCenter)
+                    }
+                }
+
                 // control deck popout (Super+D): the dashboard, from the bar
                 // edge. one popout for the stash/toolkit/utilities entry points.
                 Popout {
@@ -1002,12 +1030,4 @@ ShellRoot {
         OsdWindow {}
     }
 
-    // notification toasts, re-homed from the floating pill into their own small
-    // top-right layer window. clicking one opens the inbox popout on its monitor.
-    Variants {
-        model: Quickshell.screens
-        ToastWindow {
-            onOpenInbox: root.togglePopout(modelData.name, "inbox")
-        }
-    }
 }
