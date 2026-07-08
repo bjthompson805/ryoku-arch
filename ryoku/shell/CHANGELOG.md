@@ -9,6 +9,13 @@
   wave is unchanged; only the transcription engine behind it moved.
 
 ### Fixed
+- **Wallpapers set again on machines that predate the `swww` -> `awww` rename.**
+  The shell drove the wallpaper daemon by the hard-coded name `awww`; upstream
+  renamed `swww` to `awww`, and a `ryoku update` never pulls the AUR rename, so a
+  box still carrying `swww` silently no-op'd every wallpaper set (static images,
+  and with the daemon absent the palette retheme too). The shell now resolves
+  whichever of `awww`/`swww` is actually installed (awww preferred, identical
+  CLI), so ryowalls and Super+W work on either.
 - **The voice dictation wave tracks the mic instead of stalling.** The mic
   spectrum used cava's PipeWire input, the same backend that quits within
   seconds here, so the wave came up late and dropped out mid-sentence while the

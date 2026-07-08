@@ -13,11 +13,23 @@ import (
 	"time"
 )
 
-// the wallpaper daemon. constant so swapping it (swww etc.) is a one-line change.
-const (
-	wallDaemon      = "awww"
-	wallDaemonStart = "awww-daemon"
-)
+// the wallpaper daemon. swww was renamed to awww upstream; older installs still
+// have swww while newer ones have awww, and `ryoku update` never pulls the AUR
+// rename, so use whichever this box actually has (awww preferred). the CLI is
+// identical between them, so the transition presets work either way.
+var wallDaemon, wallDaemonStart = resolveWallDaemon()
+
+func resolveWallDaemon() (cli, start string) {
+	for _, d := range [][2]string{{"awww", "awww-daemon"}, {"swww", "swww-daemon"}} {
+		if _, err := exec.LookPath(d[0]); err == nil {
+			return d[0], d[1]
+		}
+		if _, err := exec.LookPath(d[1]); err == nil {
+			return d[0], d[1]
+		}
+	}
+	return "awww", "awww-daemon"
+}
 
 func wallDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "Wallpapers") }
 func liveDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "livewalls") }
