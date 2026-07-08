@@ -1351,31 +1351,40 @@ func reconcileRyokuChannel(_ bool) recResult {
 
 // ---- reconciler: wallpaper daemons -------------------------------------------
 
-// reconcileWallpaperDaemon flags a Ryoku desktop missing the AUR wallpaper
-// backends the shell drives. static wallpapers ride awww (swww renamed upstream)
-// and live/video wallpapers ride mpvpaper; both are AUR-only, so a `ryoku update`
-// (pacman) never pulls them. a box that predates them, or upgraded across the
-// swww->awww rename, silently can't set a wallpaper -- the shell now falls back to
-// swww when that's the one installed, but neither present means ryowalls is dead.
-// detect-and-advise: the one-shot AUR add is the fix, like the cursor theme.
-func reconcileWallpaperDaemon(_ bool) recResult {
+// reconcileWallpaperDaemon heals a Ryoku desktop missing the AUR wallpaper
+// backends the shell drives: static wallpapers ride awww (swww renamed upstream),
+// live/video ones ride mpvpaper. both are AUR-only, so `ryoku update` (pacman)
+// never pulls them, and a box that predates them -- or one upgraded across the
+// swww->awww rename -- silently can't set a wallpaper, and without mpvpaper a
+// live pick only shows a still frame. in fix mode the one-shot AUR add IS the
+// fix, so `ryoku doctor` installs them; `--check` reports what it would add.
+func reconcileWallpaperDaemon(checkOnly bool) recResult {
 	if !exists(filepath.Join(homeDir(), ".config", "hypr")) && !has("Hyprland") {
 		return okRes("not a Hyprland desktop")
 	}
 	hasImage := has("awww") || has("swww")
 	hasLive := has("mpvpaper")
+	if hasImage && hasLive {
+		return okRes("wallpaper daemons present")
+	}
+	var want []string
+	var broke string
 	switch {
 	case !hasImage && !hasLive:
-		return warnRes("no wallpaper daemon (awww) or mpvpaper; ryowalls cannot set image or live wallpapers").
-			withFix("ryoku-pkg-aur-add awww-git mpvpaper")
+		want, broke = []string{"awww-git", "mpvpaper"}, "ryowalls cannot set image or live wallpapers"
 	case !hasImage:
-		return warnRes("no wallpaper daemon (awww/swww); ryowalls cannot set a wallpaper").
-			withFix("ryoku-pkg-aur-add awww-git")
-	case !hasLive:
-		return warnRes("mpvpaper is missing; ryowalls' Live (video) wallpapers cannot play").
-			withFix("ryoku-pkg-aur-add mpvpaper")
+		want, broke = []string{"awww-git"}, "ryowalls cannot set a wallpaper"
+	default: // only mpvpaper missing
+		want, broke = []string{"mpvpaper"}, "ryowalls' Live (video) wallpapers cannot play"
 	}
-	return okRes("wallpaper daemons present")
+	pkgs := strings.Join(want, " ")
+	if checkOnly {
+		return wouldRes("missing %s; %s", pkgs, broke).withFix("ryoku-pkg-aur-add %s", pkgs)
+	}
+	if err := run("ryoku-pkg-aur-add", want...); err != nil {
+		return failRes("could not install %s: %v", pkgs, err).withFix("ryoku-pkg-aur-add %s", pkgs)
+	}
+	return fixedRes("installed the wallpaper backends: %s", pkgs)
 }
 
 // ---- reconciler: desktop session components ----------------------------------
