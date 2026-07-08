@@ -11,18 +11,22 @@ pkgname=ryoku-desktop
 pkgver=${RYOKU_PKGVER:-0.1.0}
 pkgrel=1
 pkgdesc="Ryoku desktop: Hyprland + Quickshell configuration, helpers, and runtime"
-arch=('any')
+# package() compiles Go helpers (ryovm-fetch), so the payload is arch-specific.
+arch=('x86_64')
 url="https://ryoku.dev"
 license=('GPL-3.0-or-later')
 # go builds the in-tree app helpers (ryovm-fetch); the rest is config + scripts.
 makedepends=('go')
 depends=(
-  # Ryoku
-  'ryoku-shell'
-  'ryoku-hub'
-  'ryoku-rashin'
-  'ryoku-blobs'
-  'ryoku'
+  # Ryoku. the monorepo components are pinned to this build's own version:
+  # every publish rebuilds them all with one shared RYOKU_PKGVER, and the shell
+  # QML in this package must never run against another release's compiled
+  # plugin or daemon (a partial upgrade now fails loudly instead of skewing).
+  "ryoku-shell=$pkgver"
+  "ryoku-hub=$pkgver"
+  "ryoku-rashin=$pkgver"
+  "ryoku-blobs=$pkgver"
+  "ryoku=$pkgver"
   'ryoku-keyring'
   # the RyokuArch package manager (GlazePKG)
   'gpk'

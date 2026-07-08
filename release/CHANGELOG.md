@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- **The desktop set moves in lockstep or not at all.** `ryoku-desktop` now pins
+  its monorepo components (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`,
+  `ryoku-blobs`, `ryoku`) to its own version: every publish rebuilds them all
+  with one shared version, and the shell QML this package ships must never run
+  against another release's compiled plugin or daemon. A partial upgrade now
+  fails loudly instead of skewing silently. The package is also `x86_64` now,
+  not `any`: it compiles Go helpers into the payload.
+- **Publish CI verifies every hard dependency exists in the official repos.**
+  Packages build with `--nodeps`, so a typo'd or AUR-only depends entry used to
+  publish cleanly and then brick every user's next `pacman -Syu` with an
+  unresolvable target (the Material Symbols font dep was one review away from
+  exactly that). The publish now fails instead.
 - Audio no longer crackles and pops under load. `ryoku-desktop` now depends on
   `rtkit` and enables `rtkit-daemon` (once, on install and on upgrade, the same
   one-shot pattern as `bluetooth.service`), and the installer enables it too. Without

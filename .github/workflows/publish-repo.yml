@@ -66,6 +66,28 @@ jobs:
           # version (bin/ryoku-release-version --pkgver) from `git rev-list`.
           fetch-depth: 0
 
+      - name: Verify hard dependencies exist in the official repos
+        run: |
+          set -euo pipefail
+          # build-repo.sh builds with --nodeps, so a typo'd or AUR-only entry in
+          # a depends array publishes cleanly and then bricks every user's next
+          # pacman -Syu with an unresolvable target. One -Si per dependency
+          # here turns that into a failed publish instead.
+          missing=0
+          for p in release/packages/*/PKGBUILD; do
+            deps=$(sed -n '/^depends=(/,/^)/p' "$p" | sed 's/#.*//' \
+              | tr ' \t' '\n\n' | sed -e 's/^depends=(//' -e 's/)$//' -e "s/[\"']//g" \
+              -e 's/[<>=].*$//' | grep -v '^$' || true)
+            for d in $deps; do
+              case "$d" in ryoku*|gpk) continue ;; esac
+              if ! pacman -Si "$d" >/dev/null 2>&1; then
+                echo "::error::$p: dependency '$d' not found in the official repos"
+                missing=1
+              fi
+            done
+          done
+          exit "$missing"
+
       - name: Build and sign the [ryoku] repo
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
