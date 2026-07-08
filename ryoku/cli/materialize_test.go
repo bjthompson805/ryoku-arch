@@ -88,6 +88,35 @@ func TestMaterializePrunesManagedNotSeeds(t *testing.T) {
 	wantFile(t, filepath.Join(dest, "hypr/monitors.lua"), "DISPLAY") // seed survives
 }
 
+// ~/.config/quickshell converges against the shipped tree even when the
+// manifest never recorded a stale file (a lost state file, an old deploy.sh
+// run): leftovers are swept, files outside quickshell stay manifest-ruled.
+func TestMaterializeSweepsStaleQuickshell(t *testing.T) {
+	base, dest := t.TempDir(), t.TempDir()
+	t.Setenv("RYOKU_CONFIG_BASE", base)
+	t.Setenv("XDG_CONFIG_HOME", dest)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	writeFile(t, filepath.Join(base, "quickshell/pill/shell.qml"), "NEW\n")
+	// stale leftovers no manifest knows about, plus an unmanaged file outside
+	// quickshell that must survive.
+	writeFile(t, filepath.Join(dest, "quickshell/pill/Pill.qml"), "OLD\n")
+	writeFile(t, filepath.Join(dest, "quickshell/plugins/shell.qml"), "OLD\n")
+	writeFile(t, filepath.Join(dest, "hypr/user.lua"), "USER\n")
+
+	if err := materialize(); err != nil {
+		t.Fatalf("materialize: %v", err)
+	}
+	wantFile(t, filepath.Join(dest, "quickshell/pill/shell.qml"), "NEW")
+	if exists(filepath.Join(dest, "quickshell/pill/Pill.qml")) {
+		t.Error("stale quickshell file should be swept without a manifest entry")
+	}
+	if exists(filepath.Join(dest, "quickshell/plugins")) {
+		t.Error("emptied stale quickshell dir should be pruned")
+	}
+	wantFile(t, filepath.Join(dest, "hypr/user.lua"), "USER")
+}
+
 func wantFile(t *testing.T, path, want string) {
 	t.Helper()
 	b, err := os.ReadFile(path)

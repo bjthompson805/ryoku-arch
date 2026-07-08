@@ -87,6 +87,22 @@ func materialize() error {
 	for _, p := range current {
 		curSet[p] = true
 	}
+
+	// ~/.config/quickshell is wholly Ryoku-owned (user plugins live under
+	// ~/.local/share/ryoku), so converge it against the shipped tree directly:
+	// stale QML from releases this box's manifest never recorded (a lost state
+	// file, an old deploy.sh run) would otherwise load beside the new tree
+	// forever. Everything else is mixed with user files and stays manifest-pruned.
+	if local, err := walkRel(filepath.Join(dest, "quickshell")); err == nil {
+		for _, rel := range local {
+			full := "quickshell/" + rel
+			if curSet[full] || generatedSeed[full] {
+				continue
+			}
+			_ = os.Remove(filepath.Join(dest, full))
+			pruneEmptyParents(dest, filepath.Dir(full))
+		}
+	}
 	for _, rel := range previous {
 		if curSet[rel] {
 			continue

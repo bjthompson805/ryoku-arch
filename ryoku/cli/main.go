@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -82,21 +83,29 @@ func usage() {
 
 // cmdUpdate = the whole safe update, wrapped in a snapper pre/post pair.
 // checkout box -> git channel (fast-forward + redeploy). packaged box ->
-// pacman + materialize + reload. once the new binary is in place we call
-// `ryoku doctor` (same one users run by hand) to heal stateful drift, then
-// the post snapshot. snapshots are best-effort: an unconfigured snapper
-// never blocks an update, but a failed step still aborts first.
-func cmdUpdate(_ []string) error {
+// pacman, then hand off to the binary pacman just installed (--stage2) so the
+// deploy and doctor semantics of the new release apply during this same
+// update, not one release late. stage2 quiesces the shell, materializes,
+// brings the desktop back, and runs `ryoku doctor` (same one users run by
+// hand) to heal stateful drift, then the post snapshot. snapshots are
+// best-effort: an unconfigured snapper never blocks an update, but a failed
+// step still aborts first.
+func cmdUpdate(args []string) error {
+	if len(args) >= 2 && args[0] == "--stage2" {
+		return updateStage2(args[1])
+	}
+
 	pre := snapperPre("ryoku-update")
 	publishRun("running", 0.05)
-	defer publishRun("idle", 0)
 
 	// checkout: update through the git channel. packaged: pacman.
 	// channelUpdate handles the former and reports whether it ran; if not,
 	// fall through to the package transactions.
 	if handled, err := channelUpdate(); err != nil {
+		publishRun("idle", 0)
 		return err
 	} else if handled {
+		defer publishRun("idle", 0)
 		rashinReindex()
 		offerSnapperHelpers()
 		runFreshDoctor()
@@ -107,6 +116,7 @@ func cmdUpdate(_ []string) error {
 
 	fmt.Println("==> Updating system packages (pacman)")
 	if err := sudo("pacman", "-Syu", "--noconfirm"); err != nil {
+		publishRun("idle", 0)
 		return fmt.Errorf("pacman -Syu failed; system unchanged from this point, see `ryoku rollback`: %w", err)
 	}
 	publishRun("running", 0.5)
@@ -117,23 +127,42 @@ func cmdUpdate(_ []string) error {
 			fmt.Fprintf(os.Stderr, "warning: yay update reported errors: %v\n", err)
 		}
 	}
+
+	// exec replaces this process with the freshly installed binary; on any
+	// failure fall through and finish in-process, exactly as before.
+	if exists("/usr/bin/ryoku") {
+		if err := syscall.Exec("/usr/bin/ryoku", []string{"ryoku", "update", "--stage2", pre}, os.Environ()); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not hand off to the updated binary: %v\n", err)
+		}
+	}
+	return updateStage2(pre)
+}
+
+// updateStage2 finishes an update after the package transactions: deploy the
+// new configs with the shell quiesced, bring the desktop back, heal drift.
+func updateStage2(pre string) error {
+	defer publishRun("idle", 0)
 	publishRun("running", 0.7)
 
 	fmt.Println("==> Materializing desktop configs")
-	// pause Hyprland's Lua auto-reload so the swap isn't observed mid-write
-	// (= emergency overlay popping up with no keybinds).
+	// stop the shell first: a live quickshell would hot-reload the half-copied
+	// tree mid-swap, re-instantiating the new QML against whatever plugin .so
+	// the old process still has mapped. pause Hyprland's Lua auto-reload for
+	// the same reason (= emergency overlay popping up with no keybinds).
+	stopShell()
 	hyprPauseAutoreload()
 	if err := materialize(); err != nil {
 		hyprReload()
+		startShell()
 		return err
 	}
 	publishRun("running", 0.9)
 
 	fmt.Println("==> Reloading desktop")
 	// one clean reload picks up the new config and restores auto-reload, then
-	// restart the shell daemon so the new binary + QML both take effect.
+	// start the shell daemon so the new binary + QML both take effect.
 	hyprReload()
-	restartShell()
+	startShell()
 	rashinReindex()
 
 	offerSnapperHelpers()
@@ -532,11 +561,12 @@ func hyprReload() {
 	}
 }
 
-// restartShell: bring the shell daemon back up on the new binary, recovering
-// one that died across the update. mirrors deploy.sh: stop the old daemon,
-// drop orphaned surfaces holding the single-instance lock, start it detached
-// so it outlives this process.
-func restartShell() {
+// stopShell quiesces the desktop for a config swap: ask the daemon to quit,
+// wait for it to go, then drop orphaned surfaces still holding a config's
+// single-instance lock (one survivor kills the fresh daemon's components).
+// The component list mirrors shell/ipc/daemon.go; "plugins" is the retired
+// pill-era component, still reaped on boxes that predate its removal.
+func stopShell() {
 	if !has("ryoku-shell") {
 		return
 	}
@@ -547,10 +577,18 @@ func restartShell() {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	for _, c := range []string{"pill", "sidebar", "visualizer"} {
+	for _, c := range []string{"pill", "launcher", "visualizer", "widgets", "plugins"} {
 		_ = exec.Command("pkill", "-f", "qs -c "+c).Run()
 	}
 	time.Sleep(200 * time.Millisecond)
+}
+
+// startShell brings the shell daemon up on the current binary, detached so it
+// outlives this process. mirrors deploy.sh.
+func startShell() {
+	if !has("ryoku-shell") {
+		return
+	}
 	cmd := exec.Command("setsid", "ryoku-shell", "daemon")
 	logp := filepath.Join(xdg("XDG_STATE_HOME", ".local/state"), "ryoku-shell.log")
 	_ = os.MkdirAll(filepath.Dir(logp), 0o755)
