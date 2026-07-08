@@ -104,3 +104,21 @@
   Every line now passes through a terminal-semantics cleanup (keep the text
   after the last \r, space out tabs, drop control bytes) before it reaches
   the TUI or the log file.
+- No child of the installer can ask for a password over the TUI anymore. A
+  CachyOS convert watched "[sudo] password for ..." sit on top of the install
+  screen until the fish step: the AUR step's `makepkg -si` and the helper's
+  own sudo prompt straight on /dev/tty when the cached credential lapses, and
+  the TUI never repaints that region, so the prompt both blocks and lingers.
+  The yay bootstrap now builds unprivileged and installs through the engine's
+  `sudo -n`, helpers run with `--sudoflags=-n`, the driver/sddm/qylock
+  scripts use `sudo -n`, and the keepalive refreshes every 20s instead of
+  60s, so short sudoers timeouts stay covered and any lapse fails loudly
+  into the log instead of hanging invisibly. Each step change also clears
+  the screen, so nothing a child writes to the tty can stick around.
+- Downloads no longer look like a stalled password prompt. pacman's progress
+  repaints end in carriage returns, and the log panel only surfaced
+  newline-terminated lines, so multi-minute downloads showed a frozen panel
+  with ":: Proceed with installation? [Y/n]" as the last visible line. The
+  output reader now treats \r as a line ending too and streams the repaints
+  as live progress lines that replace themselves in the panel, rate-capped,
+  while the log file keeps only completed lines.

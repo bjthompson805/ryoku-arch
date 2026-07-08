@@ -44,9 +44,11 @@ type model struct {
 	events  chan any
 	stepIdx int
 	logTail []string
-	failIdx int
-	failMsg string
-	intAsk  bool // one ctrl+c pressed during install, awaiting the second
+	// the tail line is a live progress repaint; the next one replaces it
+	tailTransient bool
+	failIdx       int
+	failMsg       string
+	intAsk        bool // one ctrl+c pressed during install, awaiting the second
 
 	dry        bool
 	ref        string
@@ -218,12 +220,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case evStep:
 		m.stepIdx = msg.idx
-		return m, m.waitEv()
+		m.tailTransient = false
+		// full clear per step: anything a child wrote straight to /dev/tty (a
+		// stray password prompt, a curses fragment) would otherwise sit over
+		// the frame until that exact region happens to repaint.
+		return m, tea.Batch(m.waitEv(), tea.ClearScreen)
 	case evLine:
-		m.logTail = append(m.logTail, msg.line)
-		if len(m.logTail) > 400 {
-			m.logTail = m.logTail[len(m.logTail)-400:]
+		if msg.transient && m.tailTransient && len(m.logTail) > 0 {
+			m.logTail[len(m.logTail)-1] = msg.line
+		} else {
+			m.logTail = append(m.logTail, msg.line)
+			if len(m.logTail) > 400 {
+				m.logTail = m.logTail[len(m.logTail)-400:]
+			}
 		}
+		m.tailTransient = msg.transient
 		return m, m.waitEv()
 	case evDone:
 		if msg.err != nil {
@@ -645,6 +656,9 @@ func runHeadless(dry bool, ref, payload string) int {
 		case evStep:
 			fmt.Println(bold(cBrand, fmt.Sprintf("==> [%d/%d] %s", msg.idx+1, len(e.steps), msg.title)))
 		case evLine:
+			if msg.transient {
+				continue // progress repaints are UI-only; headless logs stay line-per-event
+			}
 			fmt.Println("    " + msg.line)
 		case evDone:
 			if msg.err != nil {
@@ -688,7 +702,10 @@ func primeSudo() {
 }
 
 func sudoKeepalive() {
-	for range time.Tick(60 * time.Second) {
+	// 20s survives sudoers with timestamp_timeout down to half a minute; a
+	// lapsed credential turns every nested sudo (yay, makepkg, the driver
+	// scripts) into a password prompt written straight over the TUI.
+	for range time.Tick(20 * time.Second) {
 		_ = exec.Command("sudo", "-n", "-v").Run()
 	}
 }

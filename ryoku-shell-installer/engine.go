@@ -119,7 +119,12 @@ type evStep struct {
 	idx   int
 	title string
 }
-type evLine struct{ line string }
+type evLine struct {
+	line string
+	// a live progress repaint (\r-terminated): the UI replaces the previous
+	// transient line instead of appending, and the log file skips it
+	transient bool
+}
 type evDone struct {
 	err error
 	idx int
@@ -221,6 +226,12 @@ func (e *engine) say(s string) {
 
 func (e *engine) sayf(format string, a ...any) { e.say(fmt.Sprintf(format, a...)) }
 
+func (e *engine) sayTransient(s string) {
+	if e.events != nil {
+		e.events <- evLine{line: s, transient: true}
+	}
+}
+
 // runFrom executes steps starting at idx (retry re-enters at the failed one).
 func (e *engine) runFrom(idx int) chan any {
 	e.events = make(chan any, 256)
@@ -298,16 +309,41 @@ func (e *engine) cmd(dir string, env []string, name string, args ...string) erro
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// ReadString instead of a Scanner: a Scanner stops at its buffer cap
-		// and the write side of the pipe then blocks forever.
+		// byte loop, not a Scanner: a Scanner stops at its buffer cap and the
+		// write side of the pipe then blocks forever. \r ends a token too, so
+		// pacman's download progress surfaces live instead of buffering until
+		// each file's final newline; a panel that ticks during long downloads
+		// is the difference between "working" and "waiting for my password".
 		rd := bufio.NewReader(pr)
+		var buf []byte
+		var lastProgress time.Time
 		for {
-			ln, err := rd.ReadString('\n')
-			if ln = cleanTermLine(ln); ln != "" {
-				e.say("  " + ln)
-			}
+			b, err := rd.ReadByte()
 			if err != nil {
+				if ln := cleanTermLine(string(buf)); ln != "" {
+					e.say("  " + ln)
+				}
 				return
+			}
+			switch b {
+			case '\n':
+				if ln := cleanTermLine(string(buf)); ln != "" {
+					e.say("  " + ln)
+				}
+				buf = buf[:0]
+			case '\r':
+				if nxt, perr := rd.Peek(1); perr == nil && nxt[0] == '\n' {
+					continue // \r\n: the \n case finishes the line
+				}
+				// a progress repaint: replaced in place in the UI, rate-capped,
+				// never written to the log file
+				if ln := cleanTermLine(string(buf)); ln != "" && time.Since(lastProgress) > 80*time.Millisecond {
+					lastProgress = time.Now()
+					e.sayTransient("  " + ln)
+				}
+				buf = buf[:0]
+			default:
+				buf = append(buf, b)
 			}
 		}
 	}()
@@ -986,14 +1022,26 @@ func stepAUR(e *engine) error {
 		if err := e.cmd(tmp, nil, "git", "clone", "https://aur.archlinux.org/yay-bin.git"); err != nil {
 			return err
 		}
-		if err := e.cmd(filepath.Join(tmp, "yay-bin"), nil, "makepkg", "-si", "--noconfirm"); err != nil {
+		// build and install separately: makepkg -i runs a plain interactive
+		// sudo, which on a lapsed credential prompts on /dev/tty over the TUI
+		// and hangs there; the engine's sudo -n fails loudly instead.
+		if err := e.cmd(filepath.Join(tmp, "yay-bin"), nil, "makepkg", "--noconfirm"); err != nil {
+			return err
+		}
+		built, _ := filepath.Glob(filepath.Join(tmp, "yay-bin", "*.pkg.tar.zst"))
+		if len(built) == 0 {
+			return fmt.Errorf("yay-bin build produced no package")
+		}
+		if err := e.sudo(append([]string{"pacman", "-U", "--noconfirm"}, built...)...); err != nil {
 			return err
 		}
 		helper = "yay"
 	}
 	var failed []string
 	for _, p := range aurPkgs {
-		if err := e.cmd("", nil, helper, "-S", "--needed", "--noconfirm", p); err != nil {
+		// --sudoflags=-n, same reason: the helper's own sudo must fail into
+		// the log, never prompt over the TUI. yay and paru both take it.
+		if err := e.cmd("", nil, helper, "-S", "--needed", "--noconfirm", "--sudoflags=-n", p); err != nil {
 			failed = append(failed, p)
 			e.say("warning: AUR build failed for " + p + " (continuing)")
 		}
