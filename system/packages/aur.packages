@@ -34,6 +34,10 @@ wallust
 # it cannot be pacstrapped from base.
 awww-git
 
+# Live (video) wallpaper playback for ryowalls' Live tab: ryoku-shell drives
+# `mpvpaper` (mpv on the background layer). AUR-only, like the daemon above.
+mpvpaper
+
 # LocalSend: AirDrop-style LAN file sharing; the pill's file stash speaks its protocol.
 localsend-bin
 

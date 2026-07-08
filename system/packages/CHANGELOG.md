@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `aur.packages`: add `mpvpaper`. ryowalls' Live tab plays video wallpapers
+  through it (mpv on the background layer), but it was only an optdepend of
+  `ryoku-desktop`, so a packaged install never pulled it and live wallpapers never
+  worked for users. Listing it in the AUR set the installer installs fixes new
+  boxes; `ryoku doctor` points existing ones at `ryoku-pkg-aur-add mpvpaper`.
 - `base.packages`: add `wireless-regdb`, so the kernel can load `regulatory.db`.
   Without it the WiFi regulatory domain stays at world `00`, which caps TX power
   (weak uplink, TX rates collapse to the lowest MCS) and disables 6 GHz. The live

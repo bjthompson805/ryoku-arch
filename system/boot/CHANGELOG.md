@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- `limine/default.conf`: document what `TARGET_OS_NAME` is for and why it is
+  `Ryoku`. It must match the OS entry name limine-snapper-sync hangs the Snapshots
+  submenu under (the `/+Ryoku` UKI tree, name "Ryoku"); `ryoku doctor` now
+  re-aligns it if a box is stuck on the flat `/Ryoku Linux` fallback entry, where
+  the mismatch failed snapper-cleanup and left no rollback snapshots in the menu.
 - `limine/limine.conf` documents its real deploy target: `/boot/limine.conf`
   (the ESP root), the one config `limine-entry-tool` manages. The old comment
   described `/boot/limine/limine.conf`, a location Limine scans FIRST, so a
