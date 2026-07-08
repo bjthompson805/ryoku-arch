@@ -12,6 +12,12 @@
   active workspace in accent, and splits the clock with a hairline divider.
   Both ride the same swollen frame edge and grow the same bar-edge popouts as
   the reference skins.
+- **A third native skin, triptych.** `barStyle` also takes `triptych`, which
+  groups the modules into three rounded islands riding the band: left (seal,
+  workspaces, title), centre (clock, plus now-playing while it sounds) and
+  right (status, tray, power), in the Brain_Shell mould. The islands are
+  containers on the existing band, so popouts still melt from the edge and the
+  other skins are untouched.
 
 ### Fixed
 - **A popout close is one monotonic melt again.** The visible dip-then-pop
