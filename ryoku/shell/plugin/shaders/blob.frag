@@ -198,6 +198,11 @@ void main() {
             vec4 rect = rectData[i * 5];
             vec4 sinkProps = rectData[i * 5 + 1];
             vec2 sinkSh = rectData[i * 5 + 3].xy;
+            // 0 = sinks off for this rect (a melting popout must slide in
+            // flush, not dig a pocket that snaps back at zero size)
+            float sinkW = rectData[i * 5 + 3].z;
+            if (sinkW <= 0.0)
+                continue;
 
             // Screen-space center (with offset) and pre-computed AABB half-extents
             vec2 ctr = rect.xy + sinkProps.yz;

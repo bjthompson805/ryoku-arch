@@ -14,6 +14,7 @@ class BlobShape : public QQuickItem {
     Q_PROPERTY(qreal radius READ radius WRITE setRadius NOTIFY radiusChanged)
     Q_PROPERTY(QMatrix4x4 deformMatrix READ deformMatrix NOTIFY deformMatrixChanged)
     Q_PROPERTY(QMatrix4x4 rawDeformMatrix READ rawDeformMatrix NOTIFY rawDeformMatrixChanged)
+    Q_PROPERTY(bool sinks READ sinks WRITE setSinks NOTIFY sinksChanged)
 
     friend class BlobGroup;
 
@@ -33,11 +34,18 @@ public:
 
     QMatrix4x4 rawDeformMatrix() const { return m_deformMatrix; }
 
+    // whether the inverted border pockets around this shape (border sinks). a
+    // docked island wants the pocket; a melting popout must slide in flush.
+    bool sinks() const { return m_sinks; }
+
+    void setSinks(bool s);
+
 signals:
     void groupChanged();
     void radiusChanged();
     void deformMatrixChanged();
     void rawDeformMatrixChanged();
+    void sinksChanged();
 
 protected:
     void componentComplete() override;
@@ -59,6 +67,7 @@ protected:
 
     BlobGroup* m_group = nullptr;
     qreal m_radius = 0;
+    bool m_sinks = true;
     QMatrix4x4 m_deformMatrix; // identity by default
     QMatrix4x4 m_centeredDeformMatrix;
 

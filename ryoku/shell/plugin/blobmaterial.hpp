@@ -12,6 +12,8 @@ struct BlobRectData {
     float invDeform[4] = { 1, 0, 0, 1 };
     // Screen-space AABB half-extents of the deformed rect
     float screenHalfX = 0, screenHalfY = 0;
+    // 0 = this rect never pockets the inverted border (border sinks off)
+    float sinkWeight = 1.0f;
     // Effective per-corner radii (tr, br, bl, tl), pre-computed on CPU
     float radius[4] = { 0, 0, 0, 0 };
     // Bitmask of indices in this rect's m_cachedRects that mutually exclude (or are excluded by) this rect.

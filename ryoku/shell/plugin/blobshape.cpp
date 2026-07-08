@@ -70,6 +70,15 @@ void BlobShape::setRadius(qreal r) {
         m_group->markDirty();
 }
 
+void BlobShape::setSinks(bool s) {
+    if (m_sinks == s)
+        return;
+    m_sinks = s;
+    emit sinksChanged();
+    if (m_group)
+        m_group->markDirty();
+}
+
 void BlobShape::componentComplete() {
     QQuickItem::componentComplete();
     if (m_group)
@@ -223,6 +232,7 @@ void BlobShape::updatePolish() {
             // precompute screen-space AABB half-extents
             r.screenHalfX = std::abs(a) * r.hw + std::abs(c) * r.hh;
             r.screenHalfY = std::abs(b) * r.hw + std::abs(d) * r.hh;
+            r.sinkWeight = other->m_sinks ? 1.0f : 0.0f;
 
             m_cachedRects.append(r);
             rectShapes.append(other);

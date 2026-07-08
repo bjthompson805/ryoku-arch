@@ -3,18 +3,22 @@
 ## Unreleased
 
 ### Fixed
-- **A popout close is one monotonic melt again.** Content tears down at half
-  melt, its implicit size collapses, and the live `openW`/`openH` Behaviors
-  chased that shrink with the overshooting spatial curve while `prog` was
-  still retracting, so the body dipped past flush and the terminal zero-size
-  frame popped it back. The size is now latched at close start, the same way
-  `heldAlong` latches the centre (Caelestia freezes its launcher height on
-  close with the same trick). The input-mask regions also stopped re-reading
-  the animated body rect: they bind the resting open geometry and drop to
-  zero the moment the close starts, so a melt tick no longer recommits the
-  wayland input region every frame (the close-time frame drops) and a
-  dismissed body stops eating clicks. Hover bands keep tracking live content
-  size, so a never-opened popout stays hoverable.
+- **A popout close is one monotonic melt again.** The visible dip-then-pop
+  was the border sink: the melt buries the body rect fully inside the frame
+  band, which is exactly the state that makes the inverted border's inner
+  wall recede to pocket a rect, so every close dug a body-wide notch past the
+  flush line and released it in one frame at the zero-size drop-out. Blob
+  shapes now carry a `sinks` flag and the popout body opts out, so it slides
+  in flush while a docked recorder island still gets its pocket. Three
+  supporting causes went with it: content teardown at half melt shrank
+  `openW`/`openH` through the overshooting spatial Behavior mid-retract (the
+  size is now latched at close start, the way `heldAlong` latches the
+  centre; Caelestia freezes its launcher height on close with the same
+  trick); the input-mask regions re-read the animated body rect and
+  recommitted the wayland input region every melt tick (they now bind the
+  resting open geometry and drop to zero when the close starts, so a
+  dismissed body stops eating clicks; hover bands keep tracking live content
+  size so a never-opened popout stays hoverable).
 - **The blob deform spring survives hitchy frames and coordinate jumps.** The
   integrator now runs in 8 ms substeps, stable at any configured stiffness
   through a 100 ms frame (at stiffness 800 and up one such frame used to flip

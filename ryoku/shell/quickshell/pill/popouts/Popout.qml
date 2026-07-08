@@ -237,6 +237,10 @@ Item {
         bottomLeftRadius: (root.atBottom || root.atLeft || root.hugLeft) ? 0 : root.radius
         bottomRightRadius: (root.atBottom || root.atRight || root.hugRight) ? 0 : root.radius
         deformScale: 0.000015
+        // no border pocket: the melt buries this rect in the band, and a sink
+        // would recede the frame line around it until the zero-size drop-out
+        // snaps it back (the close-time "dips past flush then pops" artifact)
+        sinks: false
         x: root.bodyX - (root.atLeft ? neckW : 0) - hugNeckL + (root.atRight ? root.burial : 0)
         y: root.bodyY - (root.atTop ? neckH : 0) + (root.atBottom ? root.burial : 0)
         implicitWidth: root.bodyW > 0 ? Math.max(0, root.bodyW + neckW + hugNeckL + hugNeckR - (root.vertical ? root.burial : 0)) : 0
