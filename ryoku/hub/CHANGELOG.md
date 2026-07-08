@@ -24,6 +24,11 @@
   API (with a key field). Models download and remove in the Hub with one click,
   no terminal; it writes Voxtype's config and drives its user service, while the
   shell keeps Super+` and the mic wave.
+- **Shell -> Bar** offers two Ryoku-native bar skins next to the two carried
+  ones. The Style control is now a dropdown of Noctalia, Caelestia, **Aegis**
+  (a flat instrument panel: mono editorial clock, accent underlines, no module
+  pills) and **Stele** (engraved bracket-cornered cells with an accent-framed
+  active workspace). The pick writes `barStyle` and shows on the desktop at once.
 
 ### Changed
 - Shell -> Bar now places the bar on any frame edge (Top / Bottom / Left /

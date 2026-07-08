@@ -462,11 +462,14 @@ Item {
                         current: draft.barPosition
                         onChosen: (k) => page.edit("barPosition", k)
                     }
-                    ChoiceRow {
+                    Dropdown {
                         width: parent.width; label: "Style"
+                        fieldWidth: 170
                         options: [
-                            { "key": "noctalia", "label": "Noctalia" },
-                            { "key": "caelestia", "label": "Caelestia" }
+                            { "key": "noctalia", "label": "Noctalia", "hint": "pill · dot" },
+                            { "key": "caelestia", "label": "Caelestia", "hint": "cell strip" },
+                            { "key": "aegis", "label": "Aegis", "hint": "instrument" },
+                            { "key": "stele", "label": "Stele", "hint": "engraved" }
                         ]
                         current: draft.barStyle
                         onChosen: (k) => page.edit("barStyle", k)
@@ -479,7 +482,7 @@ Item {
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        text: "A bar riding the top or bottom edge of the frame. Both skins are carried from their namesake shells: Noctalia is the pill-dot dialect, Caelestia the numbered cell strip. Panels grow from the bar edge at whichever module you click or hover, and windows tuck in against the band."
+                        text: "A bar riding the top or bottom edge of the frame. Noctalia (pill and dot) and Caelestia (numbered cell strip) are carried from their namesake shells; Aegis is a flat instrument panel with hairline accent underlines, Stele an engraved strip of bracketed cells. Panels grow from the bar edge at whichever module you click or hover, and windows tuck in against the band."
                         color: Theme.faint
                         font.family: Theme.font
                         font.pixelSize: 12
