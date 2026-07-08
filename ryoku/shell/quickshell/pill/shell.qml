@@ -625,13 +625,13 @@ ShellRoot {
                 BlobRect {
                     group: blobGroup
                     visible: overlay.triptychLobes
-                    x: topBar.x + topBar.leftX
+                    x: topBar.x
                     y: topBar.y
-                    implicitWidth: overlay.triptychLobes ? topBar.leftW : 0
+                    implicitWidth: overlay.triptychLobes ? (topBar.leftX + topBar.leftW) : 0
                     implicitHeight: overlay.triptychLobes ? overlay.barVisibleH : 0
                     topLeftRadius: 0
                     topRightRadius: 0
-                    bottomLeftRadius: Math.min(16 * overlay.s, overlay.barBand / 2)
+                    bottomLeftRadius: 0
                     bottomRightRadius: Math.min(16 * overlay.s, overlay.barBand / 2)
                     deformScale: 0.000015
                     sinks: false
@@ -655,12 +655,12 @@ ShellRoot {
                     visible: overlay.triptychLobes
                     x: topBar.x + topBar.rightX
                     y: topBar.y
-                    implicitWidth: overlay.triptychLobes ? topBar.rightW : 0
+                    implicitWidth: overlay.triptychLobes ? (topBar.width - topBar.rightX) : 0
                     implicitHeight: overlay.triptychLobes ? overlay.barVisibleH : 0
                     topLeftRadius: 0
                     topRightRadius: 0
                     bottomLeftRadius: Math.min(16 * overlay.s, overlay.barBand / 2)
-                    bottomRightRadius: Math.min(16 * overlay.s, overlay.barBand / 2)
+                    bottomRightRadius: 0
                     deformScale: 0.000015
                     sinks: false
                 }
