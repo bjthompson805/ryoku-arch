@@ -86,20 +86,51 @@ for pkgbuild in "${pkgbuilds[@]}"; do
       && makepkg --force --clean --nodeps --noconfirm --sign --key "$KEY_ID" )
 done
 
-# 3. collect built packages, confirm each is signed before indexing.
+# 3. a published filename never changes bytes. makepkg is not reproducible
+#    (BUILDDATE alone reshuffles the compressed bytes), so a fixed-version
+#    package (gpk, ryoku-keyring) rebuilt here would overwrite its live file
+#    with different bytes on every publish, and any client holding the
+#    previous db, a cached copy, or a .part resume trips pacman's size cap:
+#    "Maximum file size exceeded" (issue #21's second act, the 2026-07-08
+#    gpk install failures). if the mirror already serves a name, the served
+#    bytes replace this build and get re-signed; shipping a real change means
+#    bumping pkgrel, which changes the filename. monorepo packages version
+#    per commit, so they never collide here.
+MIRROR=${RYOKU_REPO_MIRROR:-https://repo.ryoku.dev/stable/$REPO_ARCH}
+for pkg in "$ARCH_DIR"/*.pkg.tar.zst; do
+  name=$(basename "$pkg")
+  if ! curl -fsSL --retry 3 -o "$pkg.published" "$MIRROR/$name" 2>/dev/null; then
+    rm -f "$pkg.published"   # not on the mirror yet: this build introduces it
+    continue
+  fi
+  if ! bsdtar -tf "$pkg.published" >/dev/null 2>&1; then
+    log "Mirror copy of $name is unreadable; publishing this build over it"
+    rm -f "$pkg.published"
+    continue
+  fi
+  if cmp -s "$pkg" "$pkg.published"; then
+    rm -f "$pkg.published"
+    continue
+  fi
+  log "Adopting published bytes for $name (filenames are immutable once live)"
+  mv -f "$pkg.published" "$pkg"
+  gpg --batch --yes --detach-sign -u "$KEY_ID" -o "$pkg.sig" "$pkg"
+done
+
+# 4. collect built packages, confirm each is signed before indexing.
 packages=("$ARCH_DIR"/*.pkg.tar.zst)
 (( ${#packages[@]} > 0 )) || die "no packages were built into $ARCH_DIR"
 for pkg in "${packages[@]}"; do
   [[ -e $pkg.sig ]] || die "missing signature for $(basename "$pkg")"
 done
 
-# 4. signed db from the actual package set. no --new: the dir was wiped above,
+# 5. signed db from the actual package set. no --new: the dir was wiped above,
 #    so repo-add always starts from empty and indexes exactly what's there. -s
 #    signs the db with the release key.
 log "Indexing ${#packages[@]} package(s) into $REPO_NAME.db"
 repo-add -s -k "$KEY_ID" "$DB_PATH" "${packages[@]}"
 
-# 5. repo-add leaves ryoku.db / ryoku.db.sig / ryoku.files as symlinks to the
+# 6. repo-add leaves ryoku.db / ryoku.db.sig / ryoku.files as symlinks to the
 #    versioned tarballs. object storage (R2/S3) has no symlinks and pacman
 #    fetches the bare names, so materialize them as real files in place.
 for link in "$REPO_NAME.db" "$REPO_NAME.db.sig" "$REPO_NAME.files" "$REPO_NAME.files.sig"; do

@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Fixed
+- **A published package filename never changes bytes again.** makepkg is not
+  reproducible (BUILDDATE alone reshuffles the compressed bytes), and every
+  publish rebuilt the fixed-version packages (`gpk`, `ryoku-keyring`) and
+  overwrote their live files in place, packages-first-db-last. Any client
+  whose db, HTTP cache, or `.part` resume predated the newest overwrite hit
+  pacman's size cap: "Maximum file size exceeded", the 2026-07-08 curl-install
+  failures on `gpk-0.5.8-1` (and issue #21's second act). Three changes close
+  it: `build-repo.sh` now adopts the mirror's bytes for any name it already
+  serves and re-signs them (shipping a real change means a pkgrel bump, which
+  changes the name); the publish workflow runs one at a time (concurrency
+  group, never cancelled mid-upload); and a post-upload step verifies every
+  file the served db lists exists at the recorded size with its `.sig`,
+  failing the publish instead of user installs. `gpk` and `ryoku-keyring` got
+  a one-time pkgrel bump so every poisoned cache and stale db converges on
+  virgin filenames.
 - **The desktop set moves in lockstep or not at all.** `ryoku-desktop` now pins
   its monorepo components (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`,
   `ryoku-blobs`, `ryoku`) to its own version: every publish rebuilds them all

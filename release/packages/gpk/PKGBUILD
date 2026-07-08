@@ -10,7 +10,7 @@
 # `gpk update` self-updates from upstream after install.
 pkgname=gpk
 pkgver=0.5.8
-pkgrel=1
+pkgrel=2
 pkgdesc="GlazePKG: the RyokuArch package manager, every package manager in one view"
 arch=('x86_64' 'aarch64')
 url="https://github.com/neur0map/glazepkg"

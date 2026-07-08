@@ -18,6 +18,13 @@ on:
 permissions:
   contents: read
 
+# one publish at a time, never cancelled mid-flight: two interleaved uploads
+# can leave run A's packages under run B's db, exactly the skew the
+# packages-first-db-last ordering below exists to prevent.
+concurrency:
+  group: publish-repo
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -160,3 +167,32 @@ jobs:
           rclone copy "$src" "$remote" --include 'ryoku.db*' --include 'ryoku.files*' -P
           rclone sync "$src" "$remote" -P
           echo "::notice::Published [ryoku] repo to $remote (packages first, db last, stale pruned)"
+
+      - name: Verify the published repo from a client's seat
+        run: |
+          set -euo pipefail
+          # fetch the served db and check every file it lists exists on the
+          # mirror at exactly the size the db records, with its .sig beside
+          # it. a torn upload or a same-name overwrite fails the publish here
+          # instead of failing user installs with "Maximum file size
+          # exceeded" (issue #21, and the 2026-07-08 gpk outage).
+          base="https://repo.ryoku.dev/stable/x86_64"
+          tmp=$(mktemp -d)
+          curl -fsSL --retry 3 "$base/ryoku.db" -o "$tmp/db"
+          mkdir "$tmp/x"
+          bsdtar -xf "$tmp/db" -C "$tmp/x"
+          bad=0
+          for d in "$tmp"/x/*/desc; do
+            fn=$(awk '/%FILENAME%/{getline; print; exit}' "$d")
+            cs=$(awk '/%CSIZE%/{getline; print; exit}' "$d")
+            got=$(curl -fsSI --retry 3 "$base/$fn" | tr -d '\r' | awk 'tolower($1)=="content-length:"{print $2}') || got=""
+            if [[ "$got" != "$cs" ]]; then
+              echo "::error::$fn: db records $cs bytes, mirror serves ${got:-nothing}"
+              bad=1
+            fi
+            if ! curl -fsSI --retry 3 -o /dev/null "$base/$fn.sig"; then
+              echo "::error::$fn.sig missing from the mirror"
+              bad=1
+            fi
+          done
+          exit "$bad"

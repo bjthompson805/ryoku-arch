@@ -6,7 +6,7 @@
 # and bump pkgver.
 pkgname=ryoku-keyring
 pkgver=20260620
-pkgrel=1
+pkgrel=2
 pkgdesc="Ryoku release signing key for the [ryoku] pacman repository"
 arch=('any')
 url="https://ryoku.dev"
