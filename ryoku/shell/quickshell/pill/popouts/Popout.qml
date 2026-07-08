@@ -68,7 +68,11 @@ Item {
     readonly property bool atTop: edge === "top"
     readonly property bool atBottom: edge === "bottom"
     readonly property bool vertical: atLeft || atRight   // body grows horizontally
-    readonly property bool hovered: (hoverOpen && triggerHH.hovered) || triggerHovered || bodyHH.hovered
+    // the body-hover hold only applies to hover-driven popouts (edge band or a
+    // bar module): a click-pinned popout must close the moment it's unpinned
+    // (close button, Escape, keybind re-toggle), even under the pointer.
+    readonly property bool hovered: (hoverOpen && triggerHH.hovered) || triggerHovered
+        || (bodyHH.hovered && (hoverOpen || closeDelay > 0))
     // host gates this off while a centre surface is open or a window is
     // fullscreen, so an edge hover never fights a modal surface.
     property bool active: true
@@ -179,6 +183,13 @@ Item {
     // thickness + smoothing reaches PAST the body's outer face into the border
     // field, so smooth-min welds body and frame into one continuous edge. the
     // content clip stays inset above the band; the bar renders on top of it.
+    // near close, retract the blob's inner face one smoothing-depth into the
+    // border: the smooth-min fillet holds the fused edge ~k(1-1/sqrt(2)) proud
+    // of the band until the shape is deleted at zero size, which reads as the
+    // melt stalling and then snapping flush in one frame. buried >= smoothing,
+    // the fillet residual is already zero when the shape drops out.
+    readonly property real burial: (1 - Math.max(0, Math.min(1, prog))) * smoothing
+
     BlobRect {
         id: bodyBlob
         readonly property real reach: root.frameThickness + root.smoothing
@@ -194,10 +205,10 @@ Item {
         bottomLeftRadius: (root.atBottom || root.atLeft || root.hugLeft) ? 0 : root.radius
         bottomRightRadius: (root.atBottom || root.atRight || root.hugRight) ? 0 : root.radius
         deformScale: 0.000015
-        x: root.bodyX - (root.atLeft ? neckW : 0) - hugNeckL
-        y: root.bodyY - (root.atTop ? neckH : 0)
-        implicitWidth: root.bodyW > 0 ? root.bodyW + neckW + hugNeckL + hugNeckR : 0
-        implicitHeight: root.bodyH > 0 ? root.bodyH + neckH : 0
+        x: root.bodyX - (root.atLeft ? neckW : 0) - hugNeckL + (root.atRight ? root.burial : 0)
+        y: root.bodyY - (root.atTop ? neckH : 0) + (root.atBottom ? root.burial : 0)
+        implicitWidth: root.bodyW > 0 ? Math.max(0, root.bodyW + neckW + hugNeckL + hugNeckR - (root.vertical ? root.burial : 0)) : 0
+        implicitHeight: root.bodyH > 0 ? Math.max(0, root.bodyH + neckH - (root.vertical ? 0 : root.burial)) : 0
     }
 
     // content at full size, revealed by a widening clip anchored to the border

@@ -228,9 +228,13 @@ ShellRoot {
             root.popout = "";
             return;
         }
+        // unpin the old popout before moving the anchor: a pinned popout tracks
+        // popoutCenter live, so writing the new centre first teleports the old
+        // body along the bar instead of letting it melt where it opened.
+        root.popout = "";
+        root.popoutMon = mon;
         root.popoutCenter = -1;   // keybind/IPC: no owning icon, so centre on the bar
         root.popout = name;
-        root.popoutMon = mon;
     }
 
     // open a popout at a bar icon: record the icon's along-axis centre so the
@@ -240,9 +244,10 @@ ShellRoot {
             root.popout = "";
             return;
         }
+        root.popout = "";         // same unpin-first order as togglePopout
+        root.popoutMon = mon;
         root.popoutCenter = center;
         root.popout = name;
-        root.popoutMon = mon;
     }
 
     // media hover popout: open at the module's centre; on unhover a short grace
@@ -303,6 +308,7 @@ ShellRoot {
             Keyring.apply(payload);
             var m = Keyring.mon !== "" ? Keyring.mon
                 : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "");
+            root.popout = "";
             root.popoutMon = m;
             root.popoutCenter = -1;
             root.popout = "keyring";
@@ -314,8 +320,8 @@ ShellRoot {
             if (root.popout === "keyring")
                 root.popout = "";
         }
-        function voiceShow(mon: string): void { root.voiceOff = false; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
-        function voiceOff(mon: string): void { root.voiceOff = true; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
+        function voiceShow(mon: string): void { root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
+        function voiceOff(mon: string): void { root.voiceOff = true; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; }
         function voiceHide(): void { if (root.popout === "voice") root.popout = ""; }
         function peek(mon: string): void { root.peek(mon); }
         function hide(): void { root.popout = ""; }
@@ -347,9 +353,9 @@ ShellRoot {
             root.togglePopout(mon, "plugin:" + (parts.length > 2 ? parts[2] : ""));
             return true;
         case "voiceShow":
-            root.voiceOff = false; root.popoutCenter = -1; root.popoutMon = mon; root.popout = "voice"; return true;
+            root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
         case "voiceOff":
-            root.voiceOff = true; root.popoutCenter = -1; root.popoutMon = mon; root.popout = "voice"; return true;
+            root.voiceOff = true; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
         case "voiceHide":
             if (root.popout === "voice") root.popout = "";
             return true;
@@ -496,8 +502,12 @@ ShellRoot {
 
             anchors { top: true; left: true; right: true; bottom: true }
 
+            // recHud.dragging widens the mask to the whole surface: the island
+            // clamps at the frame lips, so the pointer can slide off its rect
+            // mid-drag; losing the region there kills the grab and the island
+            // snaps home while the button is still held.
             mask: monFullscreen ? hiddenRegion
-                : (modal ? fullRegion : barRegion)
+                : ((modal || recHud.dragging) ? fullRegion : barRegion)
 
             // the bar band's input strip, per edge.
             readonly property real barMaskX: barRight ? width - barVisibleH : 0
