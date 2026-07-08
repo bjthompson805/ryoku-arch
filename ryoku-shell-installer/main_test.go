@@ -77,3 +77,19 @@ func TestAzertyPlanItems(t *testing.T) {
 		t.Fatal("switching a toggle off must not resurrect the other")
 	}
 }
+
+func TestCleanTermLine(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"plain", "installing gpk\n", "installing gpk"},
+		{"curl progress keeps the last repaint", "  0     0    0\r 12 12.2M   12  1.54M\n", " 12 12.2M   12  1.54M"},
+		{"trailing crlf", "done\r\n", "done"},
+		{"tabs spaced", "a\tb", "a  b"},
+		{"control bytes dropped", "ok\x1b[1m!\x07", "ok[1m!"},
+		{"only a bare repaint", "\r", ""},
+	}
+	for _, c := range cases {
+		if got := cleanTermLine(c.in); got != c.want {
+			t.Errorf("%s: cleanTermLine(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+}

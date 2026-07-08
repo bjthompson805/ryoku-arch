@@ -246,6 +246,28 @@ func (e *engine) runFrom(idx int) chan any {
 	return e.events
 }
 
+// cleanTermLine reduces raw child output to what a terminal would leave
+// visible: text after the last \r, tabs spaced, control bytes dropped. A bare
+// \r (curl's progress meter) rendered inside the TUI panel jumps the cursor
+// to column 0 and tears the frame.
+func cleanTermLine(s string) string {
+	s = strings.TrimRight(s, "\r\n")
+	if i := strings.LastIndexByte(s, '\r'); i >= 0 {
+		s = s[i+1:]
+	}
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r == '\t':
+			b.WriteString("  ")
+		case r < 0x20 || r == 0x7f:
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func shellJoin(name string, args []string) string {
 	parts := []string{name}
 	for _, a := range args {
@@ -281,7 +303,7 @@ func (e *engine) cmd(dir string, env []string, name string, args ...string) erro
 		rd := bufio.NewReader(pr)
 		for {
 			ln, err := rd.ReadString('\n')
-			if ln = strings.TrimRight(ln, "\r\n"); ln != "" {
+			if ln = cleanTermLine(ln); ln != "" {
 				e.say("  " + ln)
 			}
 			if err != nil {
@@ -647,18 +669,13 @@ func stepPackages(e *engine) error {
 	if e.p.devtools {
 		pkgs = append(pkgs, devPkgs...)
 	}
-	// leftover .part files resume against a mirror whose same-name bytes may
-	// have moved on since the aborted attempt; pacman then trips its size cap
-	// ("Maximum file size exceeded") and every retry inherits the same stale
-	// prefix. partial downloads are pure resume state, dropping them only
-	// costs the re-download.
+	// a .part resumed against a mirror whose bytes moved on trips pacman's
+	// size cap on every retry; dropping resume state just costs a re-download.
 	if err := e.sudoSh(`rm -f /var/cache/pacman/pkg/*.part`); err != nil {
 		e.say("warning: could not clear partial downloads (continuing)")
 	}
-	// -Syu, not -S: a resumed run re-enters here with the db its first
-	// attempt synced, and a publish can land in between, replacing or
-	// pruning the files that db points at. refreshing and upgrading in the
-	// same transaction installs against what the mirror serves right now.
+	// -Syu, not -S: a resumed run holds the db its first attempt synced, and
+	// a publish in between replaces or prunes the files that db points at.
 	return e.sudo(append([]string{"pacman", "-Syu", "--needed", "--noconfirm"}, pkgs...)...)
 }
 

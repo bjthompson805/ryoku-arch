@@ -97,3 +97,10 @@
   `pacman -Syu` instead of `-S`, so a resumed run transacts against the db
   the mirror serves now rather than the one its first attempt synced. Pairs
   with the publish-side fix that makes published filenames immutable.
+- Child output no longer tears the install screen. AUR builds shell out to
+  curl, whose progress meter repaints with bare carriage returns; rendered
+  raw inside the log panel they jump the cursor to column 0, smear box
+  borders across the terminal, and leave panels drawn in the wrong place.
+  Every line now passes through a terminal-semantics cleanup (keep the text
+  after the last \r, space out tabs, drop control bytes) before it reaches
+  the TUI or the log file.
