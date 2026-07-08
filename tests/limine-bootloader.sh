@@ -97,4 +97,33 @@ cp "$conf" "$tmp/before.conf"
 ryoku_boot_limine_promote "$conf"
 diff -q "$tmp/before.conf" "$conf" >/dev/null || fail "second promote changed the file"
 
+# --- repoint: adopted layout keeps every entry, default moves inside -------
+# limine-entry-tool 1.37+ nests the "//<kernel>" entries under the flat
+# placeholder instead of writing a standalone /+ tree.
+conf="$tmp/adopted.conf"
+cat >"$conf" <<'EOF'
+timeout: 3
+default_entry: 1
+
+/Ryoku Linux
+    protocol: linux
+    kernel_path: boot():/vmlinuz-linux
+
+  //linux
+  protocol: efi
+  path: boot():/EFI/Linux/ryoku_linux.efi
+
+     //Snapshots
+     comment: 1 / 5 snapshots
+EOF
+
+ryoku_boot_limine_repoint "$conf"
+grep -qxF 'default_entry: 2' "$conf" || fail "repoint must move the default off the tree directory"
+grep -qF '/Ryoku Linux' "$conf" || fail "repoint dropped the adopted tree root"
+grep -qF '  //linux' "$conf" || fail "repoint damaged the nested kernel entry"
+
+cp "$conf" "$tmp/adopted-before.conf"
+ryoku_boot_limine_repoint "$conf"
+diff -q "$tmp/adopted-before.conf" "$conf" >/dev/null || fail "second repoint changed the file"
+
 echo "limine-bootloader: all checks passed"

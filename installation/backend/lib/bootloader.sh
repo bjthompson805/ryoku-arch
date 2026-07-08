@@ -47,21 +47,29 @@ ryoku_bootloader() {
 }
 
 # finalize: runs after the AUR step. when limine-mkinitcpio-hook landed there,
-# its pacman hooks already rebuilt the menu in /boot/limine.conf as the
-# /+Ryoku UKI tree -- our flat placeholder entry is then clutter, and
-# default_entry must point past the tree directory (entry 1) at the newest
-# UKI (entry 2; a directory can't autoboot). offline installs (no hook) keep
-# the flat entry and default_entry: 1 untouched.
+# its pacman hooks already rebuilt the menu in /boot/limine.conf: older
+# limine-entry-tool writes a standalone /+Ryoku UKI tree (our flat placeholder
+# is then clutter), 1.37+ adopts the placeholder as the tree root and nests
+# the "//<kernel>" entries under it (nothing to drop). either way entry 1
+# becomes a directory, and a directory can't autoboot, so default_entry moves
+# to the newest UKI (entry 2). offline installs (no hook) keep the flat entry
+# and default_entry: 1 untouched.
 ryoku_bootloader_finalize() {
   local conf=/mnt/boot/limine.conf
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    log "DRYRUN: promote $conf to the tool-managed menu (when the /+ tree exists)"
+    log "DRYRUN: promote $conf to the tool-managed menu (when the generated tree exists)"
     return 0
   fi
   [[ -f $conf ]] || return 0
-  grep -q '^/+' "$conf" || return 0
-  log "limine-mkinitcpio-hook owns the menu: dropping the flat placeholder entry"
-  ryoku_boot_limine_promote "$conf"
+  if grep -q '^/+' "$conf"; then
+    log "limine-mkinitcpio-hook owns the menu: dropping the flat placeholder entry"
+    ryoku_boot_limine_promote "$conf"
+  elif grep -Eq '^[[:space:]]*//[^/]' "$conf"; then
+    log "limine-mkinitcpio-hook adopted the placeholder as the boot tree: repointing the default"
+    ryoku_boot_limine_repoint "$conf"
+  else
+    return 0
+  fi
   # the hook's rewrite re-serialized the file; make sure Windows is still there.
   ryoku_windows_entry
 }
@@ -78,6 +86,16 @@ ryoku_boot_limine_promote() {
     skip && /^[[:space:]]+[^[:space:]]/ { next }
     { skip = 0; print }
   ' "$conf" | sed 's/^default_entry: 1$/default_entry: 2/' >"$tmp"
+  mv "$tmp" "$conf"
+}
+
+# repoint CONF for the adopted layout: the placeholder became the tree root,
+# so every entry stays; only the default moves off the directory onto its
+# first UKI. atomic like the promote, idempotent (the sed only matches 1).
+ryoku_boot_limine_repoint() {
+  local conf=$1 tmp
+  tmp=$(mktemp) || return 1
+  sed 's/^default_entry: 1$/default_entry: 2/' "$conf" >"$tmp"
   mv "$tmp" "$conf"
 }
 
