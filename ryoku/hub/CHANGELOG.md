@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- The bar **Style** picker offers **Delos** (one island). When it is picked, an
+  **Island modules** section appears: check which modules the island carries
+  (Workspaces, Clock, Date, Now-playing, Window title, Status, Tray). The
+  island's dock (edge, position, hidden) round-trips through the settings file,
+  so editing other options never disturbs where it sits.
 - The Appearance page's **Look** tab gains window-motion toggles. **Wobbly
   windows** gives a dragged floating window a spring: it trails the cursor and
   settles with a little overshoot (a native `windowsMove` bezier, no plugin, so

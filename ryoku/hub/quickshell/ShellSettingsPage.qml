@@ -20,6 +20,7 @@ Item {
         "osdRadius", "osdOpacity",
         "barEnabled", "barPosition", "barStyle", "barHeight",
         "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
+        "islandEdge", "islandAlong", "islandHidden", "islandModules",
         "fontFamily", "fontScale"
     ]
     readonly property var vizKeys: [
@@ -36,6 +37,7 @@ Item {
         "osdRadius": 28, "osdOpacity": 1,
         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
         "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barOccupiedWorkspaces": true,
+        "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"],
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
@@ -69,6 +71,10 @@ Item {
         property bool barShowMedia: true
         property bool barShowStatus: true
         property bool barOccupiedWorkspaces: true
+        property string islandEdge: "top"
+        property real islandAlong: -1
+        property bool islandHidden: false
+        property var islandModules: ["workspaces", "clock", "date", "media"]
         property string fontFamily: "JetBrainsMono Nerd Font"
         property real fontScale: 1.3
         property bool enabled: true
@@ -162,6 +168,15 @@ Item {
         }
     }
 
+    // islandModules is a list; toggle a module's membership and write it back.
+    function toggleIslandModule(id, on) {
+        var l = (draft.islandModules || []).slice();
+        var i = l.indexOf(id);
+        if (on && i < 0) l.push(id);
+        else if (!on && i >= 0) l.splice(i, 1);
+        page.edit("islandModules", l);
+    }
+
     function snapshotDraft() {
         var s = {};
         for (var i = 0; i < page.keys.length; i++) {
@@ -221,6 +236,10 @@ Item {
             property bool barShowMedia: true
             property bool barShowStatus: true
             property bool barOccupiedWorkspaces: true
+            property string islandEdge: "top"
+            property real islandAlong: -1
+            property bool islandHidden: false
+            property var islandModules: ["workspaces", "clock", "date", "media"]
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
         }
@@ -470,7 +489,8 @@ Item {
                             { "key": "caelestia", "label": "Caelestia", "hint": "cell strip" },
                             { "key": "aegis", "label": "Aegis", "hint": "instrument" },
                             { "key": "stele", "label": "Stele", "hint": "engraved" },
-                            { "key": "triptych", "label": "Triptych", "hint": "islands" }
+                            { "key": "triptych", "label": "Triptych", "hint": "islands" },
+                            { "key": "delos", "label": "Delos", "hint": "one island" }
                         ]
                         current: draft.barStyle
                         onChosen: (k) => page.edit("barStyle", k)
@@ -519,6 +539,19 @@ Item {
                         checked: draft.barOccupiedWorkspaces
                         onToggled: (v) => page.edit("barOccupiedWorkspaces", v)
                     }
+                }
+
+                SettingSection {
+                    width: parent.width
+                    visible: draft.barStyle === "delos"
+                    title: "ISLAND MODULES"
+                    ToggleRow { width: parent.width; label: "Workspaces"; checked: (draft.islandModules || []).indexOf("workspaces") >= 0; onToggled: (v) => page.toggleIslandModule("workspaces", v) }
+                    ToggleRow { width: parent.width; label: "Clock"; checked: (draft.islandModules || []).indexOf("clock") >= 0; onToggled: (v) => page.toggleIslandModule("clock", v) }
+                    ToggleRow { width: parent.width; label: "Date"; checked: (draft.islandModules || []).indexOf("date") >= 0; onToggled: (v) => page.toggleIslandModule("date", v) }
+                    ToggleRow { width: parent.width; label: "Now playing"; checked: (draft.islandModules || []).indexOf("media") >= 0; onToggled: (v) => page.toggleIslandModule("media", v) }
+                    ToggleRow { width: parent.width; label: "Window title"; checked: (draft.islandModules || []).indexOf("title") >= 0; onToggled: (v) => page.toggleIslandModule("title", v) }
+                    ToggleRow { width: parent.width; label: "Status glyphs"; checked: (draft.islandModules || []).indexOf("status") >= 0; onToggled: (v) => page.toggleIslandModule("status", v) }
+                    ToggleRow { width: parent.width; label: "Tray"; checked: (draft.islandModules || []).indexOf("tray") >= 0; onToggled: (v) => page.toggleIslandModule("tray", v) }
                 }
             }
         }
