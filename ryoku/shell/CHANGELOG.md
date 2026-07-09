@@ -48,6 +48,10 @@
   it, so every skin gets it.
 
 ### Fixed
+- **Tray menus open under their icon.** A right-click on a system-tray icon
+  anchored the menu at the icon's local x inside the tray row, not its position
+  in the window, so the menu appeared at the bar's left edge instead of under
+  the icon. It maps to the icon's window position now, on every bar skin.
 - **A runtime frame-border change repaints.** `BlobInvertedRect`'s border
   setters marked the blob group dirty but never scheduled the item's own
   repaint, so a border-thickness change at runtime, switching bar skins or

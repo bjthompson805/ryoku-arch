@@ -47,7 +47,7 @@ Grid {
                     if (!trayItem.modelData)
                         return;
                     if (e.button === Qt.RightButton && trayItem.modelData.hasMenu)
-                        trayItem.modelData.display(tray.trayWindow, trayItem.x, tray.menuEdgeY);
+                        trayItem.modelData.display(tray.trayWindow, trayItem.mapToItem(null, trayItem.width / 2, 0).x, tray.menuEdgeY);
                     else
                         trayItem.modelData.activate();
                 }
