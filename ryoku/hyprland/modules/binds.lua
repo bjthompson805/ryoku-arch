@@ -32,6 +32,7 @@ hl.bind(mod .. " + ALT + E",   hl.dsp.exec_cmd("kitty -e yazi"))               -
 hl.bind(mod .. " + Space",     hl.dsp.exec_cmd("ryoku-shell launcher"))
 hl.bind(mod .. " + V",         hl.dsp.exec_cmd("ryoku-shell clipboard"))
 hl.bind(mod .. " + L",         hl.dsp.exec_cmd("ryoku-shell lock"))
+hl.bind(mod .. " + Escape",    hl.dsp.exec_cmd("ryoku-shell power"))            -- power / session menu (delos: top-right strip)
 hl.bind(mod .. " + W",         hl.dsp.exec_cmd("ryoku-shell wallpaper"))         -- next wallpaper
 hl.bind(mod .. " + C",         hl.dsp.exec_cmd("flock -n -o /tmp/ryoku-wallpaper.lock qs -c wallpaper")) -- wallpaper switcher (unified images + live, colour-sorted)
 hl.bind(mod .. " + SHIFT + W", hl.dsp.exec_cmd("ryoku-summon ryowalls flock -n -o /tmp/ryowalls.lock qs -c ryowalls")) -- ryowalls: summon to current workspace

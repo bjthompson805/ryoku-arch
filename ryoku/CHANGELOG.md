@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `hyprland`: **Super+Esc opens the power menu** (`ryoku-shell power`) -- a
+  vertical session strip (lock, logout, shutdown, restart, sleep). It is the
+  delos bar's power access, since power leaves the island, but the bind works
+  in every bar style.
 - `rashin/backend` + `apps/fish` + `docs/rashin-terminal.md`: **Rashin in the
   terminal**, a third surface on the one brain (launcher `\`, dashboard, and
   now the command line). A new `rashin` command (the `ryoku-rashin` binary
