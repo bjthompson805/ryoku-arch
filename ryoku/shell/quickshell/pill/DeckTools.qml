@@ -4,16 +4,17 @@ import QtQuick
 import Quickshell
 import "Singletons"
 
-// tools section of the 力 deck: screen-capture helpers (Lens, Color, OCR,
-// Mirror, QR) as a flat tile strip with hairline dividers over a Ryoku wave.
-// each tile runs a self-contained ~/.config/hypr/scripts helper and closes
-// the deck (requestClose) so the action owns the whole screen. Keep-awake
-// moved to Utilities; the old Caffeine toggle is gone from here.
+// the sidebar's quick-action strip: screen-capture helpers (Lens, Color, OCR,
+// Mirror, QR) plus a Clipboard-history button, as a flat tile row with hairline
+// dividers over a Ryoku wave. each capture tile runs a self-contained
+// ~/.config/hypr/scripts helper and closes the sidebar (requestClose) so the
+// action owns the whole screen; the Clipboard tile emits clipboardRequested.
 Item {
     id: tools
 
     property real s: 1
     signal requestClose()
+    signal clipboardRequested()
 
     implicitHeight: strip.height
 
@@ -24,7 +25,8 @@ Item {
         { "key": "color",  "glyph": "eyedropper", "label": "Color",  "argv": [tools.scripts + "ryoku-cmd-color-picker"] },
         { "key": "ocr",    "glyph": "ocr",        "label": "OCR",    "argv": [tools.scripts + "ryoku-cmd-ocr"] },
         { "key": "mirror", "glyph": "webcam",     "label": "Mirror", "argv": [tools.scripts + "ryoku-cmd-mirror"] },
-        { "key": "qr",     "glyph": "qr",         "label": "QR",     "argv": [tools.scripts + "ryoku-cmd-qr-scan"] }
+        { "key": "qr",     "glyph": "qr",         "label": "QR",     "argv": [tools.scripts + "ryoku-cmd-qr-scan"] },
+        { "key": "clip",   "glyph": "clipboard",  "label": "Clipboard", "clip": true }
     ]
 
     property string hovered: ""
@@ -119,7 +121,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onEntered: tools.hovered = tile.modelData.key
                     onExited: if (tools.hovered === tile.modelData.key) tools.hovered = ""
-                    onClicked: tools.launch(tile.modelData.argv)
+                    onClicked: tile.modelData.clip ? tools.clipboardRequested() : tools.launch(tile.modelData.argv)
                 }
 
                 // hairline divider on the leading edge of every slot but the first.

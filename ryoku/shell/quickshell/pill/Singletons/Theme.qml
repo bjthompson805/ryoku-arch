@@ -55,10 +55,11 @@ Singleton {
     readonly property string font: Config.fontFamily.length > 0 ? Config.fontFamily : "Space Grotesk"
     readonly property string fontJp: "Noto Sans CJK JP"
     readonly property string mono: "JetBrainsMono Nerd Font"
-    // brutalist: inner corners are SHARP. only the outer frame rounds, and it
-    // follows the user's shell rounding knob (Config.frameRadius / Hyprland's
-    // decoration:rounding) in shell.qml. inside our surfaces we stay sharp.
-    readonly property int radius: 0
+    // inner corner radius, shell-wide: follows the Global "roundness" knob so
+    // every tile, card, row and chip shares one rounded shape that echoes the
+    // frame's melt. 0 restores the old brutalist sharp corners; true circles
+    // (status dots, slider knobs) set their own radius: width/2 and are unaffected.
+    readonly property int radius: Math.round(Config.roundness)
     readonly property int shadowStep: 6
 
     /**

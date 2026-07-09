@@ -54,12 +54,16 @@ ShellRoot {
     property string hoverPopout: ""
     property string hoverPopoutMon: ""
     property real hoverPopoutCenter: 0
+    // which pane each sidebar shows. tab taps set it; the stash IPC jumps the
+    // left sidebar straight to its stash pane. "" = the sidebar's first pane.
+    property string sidebarLeftPane: ""
+    property string sidebarRightPane: ""
 
     // popouts that need the keyboard (search / password fields). while one of
     // these is the pinned popout, the overlay grabs the keyboard the way an open
     // surface does and hands it back on close; the pointer-only popouts and
     // voice stay keyboardFocus None.
-    readonly property var kbPopouts: ["clipboard", "link", "keyring", "stash", "toolkit", "utilities", "calendar"]
+    readonly property var kbPopouts: ["clipboard", "link", "keyring", "sidebarLeft", "sidebarRight", "calendar"]
     property string prevPopout: ""
     onPopoutChanged: {
         if (kbPopouts.indexOf(prevPopout) >= 0 && kbPopouts.indexOf(popout) < 0)
@@ -292,18 +296,23 @@ ShellRoot {
         function bluetooth(mon: string): void { root.togglePopout(mon, "bluetooth"); }
         function batteryPopout(mon: string): void { root.togglePopout(mon, "battery"); }
         function clipboard(mon: string): void { root.togglePopout(mon, "clipboard"); }
-        function stash(mon: string): void { root.togglePopout(mon, "stash"); }
-        // stash-send <file>: open the stash and jump straight to its LocalSend
-        // picker for the given file, so the file manager can hand a file to the
-        // deck's send flow. sets the popout directly (not toggle) so it never closes an open deck.
+        function stash(mon: string): void { root.sidebarLeftPane = "stash"; root.popoutMon = mon; root.popout = "sidebarLeft"; }
+        // stash-send <file>: open the left sidebar's stash pane and jump straight
+        // to its LocalSend picker, so the file manager can hand a file to the send
+        // flow. sets the popout directly (not toggle) so it never closes it.
         function stashSend(mon: string, file: string): void {
+            root.sidebarLeftPane = "stash";
             root.popoutMon = mon;
-            root.popout = "stash";
+            root.popout = "sidebarLeft";
             Stash.openSendPicker(file);
         }
-        function toolkit(mon: string): void { root.togglePopout(mon, "toolkit"); }
-        function utilities(mon: string): void { root.togglePopout(mon, "utilities"); }
+        // deck-era names, repointed to the left features sidebar (Super+D binds
+        // and the file manager still call these).
+        function toolkit(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
+        function utilities(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
         function workspaces(mon: string): void { root.togglePopout(mon, "workspaces"); }
+        function sidebarLeft(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
+        function sidebarRight(mon: string): void { root.togglePopout(mon, "sidebarRight"); }
         function keyringPrompt(payload: string): void {
             Keyring.apply(payload);
             var m = Keyring.mon !== "" ? Keyring.mon
@@ -345,8 +354,12 @@ ShellRoot {
         switch (fn) {
         case "battery": case "mixer": case "power":
             root.togglePopout(mon, fn); return true;
-        case "network": case "bluetooth": case "calendar": case "clipboard": case "link": case "inbox": case "stash": case "toolkit": case "utilities": case "workspaces":
+        case "network": case "bluetooth": case "calendar": case "clipboard": case "link": case "inbox": case "workspaces": case "sidebarLeft": case "sidebarRight":
             root.togglePopout(mon, fn); return true;
+        case "toolkit": case "utilities":
+            root.togglePopout(mon, "sidebarLeft"); return true;
+        case "stash":
+            root.sidebarLeftPane = "stash"; root.popoutMon = mon; root.popout = "sidebarLeft"; return true;
         case "batteryPopout":
             root.togglePopout(mon, "battery"); return true;
         case "pluginPopout":
@@ -480,6 +493,18 @@ ShellRoot {
             readonly property real barBand: Math.max(Config.barHeight, barVertical ? 30 : 0) * s
             readonly property real barVisibleH: frameTopVisible + barBand
 
+            // the two sidebars: full-height panels that melt out of the left and
+            // right frame edges (fullSpan), each fusing into the top and bottom
+            // frame so a whole side swells open with no gap. the top/bottom gaps
+            // become the content inset, so it clears a bar and the bottom frame.
+            readonly property bool sidebarLeftOn: Config.sidebarLeftEnabled
+            readonly property bool sidebarRightOn: Config.sidebarRightEnabled
+            readonly property real sidebarW: Config.sidebarWidth * s
+            readonly property real sidebarTopGap: (barTop ? barVisibleH : frameTopVisible) + 14 * s
+            readonly property real sidebarBotGap: (barBottom ? barVisibleH : frameTopVisible) + 14 * s
+            readonly property real sidebarCornerW: Config.sidebarCornerSize * s
+            readonly property real sidebarCornerH: Config.sidebarCornerSize * s
+
             // a keyboard-needing popout (clipboard/link/keyring/deck/workspaces)
             // pinned on this monitor: grabs the keyboard for text entry.
             readonly property bool kbPopout: root.popoutMon === modelData.name
@@ -561,7 +586,6 @@ ShellRoot {
                 Region { x: clipboardPop.maskX; y: clipboardPop.maskY; width: clipboardPop.maskW; height: clipboardPop.maskH }
                 Region { x: linkPop.maskX; y: linkPop.maskY; width: linkPop.maskW; height: linkPop.maskH }
                 Region { x: inboxPop.maskX; y: inboxPop.maskY; width: inboxPop.maskW; height: inboxPop.maskH }
-                Region { x: deckPop.maskX; y: deckPop.maskY; width: deckPop.maskW; height: deckPop.maskH }
                 Region { x: voicePop.maskX; y: voicePop.maskY; width: voicePop.maskW; height: voicePop.maskH }
                 Region { x: keyringPop.maskX; y: keyringPop.maskY; width: keyringPop.maskW; height: keyringPop.maskH }
                 Region { x: workspacesPop.maskX; y: workspacesPop.maskY; width: workspacesPop.maskW; height: workspacesPop.maskH }
@@ -573,6 +597,10 @@ ShellRoot {
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.active ? recHud.trigW : 0; height: Recorder.active ? recHud.trigH : 0 }
                 Region { x: delosIsland.hudX; y: delosIsland.hudY; width: (overlay.delos && delosIsland.prog > 0.25) ? delosIsland.hudW : 0; height: (overlay.delos && delosIsland.prog > 0.25) ? delosIsland.hudH : 0 }
                 Region { x: delosIsland.trigX; y: delosIsland.trigY; width: overlay.delos ? delosIsland.trigW : 0; height: overlay.delos ? delosIsland.trigH : 0 }
+                Region { x: 0; y: 0; width: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.sidebarCornerW : 0; height: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.sidebarCornerH : 0 }
+                Region { x: sidebarLeftPop.maskX; y: sidebarLeftPop.maskY; width: sidebarLeftPop.maskW; height: sidebarLeftPop.maskH }
+                Region { x: (overlay.width - overlay.sidebarCornerW); y: 0; width: (overlay.sidebarRightOn && !overlay.monFullscreen) ? overlay.sidebarCornerW : 0; height: (overlay.sidebarRightOn && !overlay.monFullscreen) ? overlay.sidebarCornerH : 0 }
+                Region { x: sidebarRightPop.maskX; y: sidebarRightPop.maskY; width: sidebarRightPop.maskW; height: sidebarRightPop.maskH }
             }
 
             MouseArea {
@@ -969,31 +997,6 @@ ShellRoot {
                     }
                 }
 
-                // control deck popout (Super+D): the dashboard, from the bar
-                // edge. one popout for the stash/toolkit/utilities entry points.
-                Popout {
-                    id: deckPop
-                    group: blobGroup
-                    frameThickness: overlay.barVisibleH
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    edge: overlay.barPos
-                    hoverOpen: false
-                    alongCenter: root.popoutCenter
-                    s: overlay.s
-                    active: !overlay.monFullscreen
-                    pinned: (root.popout === "stash" || root.popout === "toolkit" || root.popout === "utilities")
-                            && root.popoutMon === overlay.modelData.name
-                    openW: deckContent.implicitWidth
-                    openH: deckContent.implicitHeight
-
-                    DeckPopout {
-                        id: deckContent
-                        s: overlay.s
-                        open: deckPop.prog > 0.5
-                        onCloseRequested: root.popout = ""
-                    }
-                }
 
                 // voice popout: the dictation overlay. grabs nothing (excluded
                 // from the focus grab below) so dictation lands in the focused app.
@@ -1069,6 +1072,115 @@ ShellRoot {
                         screenName: overlay.modelData.name
                         open: workspacesPop.prog > 0.5
                         onCloseRequested: root.popout = ""
+                    }
+                }
+
+                // LEFT sidebar (Features): a corner hotspot at the top-left plus
+                // the panel that melts out of the left edge. the corner carries
+                // only a HoverHandler (clickless) so a bar click falls through; a
+                // deliberate hover arms it, or a click when clickless is off.
+                Item {
+                    id: sidebarLeftCorner
+                    z: 3
+                    visible: overlay.sidebarLeftOn && !overlay.monFullscreen
+                    x: 0
+                    y: 0
+                    width: overlay.sidebarCornerW
+                    height: overlay.sidebarCornerH
+                    property bool armed: false
+                    onVisibleChanged: if (!visible) armed = false
+                    Timer { id: sidebarLeftIntent; interval: 150; onTriggered: sidebarLeftCorner.armed = true }
+                    HoverHandler {
+                        enabled: Config.sidebarClickless
+                        onHoveredChanged: {
+                            if (hovered) sidebarLeftIntent.restart();
+                            else { sidebarLeftIntent.stop(); sidebarLeftCorner.armed = false; }
+                        }
+                    }
+                    TapHandler {
+                        enabled: !Config.sidebarClickless
+                        onTapped: root.togglePopout(overlay.modelData.name, "sidebarLeft")
+                    }
+                }
+                Popout {
+                    id: sidebarLeftPop
+                    group: blobGroup
+                    frameThickness: overlay.frameTopVisible
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: "left"
+                    hoverOpen: false
+                    closeDelay: 300
+                    s: overlay.s
+                    active: overlay.sidebarLeftOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarLeft")
+                    triggerHovered: Config.sidebarClickless && sidebarLeftCorner.armed
+                    pinned: root.popout === "sidebarLeft" && root.popoutMon === overlay.modelData.name
+                    fullSpan: true
+                    openW: overlay.sidebarW
+                    openH: overlay.height
+
+                    SidebarFeatures {
+                        s: overlay.s
+                        topInset: overlay.sidebarTopGap
+                        botInset: overlay.sidebarBotGap
+                        open: sidebarLeftPop.prog > 0.5
+                        panes: Config.sidebarLeftPanes
+                        pane: root.sidebarLeftPane
+                        onPaneSelected: (k) => root.sidebarLeftPane = k
+                    }
+                }
+
+                // RIGHT sidebar (System): mirror on the top-right corner + edge.
+                Item {
+                    id: sidebarRightCorner
+                    z: 3
+                    visible: overlay.sidebarRightOn && !overlay.monFullscreen
+                    x: overlay.width - overlay.sidebarCornerW
+                    y: 0
+                    width: overlay.sidebarCornerW
+                    height: overlay.sidebarCornerH
+                    property bool armed: false
+                    onVisibleChanged: if (!visible) armed = false
+                    Timer { id: sidebarRightIntent; interval: 150; onTriggered: sidebarRightCorner.armed = true }
+                    HoverHandler {
+                        enabled: Config.sidebarClickless
+                        onHoveredChanged: {
+                            if (hovered) sidebarRightIntent.restart();
+                            else { sidebarRightIntent.stop(); sidebarRightCorner.armed = false; }
+                        }
+                    }
+                    TapHandler {
+                        enabled: !Config.sidebarClickless
+                        onTapped: root.togglePopout(overlay.modelData.name, "sidebarRight")
+                    }
+                }
+                Popout {
+                    id: sidebarRightPop
+                    group: blobGroup
+                    frameThickness: overlay.frameTopVisible
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: "right"
+                    hoverOpen: false
+                    closeDelay: 300
+                    s: overlay.s
+                    active: overlay.sidebarRightOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarRight")
+                    triggerHovered: Config.sidebarClickless && sidebarRightCorner.armed
+                    pinned: root.popout === "sidebarRight" && root.popoutMon === overlay.modelData.name
+                    fullSpan: true
+                    openW: overlay.sidebarW
+                    openH: overlay.height
+
+                    SidebarSystem {
+                        s: overlay.s
+                        topInset: overlay.sidebarTopGap
+                        botInset: overlay.sidebarBotGap
+                        open: sidebarRightPop.prog > 0.5
+                        panes: Config.sidebarRightPanes
+                        pane: root.sidebarRightPane
+                        onPaneSelected: (k) => root.sidebarRightPane = k
+                        onDismiss: { if (root.popout === "sidebarRight" && root.popoutMon === overlay.modelData.name) root.popout = ""; }
+                        onClipboardRequested: root.togglePopout(overlay.modelData.name, "clipboard")
                     }
                 }
 

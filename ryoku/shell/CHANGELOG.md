@@ -3,6 +3,23 @@
 ## Unreleased
 
 ### Added
+- **Two corner-hover sidebars, replacing the control deck.** Full-height panels
+  that melt out of the left and right frame edges and fuse into the top and bottom
+  frame, so a whole side swells open with no gap. Hover a top corner to open (a
+  short intent, a grace on leave), or toggle via IPC. **Left is Features** (the
+  Stash file board, room for more); **right is System**, the control centre folded
+  in from the old deck: 力 clock and weather, the session and quick toggles, the
+  screen-capture tools and a clipboard button, a volume fader, and a tab rail over
+  the notification digest, the month calendar, now-playing, the weather forecast,
+  and screen recording. Ryoku Settings' Shell section gains a **Sidebar** tab
+  (enable each side, pick and order each side's panes, open-on-hover vs click,
+  width, corner-hotspot size). Built on a new `Popout` `fullSpan` mode; the old
+  `DeckSurface` / `DeckPopout` control deck is gone.
+- **A global `roundness` knob and a Global settings tab.** One shell-wide inner
+  corner radius (Ryoku Settings' new **Global** tab, alongside the frame melt,
+  surface, shadow, and typography controls moved there) rounds every tile, card,
+  row and chip so the shell shares one shape with the rounded frame. 0 restores
+  the old brutalist sharp corners.
 - **A single floating-island bar, `delos`.** `barStyle` takes `delos`: the whole
   bar becomes one draggable island in the frame's blob field, the recorder
   island generalised. Grab its 6-dot grip and it pulls off the edge (the rest

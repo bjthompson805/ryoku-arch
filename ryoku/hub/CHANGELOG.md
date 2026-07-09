@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- The Shell page gains a **Sidebar** tab for the Aside (the corner-summoned side
+  panel): enable it, choose the side (left / right), toggle open-on-hover vs
+  click, and set the panel width and corner-hotspot size. Edits apply live to the
+  running shell via `shell.json`.
 - The bar **Style** picker offers **Delos** (one island). When it is picked, an
   **Island** section appears: set its corner **Roundness**, then check which modules the island carries
   (Workspaces, Clock, Date, Now-playing, Window title, Status, Tray). The

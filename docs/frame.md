@@ -110,6 +110,42 @@ screen clicks through. A keyboard popout (search / password field) instead clear
 the mask to a full region so a backdrop press dismisses it, and takes keyboard
 focus on demand so Escape closes it.
 
+## The sidebars
+
+Two full-height side panels melt out of the left and right frame edges, each
+opened by hovering that side's top corner. Both are `Popout`s in `fullSpan`
+mode: where a normal popout insets from the frame and rounds its inner corners,
+`fullSpan` makes a left/right body fill the frame top-to-bottom and fuse into the
+top and bottom borders too. The blob overshoots both screen edges so its
+silhouette outline clips off-screen (only the inner edge is drawn), reading as
+the whole side of the frame swelling open with no gap at either end.
+
+- **Left is Features, right is System.** The left sidebar
+  (`popouts/SidebarFeatures.qml`) holds the Stash file board and leaves room for
+  future feature panes; with a single pane its tab rail folds away. The right
+  sidebar (`popouts/SidebarSystem.qml`) is the control centre: a 力 masthead
+  (clock, date, weather) over the full `DeckControls` toggles, the screen-capture
+  Tools and a Clipboard button (the `DeckTools` quick-action strip), and a volume
+  fader, all above a tab rail that swaps the pane between the notification digest,
+  the month calendar (reusing `Calendar`), the now-playing player, the weather
+  forecast, and screen recording.
+- Ryoku Settings' Shell section has a **Sidebar** tab: `sidebarLeftEnabled` /
+  `sidebarRightEnabled` arm each corner, `sidebarLeftPanes` / `sidebarRightPanes`
+  pick which panes each shows and their order, `sidebarClickless` opens on hover
+  (else click), and `sidebarWidth` / `sidebarCornerSize` size the panels and their
+  hit-regions.
+- Each trigger is a small always-masked hit region at that side's top corner
+  (`sidebarLeftCorner` / `sidebarRightCorner` in `shell.qml`). In hover mode a
+  deliberate hover (a short intent timer) arms the popout and the body's own hover
+  latch (a `closeDelay` grace) holds it open until the pointer leaves; a bare
+  `HoverHandler` lets a click fall through to the bar. In click mode a `TapHandler`
+  on the corner toggles it instead.
+- The `sidebarLeft` / `sidebarRight` IPC commands toggle them (`togglePopout`);
+  `stash` and the file manager's `stashSend` jump the left sidebar straight to its
+  Stash pane. Content components take `panes` (the enabled pane keys), `pane` (the
+  shell-owned current pane) and report taps back via `paneSelected`; `topInset` /
+  `botInset` clear a top/bottom bar, since the blob runs edge to edge.
+
 ## Adding a popout
 
 1. Add `quickshell/pill/popouts/Foo.qml`: a transparent `Item` (`anchors.fill:

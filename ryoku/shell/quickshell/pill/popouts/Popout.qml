@@ -35,6 +35,11 @@ Item {
     property real alongCenter: -1
     property real openW: 220
     property real openH: 200
+    // full-height sidebar: the body fills the frame top-to-bottom and fuses into
+    // the top AND bottom borders (not only the edge it grows from), so it reads
+    // as the whole side of the frame swelling open, no gap at either end. only
+    // meaningful for a left/right edge.
+    property bool fullSpan: false
     // size tracks the content's implicit size (the mixer grows as its device
     // picker expands or a stream appears); melt rather than snap.
     Behavior on openW { NumberAnimation { duration: Motion.spatial; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.spatialCurve } }
@@ -80,6 +85,7 @@ Item {
     readonly property bool atTop: edge === "top"
     readonly property bool atBottom: edge === "bottom"
     readonly property bool vertical: atLeft || atRight   // body grows horizontally
+    readonly property bool spanning: fullSpan && vertical
     // the body-hover hold only applies to hover-driven popouts (edge band or a
     // bar module): a click-pinned popout must close the moment it's unpinned
     // (close button, Escape, keybind re-toggle), even under the pointer.
@@ -146,11 +152,12 @@ Item {
                                  : hugRight ? (width - curW)
                                  : hugLeft ? 0
                                  : alongX + (dipHost && !heldOpen ? (bodyOpenW - curW) / 2 : 0)
-    readonly property real bodyY: atTop ? frameThickness
+    readonly property real bodyY: spanning ? 0
+                                 : atTop ? frameThickness
                                  : atBottom ? (height - frameThickness - curH)
                                  : alongY + (dipHost && !heldOpen ? (bodyOpenH - curH) / 2 : 0)
     readonly property real bodyW: curW
-    readonly property real bodyH: curH
+    readonly property real bodyH: spanning ? height : curH
 
     // hover trigger = the frame border itself: a thin strip of the frame next
     // to the popout, `frameThickness` deep (same pixels the mixer/power popouts
@@ -176,7 +183,8 @@ Item {
                                 : hugRight ? (width - bodyOpenW)
                                 : hugLeft ? 0
                                 : alongX
-    readonly property real maskY: atTop ? frameThickness
+    readonly property real maskY: spanning ? 0
+                                : atTop ? frameThickness
                                 : atBottom ? (height - frameThickness - bodyOpenH)
                                 : alongY
     readonly property real maskW: heldOpen ? bodyOpenW : 0
@@ -243,19 +251,22 @@ Item {
         group: root.group
         // edge-side corners flush (fused into the frame border), inner corners
         // rounded -- so the body is continuous with the frame edge it grows from.
-        topLeftRadius: (root.atTop || root.atLeft || root.hugLeft) ? 0 : root.radius
-        topRightRadius: (root.atTop || root.atRight || root.hugRight) ? 0 : root.radius
-        bottomLeftRadius: (root.atBottom || root.atLeft || root.hugLeft) ? 0 : root.radius
-        bottomRightRadius: (root.atBottom || root.atRight || root.hugRight) ? 0 : root.radius
+        topLeftRadius: (root.atTop || root.atLeft || root.hugLeft || root.spanning) ? 0 : root.radius
+        topRightRadius: (root.atTop || root.atRight || root.hugRight || root.spanning) ? 0 : root.radius
+        bottomLeftRadius: (root.atBottom || root.atLeft || root.hugLeft || root.spanning) ? 0 : root.radius
+        bottomRightRadius: (root.atBottom || root.atRight || root.hugRight || root.spanning) ? 0 : root.radius
         deformScale: 0.000015
         // no border pocket: the melt buries this rect in the band, and a sink
         // would recede the frame line around it until the zero-size drop-out
         // snaps it back (the close-time "dips past flush then pops" artifact)
         sinks: false
         x: root.bodyX - (root.atLeft ? neckW : 0) - hugNeckL + (root.atRight ? root.burial : 0)
-        y: root.bodyY - (root.atTop ? neckH : 0) + (root.atBottom ? root.burial : 0)
+        // a full-span sidebar overshoots both screen edges so its silhouette
+        // outline clips off-screen (like the frame's own -50 oversize); only the
+        // inner edge shows a line. the content clip below stays on-screen.
+        y: root.spanning ? -60 : (root.bodyY - (root.atTop ? neckH : 0) + (root.atBottom ? root.burial : 0))
         implicitWidth: root.bodyW > 0 ? Math.max(0, root.bodyW + neckW + hugNeckL + hugNeckR - (root.vertical ? root.burial : 0)) : 0
-        implicitHeight: root.bodyH > 0 ? Math.max(0, root.bodyH + neckH - (root.vertical ? 0 : root.burial)) : 0
+        implicitHeight: root.spanning ? (root.height + 120) : (root.bodyH > 0 ? Math.max(0, root.bodyH + neckH - (root.vertical ? 0 : root.burial)) : 0)
     }
 
     // content at full size, revealed by a widening clip anchored to the border

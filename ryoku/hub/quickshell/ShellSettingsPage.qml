@@ -15,13 +15,15 @@ Item {
     id: page
 
     readonly property var shellKeys: [
-        "frameRadius", "frameBorder", "frameSmoothing", "frameOpacity",
+        "frameRadius", "roundness", "frameBorder", "frameSmoothing", "frameOpacity",
         "shadowStrength", "shadowSize", "surfaceColor",
         "osdRadius", "osdOpacity",
         "barEnabled", "barPosition", "barStyle", "barHeight",
         "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
-        "fontFamily", "fontScale"
+        "fontFamily", "fontScale",
+        "sidebarLeftEnabled", "sidebarRightEnabled", "sidebarLeftPanes", "sidebarRightPanes",
+        "sidebarClickless", "sidebarWidth", "sidebarCornerSize"
     ]
     readonly property var vizKeys: [
         "enabled", "bars", "height", "thickness", "bloom", "reflection", "idleWave",
@@ -32,13 +34,15 @@ Item {
     // mirror of the shells' canonical defaults (pill Singletons/Config.qml +
     // visualizer Singletons/Config.qml). only used for "Reset to defaults".
     readonly property var defaults: ({
-        "frameRadius": 9, "frameBorder": 59, "frameSmoothing": 8, "frameOpacity": 1,
+        "frameRadius": 9, "roundness": 10, "frameBorder": 59, "frameSmoothing": 8, "frameOpacity": 1,
         "shadowStrength": 0.63, "shadowSize": 12, "surfaceColor": "#0f1115",
         "osdRadius": 28, "osdOpacity": 1,
         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
         "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barOccupiedWorkspaces": true,
         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
+        "sidebarLeftEnabled": true, "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
+        "sidebarClickless": true, "sidebarWidth": 340, "sidebarCornerSize": 34,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
         "style": "bars", "shape": "rounded", "position": "bottom", "mirror": false
@@ -55,6 +59,7 @@ Item {
     QtObject {
         id: draft
         property real frameRadius: 9
+        property real roundness: 10
         property real frameBorder: 59
         property real frameSmoothing: 8
         property real frameOpacity: 1
@@ -78,6 +83,13 @@ Item {
         property real islandRadius: 17
         property string fontFamily: "JetBrainsMono Nerd Font"
         property real fontScale: 1.3
+        property bool sidebarLeftEnabled: true
+        property bool sidebarRightEnabled: true
+        property var sidebarLeftPanes: ["stash"]
+        property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
+        property bool sidebarClickless: true
+        property real sidebarWidth: 340
+        property real sidebarCornerSize: 34
         property bool enabled: true
         property int bars: 64
         property real height: 0.42
@@ -178,6 +190,16 @@ Item {
         page.edit("islandModules", l);
     }
 
+    // each sidebar's panes is an ordered list; toggle a pane's membership on
+    // that side and write it back (enable appends to the end, disable removes).
+    function toggleSidebarPane(sideKey, id, on) {
+        var l = (draft[sideKey] || []).slice();
+        var i = l.indexOf(id);
+        if (on && i < 0) l.push(id);
+        else if (!on && i >= 0) l.splice(i, 1);
+        page.edit(sideKey, l);
+    }
+
     function snapshotDraft() {
         var s = {};
         for (var i = 0; i < page.keys.length; i++) {
@@ -221,6 +243,7 @@ Item {
         JsonAdapter {
             id: shellA
             property real frameRadius: 9
+            property real roundness: 10
             property real frameBorder: 59
             property real frameSmoothing: 8
             property real frameOpacity: 1
@@ -244,6 +267,13 @@ Item {
             property real islandRadius: 17
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
+            property bool sidebarLeftEnabled: true
+            property bool sidebarRightEnabled: true
+            property var sidebarLeftPanes: ["stash"]
+            property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
+            property bool sidebarClickless: true
+            property real sidebarWidth: 340
+            property real sidebarCornerSize: 34
         }
     }
 
@@ -293,7 +323,9 @@ Item {
         anchors.top: parent.top
         model: [
             { "key": "frame", "label": "Frame" },
+            { "key": "global", "label": "Global" },
             { "key": "bar", "label": "Bar" },
+            { "key": "sidebar", "label": "Sidebar" },
             { "key": "visualizer", "label": "Visualizer" }
         ]
         current: page.group
@@ -342,7 +374,7 @@ Item {
             id: loader
             width: flick.width - 12
             height: item ? item.implicitHeight : 0
-            sourceComponent: page.group === "frame" ? frameComp : (page.group === "bar" ? barComp : vizComp)
+        sourceComponent: page.group === "frame" ? frameComp : (page.group === "global" ? globalComp : (page.group === "bar" ? barComp : (page.group === "sidebar" ? sidebarComp : vizComp)))
             onLoaded: {
                 if (!item)
                     return;
@@ -369,14 +401,58 @@ Item {
                     width: parent.width
                     title: "SHAPE"
                     NumberField {
-                        width: parent.width; label: "Corner radius"; unit: "px"
-                        from: 0; to: 60; value: draft.frameRadius
-                        onModified: (v) => page.edit("frameRadius", v)
-                    }
-                    NumberField {
                         width: parent.width; label: "Border thickness"; unit: "px"
                         from: 24; to: 140; value: draft.frameBorder
                         onModified: (v) => page.edit("frameBorder", v)
+                    }
+                }
+            }
+
+            Column {
+                width: frameRow.colW
+                spacing: 30
+
+                SettingSection {
+                    width: parent.width
+                    title: "NOTIFICATIONS"
+                    NumberField {
+                        width: parent.width; label: "OSD & toast corner"; unit: "px"
+                        from: 0; to: 40; value: draft.osdRadius
+                        onModified: (v) => page.edit("osdRadius", v)
+                    }
+                    SliderRow {
+                        width: parent.width; label: "Opacity"; percent: true
+                        from: 0.2; to: 1; step: 0.01; value: draft.osdOpacity
+                        onModified: (v) => page.edit("osdOpacity", v)
+                    }
+                }
+            }
+        }
+    }
+
+    Component {
+        id: globalComp
+        Row {
+            id: globalRow
+            spacing: 56
+            readonly property real colW: (width - spacing) / 2
+
+            Column {
+                width: globalRow.colW
+                spacing: 30
+
+                SettingSection {
+                    width: parent.width
+                    title: "ROUNDNESS"
+                    NumberField {
+                        width: parent.width; label: "Inner roundness"; unit: "px"
+                        from: 0; to: 24; value: draft.roundness
+                        onModified: (v) => page.edit("roundness", v)
+                    }
+                    NumberField {
+                        width: parent.width; label: "Frame corner"; unit: "px"
+                        from: 0; to: 60; value: draft.frameRadius
+                        onModified: (v) => page.edit("frameRadius", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Edge melt"
@@ -402,7 +478,7 @@ Item {
             }
 
             Column {
-                width: frameRow.colW
+                width: globalRow.colW
                 spacing: 30
 
                 SettingSection {
@@ -434,21 +510,6 @@ Item {
                         width: parent.width; label: "Size"; percent: true
                         from: 0.7; to: 1.6; step: 0.05; value: draft.fontScale
                         onModified: (v) => page.edit("fontScale", v)
-                    }
-                }
-
-                SettingSection {
-                    width: parent.width
-                    title: "NOTIFICATIONS"
-                    NumberField {
-                        width: parent.width; label: "OSD & toast corner"; unit: "px"
-                        from: 0; to: 40; value: draft.osdRadius
-                        onModified: (v) => page.edit("osdRadius", v)
-                    }
-                    SliderRow {
-                        width: parent.width; label: "Opacity"; percent: true
-                        from: 0.2; to: 1; step: 0.01; value: draft.osdOpacity
-                        onModified: (v) => page.edit("osdOpacity", v)
                     }
                 }
             }
@@ -559,6 +620,94 @@ Item {
                     ToggleRow { width: parent.width; label: "Window title"; checked: (draft.islandModules || []).indexOf("title") >= 0; onToggled: (v) => page.toggleIslandModule("title", v) }
                     ToggleRow { width: parent.width; label: "Status glyphs"; checked: (draft.islandModules || []).indexOf("status") >= 0; onToggled: (v) => page.toggleIslandModule("status", v) }
                     ToggleRow { width: parent.width; label: "Tray"; checked: (draft.islandModules || []).indexOf("tray") >= 0; onToggled: (v) => page.toggleIslandModule("tray", v) }
+                }
+            }
+        }
+    }
+
+    Component {
+        id: sidebarComp
+        Row {
+            id: sbRow
+            spacing: 56
+            readonly property real colW: (width - spacing) / 2
+
+            Column {
+                width: sbRow.colW
+                spacing: 30
+
+                SettingSection {
+                    width: parent.width
+                    title: "LEFT \u00b7 FEATURES"
+                    ToggleRow {
+                        width: parent.width; label: "Enable left sidebar"
+                        checked: draft.sidebarLeftEnabled
+                        onToggled: (v) => page.edit("sidebarLeftEnabled", v)
+                    }
+                    ToggleRow { width: parent.width; label: "Stash"; checked: (draft.sidebarLeftPanes || []).indexOf("stash") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarLeftPanes", "stash", v) }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Melts out of the frame's left edge when you hover (or click) the top-left corner, carrying your chosen feature panes as tabs in the order you enable them."
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                    }
+                }
+
+                SettingSection {
+                    width: parent.width
+                    title: "BEHAVIOUR"
+                    ToggleRow {
+                        width: parent.width; label: "Open on hover"
+                        checked: draft.sidebarClickless
+                        onToggled: (v) => page.edit("sidebarClickless", v)
+                    }
+                }
+            }
+
+            Column {
+                width: sbRow.colW
+                spacing: 30
+
+                SettingSection {
+                    width: parent.width
+                    title: "RIGHT \u00b7 SYSTEM"
+                    ToggleRow {
+                        width: parent.width; label: "Enable right sidebar"
+                        checked: draft.sidebarRightEnabled
+                        onToggled: (v) => page.edit("sidebarRightEnabled", v)
+                    }
+                    ToggleRow { width: parent.width; label: "Notifications"; checked: (draft.sidebarRightPanes || []).indexOf("notifications") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "notifications", v) }
+                    ToggleRow { width: parent.width; label: "Calendar"; checked: (draft.sidebarRightPanes || []).indexOf("calendar") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "calendar", v) }
+                    ToggleRow { width: parent.width; label: "Media"; checked: (draft.sidebarRightPanes || []).indexOf("media") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "media", v) }
+                    ToggleRow { width: parent.width; label: "Weather"; checked: (draft.sidebarRightPanes || []).indexOf("weather") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "weather", v) }
+                    ToggleRow { width: parent.width; label: "Recording"; checked: (draft.sidebarRightPanes || []).indexOf("recording") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "recording", v) }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Melts out of the frame's right edge when you hover (or click) the top-right corner, carrying your chosen system panes as tabs in the order you enable them."
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                    }
+                }
+
+                SettingSection {
+                    width: parent.width
+                    title: "SIZE"
+                    NumberField {
+                        width: parent.width; label: "Width"; unit: "px"
+                        from: 240; to: 520; value: draft.sidebarWidth
+                        onModified: (v) => page.edit("sidebarWidth", v)
+                    }
+                    NumberField {
+                        width: parent.width; label: "Corner hotspot"; unit: "px"
+                        from: 16; to: 80; value: draft.sidebarCornerSize
+                        onModified: (v) => page.edit("sidebarCornerSize", v)
+                    }
                 }
             }
         }

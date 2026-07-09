@@ -60,6 +60,26 @@ Singleton {
     property alias islandModules: adapter.islandModules
     property alias islandRadius:  adapter.islandRadius
 
+    // sidebars = the two "Aside" panels that blob-melt out of the left and right
+    // screen edges, each summoned by hovering that side's top corner (or an IPC
+    // toggle). LEFT carries features (stash and future add-ons); RIGHT carries
+    // system controls + glance panes. sidebarLeftPanes / sidebarRightPanes pick
+    // which panes each shows and their order; sidebarClickless opens on hover
+    // (else click); sidebarWidth / sidebarCornerSize size the panel + corner.
+    property alias sidebarLeftEnabled:  adapter.sidebarLeftEnabled
+    property alias sidebarRightEnabled: adapter.sidebarRightEnabled
+    property alias sidebarLeftPanes:    adapter.sidebarLeftPanes
+    property alias sidebarRightPanes:   adapter.sidebarRightPanes
+    property alias sidebarClickless:    adapter.sidebarClickless
+    property alias sidebarWidth:        adapter.sidebarWidth
+    property alias sidebarCornerSize:   adapter.sidebarCornerSize
+
+    // roundness = the shell-wide inner corner radius (the "Global" shape knob).
+    // every internal tile, card, row and chip reads Theme.radius, which follows
+    // this, so the whole shell shares one rounded shape that echoes the frame's
+    // melt. 0 restores the old brutalist sharp corners.
+    property alias roundness: adapter.roundness
+
     // typography: UI font family (Theme.font reads this) + a scale that grows
     // or shrinks the whole shell (the bar text and the surfaces around it),
     // keeping the readout legible without overflow.
@@ -108,6 +128,14 @@ Singleton {
             property real islandRadius: 17
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
+            property bool sidebarLeftEnabled: true
+            property bool sidebarRightEnabled: true
+            property var sidebarLeftPanes: ["stash"]
+            property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
+            property bool sidebarClickless: true
+            property real sidebarWidth: 340
+            property real sidebarCornerSize: 34
+            property real roundness: 10
         }
     }
 

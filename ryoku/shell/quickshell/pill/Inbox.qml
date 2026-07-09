@@ -107,7 +107,6 @@ PillSurface {
             height: 16 * root.s
             radius: Theme.radius
             color: Theme.shadowHard
-            antialiasing: false
         }
 
         Rectangle {
@@ -351,7 +350,6 @@ PillSurface {
                                     height: 20 * root.s
                                     radius: Theme.radius
                                     color: Theme.shadowHard
-                                    antialiasing: false
                                 }
 
                                 Rectangle {

@@ -135,6 +135,12 @@ Each surface is its own directory under `quickshell/`, each component its own
 - **the keyring prompt** the GNOME keyring password prompt, grown from the bar
   edge as a popout rather than gcr's centred dialog. The `ryoku-shell` daemon acts as the
   keyring system prompter and drives it; `KeyringSurface.qml` renders it.
+- **the sidebars** two full-height panels that melt out of the left and right
+  frame edges on a top-corner hover, the frame's blob swelling open edge to edge.
+  Left is Features (the Stash board, room for more); right is System (力 masthead,
+  the control-centre toggles, capture tools plus a clipboard button, a volume
+  fader, and a tab rail over notifications, calendar, now-playing, weather, and
+  recording). See `docs/frame.md`.
 - **desktop widgets** the clock and weather that sit on the wallpaper, a
   click-through `WlrLayer.Bottom` surface configured in Ryoku Settings' Desktop
   Widgets section. Faces and weather skies live under `quickshell/widgets`.

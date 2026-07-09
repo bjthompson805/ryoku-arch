@@ -50,7 +50,6 @@ Item {
         height: 28 * root.s
         radius: Theme.radius
         color: Theme.shadowHard
-        antialiasing: false
     }
 
     Rectangle {
@@ -208,7 +207,6 @@ Item {
                         height: 20 * root.s
                         radius: Theme.radius
                         color: Theme.shadowHard
-                        antialiasing: false
                     }
 
                     Rectangle {
@@ -220,7 +218,6 @@ Item {
                         color: tagArea.containsMouse ? Theme.frameBg : Theme.tileBg
                         border.width: 1
                         border.color: actPill.index === 0 ? Qt.alpha(Theme.verm, 0.6) : Theme.border
-                        antialiasing: false
 
                         Text {
                             id: actText

@@ -248,7 +248,6 @@ PillSurface {
                     color: Qt.alpha(Theme.verm, 0.16)
                     border.width: 1
                     border.color: Qt.alpha(Theme.verm, 0.55)
-                    antialiasing: false
                 }
 
                 Rectangle {
@@ -464,7 +463,6 @@ PillSurface {
                     radius: Theme.radius
                     visible: addField.activeFocus
                     color: Theme.verm
-                    antialiasing: false
                 }
 
                 Rectangle {
