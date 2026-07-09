@@ -20,7 +20,7 @@ Item {
         "osdRadius", "osdOpacity",
         "barEnabled", "barPosition", "barStyle", "barHeight",
         "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
-        "islandEdge", "islandAlong", "islandHidden", "islandModules",
+        "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
         "fontFamily", "fontScale"
     ]
     readonly property var vizKeys: [
@@ -37,7 +37,7 @@ Item {
         "osdRadius": 28, "osdOpacity": 1,
         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
         "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barOccupiedWorkspaces": true,
-        "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"],
+        "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
@@ -75,6 +75,7 @@ Item {
         property real islandAlong: -1
         property bool islandHidden: false
         property var islandModules: ["workspaces", "clock", "date", "media"]
+        property real islandRadius: 17
         property string fontFamily: "JetBrainsMono Nerd Font"
         property real fontScale: 1.3
         property bool enabled: true
@@ -240,6 +241,7 @@ Item {
             property real islandAlong: -1
             property bool islandHidden: false
             property var islandModules: ["workspaces", "clock", "date", "media"]
+            property real islandRadius: 17
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
         }
@@ -544,7 +546,12 @@ Item {
                 SettingSection {
                     width: parent.width
                     visible: draft.barStyle === "delos"
-                    title: "ISLAND MODULES"
+                    title: "ISLAND"
+                    NumberField {
+                        width: parent.width; label: "Roundness"; unit: "px"
+                        from: 0; to: 40; value: draft.islandRadius
+                        onModified: (v) => page.edit("islandRadius", v)
+                    }
                     ToggleRow { width: parent.width; label: "Workspaces"; checked: (draft.islandModules || []).indexOf("workspaces") >= 0; onToggled: (v) => page.toggleIslandModule("workspaces", v) }
                     ToggleRow { width: parent.width; label: "Clock"; checked: (draft.islandModules || []).indexOf("clock") >= 0; onToggled: (v) => page.toggleIslandModule("clock", v) }
                     ToggleRow { width: parent.width; label: "Date"; checked: (draft.islandModules || []).indexOf("date") >= 0; onToggled: (v) => page.toggleIslandModule("date", v) }

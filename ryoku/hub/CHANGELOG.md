@@ -4,7 +4,7 @@
 
 ### Added
 - The bar **Style** picker offers **Delos** (one island). When it is picked, an
-  **Island modules** section appears: check which modules the island carries
+  **Island** section appears: set its corner **Roundness**, then check which modules the island carries
   (Workspaces, Clock, Date, Now-playing, Window title, Status, Tray). The
   island's dock (edge, position, hidden) round-trips through the settings file,
   so editing other options never disturbs where it sits.
