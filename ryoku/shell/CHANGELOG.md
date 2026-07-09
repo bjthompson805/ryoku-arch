@@ -5,9 +5,11 @@
 ### Added
 - **A single floating-island bar, `delos`.** `barStyle` takes `delos`: the whole
   bar becomes one draggable island in the frame's blob field, the recorder
-  island generalised. Grab it and it pulls off the edge; near another edge it
-  and a frame bump reach for each other and merge like two drops; let go and it
-  drifts to the nearest edge; on a side edge it turns vertical; tap the grip to
+  island generalised. Grab its 6-dot grip and it pulls off the edge (the rest
+  of the island stays interactive, so the modules keep their taps and wheels);
+  near another edge it and a frame bump reach for each other and merge like two
+  drops; let go and it drifts to the nearest edge; on a side edge it turns
+  vertical (its modules restacking into a narrow strip); tap the grip to
   tuck it to a nub a hover pops back. It carries the modules you pick
   (`islandModules`: workspaces, clock, date, now-playing, and optionally the
   window title, status glyphs, tray), opens the frame-aware popouts from its

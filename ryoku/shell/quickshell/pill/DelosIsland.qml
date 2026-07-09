@@ -101,13 +101,11 @@ Item {
 
     // --- orientation: vertical on a side edge; content fades out, flips at the
     // bottom of the dip, fades back.
-    readonly property real orientThreshold: 220 * hud.s
-    readonly property real orientRefW: 210 * hud.s
-    readonly property real orientGap: hud.nearEdge === "left" ? (hud.px - hud.lipL)
-        : (hud.width - hud.lipR) - (hud.px + hud.orientRefW)
-    readonly property bool vertical: hud.dragging
-        ? ((hud.nearEdge === "left" || hud.nearEdge === "right") && hud.orientGap < hud.orientThreshold)
-        : (hud.dockEdge === "left" || hud.dockEdge === "right")
+    // orientation follows the docked edge, and does not flip mid-drag: the grip
+    // is the sole drag handle, so reflowing the layout under the pointer would
+    // drop the grab. the island keeps its shape while held and reorients on
+    // release (cross-faded), once the dock edge is known.
+    readonly property bool vertical: hud.dragging ? hud.layoutVertical : (hud.dockEdge === "left" || hud.dockEdge === "right")
     property bool layoutVertical: false
     property real reorientFade: 1
     Behavior on reorientFade { NumberAnimation { duration: 300; easing.type: Easing.InOutCubic } }
@@ -318,39 +316,7 @@ Item {
         height: hud.bodyH
         opacity: hud.reorientFade * Math.max(0, Math.min(1, (hud.prog - 0.25) / 0.5))
         transform: Matrix4x4 { matrix: bodyBlob.deformMatrix }
-        HoverHandler { id: bodyHov; cursorShape: Qt.SizeAllCursor }
-        // the whole island is the drag surface; module taps survive because a
-        // drag must clear the threshold first.
-        DragHandler {
-            id: dragH
-            target: null
-            dragThreshold: 8
-            cursorShape: Qt.SizeAllCursor
-            property real sx: 0
-            property real sy: 0
-            property real ax: 0
-            property real ay: 0
-            onActiveChanged: {
-                if (dragH.active) {
-                    dragH.sx = hud.px;
-                    dragH.sy = hud.py;
-                    dragH.ax = dragH.centroid.scenePosition.x;
-                    dragH.ay = dragH.centroid.scenePosition.y;
-                } else {
-                    var e = hud.rawNearEdge;
-                    hud.nearEdge = e;
-                    hud.alongPx = (e === "top" || e === "bottom") ? hud.px : hud.py;
-                    hud.dockEdge = e;
-                    hud.persistDock();
-                }
-            }
-            onCentroidChanged: {
-                if (!dragH.active)
-                    return;
-                hud.px = Math.max(hud.lipL, Math.min(hud.width - hud.lipR - hud.bodyW, dragH.sx + (dragH.centroid.scenePosition.x - dragH.ax)));
-                hud.py = Math.max(hud.lipT, Math.min(hud.height - hud.lipB - hud.bodyH, dragH.sy + (dragH.centroid.scenePosition.y - dragH.ay)));
-            }
-        }
+        HoverHandler { id: bodyHov }
 
         Grid {
             id: grid
@@ -361,7 +327,9 @@ Item {
             horizontalItemAlignment: Grid.AlignHCenter
             verticalItemAlignment: Grid.AlignVCenter
 
-            // grip: drag cue, and a tap tucks the island to a nub.
+            // grip: the only drag handle. drag it to move the island; a tap
+            // tucks it to a nub. the rest of the island stays free, so modules
+            // keep their taps, hovers, and wheels (the audio scroll included).
             Item {
                 width: 14 * hud.s
                 height: 16 * hud.s
@@ -380,7 +348,37 @@ Item {
                         }
                     }
                 }
-                HoverHandler { id: gripHov; cursorShape: Qt.PointingHandCursor }
+                HoverHandler { id: gripHov; cursorShape: Qt.SizeAllCursor }
+                DragHandler {
+                    id: dragH
+                    target: null
+                    dragThreshold: 8
+                    cursorShape: Qt.SizeAllCursor
+                    property real sx: 0
+                    property real sy: 0
+                    property real ax: 0
+                    property real ay: 0
+                    onActiveChanged: {
+                        if (dragH.active) {
+                            dragH.sx = hud.px;
+                            dragH.sy = hud.py;
+                            dragH.ax = dragH.centroid.scenePosition.x;
+                            dragH.ay = dragH.centroid.scenePosition.y;
+                        } else {
+                            var e = hud.rawNearEdge;
+                            hud.nearEdge = e;
+                            hud.alongPx = (e === "top" || e === "bottom") ? hud.px : hud.py;
+                            hud.dockEdge = e;
+                            hud.persistDock();
+                        }
+                    }
+                    onCentroidChanged: {
+                        if (!dragH.active)
+                            return;
+                        hud.px = Math.max(hud.lipL, Math.min(hud.width - hud.lipR - hud.bodyW, dragH.sx + (dragH.centroid.scenePosition.x - dragH.ax)));
+                        hud.py = Math.max(hud.lipT, Math.min(hud.height - hud.lipB - hud.bodyH, dragH.sy + (dragH.centroid.scenePosition.y - dragH.ay)));
+                    }
+                }
                 TapHandler { onTapped: hud.hidden = !hud.hidden }
             }
 

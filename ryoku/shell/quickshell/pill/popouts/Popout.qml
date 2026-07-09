@@ -140,7 +140,7 @@ Item {
     // body geometry in window coords; grows inward from the border.
     readonly property real curW: vertical ? Math.max(0, bodyOpenW * prog)
                                  : (dipHost && !heldOpen) ? Math.max(0, bodyOpenW * prog) : bodyOpenW
-    readonly property real curH: vertical ? bodyOpenH : Math.max(0, bodyOpenH * prog)
+    readonly property real curH: vertical ? ((dipHost && !heldOpen) ? Math.max(0, bodyOpenH * prog) : bodyOpenH) : Math.max(0, bodyOpenH * prog)
     readonly property real bodyX: atLeft ? frameThickness
                                  : atRight ? (width - frameThickness - curW)
                                  : hugRight ? (width - curW)
@@ -148,7 +148,7 @@ Item {
                                  : alongX + (dipHost && !heldOpen ? (bodyOpenW - curW) / 2 : 0)
     readonly property real bodyY: atTop ? frameThickness
                                  : atBottom ? (height - frameThickness - curH)
-                                 : alongY
+                                 : alongY + (dipHost && !heldOpen ? (bodyOpenH - curH) / 2 : 0)
     readonly property real bodyW: curW
     readonly property real bodyH: curH
 
@@ -231,7 +231,7 @@ Item {
     // (curW tracks the melt, centred on the trigger), so the band retracts into
     // that lobe and the dips return around it -- the popout melts back into the
     // frame it came out of.
-    readonly property bool dipHost: Config.barStyle === "triptych" && atTop
+    readonly property bool dipHost: Config.barStyle === "delos" || (Config.barStyle === "triptych" && atTop)
 
     BlobRect {
         id: bodyBlob
