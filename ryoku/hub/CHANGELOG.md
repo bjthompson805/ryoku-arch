@@ -3,10 +3,15 @@
 ## Unreleased
 
 ### Added
-- The Shell page gains a **Sidebar** tab for the Aside (the corner-summoned side
-  panel): enable it, choose the side (left / right), toggle open-on-hover vs
-  click, and set the panel width and corner-hotspot size. Edits apply live to the
-  running shell via `shell.json`.
+- The Shell page gains a **Global** tab for the shell-wide look: inner
+  **Roundness**, plus the frame melt, surface, shadow, and typography controls
+  moved out of the Frame tab. Its **Font** picker now lists the fonts people rice
+  with (JetBrains Mono, Fira Code, Hack, Cascadia Code, Iosevka, Meslo, and more)
+  and only offers the ones actually installed, growing as you add your own.
+- The Shell page gains a **Sidebar** tab for the two corner-summoned sidebars:
+  enable the left (Features) and right (System) sides on their own, pick and order
+  the panes each one shows, toggle open-on-hover vs click, and set the panel width
+  and corner-hotspot size. Edits apply live to the running shell via `shell.json`.
 - The bar **Style** picker offers **Delos** (one island). When it is picked, an
   **Island** section appears: set its corner **Roundness**, then check which modules the island carries
   (Workspaces, Clock, Date, Now-playing, Window title, Status, Tray). The

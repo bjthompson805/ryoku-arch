@@ -31,6 +31,55 @@ Item {
     ]
     readonly property var keys: page.shellKeys.concat(page.vizKeys)
 
+    // fonts offered in the Global tab: the popular set people rice with, keyed by
+    // the family name fontconfig reports. only the ones actually installed
+    // (fontScan below) show, and the list grows as you add your own. curated on
+    // purpose, not every family on the system.
+    readonly property var fontCatalog: [
+        { "key": "JetBrainsMono Nerd Font", "label": "JetBrains Mono", "hint": "nerd" },
+        { "key": "FiraCode Nerd Font", "label": "Fira Code", "hint": "nerd" },
+        { "key": "Hack Nerd Font", "label": "Hack", "hint": "nerd" },
+        { "key": "CaskaydiaCove Nerd Font", "label": "Cascadia Code", "hint": "nerd" },
+        { "key": "Iosevka Nerd Font", "label": "Iosevka", "hint": "nerd" },
+        { "key": "MesloLGS Nerd Font", "label": "Meslo", "hint": "nerd" },
+        { "key": "SauceCodePro Nerd Font", "label": "Source Code Pro", "hint": "nerd" },
+        { "key": "UbuntuMono Nerd Font", "label": "Ubuntu Mono", "hint": "nerd" },
+        { "key": "RobotoMono Nerd Font", "label": "Roboto Mono", "hint": "nerd" },
+        { "key": "BlexMono Nerd Font", "label": "IBM Plex Mono", "hint": "nerd" },
+        { "key": "GeistMono Nerd Font", "label": "Geist Mono", "hint": "nerd" },
+        { "key": "CommitMono Nerd Font", "label": "Commit Mono", "hint": "nerd" },
+        { "key": "Terminess Nerd Font", "label": "Terminus", "hint": "nerd" },
+        { "key": "DejaVuSansMono Nerd Font", "label": "DejaVu Sans Mono", "hint": "nerd" },
+        { "key": "Maple Mono NF", "label": "Maple Mono", "hint": "nerd" },
+        { "key": "Inter", "label": "Inter", "hint": "sans" },
+        { "key": "Roboto", "label": "Roboto", "hint": "sans" },
+        { "key": "Ubuntu", "label": "Ubuntu", "hint": "sans" },
+        { "key": "Cantarell", "label": "Cantarell", "hint": "sans" },
+        { "key": "Lexend", "label": "Lexend", "hint": "sans" },
+        { "key": "Fira Sans", "label": "Fira Sans", "hint": "sans" },
+        { "key": "Noto Sans", "label": "Noto Sans", "hint": "sans" },
+        { "key": "Noto Sans CJK JP", "label": "Noto Sans JP", "hint": "cjk" },
+        { "key": "Space Grotesk", "label": "Space Grotesk", "hint": "display" },
+        { "key": "Fraunces", "label": "Fraunces", "hint": "display" }
+    ]
+    // families fontconfig reports as installed. seeded with what Ryoku ships so
+    // the picker is sane before the scan returns; fontScan replaces it.
+    property var installedFonts: ["JetBrainsMono Nerd Font", "Inter", "Noto Sans", "Noto Sans CJK JP", "Fraunces", "Space Grotesk"]
+    // the catalog filtered to installed, with the current selection always kept
+    // (a hand-set custom family still shows and stays selected).
+    readonly property var fontOptions: {
+        var out = [];
+        var curInCatalog = false;
+        for (var i = 0; i < page.fontCatalog.length; i++) {
+            var f = page.fontCatalog[i];
+            if (f.key === draft.fontFamily) { curInCatalog = true; out.push(f); continue; }
+            if (page.installedFonts.indexOf(f.key) >= 0) out.push(f);
+        }
+        if (!curInCatalog && draft.fontFamily && draft.fontFamily.length > 0)
+            out.unshift({ "key": draft.fontFamily, "label": draft.fontFamily, "hint": "custom" });
+        return out;
+    }
+
     // mirror of the shells' canonical defaults (pill Singletons/Config.qml +
     // visualizer Singletons/Config.qml). only used for "Reset to defaults".
     readonly property var defaults: ({
@@ -227,6 +276,28 @@ Item {
         for (var i = 0; i < page.keys.length; i++) {
             var k = page.keys[i];
             page.edit(k, page.defaults[k]);
+        }
+    }
+
+    // enumerate installed font families so the picker only offers fonts that will
+    // actually render. one fc-list pass on open; the family is the token before
+    // the first comma on each line.
+    Process {
+        id: fontScan
+        command: ["fc-list", ":", "family"]
+        Component.onCompleted: running = true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var lines = this.text.split("\n");
+                var seen = ({});
+                var list = [];
+                for (var i = 0; i < lines.length; i++) {
+                    var fam = lines[i].split(",")[0].trim();
+                    if (fam.length > 0 && !seen[fam]) { seen[fam] = true; list.push(fam); }
+                }
+                if (list.length > 0)
+                    page.installedFonts = list;
+            }
         }
     }
 
@@ -502,7 +573,7 @@ Item {
                     Dropdown {
                         width: parent.width; label: "Font"
                         fieldWidth: 200
-                        options: ["Inter", "JetBrainsMono Nerd Font", "Noto Sans", "Noto Sans CJK JP"]
+                        options: page.fontOptions
                         current: draft.fontFamily
                         onChosen: (k) => page.edit("fontFamily", k)
                     }

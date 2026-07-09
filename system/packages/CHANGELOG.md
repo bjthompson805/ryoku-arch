@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: add `ttf-firacode-nerd` and `ttf-hack-nerd`, two popular rice
+  nerd fonts, so the shell's Global font picker has more that render on a fresh
+  install (JetBrains Mono already ships). The picker also lists other popular
+  families and shows whichever ones you install yourself.
 - `base.packages`: add `ddcutil`, and `aur.packages`: add `nvibrant-bin`. The
   pill mixer's DISPLAY section drives external-monitor brightness through
   `ddcutil` (DDC/CI) and NVIDIA screen vibrance through `nvibrant`, both
