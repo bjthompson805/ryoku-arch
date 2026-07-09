@@ -388,6 +388,8 @@ ShellRoot {
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
             readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
             readonly property bool barTop: barPos === "top"
+            readonly property bool delos: Config.barStyle === "delos"
+            readonly property string rEdge: delos ? IslandDock.edge : barPos
             // a TOP bar reserves the visible bar strip (frame edge + band, the
             // same numbers as the overlay's barVisibleH) so tiles tuck right
             // against it. bottom/left/right bars reserve their own edge in
@@ -395,10 +397,10 @@ ShellRoot {
             // the top, so this window only maps for a top bar.
             readonly property real barBand: Config.barHeight * s
             readonly property real barVisibleH: Math.max(0, Config.frameBorder - 50) + barBand
-            readonly property real zone: barVisibleH
+            readonly property real zone: delos ? Math.max(0, IslandDock.thickness) : barVisibleH
 
             screen: modelData
-            visible: barTop
+            visible: rEdge === "top"
             color: "transparent"
             exclusionMode: ExclusionMode.Normal
             exclusiveZone: zone
@@ -422,10 +424,12 @@ ShellRoot {
             required property var modelData
             readonly property real s: (modelData ? modelData.height / 1080 : 1) * Math.max(0.7, Math.min(1.6, Config.fontScale))
             readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
-            readonly property bool active: barPos === "bottom" || barPos === "left" || barPos === "right"
+            readonly property bool delos: Config.barStyle === "delos"
+            readonly property string rEdge: delos ? IslandDock.edge : barPos
+            readonly property bool active: rEdge === "bottom" || rEdge === "left" || rEdge === "right"
             // a vertical band needs room for stacked content; floor it at 30.
-            readonly property real minBand: barPos === "left" || barPos === "right" ? 30 : 0
-            readonly property real zone: Math.max(0, Config.frameBorder - 50) + Math.max(Config.barHeight, minBand) * s
+            readonly property real minBand: rEdge === "left" || rEdge === "right" ? 30 : 0
+            readonly property real zone: delos ? Math.max(0, IslandDock.thickness) : (Math.max(0, Config.frameBorder - 50) + Math.max(Config.barHeight, minBand) * s)
 
             screen: modelData
             visible: active
@@ -435,12 +439,12 @@ ShellRoot {
             aboveWindows: true
 
             anchors {
-                top: barPos === "left" || barPos === "right"
-                bottom: barPos !== "top"
-                left: barPos !== "right"
-                right: barPos !== "left"
+                top: rEdge === "left" || rEdge === "right"
+                bottom: rEdge !== "top"
+                left: rEdge !== "right"
+                right: rEdge !== "left"
             }
-            implicitHeight: barPos === "bottom" ? zone : 100
+            implicitHeight: rEdge === "bottom" ? zone : 100
             implicitWidth: zone
 
             mask: emptySideReserve
@@ -460,13 +464,14 @@ ShellRoot {
             // the options (Bar.qml). inverted rect is oversized 50px (its
             // anchors.margins), so the on-screen edge is border - 50; the
             // bar adds `barBand` inside that.
-            readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
+            readonly property string barPos: !Config.barEnabled ? "" : (delos ? IslandDock.edge : (Config.barPosition === "bottom" ? "bottom" : "top"))
             readonly property bool barTop: barPos === "top"
             readonly property bool barBottom: barPos === "bottom"
             readonly property bool barLeft: barPos === "left"
             readonly property bool barRight: barPos === "right"
             readonly property bool barVertical: barLeft || barRight
             readonly property bool triptych: Config.barStyle === "triptych"
+            readonly property bool delos: Config.barStyle === "delos"
             // triptych: the top edge stays a hairline and three lobes fuse
             // under the module clusters, so the bar dips between them (top only).
             readonly property bool triptychLobes: barTop && triptych && !monFullscreen
@@ -511,7 +516,7 @@ ShellRoot {
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
             mask: monFullscreen ? hiddenRegion
-                : ((modal || recHud.dragging) ? fullRegion : barRegion)
+                : ((modal || recHud.dragging || delosIsland.dragging) ? fullRegion : barRegion)
 
             // the bar band's input strip, per edge.
             readonly property real barMaskX: barRight ? width - barVisibleH : 0
@@ -543,8 +548,8 @@ ShellRoot {
                 // edges keep the island's own regions.
                 x: overlay.barMaskX
                 y: overlay.barMaskY
-                width: Config.barEnabled ? overlay.barMaskW : 0
-                height: Config.barEnabled ? overlay.barMaskH : 0
+                width: (Config.barEnabled && !overlay.delos) ? overlay.barMaskW : 0
+                height: (Config.barEnabled && !overlay.delos) ? overlay.barMaskH : 0
                 Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
                 Region { x: mixerPop.maskX; y: mixerPop.maskY; width: mixerPop.maskW; height: mixerPop.maskH }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
@@ -566,6 +571,8 @@ ShellRoot {
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
                 Region { x: recHud.hudX; y: recHud.hudY; width: (Recorder.active && recHud.prog > 0.25) ? recHud.hudW : 0; height: (Recorder.active && recHud.prog > 0.25) ? recHud.hudH : 0 }
                 Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.active ? recHud.trigW : 0; height: Recorder.active ? recHud.trigH : 0 }
+                Region { x: delosIsland.hudX; y: delosIsland.hudY; width: (overlay.delos && delosIsland.prog > 0.25) ? delosIsland.hudW : 0; height: (overlay.delos && delosIsland.prog > 0.25) ? delosIsland.hudH : 0 }
+                Region { x: delosIsland.trigX; y: delosIsland.trigY; width: overlay.delos ? delosIsland.trigW : 0; height: overlay.delos ? delosIsland.trigH : 0 }
             }
 
             MouseArea {
@@ -611,10 +618,10 @@ ShellRoot {
                     anchors.margins: -50
                     group: blobGroup
                     radius: Config.frameRadius
-                    borderTop: (overlay.barTop && !overlay.triptych) ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
-                    borderBottom: overlay.barBottom ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
-                    borderLeft: overlay.barLeft ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
-                    borderRight: overlay.barRight ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
+                    borderTop: (overlay.barTop && !overlay.triptych && !overlay.delos) ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
+                    borderBottom: (overlay.barBottom && !overlay.delos) ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
+                    borderLeft: (overlay.barLeft && !overlay.delos) ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
+                    borderRight: (overlay.barRight && !overlay.delos) ? (Config.frameBorder + overlay.barBand) : Config.frameBorder
                     opacity: Config.frameOpacity
                     visible: !overlay.monFullscreen
                 }
@@ -675,7 +682,7 @@ ShellRoot {
                     // the bar modules it grows from. content insets above the band,
                     // so the bar only ever covers a popout's neck, never its body.
                     z: 1
-                    visible: Config.barEnabled && !overlay.monFullscreen
+                    visible: Config.barEnabled && !overlay.monFullscreen && !overlay.delos
                     x: overlay.barMaskX
                     y: overlay.barMaskY
                     width: overlay.barMaskW
@@ -720,11 +727,12 @@ ShellRoot {
                 Popout {
                     id: powerPop
                     group: blobGroup
-                    frameThickness: overlay.barVisibleH
+                    frameThickness: overlay.delos ? overlay.frameTopVisible : overlay.barVisibleH
                     radius: Config.frameRadius
                     smoothing: Config.frameSmoothing
-                    edge: overlay.barPos
-                    alongCenter: root.popoutCenter
+                    edge: overlay.delos ? "top" : overlay.barPos
+                    align: overlay.delos ? "end" : "center"
+                    alongCenter: overlay.delos ? -1 : root.popoutCenter
                     hoverOpen: false
                     s: overlay.s
                     active: !overlay.monFullscreen
@@ -1095,6 +1103,17 @@ ShellRoot {
                     smoothing: Config.frameSmoothing
                     barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
                     barBand: overlay.barBand
+                }
+
+                DelosIsland {
+                    id: delosIsland
+                    group: blobGroup
+                    s: overlay.s
+                    smoothing: Config.frameSmoothing
+                    active: overlay.delos && Config.barEnabled && !overlay.monFullscreen
+                    trayWindow: overlay
+                    onPopoutRequested: (name) => root.togglePopoutAt(overlay.modelData.name, name, delosIsland.alongCentre)
+                    onHoverPopoutRequested: (name, hovered) => root.setHoverPopout(overlay.modelData.name, name, delosIsland.alongCentre, hovered)
                 }
 
             }

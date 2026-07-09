@@ -21,3 +21,4 @@ singleton Events Events.qml
 singleton Performance Performance.qml
 singleton Network Network.qml
 singleton Media Media.qml
+singleton IslandDock IslandDock.qml

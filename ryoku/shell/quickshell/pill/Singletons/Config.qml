@@ -37,7 +37,7 @@ Singleton {
     // bar = the shell's resting face, drawn on the frame's thickened edge
     // (Bar.qml). barPosition is "top" or "bottom"; barStyle picks the skin,
     // one of noctalia and caelestia (carried from the reference shells) or the
-    // native aegis, stele and triptych. barHeight = the band the edge swells by (scaled per
+    // native aegis, stele, triptych, and delos (a single floating island). barHeight = the band the edge swells by (scaled per
     // monitor). barShowTitle / barShowMedia / barShowStatus gate the focused
     // window title, the now-playing module, and the status cluster.
     // barOccupiedWorkspaces shows only workspaces with windows (plus the
@@ -50,6 +50,14 @@ Singleton {
     property alias barShowMedia:          adapter.barShowMedia
     property alias barShowStatus:         adapter.barShowStatus
     property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
+    // delos = the single floating-island bar. islandModules names the modules
+    // it carries, in display order, and the user picks them (power is not one:
+    // Super+Esc opens it). islandEdge / islandAlong persist where it last
+    // docked; islandHidden whether it is tucked to a nub.
+    property alias islandEdge:    adapter.islandEdge
+    property alias islandAlong:   adapter.islandAlong
+    property alias islandHidden:  adapter.islandHidden
+    property alias islandModules: adapter.islandModules
 
     // typography: UI font family (Theme.font reads this) + a scale that grows
     // or shrinks the whole shell (the bar text and the surfaces around it),
@@ -92,6 +100,10 @@ Singleton {
             property bool barShowMedia: true
             property bool barShowStatus: true
             property bool barOccupiedWorkspaces: true
+            property string islandEdge: "top"
+            property real islandAlong: -1
+            property bool islandHidden: false
+            property var islandModules: ["workspaces", "clock", "date", "media"]
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
         }
@@ -108,6 +120,10 @@ Singleton {
         onFileChanged: reload()
         JsonAdapter { id: themeAdapter; property bool followWallpaper: true }
     }
+
+    // write the live adapter back to shell.json. the delos island calls this
+    // when it settles on a new edge so the dock survives a restart.
+    function persist() { file.writeAdapter(); }
 
     // seed only on a genuine first run (nothing to load), so a slow or failed
     // load can't overwrite a present file with defaults.
