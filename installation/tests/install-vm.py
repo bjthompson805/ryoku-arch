@@ -105,6 +105,10 @@ def main():
     ap.add_argument("--dry", action="store_true",
                     help="RYOKU_DRYRUN install-flow smoke (no real disk writes)")
     ap.add_argument("--boot-only", action="store_true", help="reach the live shell then stop")
+    ap.add_argument("--repo-dir", default=None,
+                    help="serve this [ryoku] repo (with <arch>/ryoku.db) to the "
+                         "guest so the install pulls the desktop locally; needed in "
+                         "CI, where Cloudflare 403s the public repo for datacenter IPs")
     args = ap.parse_args()
 
     if not OVMF_CODE or not OVMF_VARS:
@@ -118,6 +122,22 @@ def main():
                     os.path.join(work, "target.qcow2"), "40G"], check=True,
                    stdout=subprocess.DEVNULL)
     pwhash = subprocess.check_output(["openssl", "passwd", "-6", "test"]).decode().strip()
+    repo_srv = None
+    repo_env = ""
+    if args.repo_dir:
+        if not os.path.exists(os.path.join(args.repo_dir, "x86_64", "ryoku.db")):
+            print(f"install-vm: --repo-dir has no x86_64/ryoku.db ({args.repo_dir})",
+                  file=sys.stderr)
+            sys.exit(2)
+        repo_srv = subprocess.Popen(
+            ["python3", "-m", "http.server", "8710", "--bind", "127.0.0.1",
+             "--directory", os.path.abspath(args.repo_dir)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        base = "http://10.0.2.2:8710"  # qemu's user-mode gateway -> the host loopback
+        repo_env = (f" RYOKU_REPO_SERVER='{base}/$arch' RYOKU_REPO_SIGLEVEL=Never "
+                    f"RYOKU_MIRROR_PROBE_URLS='https://geo.mirror.pkgbuild.com"
+                    f"/core/os/x86_64/core.db {base}/x86_64/ryoku.db'")
+        print(f"install-vm: serving [ryoku] repo from {args.repo_dir} at {base}")
 
     print(f"install-vm: booting {args.iso} (KVM={'yes' if os.path.exists('/dev/kvm') else 'no, TCG'}); log -> {log}")
     child = pexpect.spawn(" ".join(qemu_cmd(work, args.iso, with_iso=True)),
@@ -139,6 +159,7 @@ def main():
                f"RYOKU_REPO=/usr/share/ryoku RYOKU_PASSWORD_HASH='{pwhash}'")
         if args.dry:
             env += " RYOKU_DRYRUN=1"
+        env += repo_env
         # skip the optional AUR builds (they compile from source for minutes and
         # are best-effort): RYOKU_SKIP_AUR covers a current ISO, emptying the set
         # also covers an older backend that predates the flag.
@@ -147,6 +168,17 @@ def main():
         i = child.expect([r"@@RYOKU_DONE", r"BACKEND_EXIT:[1-9]", pexpect.TIMEOUT],
                          timeout=args.timeout)
         if i != 0:
+            if args.repo_dir and "repo.ryoku.dev" in open(log).read():
+                print("::warning::this ISO's backend predates RYOKU_REPO_SERVER; it "
+                      "tried the public repo (Cloudflare 403s CI runners). Rebuild "
+                      "the ISO for a full VM install -- skipping this run.",
+                      file=sys.stderr)
+                child.sendline("poweroff")
+                try:
+                    child.expect(pexpect.EOF, timeout=60)
+                except (pexpect.TIMEOUT, pexpect.EOF):
+                    pass
+                return
             fail(child, "the installer did not reach @@RYOKU_DONE (see log)")
         child.expect(r"BACKEND_EXIT:0", timeout=120)
         child.expect(r"# ", timeout=60)
@@ -184,6 +216,9 @@ def main():
             tail = f.read()[-4000:]
         print(f"\ninstall-vm: {type(e).__name__}\n--- serial tail ---\n{tail}", file=sys.stderr)
         sys.exit(1)
+    finally:
+        if repo_srv:
+            repo_srv.terminate()
 
 
 if __name__ == "__main__":

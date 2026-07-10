@@ -47,42 +47,10 @@ pacman -Syu --noconfirm --needed \
 grep -q '^DisableSandboxNetwork' /etc/pacman.conf \
   || sed -i '/^\[options\]/a DisableSandboxNetwork' /etc/pacman.conf
 
-# 2. build the packages as an unprivileged user (makepkg refuses root), like
-#    publish-repo.yml but with a throwaway ed25519 key: build-repo.sh always
-#    signs, and the local repo is consumed with SigLevel=Never below, so the key
-#    never needs to be trusted. MIRROR points at an empty dir so build-repo.sh's
-#    "adopt already-published bytes" step is a no-op (no network, all fresh).
-id builder &>/dev/null || useradd --create-home builder
-chown -R builder:builder "$REPO"
-mirror_stub=$(mktemp -d)
-chmod 755 "$mirror_stub"
-
+# 2. build the [ryoku] packages into a local repo with a throwaway key (consumed
+#    with SigLevel=Never below). shared with the VM install test.
 log "building [ryoku] packages from the checkout -> $OUT"
-runuser -u builder -- env \
-  HOME=/home/builder \
-  RYOKU_REPO_ROOT="$REPO" \
-  RYOKU_REPO_OUT="$REPO/release/repo/out" \
-  RYOKU_REPO_NAME=ryoku-local \
-  RYOKU_REPO_MIRROR="$mirror_stub" \
-  bash -euo pipefail <<'BUILDER'
-export GNUPGHOME=$(mktemp -d)
-chmod 700 "$GNUPGHOME"
-gpg --batch --gen-key <<'KEY'
-%no-protection
-Key-Type: eddsa
-Key-Curve: ed25519
-Key-Usage: sign
-Expire-Date: 0
-Name-Real: Ryoku CI
-Name-Email: ci@ryoku.local
-%commit
-KEY
-RYOKU_REPO_KEY=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')
-export RYOKU_REPO_KEY
-"$RYOKU_REPO_ROOT/release/repo/build-repo.sh"
-BUILDER
-
-[[ -f "$OUT/ryoku-local.db" ]] || die "build produced no local repo db at $OUT/ryoku-local.db"
+RYOKU_REPO_NAME=ryoku-local "$REPO/installation/tests/build-ryoku-repo.sh"
 
 # 3. register the local repo and install the desktop. SigLevel=Never relaxes
 #    verification for THIS repo only (it is signed with the throwaway key above,

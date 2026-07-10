@@ -51,19 +51,23 @@ ryoku_deploy_repo() {
 }
 
 # pacman_conf: append [ryoku] once. release bucket lives under /stable/, so
-# Server carries the prefix; single-quoted heredoc keeps $arch literal.
+# Server carries the prefix; the $arch default stays literal for pacman.
+# RYOKU_REPO_SERVER / RYOKU_REPO_SIGLEVEL override the source (tests only, so a
+# VM install can pull from a locally served repo instead of the public one).
 ryoku_repo_pacman_conf() {
   local conf=/mnt/etc/pacman.conf
+  local server="${RYOKU_REPO_SERVER:-https://repo.ryoku.dev/stable/\$arch}"
+  local siglevel=${RYOKU_REPO_SIGLEVEL:-Required}
   if [[ -z ${RYOKU_DRYRUN:-} ]] && grep -q '^\[ryoku\]' "$conf" 2>/dev/null; then
     log "[ryoku] repository already present in $conf"
     return 0
   fi
   log "adding the [ryoku] repository to $conf"
-  append_file "$conf" <<'EOF'
+  append_file "$conf" <<EOF
 
 [ryoku]
-SigLevel = Required
-Server = https://repo.ryoku.dev/stable/$arch
+SigLevel = ${siglevel}
+Server = ${server}
 EOF
 }
 

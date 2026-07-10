@@ -9,6 +9,10 @@
   `install-vm.py` boots the ISO and runs the real installer unattended in QEMU,
   then verifies the installed tree. A new `RYOKU_SKIP_AUR` skips the optional AUR
   set for an unattended or CI install.
+- The install tests build the packages locally and serve them to the guest, so a
+  packaged install is validated end to end without the public repo (CI cannot
+  reach it: Cloudflare blocks datacenter IPs). `RYOKU_REPO_SERVER` /
+  `RYOKU_REPO_SIGLEVEL` override the `[ryoku]` source (tests only).
 
 ### Fixed
 - Hybrid NVIDIA laptops no longer produce a broken, unbootable install. The

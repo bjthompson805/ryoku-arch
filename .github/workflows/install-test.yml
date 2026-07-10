@@ -55,6 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Install QEMU, OVMF, and pexpect
         run: |
           sudo apt-get update
@@ -78,6 +79,22 @@ jobs:
           fi
           [ -n "$rid" ] || { echo "::error::no successful Build ISO run to test"; exit 1; }
           gh run download "$rid" -n ryoku-iso --dir iso
+      - name: Build the [ryoku] package repo for the guest
+        run: |
+          set -euo pipefail
+          # the guest pulls the desktop from this locally served repo instead of
+          # the public one (Cloudflare 403s CI datacenter IPs). build it with the
+          # Arch toolchain in a container; the qemu host itself is Ubuntu.
+          docker run --rm -v "$PWD":/repo -w /repo \
+            -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+            archlinux:latest bash -euo pipefail -c '
+              pacman -Sy --noconfirm --needed archlinux-keyring
+              pacman -Su --noconfirm --needed base-devel git go cmake ninja \
+                qt6-shadertools qt6-declarative gnupg
+              git config --global --add safe.directory /repo
+              installation/tests/build-ryoku-repo.sh
+              chown -R "$HOST_UID:$HOST_GID" /repo
+            '
       - name: Install into a VM and verify
         run: |
           set -euo pipefail
@@ -86,7 +103,8 @@ jobs:
             echo "::warning::no /dev/kvm on this runner; skipping the VM install (needs a KVM runner)"
             exit 0
           fi
-          python3 installation/tests/install-vm.py --iso "$iso" --work "$RUNNER_TEMP/ryoku-vm"
+          python3 installation/tests/install-vm.py --iso "$iso" \
+            --work "$RUNNER_TEMP/ryoku-vm" --repo-dir release/repo/out
       - name: Upload serial log on failure
         if: failure()
         uses: actions/upload-artifact@v4
