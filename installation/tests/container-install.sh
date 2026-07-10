@@ -41,6 +41,12 @@ pacman -Sy --noconfirm --needed "${keyring[@]}"
 pacman -Syu --noconfirm --needed \
   base-devel git go cmake ninja qt6-shadertools qt6-declarative gnupg
 
+# pacman 7 runs install scriptlets in a sandbox that cannot open a network
+# namespace inside a container, so post-install hooks (fc-cache, icon cache, ...)
+# error out. they are irrelevant here; disable the sandbox for this run.
+grep -q '^DisableSandboxNetwork' /etc/pacman.conf \
+  || sed -i '/^\[options\]/a DisableSandboxNetwork' /etc/pacman.conf
+
 # 2. build the packages as an unprivileged user (makepkg refuses root), like
 #    publish-repo.yml but with a throwaway ed25519 key: build-repo.sh always
 #    signs, and the local repo is consumed with SigLevel=Never below, so the key
