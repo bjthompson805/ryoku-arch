@@ -38,13 +38,15 @@ Item {
     implicitWidth: 340 * s
 
     // sidebarLeft guest panes: plugins that declare host "sidebarLeft" mount
-    // here beside Stash. discovered like PluginPopouts (discover.sh +
-    // plugins.json watch), so an install/removal retunes the rail live.
+    // here beside Stash. discovered via the shared discover.sh (scan + merge
+    // plugins.json, enabled only) and a plugins.json watch, so an install or
+    // removal retunes the rail live. path resolves like the plugin Registry:
+    // RYOKU_SHELL_DIR in dev, else the materialized ~/.config quickshell tree.
     property var guestPanes: []
     readonly property string _shellDir: Quickshell.env("RYOKU_SHELL_DIR")
     readonly property string _script: (_shellDir && _shellDir.length > 0)
         ? _shellDir + "/quickshell/plugins/discover.sh"
-        : Quickshell.env("HOME") + "/.local/share/ryoku/quickshell/plugins/discover.sh"
+        : (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/plugins/discover.sh"
     function reloadGuests() { discoverProc.running = false; discoverProc.running = true; }
 
     Process {
@@ -88,9 +90,22 @@ Item {
             m[root.catalog[i].key] = root.catalog[i];
         return m;
     }
-    readonly property var tabs: (root.panes && root.panes.length > 0)
-        ? root.panes.map(k => root.catalogByKey[k]).filter(Boolean)
-        : root.catalog
+    // builtins follow the user's `panes` choice (order kept, unknown dropped);
+    // enabled guest panes always append, so an installed sidebarLeft plugin
+    // shows its tab with no trip to Settings (install, reload, use).
+    readonly property var tabs: {
+        var base = (root.panes && root.panes.length > 0)
+            ? root.panes.map(k => root.catalogByKey[k]).filter(Boolean)
+            : root.catalog;
+        var seen = ({});
+        for (var i = 0; i < base.length; ++i)
+            seen[base[i].key] = true;
+        var out = base.slice();
+        for (var j = 0; j < root.guestPanes.length; ++j)
+            if (!seen[root.guestPanes[j].key])
+                out.push({ "key": root.guestPanes[j].key, "glyph": root.guestPanes[j].glyph });
+        return out;
+    }
     // with only one enabled pane there is nothing to switch, so the tab rail and
     // its divider fold away and the pane fills straight under the eyebrow.
     readonly property bool showRail: root.tabs.length > 1
