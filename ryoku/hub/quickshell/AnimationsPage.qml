@@ -170,6 +170,53 @@ Item {
 
             SettingSection {
                 width: parent.width
+                title: "FOCUS FLASH"
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Animate the focused window"
+                    checked: store.plugins.hyprfocus.enabled
+                    onToggled: (v) => store.editPlugin("hyprfocus", "enabled", v)
+                }
+                ChoiceRow {
+                    width: Math.min(parent.width, 460); label: "Style"
+                    options: [{ "key": "flash", "label": "Flash" }, { "key": "bounce", "label": "Bounce" }, { "key": "slide", "label": "Slide" }]
+                    current: store.plugins.hyprfocus.mode
+                    visible: store.plugins.hyprfocus.enabled
+                    onChosen: (k) => store.editPlugin("hyprfocus", "mode", k)
+                }
+                SliderRow {
+                    width: Math.min(parent.width, 460); label: "Flash opacity"; percent: true
+                    from: 0; to: 1; step: 0.05
+                    value: store.plugins.hyprfocus.opacity
+                    visible: store.plugins.hyprfocus.enabled && store.plugins.hyprfocus.mode === "flash"
+                    onModified: (v) => store.editPlugin("hyprfocus", "opacity", v)
+                }
+                SliderRow {
+                    width: Math.min(parent.width, 460); label: "Bounce strength"; percent: true
+                    from: 0.5; to: 1; step: 0.01
+                    value: store.plugins.hyprfocus.bounce
+                    visible: store.plugins.hyprfocus.enabled && store.plugins.hyprfocus.mode === "bounce"
+                    onModified: (v) => store.editPlugin("hyprfocus", "bounce", v)
+                }
+                SliderRow {
+                    width: Math.min(parent.width, 460); label: "Slide height"
+                    from: 0; to: 150; step: 5; decimals: 0
+                    value: store.plugins.hyprfocus.slide
+                    visible: store.plugins.hyprfocus.enabled && store.plugins.hyprfocus.mode === "slide"
+                    onModified: (v) => store.editPlugin("hyprfocus", "slide", v)
+                }
+                Text {
+                    width: Math.min(parent.width, 620)
+                    wrapMode: Text.WordWrap
+                    text: "Briefly flashes, bounces, or slides a window when it gains focus. Applies on Save."
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    visible: store.plugins.hyprfocus.enabled
+                }
+            }
+
+            SettingSection {
+                width: parent.width
                 title: "CURVES"
 
                 Row {

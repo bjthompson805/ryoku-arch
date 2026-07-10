@@ -557,3 +557,184 @@ func TestGenLayerRule(t *testing.T) {
 		t.Errorf("abovelock layer rule malformed: %q", got)
 	}
 }
+
+// genPlugins: an untouched system enables no plugin, so settings.lua carries no
+// hl.plugin.load, no loaded-guard helper, and no scrolling core config.
+func TestGenPluginsDefaultsAreEmpty(t *testing.T) {
+	out := genLua(defaultOverrides(), true)
+	for _, not := range []string{"hl.plugin.load", "ryoku_plugin_loaded", "scrolling = {"} {
+		if strings.Contains(out, not) {
+			t.Errorf("default config emitted %q:\n%s", not, out)
+		}
+	}
+}
+
+// dynamic-cursors: the dashed section is bracket-quoted, shake nests, the load
+// uses the dashed .so name, and the block is wrapped in pcall so a failed load
+// can't abort settings.lua. The old hl.get_loaded_plugins guard (which does not
+// exist in the real hl API and broke the whole config) must never be emitted.
+func TestGenPluginsDynamicCursors(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.DynamicCursors.Enabled = true
+	out := genLua(o, true)
+	for _, want := range []string{
+		"pcall(function()",
+		`hl.plugin.load("/usr/lib/hyprland/plugins/dynamic-cursors.so")`,
+		`hl.config({ plugin = { dynamic_cursors = { enabled = true, mode = "tilt", shake = { enabled = true, base = 4.0 } } } })`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	for _, not := range []string{"get_loaded_plugins", "ryoku_plugin_loaded"} {
+		if strings.Contains(out, not) {
+			t.Errorf("must not emit %q (not in the real hl API):\n%s", not, out)
+		}
+	}
+}
+
+// hyprbars: config uses the source key names (bar_height / bar_text_size /
+// bar_blur) and the default button set is added through the plugin's Lua API
+// inside the guard.
+func TestGenPluginsHyprbarsButtons(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.Hyprbars.Enabled = true
+	out := genLua(o, true)
+	for _, want := range []string{
+		`hl.config({ plugin = { hyprbars = { enabled = true, bar_height = 26, bar_text_size = 11, bar_blur = true } } })`,
+		`hl.plugin.hyprbars.add_button({`,
+		`action = "hyprctl dispatch killactive"`,
+		`action = "hyprctl dispatch fullscreen 1"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	o.Plugins.Hyprbars.Buttons = false
+	if strings.Contains(genLua(o, true), "add_button") {
+		t.Error("buttons off must not emit add_button")
+	}
+}
+
+// hyprfocus: the keys the plugin at the 0.55.4 pin actually registers (verified
+// live via hyprctl getoption) are mode / fade_opacity / bounce_strength /
+// slide_height, with no `enable` key (loading the .so enables it). A newer
+// upstream commit renamed these, but our package builds the 0.55.4-matched
+// commit, so these are the ones that must be emitted.
+func TestGenPluginsHyprfocusKeys(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.Hyprfocus.Enabled = true
+	o.Plugins.Hyprfocus.Mode = "bounce"
+	out := genLua(o, true)
+	for _, want := range []string{
+		`hl.plugin.load("/usr/lib/hyprland/plugins/hyprfocus.so")`,
+		`mode = "bounce"`, `fade_opacity = 0.8`, `bounce_strength = 0.95`, `slide_height = 20.0`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	for _, not := range []string{"enable = true", "keyboard_focus_animation", "shrink_percentage"} {
+		if strings.Contains(out, not) {
+			t.Errorf("stale hyprfocus key %q emitted:\n%s", not, out)
+		}
+	}
+}
+
+// hyprglass: tint is a 0x ARGB literal, preset and float knobs pass through.
+func TestGenPluginsHyprglass(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.Hyprglass.Enabled = true
+	out := genLua(o, true)
+	for _, want := range []string{
+		`hl.config({ plugin = { hyprglass = { enabled = 1, default_preset = "clear", blur_strength = 2.0, glass_opacity = 1.0, tint_color = 0x8899aa22 } } })`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// imgborders: sizes/insets are required strings; image passes through.
+func TestGenPluginsImgborders(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.Imgborders.Enabled = true
+	o.Plugins.Imgborders.Image = "/home/x/b.png"
+	out := genLua(o, true)
+	want := `hl.config({ plugin = { imgborders = { enabled = true, image = "/home/x/b.png", sizes = "8,8,8,8", insets = "0,0,0,0", scale = 1.0, smooth = true } } })`
+	if !strings.Contains(out, want) {
+		t.Errorf("missing %q:\n%s", want, out)
+	}
+}
+
+// scrolling is core, not a plugin: its knobs emit under the core `scrolling`
+// category only when that layout is selected, and never as an hl.plugin.load.
+func TestGenPluginsScrollingCore(t *testing.T) {
+	o := defaultOverrides()
+	o.Appearance.Layout = "scrolling"
+	o.Plugins.Hyprscrolling.ColumnWidth = 0.7
+	o.Plugins.Hyprscrolling.FollowFocus = false
+	out := genLua(o, true)
+	if !strings.Contains(out, "hl.config({ scrolling = { column_width = 0.7, follow_focus = false } })") {
+		t.Errorf("scrolling core config missing:\n%s", out)
+	}
+	if strings.Contains(out, "plugins/hyprscrolling.so") {
+		t.Errorf("scrolling must not load a plugin:\n%s", out)
+	}
+	// same knobs but a non-scrolling layout: nothing emitted.
+	o.Appearance.Layout = "dwindle"
+	if strings.Contains(genLua(o, true), "scrolling = {") {
+		t.Error("scrolling config emitted for a non-scrolling layout")
+	}
+	// scrolling layout at default knobs: no override written.
+	d := defaultOverrides()
+	d.Appearance.Layout = "scrolling"
+	if strings.Contains(genPlugins(d), "scrolling = {") {
+		t.Error("default scrolling knobs must emit no override")
+	}
+}
+
+// plugin settings land on Save (reload), never through the live eval preview.
+func TestPluginsNotPreviewed(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.DynamicCursors.Enabled = true
+	o.Plugins.Hyprbars.Enabled = true
+	if strings.Contains(liveLua(o), "hl.plugin.load") {
+		t.Error("plugins must not appear in the live preview (liveLua)")
+	}
+}
+
+// a fully-enabled plugin set must still produce valid Lua.
+func TestGenPluginsParse(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.DynamicCursors.Enabled = true
+	o.Plugins.Hyprbars.Enabled = true
+	o.Plugins.Imgborders.Enabled = true
+	o.Plugins.Imgborders.Image = "/tmp/b.png"
+	o.Plugins.Hyprglass.Enabled = true
+	o.Plugins.Hyprfocus.Enabled = true
+	o.Appearance.Layout = "scrolling"
+	o.Plugins.Hyprscrolling.ColumnWidth = 0.7
+	lua := genLua(o, true)
+	luac, err := exec.LookPath("luac")
+	if err != nil {
+		t.Skip("luac not available")
+	}
+	cmd := exec.Command(luac, "-p", "-")
+	cmd.Stdin = strings.NewReader(lua)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("genLua with all plugins does not parse: %v\n%s\n%s", err, out, lua)
+	}
+}
+
+func TestLuaHex8(t *testing.T) {
+	cases := map[string]string{
+		"8899aa22": "8899aa22", "#8899AA22": "8899aa22", "0x8899aa22": "8899aa22",
+		"bad": "8899aa22", "zzzzzzzz": "8899aa22", "": "8899aa22",
+	}
+	for in, want := range cases {
+		if got := luaHex8(in); got != want {
+			t.Errorf("luaHex8(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

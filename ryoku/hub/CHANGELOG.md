@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- The Appearance and Animations pages can now enable and configure optional
+  Hyprland compositor plugins, each folded into its natural home as a toggle that
+  reveals its settings: **Realistic cursor motion** (rotate / tilt / stretch plus
+  shake-to-find) on the **Cursor** tab; **Title bars** (height, text size, blur,
+  window buttons) and **Liquid glass** (preset, blur, opacity) on the **Look**
+  tab; an **Image border** (pick an image, scale, smoothing) on the **Borders**
+  tab; and **Focus flash** (flash / shrink / slide) on the Animations page. The
+  **Scrolling** tiling layout also gains column-width and follow-focus knobs (the
+  scrolling layout is Hyprland core, not a plugin). Plugin settings apply on Save
+  (a plugin loads on reload), written to `settings.lua` as an `hl.plugin.load`
+  plus a loaded-guarded `hl.config`; a missing or version-mismatched plugin
+  degrades to off instead of erroring the config.
 - The Shell page gains a **Global** tab for the shell-wide look: inner
   **Roundness**, plus the frame melt, surface, shadow, and typography controls
   moved out of the Frame tab. Its **Font** picker now lists the fonts people rice

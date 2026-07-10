@@ -286,6 +286,19 @@ Item {
                         current: store.layout
                         onChosen: (k) => store.edit("layout", k)
                     }
+                    SliderRow {
+                        width: parent.width; label: "Column width"; percent: true
+                        from: 0.1; to: 1; step: 0.05
+                        value: store.plugins.hyprscrolling.columnWidth
+                        visible: store.layout === "scrolling"
+                        onModified: (v) => store.editPlugin("hyprscrolling", "columnWidth", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Scroll to follow focus"
+                        checked: store.plugins.hyprscrolling.followFocus
+                        visible: store.layout === "scrolling"
+                        onToggled: (v) => store.editPlugin("hyprscrolling", "followFocus", v)
+                    }
                 }
 
                 SettingSection {
@@ -315,6 +328,49 @@ Item {
                         width: parent.width; label: "Snap floating windows"
                         checked: store.snapEnabled
                         onToggled: (v) => store.edit("snapEnabled", v)
+                    }
+                }
+
+                SettingSection {
+                    width: parent.width
+                    title: "TITLE BARS"
+                    ToggleRow {
+                        width: parent.width; label: "Window title bars"
+                        checked: store.plugins.hyprbars.enabled
+                        onToggled: (v) => store.editPlugin("hyprbars", "enabled", v)
+                    }
+                    NumberField {
+                        width: parent.width; label: "Bar height"; unit: "px"
+                        from: 12; to: 48; value: store.plugins.hyprbars.height
+                        visible: store.plugins.hyprbars.enabled
+                        onModified: (v) => store.editPlugin("hyprbars", "height", v)
+                    }
+                    NumberField {
+                        width: parent.width; label: "Title text size"; unit: "px"
+                        from: 8; to: 20; value: store.plugins.hyprbars.textSize
+                        visible: store.plugins.hyprbars.enabled
+                        onModified: (v) => store.editPlugin("hyprbars", "textSize", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Blur the bar"
+                        checked: store.plugins.hyprbars.blur
+                        visible: store.plugins.hyprbars.enabled
+                        onToggled: (v) => store.editPlugin("hyprbars", "blur", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Close and maximise buttons"
+                        checked: store.plugins.hyprbars.buttons
+                        visible: store.plugins.hyprbars.enabled
+                        onToggled: (v) => store.editPlugin("hyprbars", "buttons", v)
+                    }
+                    Text {
+                        width: Math.min(parent.width, 620)
+                        wrapMode: Text.WordWrap
+                        text: "Adds a title bar with window buttons. Applies on Save."
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        visible: store.plugins.hyprbars.enabled
                     }
                 }
             }
@@ -443,6 +499,46 @@ Item {
                         onModified: (v) => store.edit("glowColor", v)
                     }
                 }
+
+                SettingSection {
+                    width: parent.width
+                    title: "GLASS"
+                    ToggleRow {
+                        width: parent.width; label: "Liquid glass windows"
+                        checked: store.plugins.hyprglass.enabled
+                        onToggled: (v) => store.editPlugin("hyprglass", "enabled", v)
+                    }
+                    ChoiceRow {
+                        width: parent.width; label: "Preset"
+                        options: [{ "key": "clear", "label": "Clear" }, { "key": "subtle", "label": "Subtle" }, { "key": "high_contrast", "label": "Contrast" }, { "key": "glass", "label": "Glass" }]
+                        current: store.plugins.hyprglass.preset
+                        visible: store.plugins.hyprglass.enabled
+                        onChosen: (k) => store.editPlugin("hyprglass", "preset", k)
+                    }
+                    SliderRow {
+                        width: parent.width; label: "Blur strength"
+                        from: 0; to: 5; step: 0.1; decimals: 1
+                        value: store.plugins.hyprglass.blurStrength
+                        visible: store.plugins.hyprglass.enabled
+                        onModified: (v) => store.editPlugin("hyprglass", "blurStrength", v)
+                    }
+                    SliderRow {
+                        width: parent.width; label: "Glass opacity"; percent: true
+                        from: 0; to: 1; step: 0.05
+                        value: store.plugins.hyprglass.opacity
+                        visible: store.plugins.hyprglass.enabled
+                        onModified: (v) => store.editPlugin("hyprglass", "opacity", v)
+                    }
+                    Text {
+                        width: Math.min(parent.width, 620)
+                        wrapMode: Text.WordWrap
+                        text: "A liquid-glass blur and refraction on windows. Applies on Save."
+                        color: Theme.dim
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        visible: store.plugins.hyprglass.enabled
+                    }
+                }
             }
         }
     }
@@ -502,6 +598,59 @@ Item {
                     font.pixelSize: 12
                 }
             }
+
+            SettingSection {
+                width: parent.width
+                title: "IMAGE BORDER"
+                ToggleRow {
+                    width: parent.width; label: "Image border around windows"
+                    checked: store.plugins.imgborders.enabled
+                    onToggled: (v) => store.editPlugin("imgborders", "enabled", v)
+                }
+                Row {
+                    width: parent.width
+                    spacing: 12
+                    visible: store.plugins.imgborders.enabled
+                    Text {
+                        width: parent.width - chooseBtn.width - 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        elide: Text.ElideMiddle
+                        text: store.plugins.imgborders.image === "" ? "No image chosen" : store.plugins.imgborders.image
+                        color: store.plugins.imgborders.image === "" ? Theme.faint : Theme.cream
+                        font.family: Theme.font
+                        font.pixelSize: 13
+                    }
+                    HubButton {
+                        id: chooseBtn
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: "Choose image"
+                        icon: "image"
+                        onClicked: imgPicker.open()
+                    }
+                }
+                SliderRow {
+                    width: parent.width; label: "Border scale"
+                    from: 0.5; to: 3; step: 0.1; decimals: 1
+                    value: store.plugins.imgborders.scale
+                    visible: store.plugins.imgborders.enabled
+                    onModified: (v) => store.editPlugin("imgborders", "scale", v)
+                }
+                ToggleRow {
+                    width: parent.width; label: "Smooth scaling"
+                    checked: store.plugins.imgborders.smooth
+                    visible: store.plugins.imgborders.enabled
+                    onToggled: (v) => store.editPlugin("imgborders", "smooth", v)
+                }
+                Text {
+                    width: Math.min(parent.width, 620)
+                    wrapMode: Text.WordWrap
+                    text: "Tiles an image around each window as its border. Pick an image, then Save."
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    visible: store.plugins.imgborders.enabled
+                }
+            }
         }
     }
 
@@ -551,6 +700,38 @@ Item {
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 12
+                }
+            }
+
+            SettingSection {
+                width: parent.width
+                title: "MOTION"
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Realistic cursor motion"
+                    checked: store.plugins.dynamicCursors.enabled
+                    onToggled: (v) => store.editPlugin("dynamicCursors", "enabled", v)
+                }
+                ChoiceRow {
+                    width: Math.min(parent.width, 460); label: "Style"
+                    options: [{ "key": "rotate", "label": "Rotate" }, { "key": "tilt", "label": "Tilt" }, { "key": "stretch", "label": "Stretch" }]
+                    current: store.plugins.dynamicCursors.mode
+                    visible: store.plugins.dynamicCursors.enabled
+                    onChosen: (k) => store.editPlugin("dynamicCursors", "mode", k)
+                }
+                ToggleRow {
+                    width: Math.min(parent.width, 460); label: "Shake to find (magnify)"
+                    checked: store.plugins.dynamicCursors.shake
+                    visible: store.plugins.dynamicCursors.enabled
+                    onToggled: (v) => store.editPlugin("dynamicCursors", "shake", v)
+                }
+                Text {
+                    width: Math.min(parent.width, 620)
+                    wrapMode: Text.WordWrap
+                    text: "The cursor tilts, rotates, or stretches as it moves; shake it to briefly magnify and find it. Applies on Save."
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    visible: store.plugins.dynamicCursors.enabled
                 }
             }
         }
@@ -769,5 +950,13 @@ Item {
                 onClicked: store.save()
             }
         }
+    }
+
+    // image picker for the imgborders plugin (Borders tab). page-level so its
+    // modal overlay covers the whole page, not just the borders column.
+    ImagePicker {
+        id: imgPicker
+        onPicked: (p) => { store.editPlugin("imgborders", "image", p); imgPicker.active = false; }
+        onCanceled: imgPicker.active = false
     }
 }

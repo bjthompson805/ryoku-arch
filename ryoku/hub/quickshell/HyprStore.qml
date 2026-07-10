@@ -92,6 +92,19 @@ Item {
     property var autostart: []
     property var keybinds: []
 
+    // draft: plugins (Hyprland compositor plugins). nested object mirroring the
+    // Go Plugins struct; applied on Save, not live-previewed (a plugin loads on
+    // reload). hyprscrolling has no enable of its own: it follows the scrolling
+    // tiling layout, these are just its knobs.
+    property var plugins: ({
+        "dynamicCursors": { "enabled": false, "mode": "tilt", "shake": true, "magnify": 4 },
+        "hyprbars": { "enabled": false, "height": 26, "textSize": 11, "blur": true, "buttons": true },
+        "imgborders": { "enabled": false, "image": "", "sizes": "8,8,8,8", "insets": "0,0,0,0", "scale": 1, "smooth": true },
+        "hyprglass": { "enabled": false, "preset": "clear", "blurStrength": 2, "opacity": 1, "tint": "8899aa22" },
+        "hyprfocus": { "enabled": false, "mode": "flash", "opacity": 0.8, "bounce": 0.95, "slide": 20 },
+        "hyprscrolling": { "columnWidth": 0.5, "followFocus": true }
+    })
+
     // animations = per-leaf overrides + user bezier curves. unlike the other
     // lists, these DO preview live (curves + animations apply via hyprctl eval).
     property var animItems: []
@@ -138,7 +151,8 @@ Item {
             "appearance": a, "input": i, "cursor": c,
             "env": store.env, "windowRules": store.windowRules, "layerRules": store.layerRules,
             "autostart": store.autostart, "keybinds": store.keybinds,
-            "anim": { "items": store.animItems, "curves": store.animCurves }
+            "anim": { "items": store.animItems, "curves": store.animCurves },
+            "plugins": store.plugins
         };
     }
 
@@ -159,6 +173,7 @@ Item {
         store.autostart = o.autostart || []; store.keybinds = o.keybinds || [];
         var an = o.anim || {};
         store.animItems = an.items || []; store.animCurves = an.curves || [];
+        store.plugins = o.plugins || store.plugins;
         store.rev++;
     }
 
@@ -243,6 +258,9 @@ Item {
         for (n = 0; n < store.cursorKeys.length; n++)
             if (c[store.cursorKeys[n]] !== undefined)
                 store[store.cursorProp(store.cursorKeys[n])] = c[store.cursorKeys[n]];
+        // the plugin toggles live on the Appearance tabs (Cursor/Look/Borders),
+        // so a "Reset to defaults" there returns them (and hyprfocus) to off too.
+        store.resetPlugins();
         store.rev++;
         store.queuePreview();
     }
@@ -253,6 +271,22 @@ Item {
                 store[store.inputKeys[n]] = i[store.inputKeys[n]];
         store.rev++;
         store.queuePreview();
+    }
+    // plugin edit: set draft[section][key] on a copy, reassign to trigger the
+    // reactive dirty check. no live preview -- plugins load on reload, so they
+    // land on Save.
+    function editPlugin(section, key, value) {
+        var p = JSON.parse(JSON.stringify(store.plugins));
+        if (!p[section])
+            p[section] = {};
+        p[section][key] = value;
+        store.plugins = p;
+        store.rev++;
+    }
+    function resetPlugins() {
+        if (store.defaults.plugins)
+            store.plugins = JSON.parse(JSON.stringify(store.defaults.plugins));
+        store.rev++;
     }
 
     Process { id: previewProc }

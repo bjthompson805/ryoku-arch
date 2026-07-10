@@ -161,6 +161,72 @@ type Anim struct {
 	Curves []AnimCurve `json:"curves"`
 }
 
+// Plugins: the optional Hyprland compositor plugins the Hub can enable and
+// configure. Each is off by default (so an untouched system generates nothing
+// for it and the plugin never loads); enabling one makes genPlugins emit an
+// hl.plugin.load of its shipped .so plus its config. The .so files ship in the
+// [ryoku] repo (release/packages) at pluginDir; a missing or ABI-mismatched one
+// is guarded by `if hl.plugin.<name>` so it degrades to "off", never a config
+// error. Friendly field names here map to upstream option keys in genPlugins.
+type DynamicCursors struct {
+	Enabled bool    `json:"enabled"`
+	Mode    string  `json:"mode"` // rotate | tilt | stretch
+	Shake   bool    `json:"shake"`
+	Magnify float64 `json:"magnify"`
+}
+
+type Hyprbars struct {
+	Enabled  bool `json:"enabled"`
+	Height   int  `json:"height"`
+	TextSize int  `json:"textSize"`
+	Blur     bool `json:"blur"`
+	Buttons  bool `json:"buttons"`
+}
+
+type Imgborders struct {
+	Enabled bool    `json:"enabled"`
+	Image   string  `json:"image"`
+	Sizes   string  `json:"sizes"`  // "left,right,top,bottom" px
+	Insets  string  `json:"insets"` // "left,right,top,bottom" px
+	Scale   float64 `json:"scale"`
+	Smooth  bool    `json:"smooth"`
+}
+
+type Hyprglass struct {
+	Enabled      bool    `json:"enabled"`
+	Preset       string  `json:"preset"` // clear | subtle | high_contrast | glass
+	BlurStrength float64 `json:"blurStrength"`
+	Opacity      float64 `json:"opacity"`
+	Tint         string  `json:"tint"` // RRGGBBAA hex, no leading 0x
+}
+
+type Hyprfocus struct {
+	Enabled bool    `json:"enabled"`
+	Mode    string  `json:"mode"`    // flash | bounce | slide
+	Opacity float64 `json:"opacity"` // fade_opacity, for flash
+	Bounce  float64 `json:"bounce"`  // bounce_strength, for bounce
+	Slide   float64 `json:"slide"`   // slide_height px, for slide
+}
+
+// Hyprscrolling is not a compositor plugin: the scrolling layout moved into
+// Hyprland core (0.54+) as the "scrolling" layout, configured under the core
+// `scrolling` category. It has no Enabled of its own -- it applies whenever the
+// tiling layout is "scrolling" (the Look tab's existing choice). These are its
+// tuning knobs, emitted as core config (no plugin load).
+type Hyprscrolling struct {
+	ColumnWidth float64 `json:"columnWidth"`
+	FollowFocus bool    `json:"followFocus"`
+}
+
+type Plugins struct {
+	DynamicCursors DynamicCursors `json:"dynamicCursors"`
+	Hyprbars       Hyprbars       `json:"hyprbars"`
+	Imgborders     Imgborders     `json:"imgborders"`
+	Hyprglass      Hyprglass      `json:"hyprglass"`
+	Hyprfocus      Hyprfocus      `json:"hyprfocus"`
+	Hyprscrolling  Hyprscrolling  `json:"hyprscrolling"`
+}
+
 type Overrides struct {
 	Appearance  Appearance   `json:"appearance"`
 	Input       Input        `json:"input"`
@@ -171,6 +237,7 @@ type Overrides struct {
 	Keybinds    []Keybind    `json:"keybinds"`
 	Anim        Anim         `json:"anim"`
 	LayerRules  []LayerRule  `json:"layerRules"`
+	Plugins     Plugins      `json:"plugins"`
 
 	// inputSaved: the store carries an explicit input section, i.e. the user has
 	// saved input settings through the hub at least once. genConfig then pins the
@@ -218,6 +285,14 @@ func defaultOverrides() Overrides {
 		Keybinds:    []Keybind{},
 		Anim:        Anim{Items: []AnimItem{}, Curves: []AnimCurve{}},
 		LayerRules:  []LayerRule{},
+		Plugins: Plugins{
+			DynamicCursors: DynamicCursors{Enabled: false, Mode: "tilt", Shake: true, Magnify: 4.0},
+			Hyprbars:       Hyprbars{Enabled: false, Height: 26, TextSize: 11, Blur: true, Buttons: true},
+			Imgborders:     Imgborders{Enabled: false, Image: "", Sizes: "8,8,8,8", Insets: "0,0,0,0", Scale: 1.0, Smooth: true},
+			Hyprglass:      Hyprglass{Enabled: false, Preset: "clear", BlurStrength: 2.0, Opacity: 1.0, Tint: "8899aa22"},
+			Hyprfocus:      Hyprfocus{Enabled: false, Mode: "flash", Opacity: 0.8, Bounce: 0.95, Slide: 20},
+			Hyprscrolling:  Hyprscrolling{ColumnWidth: 0.5, FollowFocus: true},
+		},
 	}
 }
 
@@ -541,11 +616,151 @@ func genLua(o Overrides, follow bool) string {
 			b.WriteString(kb)
 		}
 	}
+	if pl := genPlugins(o); pl != "" {
+		b.WriteString(pl)
+	}
 	if start := genStartHook(o); start != "" {
 		b.WriteString("\n")
 		b.WriteString(start)
 	}
 	return b.String()
+}
+
+// pluginDir is where the [ryoku] repo (release/packages) installs the optional
+// Hyprland compositor plugin .so files. genPlugins loads them by absolute path.
+const pluginDir = "/usr/lib/hyprland/plugins"
+
+// genPlugins renders the optional Hyprland compositor plugins the user enabled:
+// per plugin, an hl.plugin.load of its shipped .so plus its hl.config, all inside
+// a pcall so a missing or ABI-mismatched .so degrades to "off" instead of
+// aborting settings.lua with a config-error overlay. Plugin-API calls (hyprbars
+// buttons) are additionally guarded by `hl.plugin.<name> ~= nil`, which the real
+// hl API (hl.meta.lua: PluginNamespace has `load` + `[string]`) populates once a
+// plugin registers its Lua functions. Plugin settings land on Save (reload), not
+// the live eval preview, so genPlugins is used only by genLua, never liveLua. The
+// scrolling layout is Hyprland core (not a plugin): its knobs emit as the core
+// `scrolling` category when that layout is selected.
+func genPlugins(o Overrides) string {
+	var b strings.Builder
+	p := o.Plugins
+
+	if dc := p.DynamicCursors; dc.Enabled {
+		opts := []string{
+			"enabled = true",
+			fmt.Sprintf("mode = %s", luaStr(dc.Mode)),
+			fmt.Sprintf("shake = { enabled = %t, base = %s }", dc.Shake, luaNum(dc.Magnify)),
+		}
+		// config section key is the plugin name with dashes as underscores: the
+		// Lua config normalises "dynamic-cursors" to "dynamic_cursors" (a dashed
+		// key is rejected as unknown; verified live against Hyprland 0.55.4).
+		b.WriteString(genPluginBlock("dynamic-cursors", "dynamic_cursors", opts, ""))
+	}
+
+	if hb := p.Hyprbars; hb.Enabled {
+		opts := []string{
+			"enabled = true",
+			fmt.Sprintf("bar_height = %d", hb.Height),
+			fmt.Sprintf("bar_text_size = %d", hb.TextSize),
+			fmt.Sprintf("bar_blur = %t", hb.Blur),
+		}
+		var extra string
+		if hb.Buttons {
+			// close + fullscreen toggle, traffic-light colours; re-added on each
+			// reload (hyprbars clears buttons in onPreConfigReload). guarded by the
+			// plugin's Lua namespace so a failed load can't nil-call. "\u00d7" and
+			// "+" render in any font, so no Nerd Font dependency.
+			extra = "  if hl.plugin.hyprbars ~= nil then\n" +
+				"    hl.plugin.hyprbars.add_button({ bg_color = \"rgb(ff5f57)\", fg_color = \"rgb(ffffff)\", size = 12, icon = \"\u00d7\", action = \"hyprctl dispatch killactive\" })\n" +
+				"    hl.plugin.hyprbars.add_button({ bg_color = \"rgb(28c840)\", fg_color = \"rgb(ffffff)\", size = 12, icon = \"+\", action = \"hyprctl dispatch fullscreen 1\" })\n" +
+				"  end\n"
+		}
+		b.WriteString(genPluginBlock("hyprbars", "hyprbars", opts, extra))
+	}
+
+	if ib := p.Imgborders; ib.Enabled {
+		opts := []string{
+			"enabled = true",
+			fmt.Sprintf("image = %s", luaStr(ib.Image)),
+			fmt.Sprintf("sizes = %s", luaStr(ib.Sizes)),
+			fmt.Sprintf("insets = %s", luaStr(ib.Insets)),
+			fmt.Sprintf("scale = %s", luaNum(ib.Scale)),
+			fmt.Sprintf("smooth = %t", ib.Smooth),
+		}
+		b.WriteString(genPluginBlock("imgborders", "imgborders", opts, ""))
+	}
+
+	if hg := p.Hyprglass; hg.Enabled {
+		opts := []string{
+			"enabled = 1",
+			fmt.Sprintf("default_preset = %s", luaStr(hg.Preset)),
+			fmt.Sprintf("blur_strength = %s", luaNum(hg.BlurStrength)),
+			fmt.Sprintf("glass_opacity = %s", luaNum(hg.Opacity)),
+			fmt.Sprintf("tint_color = 0x%s", luaHex8(hg.Tint)),
+		}
+		b.WriteString(genPluginBlock("hyprglass", "hyprglass", opts, ""))
+	}
+
+	if hf := p.Hyprfocus; hf.Enabled {
+		opts := []string{
+			fmt.Sprintf("mode = %s", luaStr(hf.Mode)),
+			fmt.Sprintf("fade_opacity = %s", luaNum(hf.Opacity)),
+			fmt.Sprintf("bounce_strength = %s", luaNum(hf.Bounce)),
+			fmt.Sprintf("slide_height = %s", luaNum(hf.Slide)),
+		}
+		b.WriteString(genPluginBlock("hyprfocus", "hyprfocus", opts, ""))
+	}
+
+	// scrolling is a Hyprland core layout (0.54+), configured under the core
+	// `scrolling` category, not a plugin. emit its knobs only when the layout is
+	// selected, diffed against the core defaults.
+	if o.Appearance.Layout == "scrolling" {
+		hs, dhs := o.Plugins.Hyprscrolling, defaultOverrides().Plugins.Hyprscrolling
+		var sc []string
+		if hs.ColumnWidth != dhs.ColumnWidth {
+			sc = append(sc, fmt.Sprintf("column_width = %s", luaNum(hs.ColumnWidth)))
+		}
+		if hs.FollowFocus != dhs.FollowFocus {
+			sc = append(sc, fmt.Sprintf("follow_focus = %t", hs.FollowFocus))
+		}
+		if len(sc) > 0 {
+			fmt.Fprintf(&b, "hl.config({ scrolling = { %s } })\n\n", strings.Join(sc, ", "))
+		}
+	}
+
+	return b.String()
+}
+
+// genPluginBlock loads soName.so and sets its config under `plugin[section]`,
+// plus any verbatim extra Lua (e.g. hyprbars buttons). The whole block runs in a
+// pcall so a missing or ABI-mismatched plugin degrades to "off" rather than
+// erroring settings.lua. section is the Lua table key: a bare identifier
+// (hyprbars) or a bracketed literal for a dashed name (["dynamic-cursors"]).
+func genPluginBlock(soName, section string, opts []string, extra string) string {
+	var b strings.Builder
+	b.WriteString("pcall(function()\n")
+	fmt.Fprintf(&b, "  hl.plugin.load(%s)\n", luaStr(pluginDir+"/"+soName+".so"))
+	fmt.Fprintf(&b, "  hl.config({ plugin = { %s = { %s } } })\n", section, strings.Join(opts, ", "))
+	if extra != "" {
+		b.WriteString(extra)
+	}
+	b.WriteString("end)\n\n")
+	return b.String()
+}
+
+// luaHex8 sanitises an RRGGBBAA hex string (optionally #- or 0x-prefixed) to a
+// bare 8-digit lowercase hex for a Lua 0x literal; a malformed value falls back
+// to the hyprglass default tint so a typo can't produce invalid Lua.
+func luaHex8(s string) string {
+	s = strings.TrimPrefix(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(s)), "0x"), "#")
+	if len(s) != 8 {
+		return "8899aa22"
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return "8899aa22"
+		}
+	}
+	return s
 }
 
 // genConfig: one hl.config({...}) holding only the general / decoration / input
