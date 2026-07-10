@@ -12,6 +12,7 @@ New here? Read these in order, then keep them open while you work:
 - `docs/conventions.md` how code and configuration are written here.
 - `docs/ui-ux.md` the desktop's look and motion, and how to build or replicate it.
 - `docs/development.md` the workflow: deploy, test, the commit gates, and research.
+- `docs/updates.md` how a change reaches a running machine, and the delivery contract.
 
 ## Cardinal rules
 
@@ -49,6 +50,13 @@ These are not negotiable. Most are enforced by the git hooks in `.githooks/`.
    install in the post-install step. The live ISO prebuilds only the installer;
    the installed target has no build toolchain assumptions. See
    `docs/development.md`.
+
+8. **Every change must reach users.** A dev box runs the checkout; users run
+   packages, and `ryoku update` delivers them through `materialize` (the config)
+   and `doctor` (drift). A user-facing config must be shipped by a package or
+   seeded by the installer, a removed or renamed `shell.json` key needs a doctor
+   reconciler, and work reaches users only once `main` fast-forwards. See
+   `docs/updates.md`; `ryoku-dev-verify-delivery` enforces it.
 
 ## Top-level map
 

@@ -53,4 +53,8 @@ done
 bin/ryoku-dev-scan-slop --staged >/dev/null \
 	|| fail "low-value filler comments found (see above); reword or drop them."
 
+# 4. update-delivery: every user config in the repo reaches an installed box.
+bin/ryoku-dev-verify-delivery --quiet \
+	|| fail "a config in ryoku/apps reaches no user (see above); ship it from a PKGBUILD or a deploy path. See docs/updates.md."
+
 exit 0
