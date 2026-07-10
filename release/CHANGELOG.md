@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+- Four new `[ryoku]` repo packages build the optional Hyprland compositor plugins
+  the Hub can toggle, installed to `/usr/lib/hyprland/plugins/`:
+  `hypr-dynamic-cursors`, `ryoku-hypr-plugins` (hyprbars + hyprfocus),
+  `hyprglass`, and `imgborders`. Hyprland plugins are ABI-locked to the
+  compositor, so each PKGBUILD's `prepare()` reads the build host's Hyprland
+  version and checks out the matching plugin commit from upstream's `hyprpm.toml`
+  (the same version map `hyprpm` uses); a rebuild always tracks whatever Hyprland
+  the repo ships, with no manual commit bumps.
+  `ryoku-desktop` depends on all four (pinned to its own version), so they reach
+  installed machines through `ryoku update` and a toggle never faces a missing
+  `.so`. The publish workflow installs the plugin build deps (hyprland,
+  hyprcursor, pango, cairo, pkgconf) and skips the new self-repo packages in its
+  official-repo dependency check.
+
 ### Fixed
 - **A published package filename never changes bytes again.** makepkg is not
   reproducible (BUILDDATE alone reshuffles the compressed bytes), and every

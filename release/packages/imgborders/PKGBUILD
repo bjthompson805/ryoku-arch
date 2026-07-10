@@ -1,0 +1,48 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# imgborders: a Hyprland compositor plugin that tiles an image around each window
+# as its border. Installed as the un-prefixed imgborders.so under
+# /usr/lib/hyprland/plugins/, loaded by the Hub's generated settings.lua (Borders
+# tab, Image border) via hl.plugin.load; a missing or ABI-mismatched plugin is
+# guarded there and degrades to off.
+#
+# Hyprland plugins are ABI-locked to the compositor. prepare() reads the build
+# host's Hyprland version and checks out the matching commit from upstream's
+# hyprpm.toml (the same map hyprpm uses), so a [ryoku] rebuild always builds
+# against whatever Hyprland it ships, with no manual commit bumps. Upstream
+# currently flags image rendering as limited on Hyprland 0.55 (tiled-texture
+# support was removed); the plugin builds and loads, and the auto-resolve picks
+# up the fix as soon as upstream ships it for the running Hyprland.
+pkgname=imgborders
+pkgver=${RYOKU_PKGVER:-0.1.0}
+pkgrel=1
+pkgdesc="Hyprland plugin: tiling image borders on windows"
+arch=('x86_64')
+url="https://codeberg.org/zacoons/imgborders"
+license=('GPL-3.0-or-later')
+depends=('hyprland')
+makedepends=('hyprland' 'cmake' 'pkgconf' 'git' 'libdrm' 'pixman' 'pango' 'cairo')
+source=("$pkgname::git+https://codeberg.org/zacoons/imgborders.git")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$srcdir/$pkgname"
+  local hv commit
+  hv="$(pkg-config --modversion hyprland)"
+  # hyprpm.toml lines: ["<hyprland-commit>", "<plugin-commit>"], # <version>
+  commit="$(grep -F "$hv" hyprpm.toml | grep -oE '[0-9a-f]{40}' | sed -n 2p)"
+  [[ -n "$commit" ]] || { echo "PKGBUILD: no hyprpm.toml pin for Hyprland $hv" >&2; return 1; }
+  echo "PKGBUILD: $pkgname -> $commit (Hyprland $hv)"
+  git checkout -q "$commit"
+}
+
+build() {
+  cd "$srcdir/$pkgname"
+  cmake -B build -DCMAKE_BUILD_TYPE=Release
+  cmake --build build
+}
+
+package() {
+  install -Dm755 "$srcdir/$pkgname/build/libimgborders.so" \
+    "$pkgdir/usr/lib/hyprland/plugins/imgborders.so"
+}

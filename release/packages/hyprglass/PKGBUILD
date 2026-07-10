@@ -1,0 +1,43 @@
+# Maintainer: Ryoku <releases@ryoku.dev>
+#
+# hyprglass: a Hyprland compositor plugin adding a liquid-glass blur / refraction
+# effect to windows. Installed under /usr/lib/hyprland/plugins/, loaded by the
+# Hub's generated settings.lua (Look tab, Glass) via hl.plugin.load; a missing or
+# ABI-mismatched plugin is guarded there and degrades to off.
+#
+# Hyprland plugins are ABI-locked to the compositor. prepare() reads the build
+# host's Hyprland version and checks out the matching commit from upstream's
+# hyprpm.toml (the same map hyprpm uses), so a [ryoku] rebuild always builds
+# against whatever Hyprland it ships, with no manual commit bumps.
+pkgname=hyprglass
+pkgver=${RYOKU_PKGVER:-0.1.0}
+pkgrel=1
+pkgdesc="Hyprland plugin: liquid-glass blur and refraction on windows"
+arch=('x86_64')
+url="https://github.com/hyprnux/hyprglass"
+license=('GPL-3.0-or-later')
+depends=('hyprland')
+makedepends=('hyprland' 'pkgconf' 'make' 'gcc' 'git' 'pixman' 'libdrm')
+source=("$pkgname::git+https://github.com/hyprnux/hyprglass.git")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$srcdir/$pkgname"
+  local hv commit
+  hv="$(pkg-config --modversion hyprland)"
+  # hyprpm.toml lines: ["<hyprland-commit>", "<plugin-commit>"], # <version>
+  commit="$(grep -F "$hv" hyprpm.toml | grep -oE '[0-9a-f]{40}' | sed -n 2p)"
+  [[ -n "$commit" ]] || { echo "PKGBUILD: no hyprpm.toml pin for Hyprland $hv" >&2; return 1; }
+  echo "PKGBUILD: $pkgname -> $commit (Hyprland $hv)"
+  git checkout -q "$commit"
+}
+
+build() {
+  cd "$srcdir/$pkgname"
+  make
+}
+
+package() {
+  install -Dm755 "$srcdir/$pkgname/hyprglass.so" \
+    "$pkgdir/usr/lib/hyprland/plugins/hyprglass.so"
+}

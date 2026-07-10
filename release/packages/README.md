@@ -16,7 +16,14 @@ repo. Packages publish only from `main` release tags, never from `unstable-dev`.
   to `/usr/bin/ryoku`.
 - `ryoku-blobs` -- the `Ryoku.Blobs` QML plugin, to
   `/usr/lib/qt6/qml/Ryoku/Blobs`.
-- `ryoku-desktop` -- the umbrella. Depends on the five above plus the user-facing
+- `hypr-dynamic-cursors`, `ryoku-hypr-plugins` (hyprbars + hyprfocus),
+  `hyprglass`, `imgborders` -- the optional Hyprland compositor plugins the Hub
+  can toggle, into `/usr/lib/hyprland/plugins/`. Each builds from source
+  version-matched to the build host's Hyprland (its `prepare()` reads the plugin's
+  `hyprpm.toml` and checks out the commit paired with the running Hyprland), so
+  they track the shipped compositor with no manual pin bumps. Off until enabled
+  in Ryoku Settings.
+- `ryoku-desktop` -- the umbrella. Depends on the packages above plus the user-facing
   desktop runtime, lays the base configuration under `/usr/share/ryoku/config`,
   and installs the helper scripts (`ryoku-cmd-*`, the hardware `ryoku-*`,
   `ryoku-fastfetch`) to `/usr/bin` and the GPU udev rule to

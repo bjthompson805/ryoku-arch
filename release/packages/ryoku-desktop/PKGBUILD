@@ -32,6 +32,14 @@ depends=(
   'gpk'
   # compositor + Wayland session
   'hyprland'
+  # Hyprland compositor plugins the Hub can toggle (Appearance / Animations).
+  # pinned to this build's version like the other monorepo packages, so a plugin
+  # .so never runs against a different release's headers. Off by default; the
+  # generated settings.lua only loads one once the user enables it.
+  "hypr-dynamic-cursors=$pkgver"
+  "ryoku-hypr-plugins=$pkgver"
+  "hyprglass=$pkgver"
+  "imgborders=$pkgver"
   'xorg-xwayland'
   'qt6-wayland'
   'qt6-5compat'
