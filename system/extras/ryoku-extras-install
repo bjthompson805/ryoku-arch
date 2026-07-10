@@ -73,6 +73,8 @@ cmd_present() { command -v "$1" >/dev/null 2>&1; }
 # The catalogue ships the source; install copies it here.
 plugin_dir() { printf '%s/ryoku/plugins/%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}" "$1"; }
 plugin_installed() { [[ -f "$(plugin_dir "$1")/manifest.json" ]]; }
+nautilus_track() { printf '%s/ryoku/nautilus/%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}" "$1"; }
+nautilus_installed() { [[ -f "$(nautilus_track "$1")/manifest.json" ]]; }
 
 # Current state of one item, ignoring any in-flight operation.
 item_state() {
@@ -81,6 +83,7 @@ item_state() {
     package) pkg_installed "$name" && echo present || echo absent ;;
     script) cmd_present "$detect" && echo present || echo absent ;;
     plugin) plugin_installed "$name" && echo present || echo absent ;;
+    nautilus-pack) nautilus_installed "$name" && echo present || echo absent ;;
     *) echo absent ;;
   esac
 }
@@ -115,18 +118,18 @@ bundle_items() {
   local file=$1 only=${2:-}
   if [[ -n $only ]]; then
     jq -r --arg n "$only" \
-      '.items[] | select(.name == $n) | [.type, .name, (.detect // .name), (.summary // "")] | @tsv' "$file"
+      '.items[] | select(.name == $n) | [.type, .name, (.detect // .name), (.tier // "core"), ((.interactive // false)|tostring), (.summary // "")] | @tsv' "$file"
   else
-    jq -r '.items[] | [.type, .name, (.detect // .name), (.summary // "")] | @tsv' "$file"
+    jq -r '.items[] | [.type, .name, (.detect // .name), (.tier // "core"), ((.interactive // false)|tostring), (.summary // "")] | @tsv' "$file"
   fi
 }
 
 # --- status -------------------------------------------------------------------
 
 status_bundle_json() {
-  local id=$1 file type name detect summary out="[]"
+  local id=$1 file type name detect summary tier interactive out="[]"
   file=$(bundle_file "$id") || return 1
-  while IFS=$'\t' read -r type name detect summary; do
+  while IFS=$'\t' read -r type name detect tier interactive summary; do
     [[ -n $name ]] || continue
     out=$(jq --arg t "$type" --arg n "$name" --arg s "$(item_state "$type" "$name" "$detect")" \
       --arg sum "$summary" '. + [{type: $t, name: $n, status: $s, summary: $sum}]' <<<"$out")
@@ -183,6 +186,12 @@ run_plugin_install() {
   ryoku-hub extras plugin "$name" >/dev/null 2>&1
 }
 
+run_nautilus_install() {
+  local name=$1
+  if [[ -n $DRYRUN ]]; then echo "DRYRUN: install nautilus pack $name"; return 0; fi
+  ryoku-hub extras nautilus "$name" >/dev/null 2>&1
+}
+
 # Remove the plugin's source tree. The placement in plugins.json is left
 # alone, so re-installing drops it back where the user had it.
 run_plugin_remove() {
@@ -225,15 +234,17 @@ ensure_requires() {
 }
 
 install_set() {
-  local id=$1 only=${2:-} file type name detect summary
+  local id=$1 only=${2:-} file type name detect summary tier interactive
   file=$(bundle_file "$id")
   ensure_requires "$file"
 
-  local -a repo=() aur=() scripts=() plugins=()
-  declare -A SCRIPT_DETECT=()
+  local -a repo=() aur=() scripts=() plugins=() nautilus_packs=()
+  declare -A SCRIPT_DETECT=() SCRIPT_INT=()
 
-  while IFS=$'\t' read -r type name detect summary; do
+  while IFS=$'\t' read -r type name detect tier interactive summary; do
     [[ -n $name ]] || continue
+    # optional items only install one at a time (item scope), never in "install all".
+    if [[ -z $only && $tier == optional ]]; then continue; fi
     case "$type" in
       package)
         if pkg_installed "$name"; then
@@ -250,6 +261,7 @@ install_set() {
         else
           scripts+=("$name")
           SCRIPT_DETECT[$name]=$detect
+          SCRIPT_INT[$name]=$interactive
         fi
         ;;
       plugin)
@@ -259,6 +271,13 @@ install_set() {
           plugins+=("$name")
         fi
         ;;
+      nautilus-pack)
+        if nautilus_installed "$name"; then
+          set_state "$name" present
+        else
+          nautilus_packs+=("$name")
+        fi
+        ;;
       *)
         set_state "$name" failed "unknown item type '$type'"
         ;;
@@ -266,7 +285,7 @@ install_set() {
   done < <(bundle_items "$file" "$only")
 
   local n
-  for n in "${repo[@]}" "${aur[@]}" "${scripts[@]}" "${plugins[@]}"; do set_state "$n" installing; done
+  for n in "${repo[@]}" "${aur[@]}" "${scripts[@]}" "${plugins[@]}" "${nautilus_packs[@]}"; do set_state "$n" installing; done
   flush_report "$id" running
 
   if ((${#repo[@]})); then
@@ -300,11 +319,17 @@ install_set() {
     if run_script "$n"; then
       if [[ -n $DRYRUN ]] || cmd_present "${SCRIPT_DETECT[$n]}"; then
         set_state "$n" installed
+      elif [[ ${SCRIPT_INT[$n]:-false} == true ]]; then
+        set_state "$n" deferred "needs a manual download; re-run this item when ready"
       else
         set_state "$n" failed "the installer ran but '${SCRIPT_DETECT[$n]}' is still missing"
       fi
     else
-      set_state "$n" failed "the installer exited with an error"
+      if [[ ${SCRIPT_INT[$n]:-false} == true ]]; then
+        set_state "$n" deferred "needs a manual download; re-run this item when ready"
+      else
+        set_state "$n" failed "the installer exited with an error"
+      fi
     fi
     flush_report "$id" running
   done
@@ -312,9 +337,26 @@ install_set() {
   for n in "${plugins[@]}"; do
     echo "==> Installing plugin: $n"
     if run_plugin_install "$n" && { [[ -n $DRYRUN ]] || plugin_installed "$n"; }; then
-      set_state "$n" installed "place it in Settings, Plugins"
+      set_state "$n" installed
+      # a sidebarLeft guest is just a tab; enable it so it appears at once. other
+      # hosts stay disabled to avoid surprise placement (user enables in Settings).
+      if [[ -z $DRYRUN ]]; then
+        local host
+        host=$(jq -r '.defaults.host // "desktopWidget"' "$(plugin_dir "$n")/manifest.json" 2>/dev/null)
+        [[ $host == sidebarLeft ]] && ryoku-plugins-place "$n" enabled true >/dev/null 2>&1
+      fi
     else
       set_state "$n" failed "could not fetch the plugin from the catalogue"
+    fi
+    flush_report "$id" running
+  done
+
+  for n in "${nautilus_packs[@]}"; do
+    echo "==> Installing file-manager scripts: $n"
+    if run_nautilus_install "$n" && { [[ -n $DRYRUN ]] || nautilus_installed "$n"; }; then
+      set_state "$n" installed
+    else
+      set_state "$n" failed "could not fetch the scripts from the catalogue"
     fi
     flush_report "$id" running
   done
@@ -325,11 +367,11 @@ install_set() {
 # --- remove -------------------------------------------------------------------
 
 remove_set() {
-  local id=$1 only=${2:-} file type name detect summary
+  local id=$1 only=${2:-} file type name detect summary tier interactive
   file=$(bundle_file "$id")
 
   local -a pkgs=()
-  while IFS=$'\t' read -r type name detect summary; do
+  while IFS=$'\t' read -r type name detect tier interactive summary; do
     [[ -n $name ]] || continue
     case "$type" in
       package)
@@ -350,6 +392,19 @@ remove_set() {
             set_state "$name" removed
           else
             set_state "$name" failed "could not remove the plugin files"
+          fi
+        else
+          set_state "$name" absent
+        fi
+        ;;
+      nautilus-pack)
+        if nautilus_installed "$name"; then
+          if [[ -n $DRYRUN ]]; then
+            echo "DRYRUN: remove nautilus pack $name"; set_state "$name" removed
+          elif ryoku-hub extras nautilusremove "$name" >/dev/null 2>&1 && ! nautilus_installed "$name"; then
+            set_state "$name" removed
+          else
+            set_state "$name" failed "could not remove the scripts"
           fi
         else
           set_state "$name" absent
