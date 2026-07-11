@@ -98,15 +98,22 @@ System-level definition installed into the target.
 
 ## `installation/` the build
 
-- `tui/` the Go terminal installer. Collects choices, writes the `RYOKU_*`
-  contract, and drives the backend.
+- `tui/` the Go terminal installer (Bubble Tea). Collects choices, writes the
+  `RYOKU_*` contract, gates BIOS/Secure Boot/live-medium/wipe/online, and drives
+  the backend.
 - `backend/` `ryoku-install` (the orchestrator) and `lib/` (one file per step:
-  `preflight`, `disk`, `luks`, `filesystem`, `pacstrap`, `chroot`, `deploy`,
-  `drivers`, `bootloader`, `network`, `aur`). It reads `system/packages/`, adds
-  the `[ryoku]` package repository, and installs the desktop onto the target.
+  `preflight`, `disk`, `luks`, `filesystem`, `pacstrap`, `mirrors`, `chroot`,
+  `deploy`, `network`, `drivers`, `bootloader`, `aur`, `snapshots`). It reads
+  `system/packages/`, adds the `[ryoku]` package repository, and installs the
+  desktop onto the target. `alongside` dual-boots by creating a dedicated Ryoku
+  ESP + root in free space, never touching the Windows ESP.
 - `iso/` the archiso profile. `build.sh` bakes the repo payload into the image,
-  prebuilds the Go binaries, and runs `mkarchiso`. `profiledef.sh`,
-  `packages.x86_64` (live-only set), and `airootfs/` complete the live image.
+  prebuilds the Go binaries, and runs `mkarchiso` (reproducible for a fixed
+  commit). `profiledef.sh`, `packages.x86_64` (live-only set), and `airootfs/`
+  complete the live image.
+- `tests/` install verification: `container-install.sh` (packaged install in a
+  container), `install-vm.py` (real unattended install in QEMU), and
+  `iso-stage-check.sh` (the staged ISO tree is byte-reproducible).
 
 ## The distribution model
 

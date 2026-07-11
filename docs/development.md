@@ -19,8 +19,26 @@ Edit the repo, deploy, test on the running system.
 
 - Lua: `luac -p <file>` parses every changed Lua file.
 - Shell scripts: `bash -n <file>`; the pre-commit hook also checks staged scripts.
-- Installer: run the backend with `RYOKU_DRYRUN=1` (and the required `RYOKU_*`
-  vars) to print every action without touching a disk.
+- Installer: exercise the whole flow without a disk. The dry-run matrix runs the
+  backend across every strategy and profile (from the repo root):
+
+  ```
+  for s in whole alongside; do for p in vm amd intel amd-nvidia; do \
+    RYOKU_DRYRUN=1 RYOKU_DISK=/dev/vda RYOKU_PASSWORD_HASH=x \
+    RYOKU_DISK_STRATEGY=$s RYOKU_PROFILE=$p RYOKU_REPO=$PWD \
+    installation/backend/ryoku-install >/dev/null || echo "FAIL $s/$p"; done; done
+  ```
+
+  Then the focused checks for what you touched:
+  - `tests/install-*.sh` mocked fixtures for the disk teardown, the DNS and
+    mirror gates, and the chroot-safety scan (no real device).
+  - `installation/tui`: `go test ./...` (layout math + safety gates).
+  - `installation/tests/iso-stage-check.sh` stages the ISO twice and diffs, so the
+    build stays byte-reproducible (skips cleanly without `go`/`cmake`/`ninja`).
+- VM green is not metal green. A clean VM install still misses the real-hardware
+  classes (Intel VMD, Secure Boot, NVIDIA modeset, Windows dual-boot, Broadcom,
+  clock skew, NVRAM, USB media). Before calling an installer change done, walk
+  the matching entry in `docs/installation-hardware.md`.
 - QML: `qmllint` when available.
 - Test behavior, not just that it parses. Exercise the actual change on the
   running system.
