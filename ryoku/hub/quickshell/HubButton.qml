@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import "Singletons"
 
 // Profile dossier action button: small-radius carbon chip with a mono caps label,
@@ -76,9 +77,10 @@ Item {
     HoverHandler { id: hover; enabled: btn.enabled; cursorShape: Qt.PointingHandCursor }
     TapHandler { id: tap; enabled: btn.enabled; onTapped: btn.clicked() }
 
-    // optional hover tooltip: a small carbon popup that explains what the button
-    // does, for the terse mono labels (Edit overrides / View defaults) that need
-    // a sentence. shows below the button after a short hover, never on tap.
+    // optional hover tooltip explaining what the button does, for the terse mono
+    // labels that need a sentence. a Popup, so it renders in the window overlay
+    // and paints above the page content below instead of being buried under it.
+    // shows below the button after a short hover, never on tap.
     property string tooltip: ""
 
     Timer { id: tipGate; property bool ready: false; interval: 350; onTriggered: tipGate.ready = true }
@@ -95,35 +97,37 @@ Item {
         }
     }
 
-    Rectangle {
+    Popup {
         id: tip
-        visible: opacity > 0
-        opacity: (btn.tooltip !== "" && hover.hovered && tipGate.ready) ? 1 : 0
-        z: 999
+        x: 0
+        y: btn.height + 8
         width: 264
-        height: tipText.implicitHeight + 18
-        anchors.top: parent.bottom
-        anchors.topMargin: 8
-        anchors.left: parent.left
-        color: Theme.surface
-        radius: btn.radius
-        border.width: 1
-        border.color: Theme.line
-        Behavior on opacity { NumberAnimation { duration: Theme.quick } }
+        padding: 0
+        visible: btn.tooltip !== "" && hover.hovered && tipGate.ready
+        closePolicy: Popup.NoAutoClose
+        modal: false
+        focus: false
+        enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.quick } }
+        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.quick } }
 
-        Text {
-            id: tipText
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
+        background: Rectangle {
+            color: Theme.surface
+            radius: btn.radius
+            border.width: 1
+            border.color: Theme.line
+        }
+
+        contentItem: Text {
             text: btn.tooltip
             wrapMode: Text.WordWrap
             color: Theme.subtle
             font.family: Theme.font
             font.pixelSize: 12
             lineHeight: 1.25
+            leftPadding: 12
+            rightPadding: 12
+            topPadding: 10
+            bottomPadding: 10
         }
     }
 }
