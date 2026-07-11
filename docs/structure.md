@@ -122,9 +122,11 @@ System-level definition installed into the target.
 ## The distribution model
 
 - The desktop ships as signed pacman packages from the `[ryoku]` repository
-  (`release/packages/`). `ryoku-desktop` is the umbrella: it depends on
-  `ryoku-shell`, `ryoku-hub`, `ryoku-rashin`, `ryoku`, `ryoku-blobs`, and
-  `ryoku-keyring`, and lays the base config under `/usr/share/ryoku/config`.
+  (`release/packages/`). `ryoku-desktop` is the umbrella: it version-pins the
+  monorepo components (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`, `ryoku-blobs`,
+  `ryoku`, and the Hyprland plugins `hypr-dynamic-cursors`, `ryoku-hypr-plugins`,
+  `hyprglass`, `imgborders`) and also depends on `ryoku-keyring` and the `gpk`
+  package manager, and lays the base config under `/usr/share/ryoku/config`.
 - The installer adds the `[ryoku]` repo, imports the keyring, and installs
   `ryoku-desktop`; per-user config is then copied into `~/.config` by
   `ryoku materialize`, which clobbers Ryoku-owned files and prunes dropped ones
@@ -150,10 +152,12 @@ raw.githubusercontent.com serves them with no release infrastructure.
 
 ## `release/` packaging
 
-- `packages/` one directory per pacman package in the `[ryoku]` repo
-  (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`, `ryoku`, `ryoku-blobs`,
-  `ryoku-desktop`, `ryoku-keyring`), each a `PKGBUILD` that builds from the
-  checked-out monorepo.
+- `packages/` one directory per pacman package in the `[ryoku]` repo, each a
+  `PKGBUILD` that builds from the checked-out monorepo. Twelve in all: the
+  monorepo components (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`, `ryoku`,
+  `ryoku-blobs`), the `ryoku-desktop` umbrella, `ryoku-keyring`, the `gpk`
+  package manager, and the Hyprland plugins (`hypr-dynamic-cursors`,
+  `ryoku-hypr-plugins`, `hyprglass`, `imgborders`).
 - `repo/` builds the signed `[ryoku]` repo from those PKGBUILDs: `build-repo.sh`
   runs `makepkg`, signs every artifact with the release key, and `repo-add`s the
   signed `ryoku.db` into `out/`, laid out exactly as the public mirror serves it.

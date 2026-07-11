@@ -96,9 +96,11 @@ reusing it would overwrite Windows' own boot loader.
 
 **What the installer does.** The `alongside` strategy never touches the Windows
 ESP. It creates a dedicated Ryoku ESP (partlabel `ryokuboot`) plus the Btrfs root
-(partlabel `ryoku`) in the largest contiguous free region, proves both are brand
-new partitions before formatting, and reclaims any unmounted leftover
-`ryoku`/`ryokuboot` partitions from a prior failed run. It adds a Windows
+(partlabel `ryoku`) in the largest contiguous free region, and proves both are
+brand new partitions before formatting. Unmounted `ryoku`/`ryokuboot` leftovers
+from a prior failed run abort the install unless you acknowledge the reclaim
+(`RYOKU_RECLAIM_LEFTOVERS=1`, the TUI's typed `ERASE`), which deletes them so
+re-runs never stack; a still-mounted match is always left alone. It adds a Windows
 chainload entry so Windows stays in the Limine menu, and the first reboot targets
 the installed disk. It needs `20 + swap + ESP` GiB of contiguous free space.
 
@@ -108,15 +110,39 @@ the installed disk. It needs `20 + swap + ESP` GiB of contiguous free space.
   Management -> Shrink Volume), leaving enough contiguous free space. Shrinking
   from Windows is the safest way; the installer deliberately never resizes an
   existing partition.
-- **BitLocker.** Chainloading Windows from Limine is safe (Limine only hands
-  off). But if BitLocker is on, suspend it in Windows before changing the
-  partition layout, so a partition-table change does not trigger a recovery-key
-  prompt on the next Windows boot.
+- **BitLocker.** Suspend BitLocker in Windows before you install. Two things trip
+  it: changing the partition table can force a recovery-key prompt on the next
+  Windows boot, and chainloading through Limine changes the measured boot path,
+  so a BitLocker-on machine prompts for the recovery key on every chainloaded
+  boot until BitLocker is suspended and re-sealed (Windows re-seals on its own
+  next boot). Suspend it before installing, or skip the chainload and boot
+  Windows from the firmware boot menu, whose loader path is unchanged and never
+  prompts.
 - **Fast Startup.** Disable Windows Fast Startup (hybrid shutdown). It leaves the
   disk in a hibernated state that can lock filesystems and confuse dual-boot.
 - **Boot order after install.** The installer registers its NVRAM entry and sets
   it first for the next boot. If the firmware resets the order (or ignores NVRAM,
   see below), enter firmware setup and put the Ryoku / Limine entry first.
+- **If the Limine chainload boot-loops.** Some firmware will not chainload
+  Windows cleanly and loops back to the menu. The Windows loader and its own
+  NVRAM entry are untouched, so pick **Windows Boot Manager** directly from the
+  firmware boot menu (usually F12 / F9 / Esc at power-on) to boot Windows; use
+  that as the everyday Windows path if the chainload never settles.
+- **After a Windows feature update.** A major Windows update can rewrite the
+  firmware boot order or drop the Ryoku NVRAM entry, so the machine boots
+  straight into Windows. The `EFI/BOOT` fallback loader on the Ryoku ESP still
+  boots the disk, so select the Ryoku disk from the firmware boot menu; to make
+  it persist, re-register the entry (point `--disk` / `--part` at your Ryoku ESP):
+
+  ```
+  efibootmgr --create --disk /dev/nvme0n1 --part 4 \
+    --loader '\EFI\limine\limine_x64.efi' --label 'Ryoku Linux'
+  ```
+- **No in-place Windows reinstalls or upgrades on this layout.** Microsoft does
+  not officially support two ESPs on one disk; a Windows setup or in-place upgrade
+  can write to the wrong ESP or reshuffle boot entries. If you must reinstall
+  Windows, use clean Windows media and expect to re-register the Ryoku boot entry
+  (above) afterward.
 
 ## Broadcom Wi-Fi
 

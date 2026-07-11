@@ -30,8 +30,12 @@ Edit the repo, deploy, test on the running system.
   ```
 
   Then the focused checks for what you touched:
-  - `tests/install-*.sh` mocked fixtures for the disk teardown, the DNS and
-    mirror gates, and the chroot-safety scan (no real device).
+  - `tests/install-*.sh` mocked fixtures (no real device unless noted): the
+    whole-disk partition plan, the free-space sizer, the Secure Boot
+    preflight gate, the clock-skew heal, the dry-run step/sentinel matrix, the
+    disk teardown, and the DNS, mirror, and chroot-safety gates. The `alongside`
+    partitioner (`install-partition-alongside.sh`) is a real loop-device test and
+    needs root.
   - `installation/tui`: `go test ./...` (layout math + safety gates).
   - `installation/tests/iso-stage-check.sh` stages the ISO twice and diffs, so the
     build stays byte-reproducible (skips cleanly without `go`/`cmake`/`ninja`).
