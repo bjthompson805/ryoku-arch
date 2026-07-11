@@ -65,7 +65,7 @@ Item {
         anchors.rightMargin: 18
         anchors.verticalCenter: addBtn.verticalCenter
         wrapMode: Text.WordWrap
-        text: "Rules for layer-shell surfaces, matched by namespace (e.g. launcher, overview, bar). A namespace that matches nothing simply has no effect."
+        text: "Fine-tune layer-shell surfaces (the bar, launcher, notifications) by namespace (e.g. launcher, overview, bar): blur or dim them, or show them above the lockscreen. Applied on Save; a namespace that matches nothing has no effect."
         color: Theme.subtle
         font.family: Theme.font
         font.pixelSize: 13

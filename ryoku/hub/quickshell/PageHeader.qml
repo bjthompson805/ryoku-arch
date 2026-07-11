@@ -68,6 +68,7 @@ Item {
                 visible: header.editPaths.length > 0
                 icon: "terminal"
                 label: header.editLabel
+                tooltip: "Opens the file your changes are saved to, in a terminal editor (nvim). It is yours and survives updates. Optional: most settings on this page are point-and-click."
                 onClicked: header.openEdit()
             }
 
@@ -76,6 +77,7 @@ Item {
                 visible: header.viewPaths.length > 0
                 icon: "lock"
                 label: "View defaults"
+                tooltip: "Opens Ryoku's shipped defaults and generated files for this section, read-only. Updates overwrite these, so change settings on this page instead of editing them."
                 onClicked: header.openView()
             }
         }

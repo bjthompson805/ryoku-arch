@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **The Advanced pages explain themselves now.** Every config button carries a
+  hover tooltip spelling out what it opens and whether edits survive an update.
+  App Overrides gained a plain-language intro, a *pick from an open window* class
+  picker (no more hunting for a window class in a terminal), and LOOK / EFFECTS
+  groupings that say in words what Inherit, Off, and Force opaque do. Window
+  Rules, Layer Rules, Autostart, and Environment each got a concrete one-line
+  example of what to enter and when it takes effect. Sections can now carry a
+  `description` line under their header (`HubButton.qml`, `SettingSection.qml`,
+  `PageHeader.qml`, `AppOverridesPage.qml`, `WindowRulesPage.qml`,
+  `LayerRulesPage.qml`, `AutostartPage.qml`, `EnvironmentPage.qml`).
 - **Config buttons now say which edits survive an update.** The single CONFIG
   button, which opened Ryoku-owned modules and user overrides as equally
   writable panes with nothing explaining which survived, is replaced by two:

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as QQC
+import Quickshell.Io
 import "Singletons"
 
 // Per-app appearance overrides: give one app its own look, on top of the global
@@ -28,10 +29,10 @@ Item {
         a[i][key] = val;
         store.editList("appOverrides", a);
     }
-    function addApp() {
+    function addApp(cls) {
         var a = store.appOverrides.slice();
         a.push({
-            "class": "", "title": "",
+            "class": cls || "", "title": "",
             "opacity": -1, "rounding": -1, "borderSize": -1,
             "blur": "inherit", "shadow": "inherit", "dim": "inherit",
             "anim": "inherit", "opaque": "inherit"
@@ -44,23 +45,61 @@ Item {
         store.editList("appOverrides", a);
     }
 
+    // open windows, for the class picker: hyprctl lists every client, we keep the
+    // unique classes so you can pick your app straight from the list instead of
+    // hunting for its class name in a terminal.
+    property var openClasses: []
+    function refreshOpenClasses() { clientsProc.running = false; clientsProc.running = true; }
+    Process {
+        id: clientsProc
+        command: ["hyprctl", "clients", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var arr = JSON.parse(this.text), seen = {}, out = [];
+                    for (var i = 0; i < arr.length; i++) {
+                        var c = arr[i]["class"] || "";
+                        if (c.length && !seen[c]) { seen[c] = true; out.push(c); }
+                    }
+                    out.sort();
+                    page.openClasses = out;
+                } catch (e) {}
+            }
+        }
+    }
+    Component.onCompleted: page.refreshOpenClasses()
+
     HubButton {
         id: addBtn
         anchors.right: parent.right
         anchors.top: parent.top
         label: "Add app"
         icon: "plus"
-        onClicked: page.addApp()
+        onClicked: page.addApp("")
+    }
+
+    Dropdown {
+        id: pickWin
+        anchors.right: addBtn.left
+        anchors.rightMargin: 10
+        anchors.verticalCenter: addBtn.verticalCenter
+        visible: page.openClasses.length > 0
+        width: 220
+        fieldWidth: 220
+        placeholder: "Add from open window\u2026"
+        options: page.openClasses
+        current: ""
+        onChosen: (k) => page.addApp(k)
     }
 
     Text {
         id: intro
         anchors.left: parent.left
-        anchors.right: addBtn.left
+        anchors.right: pickWin.visible ? pickWin.left : addBtn.left
         anchors.rightMargin: 18
         anchors.verticalCenter: addBtn.verticalCenter
         wrapMode: Text.WordWrap
-        text: "Give one app its own look, overriding the global Appearance. Match by class (run hyprctl clients to find it) and an optional title; anything left on Inherit follows the global setting."
+        text: "Give one app its own look, layered on top of the global Appearance. Add it (or pick from an open window), match it by its window class and an optional title, then override only what you want: everything left on Inherit keeps following the global. Changes apply as a Hyprland window rule when you Save. Example: make a browser fully opaque, or a terminal square-cornered."
         color: Theme.subtle
         font.family: Theme.font
         font.pixelSize: 13
@@ -104,7 +143,7 @@ Item {
                 topPadding: 28
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                text: "No app overrides yet. Add an app to give it its own opacity, corners, blur, or borders."
+                text: "No app overrides yet. Click \u201cAdd app\u201d, or pick one from an open window, to give it its own opacity, corners, blur, and more."
                 color: Theme.faint
                 font.family: Theme.font
                 font.pixelSize: 13
@@ -179,6 +218,27 @@ Item {
 
                         Rectangle { width: parent.width; height: 1; color: Theme.line }
 
+                        Column {
+                            width: parent.width
+                            spacing: 3
+                            Text {
+                                text: "LOOK"
+                                color: Theme.dim
+                                font.family: Theme.mono
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                                font.letterSpacing: 2
+                            }
+                            Text {
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                text: "Inherit follows the global Appearance. Switch to Custom to set this app's own value."
+                                color: Theme.faint
+                                font.family: Theme.font
+                                font.pixelSize: 11
+                            }
+                        }
+
                         // numeric overrides: inherit or a custom value.
                         OvNum {
                             width: parent.width
@@ -200,6 +260,27 @@ Item {
                             value: card.modelData.borderSize
                             from: 0; to: 8; step: 1; decimals: 0; customDefault: 2
                             onChanged: (v) => page.patch(card.index, "borderSize", Math.round(v))
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: 3
+                            Text {
+                                text: "EFFECTS"
+                                color: Theme.dim
+                                font.family: Theme.mono
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                                font.letterSpacing: 2
+                            }
+                            Text {
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                text: "Inherit follows the global. Off forces the effect off for this app. Force opaque removes transparency entirely (overrides Opacity)."
+                                color: Theme.faint
+                                font.family: Theme.font
+                                font.pixelSize: 11
+                            }
                         }
 
                         // decoration toggles: inherit or force off (opaque forces on).

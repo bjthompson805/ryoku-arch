@@ -35,7 +35,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         wrapMode: Text.WordWrap
-        text: "Commands run once at login, after the base Ryoku autostart."
+        text: "Commands Hyprland runs once at login, after the base Ryoku autostart (e.g. a tray applet or a sync client). Saved to your config; new commands start at your next login."
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: 12

@@ -8,6 +8,7 @@ Column {
 
     property string title: ""
     default property alias items: body.data
+    property string description: ""
 
     spacing: 14
 
@@ -35,6 +36,17 @@ Column {
             height: 1
             color: Theme.lineSoft
         }
+    }
+
+    Text {
+        width: sec.width
+        visible: sec.description !== ""
+        text: sec.description
+        wrapMode: Text.WordWrap
+        color: Theme.dim
+        font.family: Theme.font
+        font.pixelSize: 12
+        lineHeight: 1.3
     }
 
     Column {

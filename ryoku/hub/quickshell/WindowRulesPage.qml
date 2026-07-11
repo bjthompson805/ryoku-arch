@@ -105,7 +105,7 @@ Item {
         anchors.rightMargin: 18
         anchors.verticalCenter: addBtn.verticalCenter
         wrapMode: Text.WordWrap
-        text: "Custom window rules layered over the ones Ryoku ships. Match by class and/or title, then pick an action."
+        text: "Custom window rules layered over the ones Ryoku ships. Match a window by its class and/or title, then pick what to do: float a dialog, pin a video, force it opaque, and more. Changes apply when you Save."
         color: Theme.subtle
         font.family: Theme.font
         font.pixelSize: 13

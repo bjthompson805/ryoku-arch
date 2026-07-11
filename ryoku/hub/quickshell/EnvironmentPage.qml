@@ -40,7 +40,7 @@ Item {
         anchors.rightMargin: 18
         anchors.top: parent.top
         wrapMode: Text.WordWrap
-        text: "Environment variables for the Hyprland session, layered over the base. They take full effect at next login."
+        text: "Environment variables for the Hyprland session, layered over the base. Add a NAME and value (e.g. MOZ_ENABLE_WAYLAND = 1); they take full effect at next login."
         color: Theme.subtle
         font.family: Theme.font
         font.pixelSize: 13

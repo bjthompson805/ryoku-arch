@@ -75,4 +75,55 @@ Item {
 
     HoverHandler { id: hover; enabled: btn.enabled; cursorShape: Qt.PointingHandCursor }
     TapHandler { id: tap; enabled: btn.enabled; onTapped: btn.clicked() }
+
+    // optional hover tooltip: a small carbon popup that explains what the button
+    // does, for the terse mono labels (Edit overrides / View defaults) that need
+    // a sentence. shows below the button after a short hover, never on tap.
+    property string tooltip: ""
+
+    Timer { id: tipGate; property bool ready: false; interval: 350; onTriggered: tipGate.ready = true }
+    Connections {
+        target: hover
+        function onHoveredChanged() {
+            if (hover.hovered) {
+                tipGate.ready = false;
+                tipGate.restart();
+            } else {
+                tipGate.stop();
+                tipGate.ready = false;
+            }
+        }
+    }
+
+    Rectangle {
+        id: tip
+        visible: opacity > 0
+        opacity: (btn.tooltip !== "" && hover.hovered && tipGate.ready) ? 1 : 0
+        z: 999
+        width: 264
+        height: tipText.implicitHeight + 18
+        anchors.top: parent.bottom
+        anchors.topMargin: 8
+        anchors.left: parent.left
+        color: Theme.surface
+        radius: btn.radius
+        border.width: 1
+        border.color: Theme.line
+        Behavior on opacity { NumberAnimation { duration: Theme.quick } }
+
+        Text {
+            id: tipText
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            text: btn.tooltip
+            wrapMode: Text.WordWrap
+            color: Theme.subtle
+            font.family: Theme.font
+            font.pixelSize: 12
+            lineHeight: 1.25
+        }
+    }
 }
