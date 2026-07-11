@@ -9,29 +9,45 @@ name: Install backend tests
 # loop-device integration test, so it runs in a root job with the disk tools
 # installed (it skips cleanly if a runner has no loop support).
 # See tests/install-partition-alongside.sh and the other tests/install-*.sh.
+# It also guards the Limine boot-menu fixtures (the bootloader step's limine.conf
+# handling and the ryoku-windows-entry chainload emitter) and the installer TUI's
+# Go unit tests, so a boot-menu or TUI regression is caught in the same per-area
+# gate. See tests/limine-*.sh and installation/tui/*_test.go.
 
 on:
   pull_request:
     paths:
       - 'installation/backend/**'
+      - 'installation/tui/**'
+      - 'system/boot/limine/**'
       - 'tests/install-partition-alongside.sh'
       - 'tests/install-partition-whole.sh'
       - 'tests/install-largest-free.sh'
       - 'tests/install-preflight.sh'
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
+      - 'tests/limine-bootloader.sh'
+      - 'tests/limine-windows.sh'
+      - 'tests/install-disk-teardown.sh'
+      - 'tests/install-dns.sh'
       - '.github/workflows/install-backend-tests.yml'
   push:
     branches:
       - main
     paths:
       - 'installation/backend/**'
+      - 'installation/tui/**'
+      - 'system/boot/limine/**'
       - 'tests/install-partition-alongside.sh'
       - 'tests/install-partition-whole.sh'
       - 'tests/install-largest-free.sh'
       - 'tests/install-preflight.sh'
       - 'tests/install-clock-skew.sh'
       - 'tests/install-dryrun-matrix.sh'
+      - 'tests/limine-bootloader.sh'
+      - 'tests/limine-windows.sh'
+      - 'tests/install-disk-teardown.sh'
+      - 'tests/install-dns.sh'
       - '.github/workflows/install-backend-tests.yml'
   workflow_dispatch:
 
@@ -66,6 +82,22 @@ jobs:
         shell: bash
         run: bash tests/install-dryrun-matrix.sh
 
+      - name: Limine boot-menu config handling
+        shell: bash
+        run: bash tests/limine-bootloader.sh
+
+      - name: Windows chainload entry (ryoku-windows-entry)
+        shell: bash
+        run: bash tests/limine-windows.sh
+
+      - name: Disk teardown before the pre-wipe
+        shell: bash
+        run: bash tests/install-disk-teardown.sh
+
+      - name: DNS preflight gate
+        shell: bash
+        run: bash tests/install-dns.sh
+
   loop-device:
     name: Dual-boot alongside partitioner (real loop device)
     runs-on: ubuntu-latest
@@ -87,3 +119,20 @@ jobs:
         # needs root for losetup/sgdisk; the runner grants passwordless sudo. the
         # test itself prints a skip and exits 0 if a runner lacks loop support.
         run: sudo bash tests/install-partition-alongside.sh
+
+  tui:
+    name: Installer TUI unit tests (go test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: installation/tui/go.mod
+
+      - name: Layout math and safety-gate unit tests
+        shell: bash
+        working-directory: installation/tui
+        run: go test ./...

@@ -68,6 +68,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm || true
       - name: Fetch the built ISO
+        id: fetch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -75,11 +76,25 @@ jobs:
           rid="${{ github.event.workflow_run.id }}"
           if [ -z "$rid" ]; then
             rid=$(gh run list -w "Build ISO" --status success --limit 1 \
-              --json databaseId -q '.[0].databaseId')
+              --json databaseId -q '.[0].databaseId') || rid=""
           fi
-          [ -n "$rid" ] || { echo "::error::no successful Build ISO run to test"; exit 1; }
-          gh run download "$rid" -n ryoku-iso --dir iso
+
+          # On the weekly schedule the newest successful Build ISO can predate
+          # the 14-day artifact retention window, leaving nothing to download.
+          # That is not a failure: warn and skip cleanly, the same way the VM
+          # step skips a runner with no /dev/kvm. A missing artifact on a
+          # workflow_run or manual dispatch is still a real error.
+          if [ -n "$rid" ] && gh run download "$rid" -n ryoku-iso --dir iso; then
+            echo "iso_ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "::warning::no downloadable Build ISO artifact within the 14-day retention window; skipping the scheduled install test"
+            echo "iso_ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::no successful Build ISO run or artifact to test"
+            exit 1
+          fi
       - name: Build the [ryoku] package repo for the guest
+        if: steps.fetch.outputs.iso_ready == 'true'
         run: |
           set -euo pipefail
           # the guest pulls the desktop from this locally served repo instead of
@@ -96,6 +111,7 @@ jobs:
               chown -R "$HOST_UID:$HOST_GID" /repo
             '
       - name: Install into a VM and verify
+        if: steps.fetch.outputs.iso_ready == 'true'
         run: |
           set -euo pipefail
           iso=$(ls iso/*.iso | head -1)

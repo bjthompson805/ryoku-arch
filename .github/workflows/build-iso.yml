@@ -141,6 +141,12 @@ jobs:
               # checkout is owned by the runner UID, not container root;
               # build.sh runs `git archive` against it.
               git config --global --add safe.directory /repo
+              # reproducibility gate: stage the profile twice and diff before
+              # spending the full mkarchiso build on it, so a non-deterministic
+              # build (Go binaries, the Blobs plugin, or the baked payload) fails
+              # fast. the go/cmake/ninja/qt6 set installed just above is exactly
+              # what iso-stage-check.sh probes for, so it runs (never skips) here.
+              bash ../tests/iso-stage-check.sh
               ./build.sh
               # hand the finished ISO back to the runner user so the
               # host-side sign/checksum/upload steps can read + write next to it.
