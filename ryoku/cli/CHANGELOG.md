@@ -66,6 +66,16 @@
   converted before that, and the `/etc` case the installer never handled.
 
 ### Fixed
+- **Doctor heals the boot-menu countdown loop.** On boxes where
+  limine-mkinitcpio-hook 1.37+ adopted the `/Ryoku Linux` placeholder as the
+  menu directory, the flat placeholder's boot stanza
+  (`protocol`/`kernel_path`/`cmdline`/`module_path`) stayed wedged under the
+  directory title, where Limine allows only a `comment`. A directory that is
+  also a boot entry cannot autoboot: `default_entry` resolved to nothing
+  bootable and the timeout restarted forever until an entry was selected by
+  hand. The `limine boot menu layout` reconciler now recognises the adopted
+  tree (not just the standalone `/+Ryoku` shape) and strips that stanza,
+  leaving a clean directory that autoboots.
 - **Materialize converges `~/.config/quickshell` against the shipped tree.**
   Pruning used to rely entirely on the recorded manifest, so a box whose state
   file was missing or stale (a lost state dir, an old `deploy.sh` or recovery

@@ -1184,3 +1184,107 @@ func TestReconcilePortalRoutingHealsUserHijack(t *testing.T) {
 		t.Errorf("healed box must be ok, got %q: %s", r.status.label(), r.detail)
 	}
 }
+
+// limineAdoptedDirty mirrors a live /boot/limine.conf after limine-entry-tool
+// 1.37+ adopts the flat "/Ryoku Linux" placeholder as the menu directory: the
+// placeholder's boot stanza (protocol/kernel_path/cmdline/module_path) is left
+// wedged between the directory title and its first "//" sub-entry, where
+// Limine allows only a comment. that malformed "directory that is also a boot
+// entry" cannot autoboot, so the timeout countdown restarts forever.
+const limineAdoptedDirty = `timeout: 3
+default_entry: 2
+interface_branding: Ryoku Bootloader
+
+/Ryoku Linux
+    protocol: linux
+    kernel_path: boot():/vmlinuz-linux
+    cmdline: root=UUID=x rw quiet splash
+    module_path: boot():/initramfs-linux.img
+
+  //linux
+  comment: Kernel version: 7.0.12
+  protocol: efi
+  path: boot():/EFI/Linux/ryoku_linux.efi
+
+     //Snapshots
+     comment: 5 / 5 snapshots
+
+/EFI fallback
+    protocol: efi
+    path: boot():/EFI/BOOT/BOOTX64.EFI
+`
+
+func TestStripLiminePlaceholderBody(t *testing.T) {
+	out := stripLiminePlaceholderBody(limineAdoptedDirty)
+	if strings.Contains(out, "kernel_path:") || strings.Contains(out, "module_path:") {
+		t.Fatalf("placeholder boot stanza not stripped from the directory:\n%s", out)
+	}
+	// the directory title and every sub-entry survive verbatim.
+	for _, want := range []string{
+		"/Ryoku Linux",
+		"  //linux",
+		"comment: Kernel version: 7.0.12",
+		"path: boot():/EFI/Linux/ryoku_linux.efi",
+		"//Snapshots",
+		"/EFI fallback",
+		"path: boot():/EFI/BOOT/BOOTX64.EFI",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("strip dropped %q:\n%s", want, out)
+		}
+	}
+	if !limineDirtyRoot(limineAdoptedDirty) {
+		t.Error("limineDirtyRoot must flag the adopted directory carrying a boot stanza")
+	}
+	if limineDirtyRoot(out) {
+		t.Error("stripped config must be clean (idempotent)")
+	}
+	if out2 := stripLiminePlaceholderBody(out); out2 != out {
+		t.Error("second strip changed the file (not idempotent)")
+	}
+}
+
+func TestStripLiminePlaceholderBodyLeavesFlatPlaceholder(t *testing.T) {
+	// offline install: "/Ryoku Linux" is a bootable leaf, not a directory (no
+	// "//" sub-entry). its boot body is legitimate and must not be touched.
+	flat := "timeout: 3\ndefault_entry: 1\n\n/Ryoku Linux\n    protocol: linux\n    kernel_path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n"
+	if got := stripLiminePlaceholderBody(flat); got != flat {
+		t.Errorf("flat placeholder must be left intact, got:\n%s", got)
+	}
+	if limineDirtyRoot(flat) {
+		t.Error("flat placeholder is not a dirty directory")
+	}
+}
+
+func TestPlanLimineLayoutHealsDirtyRoot(t *testing.T) {
+	st := limineLayoutState{
+		limineInstalled: true,
+		espConfExists:   true,
+		espConfReadable: true,
+		espConf:         limineAdoptedDirty,
+	}
+	outcome, actions := planLimineLayout(st)
+	if outcome != limineLayoutMigrate {
+		t.Fatalf("outcome = %v, want migrate", outcome)
+	}
+	if !strings.Contains(strings.Join(actions, "; "), "strip the leftover boot stanza") {
+		t.Errorf("plan missing the strip action: %v", actions)
+	}
+}
+
+func TestMergeLimineConfHealsAdoptedRoot(t *testing.T) {
+	merged := mergeLimineConf(limineAdoptedDirty, "")
+	if strings.Contains(merged, "kernel_path:") {
+		t.Errorf("merge left the placeholder boot stanza:\n%s", merged)
+	}
+	for _, want := range []string{
+		"default_entry: 2", // a tree keeps the default past the directory
+		"  //linux",
+		"interface_branding: Ryoku Bootloader",
+		"/EFI fallback",
+	} {
+		if !strings.Contains(merged, want) {
+			t.Errorf("merged config missing %q:\n%s", want, merged)
+		}
+	}
+}

@@ -683,8 +683,13 @@ func planLimineLayout(s limineLayoutState) (limineLayoutOutcome, []string) {
 	var actions []string
 	if s.shadowExists {
 		actions = append(actions, fmt.Sprintf("merge %s into %s and remove it (it shadows the generated boot entries: kernels, snapshots)", limineShadow, limineESPConf))
-	} else if limineHasBootTree(s.espConf) && limineDefaultEntry(s.espConf) == "1" {
-		actions = append(actions, "point default_entry at the newest kernel (entry 1 is the Ryoku directory, which cannot autoboot)")
+	} else if limineHasBootTree(s.espConf) {
+		if limineDefaultEntry(s.espConf) == "1" {
+			actions = append(actions, "point default_entry at the newest kernel (entry 1 is the Ryoku directory, which cannot autoboot)")
+		}
+		if limineDirtyRoot(s.espConf) {
+			actions = append(actions, "strip the leftover boot stanza from the Ryoku boot-menu directory (a directory that is also a boot entry cannot autoboot; the countdown loops)")
+		}
 	}
 	if s.legacyEFIExists {
 		actions = append(actions, fmt.Sprintf("retire the stale hand-copied bootloader %s for the package-refreshed %s", limineLegacyEFI, limineToolEFI))
@@ -743,7 +748,7 @@ func reconcileLimineLayout(checkOnly bool) recResult {
 func migrateLimineLayout(st limineLayoutState) recResult {
 	var done []string
 
-	if st.shadowExists || (limineHasBootTree(st.espConf) && limineDefaultEntry(st.espConf) == "1") {
+	if st.shadowExists || (limineHasBootTree(st.espConf) && (limineDefaultEntry(st.espConf) == "1" || limineDirtyRoot(st.espConf))) {
 		merged := mergeLimineConf(st.espConf, st.shadowConf)
 		if st.espConfExists {
 			_ = run("sudo", "cp", limineESPConf, limineESPConf+".ryoku-bak")
@@ -815,12 +820,18 @@ func migrateLimineLayout(st limineLayoutState) recResult {
 	return fixedRes("%s (snapshots and new kernels appear in the boot menu from the next boot)", strings.Join(done, "; "))
 }
 
-// limineHasBootTree: has limine-mkinitcpio-hook taken over the file? its OS
-// entry is an expanded directory ("/+Ryoku"); the flat installer placeholder
-// and foreign entries never start with "/+".
+// limineHasBootTree: has limine-mkinitcpio-hook taken over the file? two
+// shapes qualify: the older tool writes a standalone expanded directory
+// ("/+Ryoku"); 1.37+ adopts the flat "/Ryoku Linux" placeholder as the menu
+// directory and nests "//<kernel>" sub-entries under it. either means a
+// directory sits at entry 1, which cannot autoboot. the flat installer
+// placeholder and foreign leaf entries carry neither a "/+" nor a "//".
 func limineHasBootTree(conf string) bool {
 	for _, line := range strings.Split(conf, "\n") {
 		if strings.HasPrefix(line, "/+") {
+			return true
+		}
+		if strings.HasPrefix(strings.TrimSpace(line), "//") {
 			return true
 		}
 	}
@@ -836,6 +847,81 @@ func limineDefaultEntry(conf string) string {
 		}
 	}
 	return ""
+}
+
+// liminePlaceholderBodyKeys: the local boot options ryoku's flat "/Ryoku
+// Linux" placeholder carries (installer bootloader.sh with_entry). when
+// limine-entry-tool 1.37+ adopts that placeholder as the menu directory and
+// nests the "//<kernel>" UKIs under it, this stanza is left wedged between the
+// directory title and its first sub-entry -- where Limine's grammar allows
+// only a `comment`. a directory that is also a boot entry cannot autoboot: the
+// timeout resolves nothing bootable and the countdown restarts forever.
+var liminePlaceholderBodyKeys = []string{
+	"protocol:", "kernel_path:", "module_path:", "path:", "cmdline:",
+}
+
+func liminePlaceholderBodyKey(trimmed string) bool {
+	for _, k := range liminePlaceholderBodyKeys {
+		if strings.HasPrefix(trimmed, k) {
+			return true
+		}
+	}
+	return false
+}
+
+// limineDirtyRoot reports whether the "/Ryoku Linux" menu directory still
+// carries the leftover placeholder boot stanza before its first sub-entry.
+func limineDirtyRoot(conf string) bool {
+	return stripLiminePlaceholderBody(conf) != conf
+}
+
+// stripLiminePlaceholderBody removes the flat-placeholder boot stanza (and the
+// blank lines around it) wedged under the "/Ryoku Linux" directory title,
+// keeping the title, any `comment:` lines, and every sub-entry. it is a no-op
+// unless "/Ryoku Linux" is a directory (a "//" sub-entry follows its head), so
+// the legitimate flat placeholder of an offline install is never touched.
+func stripLiminePlaceholderBody(conf string) string {
+	lines := strings.Split(conf, "\n")
+	start := -1
+	for i, ln := range lines {
+		if ln == "/Ryoku Linux" {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return conf
+	}
+	var drop []int
+	isDir := false
+	for i := start + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "//") { // a sub-entry: it is a directory
+			isDir = true
+			break
+		}
+		if strings.HasPrefix(lines[i], "/") { // next top-level entry: no sub-entry
+			break
+		}
+		if trimmed == "" || liminePlaceholderBodyKey(trimmed) {
+			drop = append(drop, i)
+		}
+	}
+	if !isDir || len(drop) == 0 {
+		return conf
+	}
+	dropSet := make(map[int]bool, len(drop))
+	for _, i := range drop {
+		dropSet[i] = true
+	}
+	var out []string
+	for i, ln := range lines {
+		if dropSet[i] {
+			continue
+		}
+		out = append(out, ln)
+	}
+	return strings.Join(out, "\n")
 }
 
 // limineBrandedKeys: global options the canonical branding header owns. when
@@ -867,6 +953,7 @@ func mergeLimineConf(espConf, shadowConf string) string {
 		base = shadowConf
 	}
 	prelude, body := splitLimineConf(base)
+	body = stripLiminePlaceholderBody(body)
 
 	var kept []string
 	for _, line := range strings.Split(prelude, "\n") {
