@@ -31,6 +31,7 @@ ShellRoot {
     property var windowRects: []
     property bool dialogMode: false
     property string savedAuto: ""
+    property string beautifySrc: ""
 
     function textSize() { return activeWidth * 5 + 8; }
 
@@ -550,6 +551,7 @@ ShellRoot {
                     if (root.textEditing) root.cancelText();
                     else if (root.settingsOpen) root.settingsOpen = false;
                     else if (root.selectedIndex !== null) root.clearSelection();
+                    else if (root.phase === "beautify") root.phase = "editing";
                     else Qt.quit();
                 }
                 Keys.onPressed: (e) => {
@@ -614,6 +616,16 @@ ShellRoot {
                     onSaveRequested: root.doSave()
                     onUploadRequested: root.doUpload()
                     onSettingsRequested: root.settingsOpen = toolbar.settingsOpen
+                    onBeautifyRequested: {
+                        if (root.textEditing) root.commitText();
+                        root.clearSelection();
+                        root.beautifySrc = "";
+                        root.grabTo("/tmp/ryoshot-beautify-src.png", function (ok) {
+                            if (!ok) return;
+                            root.beautifySrc = "/tmp/ryoshot-beautify-src.png";
+                            root.phase = "beautify";
+                        });
+                    }
                 }
 
                 SettingsPanel {
@@ -625,6 +637,21 @@ ShellRoot {
                     y: toolbar.y - height - 6
                     onCloseRequested: root.settingsOpen = false
                     onRebound: Qt.quit()
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    visible: root.phase === "beautify" && root.anchorOverlay() !== win
+                    color: Qt.rgba(0.055, 0.051, 0.043, 0.96)
+                }
+
+                Beautify {
+                    anchors.fill: parent
+                    visible: root.phase === "beautify" && root.anchorOverlay() === win
+                    srcPath: root.beautifySrc
+                    onCopyRequested: (p) => copyProc.run(p)
+                    onSaveRequested: (p) => { root.savedAuto = p; root.dialogMode = true; saveDialog.open(); }
+                    onCloseRequested: root.phase = "editing"
                 }
             }
 

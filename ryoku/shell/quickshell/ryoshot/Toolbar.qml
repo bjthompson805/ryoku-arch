@@ -24,6 +24,7 @@ Item {
     signal saveRequested()
     signal uploadRequested()
     signal settingsRequested()
+    signal beautifyRequested()
 
     readonly property color glassBg: Qt.rgba(22 / 255, 17 / 255, 11 / 255, 0.92)
     readonly property color glassBorder: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
@@ -130,6 +131,24 @@ Item {
             IconButton { icon: "copy"; onClicked: tb.copyRequested() }
             IconButton { icon: "save"; onClicked: tb.saveRequested() }
             IconButton { icon: "upload"; onClicked: tb.uploadRequested() }
+
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+
+            Rectangle {
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+                radius: 7
+                color: beautMa.containsMouse ? Qt.rgba(226 / 255, 52 / 255, 42 / 255, 0.16) : "transparent"
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u529b"
+                    color: tb.vermilion
+                    font.family: "Noto Sans CJK JP"
+                    font.pixelSize: 17
+                    font.weight: Font.DemiBold
+                }
+                MouseArea { id: beautMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.beautifyRequested() }
+            }
 
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 

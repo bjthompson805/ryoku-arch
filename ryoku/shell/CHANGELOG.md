@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **Ryoshot gains a Beautify mode (the 力 button).** After a capture, the
+  toolbar's 力 button wraps the shot in a shareable frame: a background (Ryoku
+  brand gradients), padding, rounded corners, a drop shadow, aspect-ratio
+  presets, and colour filters (Vivid / Soft / Mono), then copies or saves
+  through the same path as a plain shot. Built into Ryoshot rather than shelling
+  out to swappy or a separate GTK app, so it matches the desktop, needs no new
+  dependency, and can do palette-cohesive backgrounds (`Beautify.qml`,
+  `Toolbar.qml`, `shell.qml`).
+
 ### Fixed
 - **`ryoku deploy` preserves every user file now, matching a packaged update.**
   The dev deploy rebuilt `~/.config/hypr` from the repo and carried across only
