@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `rashin/backend`: **user.md works on a dev checkout now.** Without a packaged
+  `/usr/share/ryoku/config`, Rashin gave up and treated all of `~/.config` as
+  potentially user-owned. It now derives the baseline from the checkout
+  `ryoku deploy` records (`~/.local/state/ryoku/repo`), diffing that checkout's
+  `hyprland` tree, where the Ryoku-vs-user ownership actually lives, against
+  `~/.config/hypr`; and even with no baseline at all it still names the
+  always-user override files (`user.lua`, `monitors_user.lua`, ...), so an agent
+  on a dev box can still tell Ryoku defaults from the user's own edits (`user.go`).
 - `hyprland`: **Super+Esc opens the power menu** (`ryoku-shell power`) -- a
   vertical session strip (lock, logout, shutdown, restart, sleep). It is the
   delos bar's power access, since power leaves the island, but the bind works

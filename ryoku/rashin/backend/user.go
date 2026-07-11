@@ -41,8 +41,10 @@ type userDiff struct {
 }
 
 // diffUserConfig walks the base tree and compares each file against the live
-// config by content hash.
-func diffUserConfig(base, cfg string) (userDiff, error) {
+// config by content hash. relPrefix maps the base onto its subdir under cfg:
+// "" for the packaged config tree (which already mirrors ~/.config), "hypr" for
+// a dev checkout's hyprland tree.
+func diffUserConfig(base, cfg, relPrefix string) (userDiff, error) {
 	var d userDiff
 	err := filepath.WalkDir(base, func(p string, e os.DirEntry, err error) error {
 		if err != nil || e.IsDir() {
@@ -52,7 +54,8 @@ func diffUserConfig(base, cfg string) (userDiff, error) {
 		if rerr != nil {
 			return nil
 		}
-		live := filepath.Join(cfg, rel)
+		rel = filepath.ToSlash(filepath.Join(relPrefix, rel))
+		live := filepath.Join(cfg, filepath.FromSlash(rel))
 		lfi, lerr := os.Stat(live)
 		if lerr != nil {
 			d.Missing = append(d.Missing, rel)
@@ -98,21 +101,86 @@ func fileHash(p string) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+// resolveUserBase finds the baseline to diff the live config against. The
+// packaged base (/usr/share/ryoku/config, or RYOKU_CONFIG_BASE) mirrors the
+// whole ~/.config, so its prefix is "". On a dev checkout that base is absent,
+// so fall back to the checkout ryoku deploy recorded and diff its hyprland tree
+// (prefix "hypr"), the surface where Ryoku-vs-user ownership actually lives.
+func resolveUserBase() (base, prefix string, ok bool) {
+	pkg := baseConfigDir()
+	if fi, err := os.Stat(pkg); err == nil && fi.IsDir() {
+		return pkg, "", true
+	}
+	if repo := recordedCheckout(); repo != "" {
+		hypr := filepath.Join(repo, "ryoku", "hyprland")
+		if fi, err := os.Stat(hypr); err == nil && fi.IsDir() {
+			return hypr, "hypr", true
+		}
+	}
+	return "", "", false
+}
+
+// recordedCheckout returns the repo root a dev deploy last recorded (or the
+// RYOKU_RASHIN_REPO override), or "" when there is none. `ryoku/shell/deploy.sh`
+// writes it to ~/.local/state/ryoku/repo on every `ryoku deploy`.
+func recordedCheckout() string {
+	if repo := os.Getenv("RYOKU_RASHIN_REPO"); repo != "" {
+		return repo
+	}
+	state := os.Getenv("XDG_STATE_HOME")
+	if state == "" {
+		state = filepath.Join(home(), ".local", "state")
+	}
+	b, err := os.ReadFile(filepath.Join(state, "ryoku", "repo"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// noBaselineBody covers the case with no baseline at all (no packaged config,
+// no recorded dev checkout). It can still name the always-user override files,
+// which are user-owned regardless of any baseline.
+func noBaselineBody(cfg string) string {
+	var present []string
+	for _, rel := range userOverrideFiles {
+		if _, err := os.Stat(filepath.Join(cfg, rel)); err == nil {
+			present = append(present, rel)
+		}
+	}
+	var b strings.Builder
+	b.WriteString("No shipped baseline found: no `/usr/share/ryoku/config`, no\n" +
+		"`RYOKU_CONFIG_BASE`, and no dev checkout recorded by `ryoku deploy`, so a\n" +
+		"full shipped-vs-user diff is unavailable. Treat everything in `~/.config`\n" +
+		"as potentially user-owned.\n")
+	if len(present) > 0 {
+		b.WriteString("\nThese override files are always user-owned and are present:\n\n")
+		for _, f := range present {
+			fmt.Fprintf(&b, "- `~/.config/%s`\n", f)
+		}
+	}
+	return b.String()
+}
+
 // userDocBody renders the fenced body of user.md.
 func userDocBody() string {
-	base := baseConfigDir()
-	if _, err := os.Stat(base); err != nil {
-		return "No shipped base config at `" + base + "` (dev checkout or unpackaged\n" +
-			"install), so shipped-vs-user diffing is unavailable. Treat everything in\n" +
-			"`~/.config` as potentially user-owned.\n"
-	}
 	cfg := configHomeDir()
-	d, err := diffUserConfig(base, cfg)
+	base, prefix, ok := resolveUserBase()
+	if !ok {
+		return noBaselineBody(cfg)
+	}
+	d, err := diffUserConfig(base, cfg, prefix)
 	if err != nil {
 		return "Diff failed: " + err.Error() + "\n"
 	}
 
 	var b strings.Builder
+	if prefix != "" {
+		b.WriteString("Baseline: this machine has no packaged `/usr/share/ryoku/config`, so the\n" +
+			"comparison uses the hyprland tree of the dev checkout `ryoku deploy` recorded.\n" +
+			"It covers `~/.config/hypr` (where Ryoku-vs-user ownership lives); other config\n" +
+			"trees are not diffed here.\n\n")
+	}
 	if len(d.Modified) == 0 && len(d.Missing) == 0 && len(d.Overrides) == 0 {
 		b.WriteString("The live config matches the shipped Ryoku baseline exactly; no user\nedits detected.\n")
 		return b.String()
@@ -127,7 +195,7 @@ func userDocBody() string {
 		b.WriteString("\n")
 	}
 	if len(d.Modified) > 0 {
-		b.WriteString("## Shipped files the user edited\n\n")
+		b.WriteString("## Shipped files that diverge (user or runtime edits)\n\n")
 		for _, f := range d.Modified {
 			fmt.Fprintf(&b, "- `~/.config/%s`\n", f)
 		}
