@@ -94,13 +94,26 @@ emit_entry() {
 EOF
 }
 
-# echo FILE with any prior managed block removed (exact match on the fence
-# lines, so no regex escaping of the markers needed).
+# echo FILE with any prior managed Windows block removed. title-anchored and
+# fence-tolerant. why: limine-entry-tool 1.37 adopts our flat "/Ryoku Linux"
+# placeholder and re-serializes the begin fence (an attached configLine) ABOVE
+# the generated "//<kernel>" UKI children, so the old fence-to-fence delete
+# swallowed the kernels and permanently flattened the menu. so we remove ONLY
+# (a) the fence marker lines wherever they land (even indented as a configLine,
+# hence the trim) and (b) the "/Windows" node itself -- its title plus its
+# indented body. any OTHER top-level entry (a trimmed line starting with "/",
+# which also covers "//" UKI children) ends the removal region, so kernels and
+# foreign entries are never spanned. a repeat "/Windows" re-arms the region, so
+# stray duplicates are all removed (sync then re-appends exactly one).
 strip_managed() {
   awk -v b="$BEGIN_MARK" -v e="$END_MARK" '
-    $0 == b { skip = 1; next }
-    $0 == e { skip = 0; next }
-    !skip   { print }
+    { t = $0; sub(/^[[:space:]]+/, "", t) }
+    t == b || t == e            { skip = 0; next }
+    t == "/Windows"             { skip = 1; next }
+    skip && t ~ /^\//           { skip = 0; print; next }
+    skip && $0 ~ /^[[:space:]]/ { next }
+    skip                        { skip = 0 }
+    { print }
   ' "$1"
 }
 

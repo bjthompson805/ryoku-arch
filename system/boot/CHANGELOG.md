@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Fixed
+- `limine/ryoku-windows-entry`: `strip_managed` is now title-anchored and
+  fence-tolerant instead of deleting everything between the begin/end fences.
+  When limine-entry-tool 1.37 adopts the flat `/Ryoku Linux` placeholder it
+  re-serializes our begin fence ABOVE the generated `//<kernel>` UKI children
+  (the fence rode along as an attached configLine), so the old fence-to-fence
+  delete run by the shipped `45-ryoku-windows` sync hook swallowed the freshly
+  built UKI entries on every menu rewrite: the menu went permanently flat and,
+  after the first kernel update, the default booted a stale kernel with no
+  modules. The strip now removes ONLY the fence marker lines (wherever they
+  land, even indented) and the `/Windows` node (its title plus its indented
+  body); any other top-level entry (`/` or `//`) ends the removal region, so
+  UKI children and foreign entries are never spanned. The managed block format
+  is unchanged, so existing installs still update in place.
 - `limine/default.conf`: document what `TARGET_OS_NAME` is for and why it is
   `Ryoku`. It must match the OS entry name limine-snapper-sync hangs the Snapshots
   submenu under (the `/+Ryoku` UKI tree, name "Ryoku"); `ryoku doctor` now
