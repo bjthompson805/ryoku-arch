@@ -89,13 +89,34 @@ ryoku_boot_limine_promote() {
   mv "$tmp" "$conf"
 }
 
-# repoint CONF for the adopted layout: the placeholder became the tree root,
-# so every entry stays; only the default moves off the directory onto its
-# first UKI. atomic like the promote, idempotent (the sed only matches 1).
+# repoint CONF for the adopted layout: limine-entry-tool 1.37+ keeps the flat
+# "/Ryoku Linux" placeholder and nests the "//<kernel>" UKIs under it, turning
+# it into the menu directory -- but leaves the placeholder's boot stanza
+# (protocol/kernel_path/cmdline/module_path) wedged between the title and the
+# first sub-entry, where Limine's grammar allows only a `comment`. a directory
+# that is also a boot entry cannot autoboot: the timeout resolves nothing and
+# the countdown restarts forever. strip that stanza (keep the title, comments,
+# and every sub-entry) and move the default off the directory onto its first
+# UKI. atomic, idempotent (re-running finds a clean directory + default 2).
 ryoku_boot_limine_repoint() {
   local conf=$1 tmp
   tmp=$(mktemp) || return 1
-  sed 's/^default_entry: 1$/default_entry: 2/' "$conf" >"$tmp"
+  awk '
+    $0 == "/Ryoku Linux" { print; head = 1; n = 0; next }
+    head && $0 ~ /^[[:space:]]*\/\// {
+      for (i = 0; i < n; i++)
+        if (buf[i] !~ /^[[:space:]]+(protocol|kernel_path|module_path|path|cmdline):/ && buf[i] !~ /^[[:space:]]*$/)
+          print buf[i]
+      head = 0; print; next
+    }
+    head && $0 ~ /^\/[^\/]/ {
+      for (i = 0; i < n; i++) print buf[i]
+      head = 0; print; next
+    }
+    head { buf[n++] = $0; next }
+    { print }
+    END { if (head) for (i = 0; i < n; i++) print buf[i] }
+  ' "$conf" | sed 's/^default_entry: 1$/default_entry: 2/' >"$tmp"
   mv "$tmp" "$conf"
 }
 

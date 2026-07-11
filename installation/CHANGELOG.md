@@ -34,6 +34,15 @@
   free space, matching the backend floor.
 
 ### Fixed
+- Bootloader countdown no longer loops on the adopted Limine layout. When
+  limine-mkinitcpio-hook 1.37+ keeps the `/Ryoku Linux` placeholder and nests
+  the `//<kernel>` UKIs under it, the placeholder's boot stanza
+  (`protocol`/`kernel_path`/`cmdline`/`module_path`) was left wedged between
+  the directory title and its first sub-entry, where Limine's grammar allows
+  only a `comment`. That "directory that is also a boot entry" cannot autoboot,
+  so the timeout resolved nothing and the countdown restarted forever until an
+  entry was picked by hand. The post-AUR repoint now strips the stanza and
+  leaves a clean menu directory.
 - Disk strategy is now fail closed: a missing or empty selection never defaults to
   a full-disk wipe. The TUI emits the chosen strategy verbatim (it used to fall
   back to `whole`, so any path that left the pick uncommitted silently wiped the
