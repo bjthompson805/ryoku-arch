@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **The Updates page shows a real, staged update.** Instead of a single progress
+  "wave", the running view renders the update's ordered stages as a determinate
+  multi-segment bar with the current step's label and a live log tail, streamed
+  from the run-state file `ryoku update` publishes. A failed update gets its own
+  view naming the step that broke, with a one-click roll back to the pre-update
+  snapshot; a completed one flashes a check before folding away. The consent
+  prompt's answer is now passed as a positional argument (no shell interpolation
+  of the option label).
 - **Bundles can ship their own code.** The bundle model gains item tiers
   (`core`, installed by "Install all"; `optional`, opt-in per item), an
   `interactive` flag for user-driven fetches (an aborted one reports *deferred*,

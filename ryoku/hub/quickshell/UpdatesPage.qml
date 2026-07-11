@@ -72,8 +72,13 @@ Item {
     }
 
     // --- live run state (published by `ryoku update`) -----------------------
-    property string phase: "idle"   // idle | running | prompt
+    property string phase: "idle"   // idle | running | prompt | done | error
     property real progress: 0
+    property string label: ""
+    property var steps: []
+    property var logLines: []
+    property string errorMsg: ""
+    property string snapshot: ""
     property string promptTitle: ""
     property string promptDetail: ""
     property var promptOptions: []
@@ -94,29 +99,53 @@ Item {
         var prev = page.phase;
         try {
             var o = JSON.parse(t);
-            if (o.phase === "prompt" && o.prompt) {
-                page.phase = "prompt";
+            page.phase = o.phase || "idle";
+            page.progress = (typeof o.progress === "number") ? o.progress : 0;
+            page.label = o.label || "";
+            page.steps = o.steps || [];
+            page.logLines = o.log || [];
+            page.errorMsg = o.error || "";
+            page.snapshot = o.snapshot || "";
+            if (page.phase === "prompt" && o.prompt) {
                 page.promptTitle = o.prompt.title || "";
                 page.promptDetail = o.prompt.detail || "";
                 page.promptOptions = o.prompt.options || [];
-            } else {
-                page.phase = (o.phase === "running") ? "running" : "idle";
-                page.progress = (typeof o.progress === "number") ? o.progress : 0;
             }
         } catch (e) {
             page.phase = "idle";
             page.progress = 0;
+            page.steps = [];
+            page.logLines = [];
+            page.errorMsg = "";
         }
         // settled back to idle = finished. refresh so the list clears.
         if (prev !== "idle" && page.phase === "idle")
             Updates.check();
     }
 
-    // answer a prompt phase. write the choice to the back-channel `ryoku
-    // update` is polling, optimistically resume the running view so buttons clear.
+    // answer a prompt phase: write the choice to the back-channel `ryoku update`
+    // is polling (positional args, so a quote in the label can't break out),
+    // then optimistically resume the running view so the buttons clear.
     function answer(choice) {
-        Quickshell.execDetached(["sh", "-c", "printf '%s' '" + choice + "' > '" + page.answerPath + "'"]);
+        Quickshell.execDetached(["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "sh", choice, page.answerPath]);
         page.phase = "running";
+    }
+
+    // roll back to the pre-update snapshot after a failed run, in a terminal
+    // (rollback needs sudo), then clear the error state.
+    function rollback() {
+        if (page.snapshot === "")
+            return;
+        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "exec ryoku rollback \"$1\"", "sh", page.snapshot]);
+        page.dismiss();
+    }
+
+    // dismiss a finished/failed run: clear the run-state file so the page and
+    // island return to idle.
+    function dismiss() {
+        Quickshell.execDetached(["sh", "-c", "printf '%s' '{\"phase\":\"idle\"}' > \"$1\"", "sh", page.statePath]);
+        page.phase = "idle";
+        Updates.check();
     }
 
     function startUpdate() {
@@ -261,9 +290,9 @@ Item {
         }
     }
 
-    // --- running panel ------------------------------------------------------
+    // --- running / done panel: the ordered stages as a determinate bar ------
     Item {
-        visible: page.phase === "running"
+        visible: page.phase === "running" || page.phase === "done"
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
@@ -271,32 +300,177 @@ Item {
 
         Column {
             anchors.centerIn: parent
-            width: parent.width - 80
-            spacing: 16
+            width: parent.width - 72
+            spacing: 22
 
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 10
+                spacing: 12
 
                 Spinner {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 16
                     tint: Theme.ember
+                    visible: page.phase === "running"
                 }
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Applying updates in the terminal\u2026"
+                    visible: page.phase === "done"
+                    text: "\u2713"
+                    color: Theme.ember
+                    font.family: Theme.font
+                    font.pixelSize: 18
+                    font.weight: Font.Bold
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: page.phase === "done" ? "Update complete"
+                        : (page.label !== "" ? page.label + "\u2026" : "Applying updates\u2026")
                     color: Theme.cream
                     font.family: Theme.font
-                    font.pixelSize: 14
+                    font.pixelSize: 15
                     font.weight: Font.DemiBold
                 }
             }
 
-            WaveMeter {
+            // one segment per stage, coloured by state; the running one pulses.
+            Row {
                 width: parent.width
-                frac: page.progress
+                spacing: 6
+
+                Repeater {
+                    model: page.steps
+
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: (parent.width - (page.steps.length - 1) * 6) / Math.max(1, page.steps.length)
+                        height: 5
+                        radius: 2.5
+                        color: modelData.state === "failed" ? Theme.emberDeep : Theme.ember
+                        opacity: {
+                            switch (modelData.state) {
+                            case "running": return 1.0;
+                            case "ok": return 0.9;
+                            case "failed": return 1.0;
+                            case "skipped": return 0.35;
+                            default: return 0.18;
+                            }
+                        }
+
+                        SequentialAnimation on opacity {
+                            running: modelData.state === "running"
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 0.4; to: 1.0; duration: 700; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 1.0; to: 0.4; duration: 700; easing.type: Easing.InOutSine }
+                        }
+                        Behavior on color { ColorAnimation { duration: Theme.quick } }
+                    }
+                }
+            }
+
+            // the update's own narrative, streamed from the run-state log ring.
+            Column {
+                width: parent.width
+                spacing: 3
+                visible: page.logLines.length > 0
+
+                Repeater {
+                    model: page.logLines
+
+                    delegate: Text {
+                        required property var modelData
+                        required property int index
+                        width: parent.width
+                        text: modelData
+                        color: index === page.logLines.length - 1 ? Theme.subtle : Theme.faint
+                        font.family: Theme.mono
+                        font.pixelSize: 11
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+        }
+    }
+
+    // --- error panel: the update stopped; offer a one-click rollback --------
+    Item {
+        visible: page.phase === "error"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: footer.top
+
+        Row {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 72, 560)
+            spacing: 20
+
+            Rectangle {
+                width: 3
+                height: errCol.implicitHeight
+                radius: Theme.radius
+                color: Theme.ember
+            }
+
+            Column {
+                id: errCol
+                width: parent.width - 23
+                spacing: 12
+
+                Text {
+                    width: parent.width
+                    text: page.label !== "" ? "Update failed while " + page.label.toLowerCase() : "Update failed"
+                    color: Theme.bright
+                    font.family: Theme.font
+                    font.pixelSize: 20
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+                    visible: page.errorMsg !== ""
+                    text: page.errorMsg
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: 12
+                    lineHeight: 1.35
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+                    text: page.snapshot !== ""
+                        ? "The system was snapshotted before the update. Roll back to undo every change."
+                        : "Check the terminal for details, then try again."
+                    color: Theme.faint
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                    lineHeight: 1.35
+                    wrapMode: Text.WordWrap
+                }
+
+                Item { width: 1; height: 4 }
+
+                Row {
+                    spacing: 12
+
+                    HubButton {
+                        visible: page.snapshot !== ""
+                        label: "Roll back"
+                        icon: "undo"
+                        primary: true
+                        onClicked: page.rollback()
+                    }
+
+                    HubButton {
+                        label: "Dismiss"
+                        icon: "close"
+                        onClicked: page.dismiss()
+                    }
+                }
             }
         }
     }
@@ -418,8 +592,9 @@ Item {
         Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: page.phase === "running"
-                ? "Update running"
+            text: page.phase === "running" ? "Update running"
+                : page.phase === "error" ? "Update failed"
+                : page.phase === "done" ? "Update complete"
                 : (Updates.branch + (Updates.currentVersion !== "" ? ("  \u00b7  " + Updates.currentVersion) : ""))
             color: Theme.faint
             font.family: Theme.mono
