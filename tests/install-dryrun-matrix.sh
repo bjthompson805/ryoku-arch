@@ -74,4 +74,18 @@ for strategy in whole alongside; do
   done
 done
 
+# RYOKU_GPU_MODE wiring: the value is now CONSUMED. under dry-run the mapped
+# `ryoku-gpu mode` call is narrated against the user's gpu.lua; sync->performance.
+out="$(RYOKU_DRYRUN=1 RYOKU_REPO="$root" RYOKU_DISK=/dev/vda \
+  RYOKU_PASSWORD_HASH='$6$fake$hash' RYOKU_DISK_STRATEGY=whole RYOKU_GPU_MODE=sync \
+  bash "$root/installation/backend/ryoku-install" 2>&1)" || fail "gpu-mode dry run exited nonzero: $out"
+grep -qF 'ryoku-gpu mode performance' <<<"$out" || fail "RYOKU_GPU_MODE=sync did not narrate 'ryoku-gpu mode performance'"
+grep -qF '/home/ryoku/.config/hypr/gpu.lua' <<<"$out" || fail "gpu-mode narration did not target the user's gpu.lua"
+
+# absent by default: no ryoku-gpu mode call when RYOKU_GPU_MODE is unset.
+out="$(RYOKU_DRYRUN=1 RYOKU_REPO="$root" RYOKU_DISK=/dev/vda \
+  RYOKU_PASSWORD_HASH='$6$fake$hash' RYOKU_DISK_STRATEGY=whole \
+  bash "$root/installation/backend/ryoku-install" 2>&1)" || fail "no-gpu-mode dry run exited nonzero: $out"
+grep -qF 'ryoku-gpu mode' <<<"$out" && fail "ryoku-gpu mode narrated when RYOKU_GPU_MODE was unset"
+
 echo "install-dryrun-matrix: all 8 combinations passed"

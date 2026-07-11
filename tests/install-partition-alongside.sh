@@ -7,8 +7,10 @@
 # sparse disk with a fake Windows layout on a loop device and prove, against the
 # real sgdisk/parted/wipefs, that: the two new partitions carry our partlabels,
 # every pre-existing partition is byte-identical afterward, the Windows ESP's
-# vfat filesystem survives untouched, a failed-run retry reclaims our leftovers
-# instead of stacking, and a disk with too little free space is refused before
+# vfat filesystem survives untouched, leftover ryoku/ryokuboot partitions are
+# REFUSED without the RYOKU_RECLAIM_LEFTOVERS ack and reclaimed (not stacked)
+# with it, a retry that finds /mnt still mounted from a failed attempt releases
+# it and succeeds, and a disk with too little free space is refused before
 # anything is written.
 #
 # needs root + loop devices; on EUID!=0 or a missing tool it prints a skip and
@@ -21,7 +23,7 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 
 skip() { echo "install-partition-alongside: SKIP ($1)"; exit 0; }
 [[ $EUID -eq 0 ]] || skip "not root; needs losetup/sgdisk (run: sudo bash $0)"
-for t in losetup sgdisk parted mkfs.vfat blkid partprobe truncate udevadm; do
+for t in losetup sgdisk parted mkfs.vfat mkfs.btrfs blkid partprobe truncate udevadm mountpoint; do
   command -v "$t" >/dev/null 2>&1 || skip "missing $t"
 done
 
@@ -35,9 +37,10 @@ losetup -d "$probe_loop" 2>/dev/null || true
 rm -f "$probe_img"
 
 # ALWAYS detach loops + remove images, even on an assertion failure.
-loops=(); imgs=()
+loops=(); imgs=(); mnt_ours=0
 cleanup() {
   local x
+  if (( mnt_ours )); then umount -R /mnt 2>/dev/null || umount -l /mnt 2>/dev/null || true; fi
   if (( ${#loops[@]} )); then for x in "${loops[@]}"; do losetup -d "$x" 2>/dev/null || true; done; fi
   if (( ${#imgs[@]} )); then for x in "${imgs[@]}"; do rm -f "$x" 2>/dev/null || true; done; fi
 }
@@ -66,17 +69,38 @@ fake_windows() {
   [[ -b ${1}p3 ]] || fail "loop partition nodes never appeared for $1"
 }
 
-# run_alongside <loop>: run ryoku_partition_alongside in a subshell (so a die's
-# exit can't kill the test), RYOKU_ESP_GIB=1 RYOKU_SWAP_GIB=0. leaves the log in
-# $out, exit code in $rc, and the resolved devices in $esp / $root_part.
+# run_alongside <loop> [ack]: run ryoku_partition_alongside in a subshell (so a
+# die's exit can't kill the test), RYOKU_ESP_GIB=1 RYOKU_SWAP_GIB=0. [ack] non-
+# empty sets RYOKU_RECLAIM_LEFTOVERS. leaves the log in $out, exit code in $rc,
+# resolved devices in $esp / $root_part.
 run_alongside() {
   rc=0
-  out="$(ROOT="$root" DISK="$1" bash -c '
+  out="$(ROOT="$root" DISK="$1" ACK="${2:-}" bash -c '
     source "$ROOT/installation/backend/lib/common.sh"
     source "$ROOT/installation/backend/lib/disk.sh"
     export RYOKU_DISK="$DISK" RYOKU_ESP_GIB=1 RYOKU_SWAP_GIB=0
+    [[ -n $ACK ]] && export RYOKU_RECLAIM_LEFTOVERS=$ACK
     set -euo pipefail
     ryoku_partition_alongside
+    printf "RESULT_ESP=%s\n" "${ESP_DEV:-}"
+    printf "RESULT_ROOT=%s\n" "${ROOT_PART:-}"
+  ' 2>&1)" || rc=$?
+  esp="$(sed -n 's/^RESULT_ESP=//p' <<<"$out" | tail -n1)"
+  root_part="$(sed -n 's/^RESULT_ROOT=//p' <<<"$out" | tail -n1)"
+}
+
+# run_partition <loop> [ack]: run the FULL ryoku_partition dispatcher (which
+# first releases a leftover /mnt from a prior attempt) for the alongside
+# strategy. same capture as run_alongside.
+run_partition() {
+  rc=0
+  out="$(ROOT="$root" DISK="$1" ACK="${2:-}" bash -c '
+    source "$ROOT/installation/backend/lib/common.sh"
+    source "$ROOT/installation/backend/lib/disk.sh"
+    export RYOKU_DISK="$DISK" RYOKU_ESP_GIB=1 RYOKU_SWAP_GIB=0 RYOKU_DISK_STRATEGY=alongside
+    [[ -n $ACK ]] && export RYOKU_RECLAIM_LEFTOVERS=$ACK
+    set -euo pipefail
+    ryoku_partition
     printf "RESULT_ESP=%s\n" "${ESP_DEV:-}"
     printf "RESULT_ROOT=%s\n" "${ROOT_PART:-}"
   ' 2>&1)" || rc=$?
@@ -122,20 +146,59 @@ vfat_uuid_after="$(blkid -s UUID -o value "${disk}p1")"
   || fail "expected $(( pre_count + 2 )) partitions, got $(part_count "$disk")"
 
 # ==========================================================================
-# 2. failed-run retry: reclaim our unmounted leftovers, do not stack
+# 2. leftovers present, NO reclaim ack: refuse, list them, touch nothing
 # ==========================================================================
-run_alongside "$disk"
-[[ $rc -eq 0 ]] || fail "retry over our own leftovers failed (rc=$rc): $out"
-grep -qF 'reclaiming leftover' <<<"$out" || fail "retry did not reclaim the prior ryoku/ryokuboot partitions"
-[[ "$(part_count "$disk")" -eq $(( pre_count + 2 )) ]] \
-  || fail "retry stacked partitions: expected $(( pre_count + 2 )), got $(part_count "$disk")"
-[[ "$(lsblk -dno PARTLABEL "$esp")" == ryokuboot ]] || fail "retry ESP $esp mislabeled"
-[[ "$(lsblk -dno PARTLABEL "$root_part")" == ryoku ]] || fail "retry root $root_part mislabeled"
-# the Windows layout is STILL intact after the reclaim+recreate cycle.
-[[ "$parts_before" == "$(snap_parts "$disk")" ]] || fail "retry disturbed an existing partition"
+# section 1 left our unmounted ryoku/ryokuboot partitions in place. without
+# RYOKU_RECLAIM_LEFTOVERS=1 alongside must NOT delete them (they could be a
+# working install); it dies naming them, and the table is unchanged.
+before_refuse="$(snap_parts "$disk")"
+count_refuse="$(part_count "$disk")"
+run_alongside "$disk"                    # no ack
+[[ $rc -ne 0 ]] || fail "alongside reclaimed leftovers WITHOUT the RYOKU_RECLAIM_LEFTOVERS ack (rc=$rc): $out"
+grep -qF 'RYOKU_RECLAIM_LEFTOVERS' <<<"$out" || fail "refusal did not point at the RYOKU_RECLAIM_LEFTOVERS ack"
+grep -qF "$root_part" <<<"$out" || fail "refusal did not list the leftover ryoku root partition"
+[[ "$(part_count "$disk")" -eq $count_refuse ]] || fail "refused run still changed the partition count"
+[[ "$before_refuse" == "$(snap_parts "$disk")" ]] || fail "refused run altered the partition table"
 
 # ==========================================================================
-# 3. too little free space: refuse before writing anything
+# 3. leftovers present, reclaim ack set: reclaim + recreate, do not stack
+# ==========================================================================
+run_alongside "$disk" 1                  # RYOKU_RECLAIM_LEFTOVERS=1
+[[ $rc -eq 0 ]] || fail "retry with the reclaim ack failed (rc=$rc): $out"
+grep -qF 'reclaiming leftover' <<<"$out" || fail "acked retry did not reclaim the prior ryoku/ryokuboot partitions"
+[[ "$(part_count "$disk")" -eq $(( pre_count + 2 )) ]] \
+  || fail "acked retry stacked partitions: expected $(( pre_count + 2 )), got $(part_count "$disk")"
+[[ "$(lsblk -dno PARTLABEL "$esp")" == ryokuboot ]] || fail "acked retry ESP $esp mislabeled"
+[[ "$(lsblk -dno PARTLABEL "$root_part")" == ryoku ]] || fail "acked retry root $root_part mislabeled"
+[[ "$parts_before" == "$(snap_parts "$disk")" ]] || fail "acked retry disturbed an existing partition"
+
+# ==========================================================================
+# 4. retry with /mnt still mounted from a failed attempt: release + reclaim
+# ==========================================================================
+# the failure EXIT trap leaves /mnt mounted; the TUI retry re-runs the backend.
+# ryoku_partition (the dispatcher) must release /mnt (swapoff + umount -R) BEFORE
+# touching the disk, then reclaim the now-unmounted leftover and recreate. mount
+# the just-created ryoku root at /mnt to stand in for that leftover.
+if mountpoint -q /mnt; then
+  echo "install-partition-alongside: NOTE /mnt busy, skipping the mounted-retry case"
+else
+  mkfs.btrfs -f -q -L ryoku "$root_part" >/dev/null 2>&1 || fail "could not format the root for the mounted-retry case"
+  mount "$root_part" /mnt || fail "could not mount the created root at /mnt"
+  mnt_ours=1
+  run_partition "$disk" 1                # dispatcher, ack set
+  [[ $rc -eq 0 ]] || fail "retry with /mnt mounted failed (rc=$rc): $out"
+  grep -qF 'releasing /mnt left mounted by a previous install attempt' <<<"$out" \
+    || fail "dispatcher did not release the leftover /mnt mount"
+  grep -qF 'reclaiming leftover' <<<"$out" || fail "mounted retry did not reclaim the prior partitions"
+  mountpoint -q /mnt && fail "the leftover /mnt mount was not released"
+  mnt_ours=0
+  [[ "$(part_count "$disk")" -eq $(( pre_count + 2 )) ]] \
+    || fail "mounted retry stacked partitions: expected $(( pre_count + 2 )), got $(part_count "$disk")"
+  [[ "$parts_before" == "$(snap_parts "$disk")" ]] || fail "mounted retry disturbed an existing partition"
+fi
+
+# ==========================================================================
+# 5. too little free space: refuse before writing anything
 # ==========================================================================
 # 25 GiB disk, a 6 GiB Basic data partition -> ~18 GiB free, below the 21 GiB
 # ('alongside' needs 20 GiB root + 1 GiB ESP).

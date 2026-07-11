@@ -72,10 +72,14 @@ grep -qF 'sgdisk --zap-all /dev/sdz' <<<"$out" || fail "blank disk did not get p
 # assert on the confirmed run's plan above (still in $out from run_whole 1 '').
 zap="$(lineno 'sgdisk --zap-all /dev/sdz')"
 mklabel="$(lineno 'parted --script /dev/sdz mklabel gpt')"
-esp_mkpart="$(lineno 'mkpart ESP fat32 1MiB 2GiB')"
-root_mkpart="$(lineno 'mkpart root 2GiB 100%')"
+esp_mkpart="$(lineno 'mkpart ESP fat32 1MiB 1025MiB')"
+root_mkpart="$(lineno 'mkpart root 1025MiB 100%')"
 wipe_esp="$(lineno 'wipefs --all /dev/sdz1')"
 wipe_root="$(lineno 'wipefs --all /dev/sdz2')"
+
+# ESP off-by-one guard: for RYOKU_ESP_GIB=1 the ESP ends at 1025MiB (a true
+# 1 GiB ESP), NOT 2GiB -- the old `1 + RYOKU_ESP_GIB` GiB math made a ~2 GiB ESP.
+grep -qF 'mkpart ESP fat32 1MiB 2GiB' <<<"$out" && fail "ESP still uses the off-by-one GiB math (1MiB..2GiB)"
 
 for step in zap mklabel esp_mkpart root_mkpart wipe_esp wipe_root; do
   [[ -n ${!step} ]] || fail "missing plan step: $step"
