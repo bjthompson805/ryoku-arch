@@ -101,7 +101,7 @@ ryoku_cfg_initramfs() {
   if [[ -f $src ]]; then
     content=$(<"$src")
   else
-    content='HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck)'
+    content='HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt resume filesystems fsck)'
   fi
   # 'encrypt' hook only matters for a LUKS root; strip it on the HOOKS line
   # only, so the word "encrypted" anywhere in the comments above survives.

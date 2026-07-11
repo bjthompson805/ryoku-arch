@@ -9,7 +9,7 @@ happens to the disk.
 ## Running it
 
 ```
-RYOKU_DISK=/dev/nvme0n1 \
+RYOKU_DISK=/dev/nvme0n1 RYOKU_DISK_STRATEGY=whole \
 RYOKU_HOSTNAME=ryoku RYOKU_USERNAME=ryo \
 RYOKU_PASSWORD_HASH="$(openssl passwd -6)" \
 RYOKU_KEYMAP=us RYOKU_LOCALE=en_US.UTF-8 RYOKU_TIMEZONE=Europe/Madrid \
@@ -17,7 +17,10 @@ RYOKU_PROFILE=amd-nvidia \
 ./ryoku-install
 ```
 
-It must run as root, on a UEFI machine, against a disk of at least 32 GiB.
+It must run as root, on a UEFI machine with Secure Boot disabled, against a whole
+disk of at least 32 GiB, with a working network connection (the install is
+online-only). Set `RYOKU_ALLOW_SECUREBOOT=1` only if you have enrolled your own
+keys -- Limine ships unsigned and will not boot under enforced Secure Boot.
 
 ## Dry run
 
@@ -29,7 +32,7 @@ target disk. Secrets (the LUKS passphrase, the password hash) are never printed,
 even in dry-run.
 
 ```
-RYOKU_DRYRUN=1 RYOKU_DISK=/dev/vda RYOKU_HOSTNAME=ryoku RYOKU_USERNAME=ryo \
+RYOKU_DRYRUN=1 RYOKU_DISK=/dev/vda RYOKU_DISK_STRATEGY=whole RYOKU_HOSTNAME=ryoku RYOKU_USERNAME=ryo \
 RYOKU_PASSWORD_HASH=x RYOKU_KEYMAP=us RYOKU_LOCALE=en_US.UTF-8 \
 RYOKU_TIMEZONE=UTC RYOKU_PROFILE=vm RYOKU_REPO=/path/to/repo ./ryoku-install
 ```
@@ -42,6 +45,7 @@ Required:
 |-----------------------|------------------------------------------------------------|
 | `RYOKU_DISK`          | Target block device, e.g. `/dev/nvme0n1` or `/dev/sda`.    |
 | `RYOKU_PASSWORD_HASH` | `openssl passwd -6` hash of the user password (no plaintext). |
+| `RYOKU_DISK_STRATEGY` | `whole` (wipe the disk) or `alongside` (dual-boot; dedicated Ryoku ESP). No default: an empty value aborts rather than risk a silent wipe. |
 
 With defaults:
 
@@ -53,7 +57,6 @@ With defaults:
 | `RYOKU_LOCALE`            | `en_US.UTF-8`      | Locale (`locale.gen` + `locale.conf`).   |
 | `RYOKU_TIMEZONE`          | `UTC`              | `Region/City`, or `auto` (ipinfo.io).    |
 | `RYOKU_PROFILE`           | `vm`               | `amd-nvidia` \| `amd` \| `intel` \| `vm`. |
-| `RYOKU_DISK_STRATEGY`     | `whole`            | `whole` (wipe disk) \| `alongside` (dual-boot). |
 | `RYOKU_ESP_GIB`           | `1`                | ESP size in GiB.                         |
 | `RYOKU_SWAP_GIB`          | `0`                | Swapfile size in GiB (0 disables it).    |
 | `RYOKU_SUBVOL_SNAPSHOTS`  | `1`                | Create `@snapshots` -> `/.snapshots`.    |
@@ -71,7 +74,39 @@ Encryption (set together):
 
 Other: `RYOKU_GPU_MODE` (`offload` \| `sync` \| `vfio`, hybrid only),
 `RYOKU_REBOOT` (non-empty reboots after install), `RYOKU_SKIP_AUR` (skip the
-optional AUR set, for an unattended or CI install), `RYOKU_DRYRUN` (see above).
+optional AUR set, for an unattended or CI install), `RYOKU_ALLOW_SECUREBOOT`
+(`1` to install despite firmware Secure Boot being on), `RYOKU_WIPE_CONFIRMED`
+(`1` to let `whole` wipe a non-empty disk), `RYOKU_DRYRUN` (see above).
+
+## Disk strategies
+
+`RYOKU_DISK_STRATEGY` picks how the target is laid out:
+
+- `whole` wipes the disk and writes a fresh GPT: a `RYOKU_ESP_GIB` GiB ESP
+  (FAT32, label `BOOT`) plus a Btrfs root taking the rest. A disk that already
+  holds partitions needs `RYOKU_WIPE_CONFIRMED=1` (the TUI sets it after the
+  typed `ERASE` ack); a blank disk installs without it.
+- `alongside` keeps every existing partition (e.g. a Windows install) and never
+  reuses or mounts the existing/Windows ESP. In the largest contiguous free
+  region it creates a *dedicated* Ryoku ESP (`RYOKU_ESP_GIB` GiB, FAT32, GPT
+  type EF00, partlabel `ryokuboot`, label `BOOT`) followed by the Btrfs root
+  (partlabel `ryoku`). Multiple ESPs per disk are valid UEFI: the NVRAM entry
+  points at ours, and Windows keeps its own ESP + fallback loader. A retry first
+  reclaims any *unmounted* leftover partitions labeled exactly `ryoku` or
+  `ryokuboot` from a previous failed run, so re-runs never stack partitions.
+
+  Minimum free region for `alongside` is `20 + RYOKU_SWAP_GIB + RYOKU_ESP_GIB`
+  GiB -- a 20 GiB root floor covers the base + dev + desktop closure with headroom
+  for AUR builds and snapshots. Make room first by shrinking Windows.
+
+## Install is online-only
+
+There is no offline package source: the base system, the desktop, and the dev
+toolchains all download from the network mirrors and the signed `[ryoku]` repo.
+The installer probes DNS and HTTP reach *before* the disk is touched and fails
+early with plain guidance if it cannot reach them (a dead-CMOS clock that breaks
+TLS is auto-corrected from the mirror's own clock). `RYOKU_ONLINE=0` exists only
+for the backend's own tests, not for a real install.
 
 ## Progress protocol
 
@@ -114,8 +149,9 @@ At `$RYOKU_REPO` the backend reads:
   installs the Ryoku desktop from the signed `[ryoku]` pacman repository: it adds
   `[ryoku]` to the target `pacman.conf`, copies the live mirrorlist in, imports the
   release key from `release/packages/ryoku-keyring` (`pacman-key --populate ryoku`),
-  `pacman -S`es the desktop set (`ryoku-keyring ryoku-shell ryoku-hub ryoku-blobs
-  ryoku ryoku-desktop`), then runs `ryoku materialize` as the user to lay
+  `pacman -S`es the desktop set (`ryoku-keyring ryoku-desktop` -- the ryoku-desktop
+  umbrella version-pins and pulls every monorepo component), then runs `ryoku
+  materialize` as the user to lay
   `~/.config` from `/usr/share/ryoku/config`. A few unpackaged bits are still
   seeded from the payload: the brand assets, the wallpaper collection,
   `ryoku/apps/npm/npmrc`, the neovim `.desktop`/mimeapps editor defaults, and the

@@ -15,6 +15,62 @@
   `RYOKU_REPO_SIGLEVEL` override the `[ryoku]` source (tests only).
 
 ### Fixed
+- Dual-boot installs no longer fail mid-pacstrap or clobber Windows' boot. The
+  `alongside` strategy reused the Windows/OEM ESP and mounted it at `/mnt/boot`,
+  but that ESP is where pacstrap writes the kernel, mkinitcpio writes the
+  initramfs images, and the Limine hook writes UKIs; a 100-260 MiB OEM ESP runs
+  out of space (ENOSPC, "installation along windows fail"), and writing our
+  `EFI/BOOT/BOOTX64.EFI` fallback there overwrites Windows' own. `lib/disk.sh`
+  `alongside` now creates a DEDICATED Ryoku ESP (FAT32, GPT type EF00, partlabel
+  `ryokuboot`, label BOOT) plus the Btrfs root (partlabel `ryoku`) in the largest
+  free region and never touches the Windows ESP -- multiple ESPs per disk are
+  valid UEFI, the NVRAM entry points at ours, and Windows keeps its own ESP +
+  fallback. `lib/filesystem.sh` formats the new ESP exactly like whole-disk.
+  Verified end to end against a loop-backed GPT disk with a fake Windows layout.
+- `alongside` is idempotent across a retry: before measuring free space it
+  reclaims any UNMOUNTED leftover partitions labeled exactly `ryoku`/`ryokuboot`
+  from a previous failed run (in one atomic `sgdisk -d`, so removing one can't
+  race the kernel's view of a sibling), so re-runs no longer stack partitions or
+  falsely report "not enough free space". The minimum free region rose to
+  `20 + swap + ESP` GiB (root floor 15 -> 20: measured base+dev+desktop closure
+  plus AUR/snapshot headroom), and both new partitions keep every existing safety
+  guard (pre-partition snapshot, parent-disk check, wipefs only the new ones).
+- Free-space detection no longer truncates. `ryoku_largest_free_mib` parsed
+  parted's MiB output through an awk `%d` cast that dropped the fraction; it now
+  parses `parted unit B` in whole bytes, floors to MiB, and subtracts a 1 MiB
+  alignment margin.
+- Preflight gates the real-hardware footguns before the disk is touched: it dies
+  when firmware Secure Boot is on (Limine is unsigned) with "disable Secure Boot"
+  guidance unless `RYOKU_ALLOW_SECUREBOOT=1`, rejects a `RYOKU_DISK` that is a
+  partition rather than a whole disk (lsblk TYPE), logs the disk's logical sector
+  size (`blockdev --getss`), and rounds the too-small-disk message to the nearest
+  GiB.
+- `lib/pacstrap.sh`: the keyring wait no longer races pacman-init. The `is-active`
+  poll became a blocking `systemctl start pacman-init.service` (a oneshot's start
+  returns only once it has finished), keeping the empty-keyring populate fallback.
+  Broadcom wifi machines get `broadcom-wl` added to the pacstrap set when a
+  `14e4:` PCI device is present (the in-kernel driver often can't associate).
+- `lib/network.sh`: a dead-CMOS clock no longer breaks the install silently. When
+  a mirror probe fails, `ryoku_ensure_mirrors` reads the server's clock over an
+  unverified `curl -kI` and, if the system clock is off by more than a day, sets
+  it from the `Date` header and re-probes once (best-effort, never aborts on its
+  own), so TLS and pacman signatures stop failing on a wildly-wrong clock.
+- `lib/deploy.sh`: the desktop set is now just `ryoku-keyring ryoku-desktop` --
+  the `ryoku-desktop` umbrella version-pins and pulls every monorepo component, so
+  an old ISO survives package renames/additions. The `pacman -S` retries once on a
+  network flake, and a mismatch between the ISO's baked payload version
+  (`$RYOKU_REPO/.payload`) and `pacman -Si ryoku-desktop` logs a visible warning
+  (never fatal; a missing stamp is ignored).
+- `lib/luks.sh`: `luksFormat` pins `--pbkdf argon2id` so a cryptsetup built with a
+  different default can't silently weaken the key-derivation function.
+- `lib/chroot.sh`: the hardcoded fallback `HOOKS=` line (used only when the repo
+  mkinitcpio drop-in is absent) gained `resume` after `encrypt`, matching the repo
+  file so hibernation resume works even on the fallback path.
+- `ryoku-install`: a failed install now leaves a debuggable machine. An EXIT trap
+  (acting only on a non-zero status, so a clean finish is untouched and
+  `@@RYOKU_DONE` still prints only on success) names the stage that failed,
+  restores the snap-pac hooks masked for the chroot, flushes to disk, LEAVES
+  `/mnt` mounted, and points at `/var/log/ryoku-install.log` + `journalctl -b`.
 - Hybrid NVIDIA laptops no longer produce a broken, unbootable install. The
   configure stage wrote `MODULES=(nvidia ...)` into mkinitcpio before the driver
   existed, so a driver that failed to build left the initramfs erroring with
@@ -117,15 +173,15 @@
 
 ### Added
 - `lib/disk.sh`: the `alongside` disk strategy for dual-booting. It keeps every
-  existing partition, reuses the disk's EFI System Partition, and creates the
-  Ryoku root in the largest contiguous free region (needs GPT, an ESP, and
-  >= 15GiB + swap free). `whole` still wipes and lays a fresh GPT. Replaces the
-  earlier abort that only accepted `whole`.
+  existing partition and, in the largest contiguous free region, creates a
+  dedicated Ryoku ESP + Btrfs root (needs GPT and >= `20 + swap + ESP` GiB free).
+  The existing/Windows ESP is never reused or mounted. `whole` still wipes and
+  lays a fresh GPT. Replaces the earlier abort that only accepted `whole`.
 - `lib/bootloader.sh`: under `alongside`, add a Limine `efi_chainload` entry for
   an existing Windows install on the reused ESP, and register the bootloader
   with the ESP's real partition number (not a hardcoded 1).
-- `lib/filesystem.sh`: `alongside` reuses the existing ESP instead of formatting
-  it; only the new root is made.
+- `lib/filesystem.sh`: `alongside` formats its own dedicated ESP (FAT32, label
+  BOOT) exactly like `whole`; the existing/Windows ESP is left untouched.
 - `lib/common.sh`: `part_num` helper, the inverse of `part_dev`, returns a
   partition device's trailing number.
 - `ryoku-install` entrypoint: reads the `RYOKU_*` contract, runs the install end

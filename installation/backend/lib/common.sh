@@ -6,8 +6,11 @@
 log() { printf '  %s\n' "$*"; }
 
 # step: staged-progress sentinel the TUI watches. ids, in order:
-# partition, filesystems, mount, pacstrap, configure, bootloader.
-step() { printf '@@RYOKU_STEP %s\n' "$1"; }
+# partition, filesystems, mount, pacstrap, configure, bootloader. also records
+# the current stage in RYOKU_STAGE so the ryoku-install ERR trap can name it;
+# the printed sentinel bytes are unchanged.
+# shellcheck disable=SC2034  # consumed by ryoku-install's exit trap, not here
+step() { RYOKU_STAGE=$1; printf '@@RYOKU_STEP %s\n' "$1"; }
 
 # die: abort with a stderr message + non-zero exit.
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }

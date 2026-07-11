@@ -146,4 +146,24 @@ main() {
   fi
 }
 
+# failure handler on EXIT: fires on every exit but acts only on a non-zero
+# status, so a clean finish is a no-op (main already unmounted /mnt and printed
+# @@RYOKU_DONE). unlike a bare ERR trap this also catches an explicit die()
+# (exit 1). on failure it names the stage we died in, restores the snap-pac
+# hooks masked for the chroot, flushes to disk, and -- unlike the clean path --
+# LEAVES /mnt mounted so the partial tree and the log can be inspected.
+# @@RYOKU_DONE prints only on the clean path, so the sentinel protocol is intact.
+RYOKU_STAGE=preflight
+ryoku_on_exit() {
+  local rc=$?
+  (( rc == 0 )) && return 0
+  trap - EXIT
+  printf 'ERROR: install failed at stage "%s" (exit %d)\n' "${RYOKU_STAGE:-startup}" "$rc" >&2
+  ryoku_hooks_restore || true
+  sync || true
+  printf 'log: /var/log/ryoku-install.log & journalctl -b\n' >&2
+  exit "$rc"
+}
+trap ryoku_on_exit EXIT
+
 main "$@"

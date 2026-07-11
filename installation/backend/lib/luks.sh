@@ -28,10 +28,12 @@ ryoku_luks() {
   # with "Device root already exists".
   ryoku_free_mapper root
 
-  # passphrase stays on stdin, never on the command line, never in a log.
+  # passphrase stays on stdin, never on the command line, never in a log. pin
+  # --pbkdf argon2id: it is the LUKS2 default but explicit here so a distro
+  # cryptsetup built with a different default can't silently weaken the KDF.
   printf '%s' "$RYOKU_LUKS_PASSPHRASE" | run_secret \
-    "cryptsetup luksFormat --type luks2 --batch-mode $LUKS_PART (passphrase via stdin)" \
-    cryptsetup luksFormat --type luks2 --batch-mode "$LUKS_PART"
+    "cryptsetup luksFormat --type luks2 --pbkdf argon2id --batch-mode $LUKS_PART (passphrase via stdin)" \
+    cryptsetup luksFormat --type luks2 --pbkdf argon2id --batch-mode "$LUKS_PART"
   printf '%s' "$RYOKU_LUKS_PASSPHRASE" | run_secret \
     "cryptsetup open $LUKS_PART root (passphrase via stdin)" \
     cryptsetup open "$LUKS_PART" root

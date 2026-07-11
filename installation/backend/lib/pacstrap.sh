@@ -16,15 +16,16 @@ read_section() {
 }
 
 # ryoku_ensure_keyring: make sure the live pacman keyring is ready before
-# pacstrap. pacman-init.service builds it at boot but can still be running (or
-# missing) when the user hits the install step, so wait for it to settle, then
-# populate if the keyring is still empty. without this, pacstrap fails to verify
-# packages (public keyring not found / failed to install packages to new root).
+# pacstrap. pacman-init.service is a oneshot that builds it at boot, so we block
+# on `systemctl start` (returns only once it has finished, or immediately if it
+# already ran), then populate if the keyring is still empty. without this,
+# pacstrap fails to verify packages (public keyring not found / failed to
+# install packages to new root).
 ryoku_ensure_keyring() {
-  for _ in $(seq 1 60); do
-    [[ "$(systemctl is-active pacman-init.service 2>/dev/null)" == activating ]] || break
-    sleep 1
-  done
+  # a oneshot's `start` blocks until it has finished, so this can't race the
+  # service to pacstrap the way the old is-active poll did. failure is fine: the
+  # populate fallback below still covers a keyring that never got built.
+  run_sh 'systemctl start pacman-init.service 2>/dev/null || true'
   [[ -n "$(pacman-key --list-keys 2>/dev/null)" ]] && return 0
   log "initializing the pacman keyring"
   run pacman-key --init
@@ -60,6 +61,14 @@ ryoku_pacstrap() {
   local -a dev=()
   [[ -f $dev_file ]] && mapfile -t dev < <(grep -vE '^[[:space:]]*(#|$)' "$dev_file")
   (( ${#dev[@]} )) && pkgs+=("${dev[@]}")
+
+  # Broadcom wifi (BCM43xx) needs the out-of-tree broadcom-wl driver; the
+  # in-kernel b43/brcmsmac often can't associate. add it only when a Broadcom
+  # network controller (PCI vendor 14e4) is present. guard lspci's absence.
+  if command -v lspci >/dev/null 2>&1 && [[ -n "$(lspci -d 14e4: 2>/dev/null)" ]]; then
+    log "detected a Broadcom device (14e4:*); adding broadcom-wl to the pacstrap set"
+    pkgs+=(broadcom-wl)
+  fi
 
   ryoku_ensure_keyring
   log "installing ${#pkgs[@]} packages (profile=$RYOKU_PROFILE)"

@@ -27,6 +27,10 @@ ryoku_bootloader() {
   ryoku_boot_plymouth
   ryoku_boot_default_limine
 
+  # Intel VMD carry-over MUST land before the initramfs is built (both paths
+  # below), or the installed system can't find its own NVMe at boot.
+  ryoku_boot_vmd
+
   if chroot_has limine-mkinitcpio; then
     log "building UKI via limine-mkinitcpio"
     ryoku_boot_limine_conf branding_only
@@ -128,7 +132,9 @@ chroot_has() {
 }
 
 # cmdline (without "quiet splash"; default.conf appends it): UUID root for
-# plain installs, cryptdevice + mapper for LUKS.
+# plain installs, cryptdevice + mapper for LUKS, plus the hibernation resume=
+# pair when a swapfile exists. NOTE: stdout of this function IS the cmdline
+# (captured via $(...)), so every human-facing note goes to stderr.
 ryoku_cmdline() {
   local cmdline
   if [[ ${RYOKU_ENCRYPT:-} == 1 ]]; then
@@ -141,7 +147,52 @@ ryoku_cmdline() {
     cmdline="root=UUID=${root_uuid} rootflags=subvol=@ rw"
   fi
   [[ $RYOKU_PROFILE == amd-nvidia ]] && cmdline+=" nvidia_drm.modeset=1"
+
+  # hibernation: the 'resume' initramfs hook needs the swap-backing device and
+  # the swapfile's physical offset within the btrfs. only meaningful with a
+  # swapfile (@swap subvol, created in the mount stage before us). the device
+  # ref mirrors root=: /dev/mapper/root under LUKS, else UUID= of the root fs.
+  # 'map-swapfile -r' (prints just the offset) needs btrfs-progs >= 5.16 -- the
+  # same release that added the mkswapfile we build with -- so this normally
+  # succeeds; on an older toolchain we skip cleanly (no hibernate, still boots).
+  if (( ${RYOKU_SWAP_GIB:-0} > 0 )); then
+    local resume_ref off
+    if [[ ${RYOKU_ENCRYPT:-} == 1 ]]; then
+      resume_ref=/dev/mapper/root
+    else
+      resume_ref=UUID=${root_uuid}
+    fi
+    if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+      log "dry-run: hibernation resume=$resume_ref resume_offset=<btrfs map-swapfile /mnt/swap/swapfile>" >&2
+      cmdline+=" resume=$resume_ref resume_offset=<OFFSET>"
+    elif [[ -f /mnt/swap/swapfile ]] && off=$(btrfs inspect-internal map-swapfile -r /mnt/swap/swapfile 2>/dev/null) && [[ -n $off ]]; then
+      cmdline+=" resume=$resume_ref resume_offset=$off"
+    else
+      log "hibernation: no swapfile or btrfs-progs too old for map-swapfile; skipping resume= (system boots, hibernate disabled)" >&2
+    fi
+  fi
   printf '%s' "$cmdline"
+}
+
+# vmd: Intel Volume Management Device (a.k.a. Intel RST "VMD" mode) hides the
+# NVMe behind the vmd controller. if the LIVE installer kernel had to load the
+# vmd module to see the disk, the INSTALLED initramfs needs it too -- otherwise
+# the target can't find its own root at boot (a classic Intel-laptop install
+# that boots the ISO fine then drops to an emergency shell). detected on the
+# live system (/sys/module/vmd) and written as a MODULES+= drop-in BEFORE the
+# initramfs build, so both the limine-mkinitcpio (UKI) and mkinitcpio -P paths
+# bake it in. '+=' so it stacks with nvidia.sh's MODULES=() drop-in.
+ryoku_boot_vmd() {
+  if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+    log "dry-run: if the live kernel has VMD loaded (/sys/module/vmd), would write /mnt/etc/mkinitcpio.conf.d/ryoku-vmd.conf with MODULES+=(vmd)"
+    return 0
+  fi
+  [[ -d /sys/module/vmd ]] || return 0
+  log "Intel VMD active on the live system: adding 'vmd' to the target initramfs so it finds the NVMe"
+  run mkdir -p /mnt/etc/mkinitcpio.conf.d
+  write_file /mnt/etc/mkinitcpio.conf.d/ryoku-vmd.conf <<'EOF'
+MODULES+=(vmd)
+EOF
 }
 
 ryoku_boot_plymouth() {
@@ -247,19 +298,54 @@ ryoku_windows_entry() {
 # recognizes our entry instead of adding a second one.
 ryoku_boot_install_efi() {
   log "installing Limine EFI binary + boot entry"
+
+  # last-line ESP guard: the Limine binaries, the kernel, and both initramfs
+  # images have to fit on /mnt/boot. with the new partitioning this NEVER fires
+  # -- whole-disk and alongside each give us our OWN >= 1 GiB ESP -- but it
+  # catches a hand-built/reused ESP that is too small BEFORE we half-write it
+  # and fail cryptically deep in efibootmgr. dry-run narrates (no fs to probe).
+  if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+    log "dry-run: would require >= 64 MiB free on the ESP (/mnt/boot)"
+  else
+    local esp_avail_kib
+    esp_avail_kib=$(df -k --output=avail /mnt/boot 2>/dev/null | tail -1 | tr -d ' ')
+    [[ $esp_avail_kib =~ ^[0-9]+$ ]] || esp_avail_kib=0
+    (( esp_avail_kib >= 65536 )) || die "ESP /mnt/boot has ${esp_avail_kib} KiB free; need >= 64 MiB for the bootloader + kernel + initramfs. Use a larger ESP (RYOKU_ESP_GIB)."
+  fi
+
   run mkdir -p /mnt/boot/EFI/BOOT /mnt/boot/EFI/limine
   run cp /mnt/usr/share/limine/BOOTX64.EFI /mnt/boot/EFI/limine/limine_x64.efi
+  # EFI/BOOT/BOOTX64.EFI is the UEFI removable-media fallback loader. writing it
+  # is ALWAYS safe now: both strategies install onto OUR OWN ESP (alongside
+  # creates a dedicated 'ryokuboot' ESP, never the Windows one), so this can no
+  # longer clobber a foreign fallback (the Calamares #2416 hazard). it is also
+  # the loader that keeps the box bootable when firmware ignores or drops the
+  # NVRAM entry we register below -- see the best-effort handling there.
   run cp /mnt/usr/share/limine/BOOTX64.EFI /mnt/boot/EFI/BOOT/BOOTX64.EFI
+
   local esp_partnum
   esp_partnum=$(part_num "$ESP_DEV"); : "${esp_partnum:=1}"
-  run arch-chroot /mnt efibootmgr --create --disk "$RYOKU_DISK" --part "$esp_partnum" \
-    --label Ryoku --loader '\EFI\limine\limine_x64.efi' --unicode
+  # efibootmgr writes firmware NVRAM, which some machines expose readonly or
+  # report full (HP / Insyde-class firmware). that MUST NOT abort the install
+  # (set -e): the removable-path EFI/BOOT/BOOTX64.EFI copy above still boots the
+  # system. so both --create and --bootnext are best-effort, with a loud warning
+  # naming the fallback. loader path stays byte-identical (\EFI\limine\limine_x64.efi)
+  # so limine-install's pacman-hook NVRAM dedup (partition uuid + loader path)
+  # still recognizes this entry instead of adding a second one on upgrades.
+  if ! run arch-chroot /mnt efibootmgr --create --disk "$RYOKU_DISK" --part "$esp_partnum" \
+    --label Ryoku --loader '\EFI\limine\limine_x64.efi' --unicode; then
+    log "WARNING: efibootmgr could not register the 'Ryoku' NVRAM boot entry (readonly or full firmware NVRAM, e.g. HP/Insyde). The system still boots via the UEFI removable-path fallback EFI/BOOT/BOOTX64.EFI on our ESP; if the firmware does not pick it up automatically, select it once from the firmware boot menu."
+    return 0
+  fi
   # boot the installed system on the next reboot even if the USB installer
-  # is still in (firmware tends to prefer removable media otherwise).
+  # is still in (firmware tends to prefer removable media otherwise). also
+  # best-effort: a firmware that rejected --create may reject --bootnext too.
   if [[ -z "${RYOKU_DRYRUN:-}" ]]; then
     local num
     num=$(efibootmgr 2>/dev/null | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\? Ryoku\b.*/\1/p' | head -1)
-    if [[ -n $num ]]; then run efibootmgr --bootnext "$num"; fi
+    if [[ -n $num ]]; then
+      run efibootmgr --bootnext "$num" || log "WARNING: could not set BootNext; pick 'Ryoku' from the firmware boot menu on the first reboot (or it falls back to EFI/BOOT/BOOTX64.EFI)."
+    fi
   fi
 }
 

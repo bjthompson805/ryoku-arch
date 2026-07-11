@@ -14,12 +14,10 @@
 RYOKU_BTRFS_OPTS="compress=zstd,noatime"
 
 ryoku_filesystems() {
-  if [[ $RYOKU_DISK_STRATEGY == alongside ]]; then
-    log "reusing existing ESP ($ESP_DEV); formatting root ($ROOT_DEV, btrfs)"
-  else
-    log "formatting ESP ($ESP_DEV, vfat) and root ($ROOT_DEV, btrfs)"
-    run mkfs.vfat -F32 -n BOOT "$ESP_DEV"
-  fi
+  # both strategies own their ESP now (alongside creates a dedicated Ryoku ESP,
+  # never the Windows one), so format it the same way in both.
+  log "formatting ESP ($ESP_DEV, vfat) and root ($ROOT_DEV, btrfs)"
+  run mkfs.vfat -F32 -n BOOT "$ESP_DEV"
   run mkfs.btrfs -f -L ryoku "$ROOT_DEV"
 
   log "creating subvolumes"

@@ -116,17 +116,47 @@ ryoku_dns_works() {
 ryoku_ensure_mirrors() {
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
     log "mirrors: would verify HTTP reach of the Arch geo mirror and repo.ryoku.dev before touching the disk"
+    log "mirrors: on a TLS/reach failure would read the server clock (curl -kI Date header) and, if the system clock is off by > 24h, set it (date -s) and re-probe once"
     return 0
   fi
   [[ ${RYOKU_ONLINE:-1} == 1 ]] || { log "mirrors: offline install, skipping the reachability check"; return 0; }
 
-  local url
+  local url healed=0
   for url in ${RYOKU_MIRROR_PROBE_URLS:-\
 https://geo.mirror.pkgbuild.com/core/os/x86_64/core.db \
 https://repo.ryoku.dev/stable/x86_64/ryoku.db}; do
-    if ! curl -fsSI --retry 2 --max-time 20 -o /dev/null "$url"; then
-      die "cannot reach $url over HTTP. The install downloads everything (base system, desktop, toolchains), so it needs a solid connection: reconnect Wi-Fi or plug in Ethernet, then retry. The disk has not been touched yet."
+    curl -fsSI --retry 2 --max-time 20 -o /dev/null "$url" && continue
+    # a dead-CMOS box has a badly wrong clock: TLS then rejects every cert (not
+    # yet valid / expired) and pacman signatures fail too. once, read the
+    # server's own clock over an unverified connection and correct ours, then
+    # re-probe. best-effort; a genuine reach failure still aborts below.
+    if (( healed == 0 )) && ryoku_fix_clock_skew "$url"; then
+      healed=1
+      curl -fsSI --retry 2 --max-time 20 -o /dev/null "$url" && continue
     fi
+    die "cannot reach $url over HTTP. The install downloads everything (base system, desktop, toolchains), so it needs a solid connection: reconnect Wi-Fi or plug in Ethernet, then retry. The disk has not been touched yet."
   done
   log "mirrors: Arch geo mirror and repo.ryoku.dev reachable"
+}
+
+# ryoku_fix_clock_skew: a dead CMOS battery leaves the clock years off, which
+# makes TLS reject every certificate (not yet valid / expired) and breaks pacman
+# signature checks. read the server's own clock over an UNVERIFIED connection
+# (curl -k, so the skewed cert can't block us) and, if ours is off by more than a
+# day, set it from the Date header. returns 0 only when it adjusted the clock, so
+# the caller re-probes; any other outcome returns non-zero (best-effort, never
+# aborts the install on its own).
+ryoku_fix_clock_skew() {
+  local url=$1 date_hdr server_epoch now_epoch delta
+  date_hdr=$(curl -ksI --max-time 20 "$url" 2>/dev/null \
+    | awk -F': ' 'tolower($1)=="date"{sub(/\r$/,"",$2); print $2; exit}')
+  [[ -n $date_hdr ]] || return 1
+  server_epoch=$(date -u -d "$date_hdr" +%s 2>/dev/null) || return 1
+  [[ $server_epoch =~ ^[0-9]+$ ]] || return 1
+  now_epoch=$(date -u +%s)
+  delta=$(( server_epoch - now_epoch )); (( delta < 0 )) && delta=$(( -delta ))
+  (( delta > 86400 )) || return 1
+  log "clock skew: system clock is off by ${delta}s from $url; setting it from the server Date header ($date_hdr)"
+  run date -s "$date_hdr" || true
+  return 0
 }
