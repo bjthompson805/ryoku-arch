@@ -79,6 +79,11 @@ Rectangle {
                 text: card.item ? ({ "gtk": "window", "spice": "SPICE", "none": "headless" })[card.item.display] || card.item.display : ""
                 color: Theme.dim; font.family: Theme.mono; font.pixelSize: 11
             }
+            Text { text: "\u00b7"; color: Theme.faint; font.family: Theme.mono; font.pixelSize: 11 }
+            Text {
+                text: card.item && card.item.diskUsed > 0 ? Vm.human(card.item.diskUsed) : "\u2014"
+                color: Theme.dim; font.family: Theme.mono; font.pixelSize: 11
+            }
         }
     }
 

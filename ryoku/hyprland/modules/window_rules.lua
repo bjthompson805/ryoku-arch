@@ -85,6 +85,10 @@ hl.window_rule({
     float  = true,
     size   = { 1180, 760 },
     center = true,
+    -- qs paints its first frame slowly on this hybrid GPU (Mesa falls back off
+    -- the NVIDIA node), so the pop-in would reveal the uninitialised surface as
+    -- horizontal streaks; skip it and the (opaque, see shell.qml) window snaps in.
+    no_anim = true,
 })
 
 hl.window_rule({

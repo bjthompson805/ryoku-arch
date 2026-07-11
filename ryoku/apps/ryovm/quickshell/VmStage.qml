@@ -1,10 +1,12 @@
 import QtQuick
 import "Singletons"
 
-// The machine "screen": a carbon stage with the guest's mark, a soft radial
-// glow and slow scanlines that wake when the VM runs (dim and still when off).
-// The visual hero of the detail pane, in the same holographic spirit as the
-// hub's GpuCard but quieter.
+// The machine specimen: a brutalist carbon stage (hard offset shadow, hairline
+// border, a registration crosshair) carrying the guest's mark, a power-state
+// line, and a live dossier of the real machine, the guest, cores, memory, disk
+// footprint and the SPICE / SSH endpoints once it is running. The hero of the
+// detail pane; it informs rather than decorates. A true-circle status dot is the
+// only motion, and only while the VM runs.
 Item {
     id: stage
 
@@ -14,146 +16,145 @@ Item {
     property string mode: "gtk"
     property string ssh: ""
     property string spice: ""
+    property string cores: "auto"
+    property string ram: "auto"
+    property real diskUsed: 0
+    property string diskCap: ""
 
-    Rectangle {
+    // one dossier line: a mono uppercase key and its value.
+    component Spec: Row {
+        id: sp
+        property string k: ""
+        property string v: ""
+        property color vc: Theme.cream
+        property bool show: true
+        visible: sp.show
+        width: parent ? parent.width : 0
+        Text {
+            width: 66
+            text: sp.k
+            color: Theme.faint
+            font.family: Theme.mono
+            font.pixelSize: 10
+            font.weight: Font.DemiBold
+            font.letterSpacing: 1.4
+            font.capitalization: Font.AllUppercase
+        }
+        Text {
+            width: sp.width - 66
+            elide: Text.ElideRight
+            text: sp.v
+            color: sp.vc
+            font.family: Theme.mono
+            font.pixelSize: 13
+            font.weight: Font.Medium
+        }
+    }
+
+    BrutalPanel {
         anchors.fill: parent
-        radius: Theme.radius
-        clip: true
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#211912" }
-            GradientStop { position: 1.0; color: "#120d09" }
-        }
-        border.width: 1
-        border.color: stage.running ? Qt.alpha(Theme.ember, 0.45) : Theme.line
-        Behavior on border.color { ColorAnimation { duration: Theme.medium } }
+        step: Theme.shadowStep
+        surface: Theme.rail
+        line: stage.running ? Qt.alpha(Theme.ember, 0.55) : Theme.lineStrong
+        Behavior on line { ColorAnimation { duration: Theme.medium } }
 
-        // radial wake glow.
-        Rectangle {
-            anchors.centerIn: parent
-            width: parent.width * 1.4
-            height: width
-            radius: width / 2
-            opacity: stage.running ? 0.5 : 0.16
-            Behavior on opacity { NumberAnimation { duration: Theme.slow } }
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.alpha(Theme.ember, 0.22) }
-                GradientStop { position: 0.5; color: "transparent" }
-            }
+        // registration crosshair: poster chrome, warms with the accent when live.
+        RegMark {
+            x: parent.width - width - 16
+            y: 15
+            size: 12
+            tint: stage.running ? Qt.alpha(Theme.ember, 0.7) : Theme.faint
+            Behavior on tint { ColorAnimation { duration: Theme.medium } }
         }
 
-        // grid texture.
-        Row {
-            anchors.fill: parent
-            spacing: 22
-            opacity: 0.05
-            Repeater {
-                model: Math.ceil(stage.width / 22) + 1
-                delegate: Rectangle { width: 1; height: stage.height; color: Theme.cream }
-            }
-        }
-
-        // scanline sweep when running.
-        Rectangle {
-            id: scan
-            visible: stage.running
-            width: parent.width
-            height: 2
-            color: Qt.alpha(Theme.ember, 0.5)
-            y: 0
-            SequentialAnimation on y {
-                running: stage.running
-                loops: Animation.Infinite
-                NumberAnimation { from: 0; to: stage.height; duration: 2600; easing.type: Easing.InOutSine }
-                NumberAnimation { from: stage.height; to: 0; duration: 2600; easing.type: Easing.InOutSine }
-            }
-        }
-
-        // the mark.
+        // left: the guest mark on a bordered square, then the power state.
         Column {
-            anchors.centerIn: parent
+            id: left
+            anchors.left: parent.left
+            anchors.leftMargin: 24
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 14
-            Item {
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: 96
-                height: 96
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.radius
-                    color: Qt.alpha(Theme.cream, 0.04)
-                    border.width: 1
-                    border.color: stage.running ? Qt.alpha(Theme.ember, 0.4) : Theme.line
-                    Behavior on border.color { ColorAnimation { duration: Theme.medium } }
-                }
+            width: 92
+
+            Rectangle {
+                width: 92
+                height: 92
+                color: Qt.alpha(Theme.cream, 0.03)
+                border.width: 1
+                border.color: stage.running ? Qt.alpha(Theme.ember, 0.5) : Theme.line
+                Behavior on border.color { ColorAnimation { duration: Theme.medium } }
                 OsIcon {
                     anchors.centerIn: parent
-                    width: 56
-                    height: 56
-                    size: 56
+                    width: 54
+                    height: 54
+                    size: 54
                     slug: stage.os
                     label: stage.os.length > 0 ? stage.os : stage.guest
                     glyphTint: stage.running ? Theme.ember : Theme.subtle
                 }
             }
-            // a power pulse ring under the mark when running.
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: powerRow.implicitWidth + 22
-                height: 26
-                radius: Theme.radius
-                color: stage.running ? Qt.alpha(Theme.ok, 0.12) : Qt.alpha(Theme.cream, 0.04)
-                border.width: 1
-                border.color: stage.running ? Qt.alpha(Theme.ok, 0.5) : Theme.line
-                Behavior on color { ColorAnimation { duration: Theme.medium } }
-                Behavior on border.color { ColorAnimation { duration: Theme.medium } }
-                Row {
-                    id: powerRow
-                    anchors.centerIn: parent
-                    spacing: 7
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 7; height: 7; radius: 3.5
-                        color: stage.running ? Theme.ok : Theme.faint
-                        SequentialAnimation on opacity {
-                            running: stage.running
-                            loops: Animation.Infinite
-                            NumberAnimation { from: 1; to: 0.3; duration: 900; easing.type: Easing.InOutSine }
-                            NumberAnimation { from: 0.3; to: 1; duration: 900; easing.type: Easing.InOutSine }
-                        }
+            Row {
+                spacing: 8
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 8
+                    height: 8
+                    radius: 4
+                    color: stage.running ? Theme.ok : Theme.faint
+                    SequentialAnimation on opacity {
+                        running: stage.running
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 1; to: 0.3; duration: 900; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 0.3; to: 1; duration: 900; easing.type: Easing.InOutSine }
                     }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: stage.running ? "POWERED ON" : "POWERED OFF"
-                        color: stage.running ? Theme.ok : Theme.faint
-                        font.family: Theme.mono
-                        font.pixelSize: 10
-                        font.weight: Font.DemiBold
-                        font.letterSpacing: 1.5
-                    }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: stage.running ? "POWERED ON" : "POWERED OFF"
+                    color: stage.running ? Theme.ok : Theme.faint
+                    font.family: Theme.mono
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.5
                 }
             }
         }
 
-        // live ports footer when running.
-        Row {
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.margins: 12
-            spacing: 14
-            visible: stage.running
-            Text {
-                text: "MODE " + ({ "gtk": "WINDOW", "spice": "SPICE", "none": "HEADLESS" })[stage.mode] || stage.mode
-                color: Theme.subtle; font.family: Theme.mono; font.pixelSize: 10; font.letterSpacing: 1
+        // a vertical hairline splits the mark from the dossier.
+        Rectangle {
+            anchors.left: left.right
+            anchors.leftMargin: 26
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: parent.height * 0.6
+            color: Theme.line
+        }
+
+        // right: the real machine, read from the conf and the live run state.
+        Column {
+            anchors.left: left.right
+            anchors.leftMargin: 52
+            anchors.right: parent.right
+            anchors.rightMargin: 26
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 9
+
+            Spec { k: "Guest"; v: stage.guest }
+            Spec {
+                k: "CPU"
+                v: stage.cores === "auto" ? "Automatic"
+                    : stage.cores + (parseInt(stage.cores) === 1 ? " core" : " cores")
             }
-            Text {
-                visible: stage.spice.length > 0
-                text: "SPICE :" + stage.spice
-                color: Theme.subtle; font.family: Theme.mono; font.pixelSize: 10; font.letterSpacing: 1
+            Spec { k: "Memory"; v: stage.ram === "auto" ? "Automatic" : stage.ram }
+            Spec {
+                k: "Disk"
+                v: stage.diskUsed > 0
+                    ? (Vm.human(stage.diskUsed) + (stage.diskCap.length > 0 ? "  /  " + stage.diskCap : " used"))
+                    : (stage.diskCap.length > 0 ? stage.diskCap + " (empty)" : "not created")
             }
-            Text {
-                visible: stage.ssh.length > 0
-                text: "SSH :" + stage.ssh
-                color: Theme.subtle; font.family: Theme.mono; font.pixelSize: 10; font.letterSpacing: 1
-            }
+            Spec { k: "Mode"; v: ({ "gtk": "Window", "spice": "SPICE", "none": "Headless" })[stage.mode] || stage.mode }
+            Spec { k: "SPICE"; v: "localhost:" + stage.spice; vc: Theme.ember; show: stage.running && stage.spice.length > 0 }
+            Spec { k: "SSH"; v: "localhost:" + stage.ssh; vc: Theme.ember; show: stage.running && stage.ssh.length > 0 }
         }
     }
 }

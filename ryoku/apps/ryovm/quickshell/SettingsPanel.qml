@@ -25,12 +25,9 @@ Item {
         width: 480
         height: col.implicitHeight + 44
         radius: Theme.radius
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.cardTop }
-            GradientStop { position: 1.0; color: Theme.cardBot }
-        }
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.line
+        border.color: Theme.lineStrong
         scale: sp.open ? 1 : 0.96
         Behavior on scale { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
         TapHandler {}

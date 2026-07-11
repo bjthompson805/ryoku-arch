@@ -20,6 +20,7 @@ Singleton {
     property bool vmsLoading
     property string selectedName: ""
     property var detail: null            // full `get` of the selected VM
+    property string pendingSelect: ""    // select this VM after the next reload (post-rename)
     readonly property var selected: {
         for (var i = 0; i < vms.length; i++)
             if (vms[i].name === selectedName)
@@ -89,6 +90,15 @@ Singleton {
     // status lines clear themselves so the bar never carries a stale message.
     onStatusChanged: if (status.length > 0) statusClear.restart()
     Timer { id: statusClear; interval: 4500; onTriggered: root.status = "" }
+    // bytes to a short human size ("1.9 GB", "880 MB"), for disk footprints.
+    function human(b) {
+        b = +b || 0;
+        if (b <= 0)
+            return "0";
+        var u = ["B", "KB", "MB", "GB", "TB"], i = 0;
+        while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+        return (b < 10 && i > 0 ? b.toFixed(1) : Math.round(b)) + " " + u[i];
+    }
 
     // ---- library ------------------------------------------------------------
     function select(name) {
@@ -136,6 +146,32 @@ Singleton {
     function openSsh(name) {
         sshProc.command = ["ryovm", "ssh", name];
         sshProc.running = true;
+    }
+    // rename repoints the conf, dir and relative paths, then reselects the new
+    // name once the reloaded list carries it (via pendingSelect).
+    function renameVm(name, next) {
+        if (busy || !next || next === name)
+            return;
+        busy = true;
+        status = "Renaming to " + next;
+        pendingSelect = next;
+        runProc.exec(["ryovm", "rename", name, next]);
+    }
+    function resizeDisk(name, size) {
+        if (busy)
+            return;
+        busy = true;
+        status = "Resizing " + name + " disk";
+        runProc.exec(["ryovm", "resize", name, "" + size]);
+    }
+    // reclaim frees the disk image (and re-installable media) but keeps the
+    // machine's config, so it can be reinstalled later.
+    function reclaimDisk(name) {
+        if (busy)
+            return;
+        busy = true;
+        status = "Reclaiming " + name + " disk";
+        runProc.exec(["ryovm", "delete", name, "--disk-only"]);
     }
 
     // ---- catalogue ----------------------------------------------------------
@@ -249,6 +285,11 @@ Singleton {
                 try {
                     var arr = JSON.parse(this.text);
                     root.vms = arr;
+                    if (root.pendingSelect.length > 0) {
+                        var want = root.pendingSelect;
+                        root.pendingSelect = "";
+                        if (arr.some(v => v.name === want)) { root.select(want); return; }
+                    }
                     if (root.selectedName.length === 0 && arr.length > 0)
                         root.select(arr[0].name);
                     else if (root.selectedName.length > 0)

@@ -2,8 +2,8 @@ import QtQuick
 import Quickshell.Io
 import "Singletons"
 
-// An OS brand logo. The real SVG/PNG mark when one exists (shown instantly from
-// the catalogue CDN via `remote`, cached to disk by the engine for offline use);
+// An OS brand logo: the real SVG/PNG mark when one exists (resolved and cached to
+// disk by the engine, then drawn from that local file, never the network);
 // otherwise a deterministic colored monogram of the name. Only ~37 of the ~93
 // catalogue OSes ship art upstream, so the monogram (not a generic glyph) keeps
 // every tile looking intentional. `label` drives the monogram; `slug` keys the
@@ -12,15 +12,15 @@ Item {
     id: root
 
     property string slug: ""
-    property string remote: ""
     property string label: ""
     property real size: 40
     property color glyphTint: Theme.cream      // kept for callers; unused by the monogram
 
-    // local cached file for this slug (reactive on iconRev); else the remote URL.
+    // local cached file for this slug (reactive on iconRev). The engine resolves
+    // and disk-caches every logo, negative-caching the ~57 of 93 OSes with no
+    // upstream art, so we never touch the network here: no per-tile 404 flood.
     readonly property string localPath: Vm.iconFor(root.slug)
-    readonly property string imgSource: localPath.length > 0 ? ("file://" + localPath)
-        : (root.remote.length > 0 ? root.remote : "")
+    readonly property string imgSource: localPath.length > 0 ? ("file://" + localPath) : ""
     readonly property bool hasArt: img.status === Image.Ready
 
     // a stable hue from the slug, so each OS keeps the same monogram colour.

@@ -58,11 +58,18 @@
   have a real logo sort into a **Popular** section above the rest. Builds a VM in
   app with a live progress bar and Cancel (a `ryovm-fetch` Go helper does the
   parallel download; cancelling wipes the half-image), or from any local ISO via
-  **Load ISO**. Per-VM cores/memory, snapshots, and three display modes: a
-  **Window**, a **SPICE** console, or **Headless** (terminal-only, SSH in). The
-  running view shows the mode's cursor-release shortcut and a stop-to-free note.
-  The `ryovm` engine is the data plane; the GPU-passthrough gaming VM in Ryoku
-  Settings > GPU is a separate, single-VM path.
+  **Load ISO**. Manage a machine fully: rename it, pin or leave-automatic its
+  cores/memory, **grow** its disk, take and restore **snapshots**, **reclaim**
+  the disk (frees the image, keeps the machine) or delete it; every card and the
+  detail dossier show the machine's real **disk footprint**, so you can see what
+  is eating space. Three display modes: a **Window**, a **SPICE** console, or
+  **Headless** (terminal-only, SSH in); the running view shows the mode's
+  cursor-release shortcut and the live SPICE/SSH endpoints. The interface wears
+  Ryoku's Greek-noir brutalism (flat carbon surfaces, hairlines and hard offset
+  shadows, the 力 eyebrow, a Fraunces masthead and registration-mark chrome)
+  and tells the truth: automatic resources read **Automatic**, never a
+  fabricated number. The `ryovm` engine is the data plane; the GPU-passthrough
+  gaming VM in Ryoku Settings > GPU is a separate, single-VM path.
 
 ### Changed
 - `fastfetch/` new emblem (`assets/brand/fastfetch-emblem.png`), redrawn to say

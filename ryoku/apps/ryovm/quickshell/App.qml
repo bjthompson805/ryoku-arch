@@ -12,10 +12,7 @@ Rectangle {
     implicitWidth: 1180
     implicitHeight: 760
 
-    gradient: Gradient {
-        GradientStop { position: 0.0; color: Theme.bgTop }
-        GradientStop { position: 1.0; color: Theme.bgBot }
-    }
+    color: Theme.bgBot
 
     property bool settingsOpen: false
     property bool importOpen: false
@@ -53,7 +50,7 @@ Rectangle {
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 3
-                Text { text: "ryovm"; color: Theme.bright; font.family: Theme.font; font.pixelSize: 25; font.weight: Font.DemiBold; font.letterSpacing: 0.3 }
+                Text { text: "ryovm"; color: Theme.bright; font.family: Theme.display; font.pixelSize: 27; font.weight: Font.DemiBold; font.letterSpacing: 0.3 }
                 Text { text: "Build, run and manage virtual machines."; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 }
             }
         }

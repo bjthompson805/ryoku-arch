@@ -17,7 +17,19 @@ Item {
     // (which re-creates the vm object) and is remembered next session.
     property string launchMode: "window"
     readonly property var _modeFromDisplay: ({ "gtk": "window", "spice": "spice", "none": "headless" })
-    onVmChanged: pane.launchMode = pane._modeFromDisplay[pane.vm ? pane.vm.display : "gtk"] || "window"
+    // current disk cap in GB (from the conf), and the grow target the field edits.
+    readonly property int capGb: {
+        var d = pane.vm ? (pane.vm.disk || "") : "";
+        var n = parseInt(d);
+        return d.length === 0 ? 0 : (d.indexOf("M") >= 0 ? Math.max(1, Math.round(n / 1024)) : (n || 0));
+    }
+    property int diskTarget: 64
+    onVmChanged: {
+        pane.launchMode = pane._modeFromDisplay[pane.vm ? pane.vm.display : "gtk"] || "window";
+        var d = pane.vm ? (pane.vm.disk || "") : "", n = parseInt(d);
+        pane.diskTarget = d.length === 0 ? 64 : (d.indexOf("M") >= 0 ? Math.max(1, Math.round(n / 1024)) : (n || 64));
+    }
+    onNameChanged: renameField.text = pane.name
 
     // empty state when nothing is selected.
     Column {
@@ -37,24 +49,21 @@ Item {
         visible: pane.vm !== null
 
         // eyebrow.
-        Row {
+        Item {
             id: eyebrow
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
             height: 16
-            spacing: 7
-            Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
-            Text {
+            Eyebrow {
+                anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Machine"
-                color: Theme.faint; font.family: Theme.mono; font.pixelSize: 10
-                font.letterSpacing: 2; font.weight: Font.DemiBold; font.capitalization: Font.AllUppercase
             }
-            Item { width: pane.width - 260; height: 1 }
             Text {
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: 200
+                width: 220
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideLeft
                 text: pane.name
@@ -76,6 +85,10 @@ Item {
             mode: pane.vm ? pane.vm.display : "gtk"
             ssh: pane.vm ? (pane.vm.ssh || "") : ""
             spice: pane.vm ? (pane.vm.spice || "") : ""
+            cores: pane.vm ? (pane.vm.cores || "auto") : "auto"
+            ram: pane.vm ? (pane.vm.ram || "auto") : "auto"
+            diskUsed: pane.vm ? (pane.vm.diskUsed || 0) : 0
+            diskCap: pane.vm ? (pane.vm.disk || "") : ""
         }
 
         // actions row.
@@ -203,11 +216,71 @@ Item {
                     }
                 }
 
+                // ── identity: rename the machine (stopped only) ─────────────
+                Column {
+                    width: parent.width
+                    spacing: 10
+                    SectionHead { text: "Identity" }
+                    Text {
+                        visible: pane.running
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Stop the machine to rename it."
+                        color: Theme.ember; font.family: Theme.font; font.pixelSize: 12
+                    }
+                    Row {
+                        width: parent.width
+                        spacing: 10
+                        visible: !pane.running
+                        Rectangle {
+                            width: parent.width - renameBtn.width - 10
+                            height: 38
+                            radius: Theme.radius
+                            color: Theme.surfaceLo
+                            border.width: 1
+                            border.color: renameField.activeFocus ? Theme.ember : Theme.line
+                            anchors.verticalCenter: parent.verticalCenter
+                            Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+                            TextInput {
+                                id: renameField
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.bright
+                                font.family: Theme.font
+                                font.pixelSize: 13
+                                clip: true
+                                selectByMouse: true
+                                Component.onCompleted: text = pane.name
+                                onTextEdited: text = text.replace(/[\/\s]+/g, "-")
+                                onAccepted: if (renameBtn.enabled) renameBtn.clicked()
+                            }
+                        }
+                        HubButton {
+                            id: renameBtn
+                            anchors.verticalCenter: parent.verticalCenter
+                            label: "Rename"
+                            icon: "check"
+                            primary: true
+                            enabled: !Vm.busy && renameField.text.trim().length > 0 && renameField.text.trim() !== pane.name
+                            onClicked: Vm.renameVm(pane.name, renameField.text.trim())
+                        }
+                    }
+                }
+
                 // ── resources (editable only when stopped) ──────────────────
                 Column {
                     width: parent.width
                     spacing: 12
                     SectionHead { text: "Resources" }
+                    Text {
+                        visible: !pane.running
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Blank values are tuned automatically by quickemu. Set a number to pin it."
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: 11
+                    }
                     Text {
                         visible: pane.running
                         width: parent.width
@@ -220,7 +293,7 @@ Item {
                         enabled: !pane.running
                         label: "CPU cores"
                         from: 1; to: 32; step: 1
-                        value: pane.vm && pane.vm.cores !== "auto" ? parseInt(pane.vm.cores) || 4 : 4
+                        value: pane.vm && pane.vm.cores !== "auto" ? (parseInt(pane.vm.cores) || Vm.settings.defaultCores) : Vm.settings.defaultCores
                         onModified: (v) => Vm.setConfig(pane.name, "cpu_cores", Math.round(v))
                     }
                     NumberField {
@@ -232,11 +305,57 @@ Item {
                         value: {
                             var r = pane.vm ? pane.vm.ram : "";
                             if (!r || r === "auto")
-                                return 4;
+                                return Vm.settings.defaultRam;
                             var n = parseFloat(r);
-                            return r.indexOf("M") >= 0 ? Math.max(1, Math.round(n / 1024)) : (n || 4);
+                            return r.indexOf("M") >= 0 ? Math.max(1, Math.round(n / 1024)) : (n || Vm.settings.defaultRam);
                         }
                         onModified: (v) => Vm.setConfig(pane.name, "ram", Math.round(v) + "G")
+                    }
+                    // disk: the real footprint and an explicit grow (reclaim lives
+                    // in the danger zone with the other destructive actions).
+                    Column {
+                        width: parent.width
+                        spacing: 8
+                        visible: pane.det && pane.det.installed
+                        Row {
+                            width: parent.width
+                            spacing: 9
+                            SubLabel { anchors.verticalCenter: parent.verticalCenter; text: "Disk" }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: (pane.vm ? Vm.human(pane.vm.diskUsed || 0) : "0") + " used"
+                                    + (pane.vm && pane.vm.disk ? "  \u00b7  " + pane.vm.disk + " cap" : "")
+                                color: Theme.cream; font.family: Theme.mono; font.pixelSize: 12
+                            }
+                        }
+                        Row {
+                            width: parent.width
+                            spacing: 10
+                            NumberField {
+                                width: Math.min(parent.width - growBtn.width - 10, 360)
+                                enabled: !pane.running
+                                label: "Disk size"
+                                unit: "GB"
+                                from: 1; to: 2048; step: 8
+                                value: pane.diskTarget
+                                onModified: (v) => pane.diskTarget = Math.round(v)
+                            }
+                            HubButton {
+                                id: growBtn
+                                anchors.verticalCenter: parent.verticalCenter
+                                label: "Grow"
+                                icon: "disk"
+                                primary: true
+                                enabled: !pane.running && !Vm.busy && pane.diskTarget > pane.capGb
+                                onClicked: Vm.resizeDisk(pane.name, pane.diskTarget + "G")
+                            }
+                        }
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            text: "Grow only; the guest extends its partition afterwards."
+                            color: Theme.dim; font.family: Theme.font; font.pixelSize: 11
+                        }
                     }
                 }
 
@@ -379,6 +498,14 @@ Item {
                             icon: "folder"
                             label: "Open folder"
                             onClicked: Vm.openFolder(pane.name)
+                        }
+                        ConfirmButton {
+                            visible: pane.det && pane.det.installed
+                            enabled: !pane.running
+                            label: "Reclaim disk"
+                            confirmLabel: "Erase disk?"
+                            icon: "trash"
+                            onConfirmed: Vm.reclaimDisk(pane.name)
                         }
                         ConfirmButton {
                             enabled: !pane.running

@@ -29,7 +29,6 @@ Rectangle {
             height: 52
             size: 52
             slug: cell.entry ? cell.entry.os : ""
-            remote: cell.entry ? (cell.entry.svg || cell.entry.png || "") : ""
             label: cell.entry ? cell.entry.name : ""
             glyphTint: Theme.subtle
         }

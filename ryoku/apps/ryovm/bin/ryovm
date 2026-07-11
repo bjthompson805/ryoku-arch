@@ -18,6 +18,8 @@
 #   console <name>                   open the SPICE viewer for a running VM
 #   stop <name>                      power off
 #   config <name> <key> <value>     edit one scalar conf key
+#   rename <old> <new>               rename a VM (conf + dir + relative paths)
+#   resize <name> <size>             grow the VM disk image (e.g. 80G)
 #   snapshot <name> list|create|restore|delete [tag]
 #   ssh <name>                       print the ssh command to the guest
 #   delete <name> [--disk-only]      remove the VM (or just wipe its disk)
@@ -95,6 +97,15 @@ snaps_json() { # $1 = disk image
 	printf '%s' "${out:-[]}"
 }
 
+# actual on-disk bytes the VM occupies under the VMs dir (the disk image, any
+# local ISO, firmware vars, logs): the real allocation du reports, sparse-aware,
+# which is what a "reclaim disk" frees. 0 when the VM has no dir yet.
+disk_used() { # $1 = vm subdir -> bytes
+	local b=""
+	[ -d "$1" ] && b="$(du -sB1 "$1" 2>/dev/null | cut -f1)"
+	printf '%s' "${b:-0}"
+}
+
 conf_path() { # $1 = vm name -> absolute conf path, or die
 	local c="$vms_dir/$1.conf"
 	[ -f "$c" ] || die "no VM named '$1'"
@@ -162,13 +173,14 @@ cmd_list() {
 	for conf in "$vms_dir"/*.conf; do
 		[ -e "$conf" ] || continue
 		vm_paths "$conf"
-		local guest os disp cores ram disk running ssh spice
+		local guest os disp cores ram disk used running ssh spice
 		guest="$(conf_get "$conf" guest_os)"
 		os="$(os_slug "$conf")"
 		disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="gtk"
 		cores="$(conf_get "$conf" cpu_cores)"
 		ram="$(conf_get "$conf" ram)"
 		disk="$(conf_get "$conf" disk_size)"
+		used="$(disk_used "$vm_subdir")"
 		running=false; vm_running "$vm_pid" && running=true
 		ssh=""; spice=""
 		if [ "$running" = true ]; then
@@ -177,10 +189,10 @@ cmd_list() {
 		[ $first -eq 1 ] && first=0 || printf ','
 		jq -cn --arg name "$vm_name" --arg guest "${guest:-linux}" --arg os "${os:-}" \
 			--arg display "$disp" --arg cores "${cores:-auto}" --arg ram "${ram:-auto}" \
-			--arg disk "${disk:-}" --argjson running "$running" \
+			--arg disk "${disk:-}" --argjson used "$used" --argjson running "$running" \
 			--arg ssh "${ssh:-}" --arg spice "${spice:-}" \
 			--argjson exists "$([ -e "$vm_disk" ] && echo true || echo false)" \
-			'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,running:$running,installed:$exists,ssh:$ssh,spice:$spice}'
+			'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$exists,ssh:$ssh,spice:$spice}'
 	done
 	printf ']\n'
 }
@@ -189,13 +201,14 @@ cmd_list() {
 cmd_get() {
 	local conf; conf="$(conf_path "$1")"
 	vm_paths "$conf"
-	local guest os disp cores ram disk running snaps="[]"
+	local guest os disp cores ram disk used running snaps="[]"
 	guest="$(conf_get "$conf" guest_os)"
 	os="$(os_slug "$conf")"
 	disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="gtk"
 	cores="$(conf_get "$conf" cpu_cores)"
 	ram="$(conf_get "$conf" ram)"
 	disk="$(conf_get "$conf" disk_size)"
+	used="$(disk_used "$vm_subdir")"
 	running=false; vm_running "$vm_pid" && running=true
 	local ssh="" spice=""
 	if [ "$running" = true ]; then
@@ -203,11 +216,11 @@ cmd_get() {
 	fi
 	snaps="$(snaps_json "$vm_disk")"
 	jq -cn --arg name "$vm_name" --arg guest "${guest:-linux}" --arg os "${os:-}" --arg display "$disp" \
-		--arg cores "${cores:-auto}" --arg ram "${ram:-auto}" --arg disk "${disk:-}" \
+		--arg cores "${cores:-auto}" --arg ram "${ram:-auto}" --arg disk "${disk:-}" --argjson used "$used" \
 		--argjson running "$running" --arg ssh "${ssh:-}" --arg spice "${spice:-}" \
 		--argjson installed "$([ -e "$vm_disk" ] && echo true || echo false)" \
 		--argjson snapshots "$snaps" --arg conf "$conf" --arg dir "$vm_subdir" \
-		'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,running:$running,installed:$installed,ssh:$ssh,spice:$spice,snapshots:$snapshots,conf:$conf,dir:$dir}'
+		'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$installed,ssh:$ssh,spice:$spice,snapshots:$snapshots,conf:$conf,dir:$dir}'
 }
 
 # ---- create (catalogue OS, in-app download with live progress) --------------
@@ -436,6 +449,51 @@ cmd_delete() {
 	fi
 }
 
+# ---- rename ----------------------------------------------------------------
+# Rename a VM: its conf, the per-VM subdir (the quickget/import layout), the
+# runtime files named after it, and any disk_img/iso path that pointed into the
+# old subdir. A non-standard disk_img (absolute, or outside the subdir) keeps
+# its path; only the conf is renamed.
+cmd_rename() {
+	local old="${1:?rename needs <old> <new>}" new="${2:?rename needs <old> <new>}"
+	case "$new" in *[/\ ]*|"") die "invalid name: '$new'" ;; esac
+	local conf; conf="$(conf_path "$old")"
+	vm_paths "$conf"
+	vm_running "$vm_pid" && die "stop $old before renaming it"
+	[ -e "$vms_dir/$new.conf" ] && die "a VM named '$new' already exists"
+	# repoint any disk_img/iso relative to the old subdir before moving anything,
+	# so a bad substitution fails before a single file is touched (# delimiter:
+	# the pattern itself carries / and the (disk_img|iso) alternation).
+	sed -i -E "s#^((disk_img|iso)=\")$old/#\1$new/#" "$conf"
+	if [ -d "$vms_dir/$old" ]; then
+		[ -e "$vms_dir/$new" ] && die "$vms_dir/$new already exists"
+		mv "$vms_dir/$old" "$vms_dir/$new"
+		local f b
+		for f in "$vms_dir/$new/$old".* "$vms_dir/$new/$old"-*; do
+			[ -e "$f" ] || continue
+			b="$(basename "$f")"; mv "$f" "$vms_dir/$new/$new${b#"$old"}"
+		done
+	fi
+	mv "$conf" "$vms_dir/$new.conf"
+	echo "renamed $old to $new"
+}
+
+# ---- resize (grow the disk image) ------------------------------------------
+# qemu-img resize only grows here (shrinking a live filesystem corrupts it); the
+# guest still has to extend its partition to use the new space. Keeps disk_size
+# in the conf in step so the UI shows the new cap.
+cmd_resize() {
+	local conf; conf="$(conf_path "$1")"
+	local size="${2:?resize needs a size (e.g. 80G)}"
+	[[ "$size" =~ ^[0-9]+[MG]$ ]] || die "size must look like 64G or 4096M"
+	vm_paths "$conf"
+	vm_running "$vm_pid" && die "stop $vm_name before resizing its disk"
+	[ -e "$vm_disk" ] || die "$vm_name has no disk yet; launch it once first"
+	qemu-img resize "$vm_disk" "$size" >/dev/null 2>&1 || die "could not grow the disk to $size"
+	if grep -qE '^disk_size=' "$conf"; then sed -i -E "s|^disk_size=.*|disk_size=\"$size\"|" "$conf"; else echo "disk_size=\"$size\"" >>"$conf"; fi
+	echo "resized $vm_name disk to $size"
+}
+
 # ---- folder ----------------------------------------------------------------
 cmd_folder() {
 	if [ -n "${1:-}" ]; then
@@ -528,6 +586,8 @@ case "$cmd" in
 	console)  cmd_console "$@" ;;
 	stop)     cmd_stop "$@" ;;
 	config)   cmd_config "$@" ;;
+	rename)   cmd_rename "$@" ;;
+	resize)   cmd_resize "$@" ;;
 	snapshot) cmd_snapshot "$@" ;;
 	ssh)      cmd_ssh "$@" ;;
 	delete)   cmd_delete "$@" ;;
@@ -535,5 +595,5 @@ case "$cmd" in
 	icon)     cmd_icon "$@" ;;
 	prefetch) cmd_prefetch "$@" ;;
 	paths)    cmd_paths "$@" ;;
-	*) die "usage: ryovm caps|setup|catalog|list|get|create|import|launch|console|stop|config|snapshot|ssh|delete|folder|icon|prefetch|paths" 2 ;;
+	*) die "usage: ryovm caps|setup|catalog|list|get|create|import|launch|console|stop|config|rename|resize|snapshot|ssh|delete|folder|icon|prefetch|paths" 2 ;;
 esac

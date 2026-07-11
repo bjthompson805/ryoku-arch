@@ -122,68 +122,52 @@ Item {
         anchors.fill: parent
         visible: pane.os !== null && !Vm.downloading
 
-        Row {
+        Eyebrow {
             id: eyebrow
             anchors.top: parent.top
             anchors.left: parent.left
-            anchors.right: parent.right
-            height: 16
-            spacing: 7
-            Rectangle { width: 5; height: 5; radius: Theme.radius; color: Theme.brand; anchors.verticalCenter: parent.verticalCenter }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "New machine"
-                color: Theme.faint; font.family: Theme.mono; font.pixelSize: 10
-                font.letterSpacing: 2; font.weight: Font.DemiBold; font.capitalization: Font.AllUppercase
-            }
+            text: "New machine"
         }
 
         // OS hero: big brand icon on a carbon stage.
-        Rectangle {
+        Item {
             id: hero
             anchors.top: eyebrow.bottom
-            anchors.topMargin: 12
+            anchors.topMargin: 14
             anchors.left: parent.left
             anchors.right: parent.right
             height: Math.max(150, parent.height * 0.26)
-            radius: Theme.radius
-            clip: true
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "#211912" }
-                GradientStop { position: 1.0; color: "#120d09" }
-            }
-            border.width: 1
-            border.color: Theme.line
 
-            Rectangle {
-                anchors.centerIn: parent
-                width: parent.width * 1.3
-                height: width
-                radius: width / 2
-                opacity: 0.3
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.alpha(Theme.ember, 0.18) }
-                    GradientStop { position: 0.5; color: "transparent" }
-                }
-            }
+            BrutalPanel {
+                anchors.fill: parent
+                step: Theme.shadowStep
+                surface: Theme.rail
+                line: Theme.lineStrong
 
-            Column {
-                anchors.centerIn: parent
-                spacing: 12
-                OsIcon {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: 72
-                    height: 72
-                    size: 72
-                    slug: pane.os ? pane.os.os : ""
-                    remote: pane.os ? (pane.os.svg || pane.os.png || "") : ""
-                    label: pane.os ? pane.os.name : ""
-                    glyphTint: Theme.subtle
+                RegMark {
+                    x: parent.width - width - 16
+                    y: 15
+                    size: 12
+                    tint: Theme.faint
                 }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: pane.os ? pane.os.name : ""
-                    color: Theme.bright; font.family: Theme.font; font.pixelSize: 19; font.weight: Font.DemiBold
+
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 12
+                    OsIcon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 72
+                        height: 72
+                        size: 72
+                        slug: pane.os ? pane.os.os : ""
+                        label: pane.os ? pane.os.name : ""
+                        glyphTint: Theme.subtle
+                    }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: pane.os ? pane.os.name : ""
+                        color: Theme.bright; font.family: Theme.display; font.pixelSize: 22; font.weight: Font.DemiBold
+                    }
                 }
             }
         }
