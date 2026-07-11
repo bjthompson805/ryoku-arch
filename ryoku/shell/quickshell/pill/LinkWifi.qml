@@ -236,7 +236,7 @@ Item {
 
     Process {
         id: hsStateProc
-        command: ["sh", "-c", "nmcli -t -f NAME connection show --active | grep -qx " + root.hsCon + " && echo on || echo off"]
+        command: ["sh", "-c", "nmcli -t -f NAME connection show --active | grep -qxF -- \"$1\" && echo on || echo off", "sh", root.hsCon]
         stdout: StdioCollector {
             onStreamFinished: root.hsActive = this.text.trim() === "on"
         }

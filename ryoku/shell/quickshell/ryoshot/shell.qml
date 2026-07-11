@@ -473,7 +473,7 @@ ShellRoot {
     Process {
         id: urlCopyProc
         function run(url) {
-            command = ["sh", "-c", "printf %s " + JSON.stringify(url) + " | wl-copy"];
+            command = ["sh", "-c", "printf %s \"$1\" | wl-copy", "sh", url];
             running = true;
         }
         onExited: () => Qt.quit()
