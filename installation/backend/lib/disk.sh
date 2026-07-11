@@ -21,17 +21,25 @@ ryoku_min_root_gib() { echo $(( 20 + ${RYOKU_SWAP_GIB:-0} )); }
 # held /mnt pins ROOT_DEV, so the partition/wipe below dies "Device or resource
 # busy" and ryoku_reclaim_leftovers skips its still-mounted partitions -- the
 # retry wedges. tear our own prior attempt down first: swapoff the installer's
-# swapfile (a swapfile pins its fs, blocking the umount), then recursively
-# unmount /mnt. best-effort + idempotent; a fresh run (nothing at /mnt) no-ops.
+# swapfile (a swapfile pins its fs, blocking the umount), recursively unmount
+# /mnt, then close the prior attempt's /dev/mapper/root UNCONDITIONALLY -- an
+# encrypted attempt can leave the mapper open even with /mnt already unmounted
+# (failure between luks open and mount), and a mapper-held partition makes the
+# alongside reclaim's partprobe die "unable to inform the kernel". best-effort +
+# idempotent; a fresh run (nothing at /mnt, no mapper) no-ops.
 ryoku_release_previous_attempt() {
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    log "DRYRUN: if /mnt is a leftover mount from a prior attempt, would swapoff /mnt/swap/swapfile then umount -R /mnt"
+    log "DRYRUN: if /mnt is a leftover mount from a prior attempt, would swapoff /mnt/swap/swapfile, umount -R /mnt, and close a stale /dev/mapper/root"
     return 0
   fi
-  mountpoint -q /mnt || return 0
+  if ! mountpoint -q /mnt; then
+    ryoku_free_mapper root
+    return 0
+  fi
   log "releasing /mnt left mounted by a previous install attempt (swapoff + umount -R)"
   swapoff /mnt/swap/swapfile 2>/dev/null || true
   umount -R /mnt 2>/dev/null || umount -l /mnt 2>/dev/null || true
+  ryoku_free_mapper root
   udevadm settle 2>/dev/null || true
 }
 
@@ -426,7 +434,7 @@ ryoku_reclaim_leftovers() {
     for info in "${dinfo[@]}"; do list+="  $info"$'\n'; done
     die "existing Ryoku-labeled partition(s) on $disk (a previous Ryoku install or a failed run):
 ${list}alongside will NOT delete these automatically -- they may be a working Ryoku install. To proceed, either:
-  1) confirm reclaim in the TUI Review screen (the typed ERASE ack, which sets RYOKU_RECLAIM_LEFTOVERS=1) so they are deleted, or
+  1) restart the installer so it rescans the disk, then confirm reclaim on the Review screen (the typed ERASE ack, which sets RYOKU_RECLAIM_LEFTOVERS=1; a mid-session retry keeps the pre-failure scan and never arms the ack), or
   2) delete or keep them yourself with another tool, then retry."
   fi
 

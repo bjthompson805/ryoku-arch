@@ -1012,6 +1012,7 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 		switch k {
 		case "r":
 			m.state, m.installAt, m.installLog = "install", 0, nil
+			m.abortArmed = false
 			m.progress, m.progVel = 0, 0
 			return m, tea.Batch(m.tickCmd(), m.startInstall())
 		case "q":

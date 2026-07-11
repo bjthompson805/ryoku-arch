@@ -73,8 +73,9 @@ and the backend on `PATH`.
 the TUI from `../tui`, bakes the TUI, the backend, and the repo into the staged
 airootfs, and then runs `mkarchiso`. The committed profile is never modified.
 
-Requirements on the build host: `go` (to compile the TUI), `archiso` (for
-`mkarchiso`), and root (mkarchiso needs it).
+Requirements on the build host: `go` (the TUI and Go daemons), `cmake`, `ninja`,
+and the Qt6 dev libraries (qt6-base, qt6-declarative, qt6-shadertools; the
+Ryoku.Blobs plugin), `archiso` (for `mkarchiso`), and root (mkarchiso needs it).
 
 ```
 cd installation/iso
@@ -92,7 +93,7 @@ If `mkarchiso` is missing, `build.sh` stages the profile and prints the exact
 command to finish by hand:
 
 ```
-sudo mkarchiso -v -w work -o out ./staging/profile
+sudo --preserve-env=SOURCE_DATE_EPOCH mkarchiso -v -w work -o out ./staging/profile
 ```
 
 Output, work, and staging directories live under `installation/iso/` and are
