@@ -15,8 +15,8 @@ pkgdesc="Ryoku desktop: Hyprland + Quickshell configuration, helpers, and runtim
 arch=('x86_64')
 url="https://ryoku.dev"
 license=('GPL-3.0-or-later')
-# go builds the in-tree app helpers (ryovm-fetch); the rest is config + scripts.
-makedepends=('go')
+# go builds the app helpers (ryovm-fetch); cmake+Qt6+mpv build ryomotion (native).
+makedepends=('go' 'cmake' 'ninja' 'qt6-base' 'qt6-declarative' 'mpv')
 depends=(
   # Ryoku. the monorepo components are pinned to this build's own version:
   # every publish rebuilds them all with one shared RYOKU_PKGVER, and the shell
@@ -80,6 +80,11 @@ depends=(
   # live (video) wallpapers: the daemon grabs one frame with ffmpeg to derive the
   # wallust palette. official repo, so a hard depend reaches existing boxes.
   'ffmpeg'
+  # Ryoku Motion (native editor) previews + exports through libmpv + ffmpeg; the
+  # QtQuick UI needs qt6-declarative. Hard depends so the editor works out of the
+  # box on every install and reaches existing boxes on `ryoku update`.
+  'mpv'
+  'qt6-declarative'
   # ryoshot Beautify's HD export and ryowalls Enhance AI-upscale on the GPU with
   # this. official repo (extra), so a hard depend ships it in the ISO install and
   # reaches existing boxes on `ryoku update` -- an optdepend never installs on -Syu,
@@ -115,12 +120,11 @@ optdepends=(
   'tesseract: OCR text grab (pill Super+D)'
   'tesseract-data-eng: English OCR language data'
   'zbar: QR code scanning (pill Super+D)'
-  'gpu-screen-recorder: screen recording (pill Super+U)'
+  'gpu-screen-recorder: screen recording (Ryoku Motion + pill Super+U)'
   'wf-recorder: screen-recording fallback for multi-GPU machines'
   'hyprsunset: night-light color temperature (pill Super+U)'
   'openrgb: keyboard and LED accent sync via ryoku-leds'
   'wtype: voice-dictation typing on Wayland (Voxtype)'
-  'mpv: webcam mirror and media playback'
   'chromium: web browser'
   'qemu-desktop: GPU-passthrough VM (Ryoku Settings > GPU)'
   'libvirt: VM management for the passthrough VM'
@@ -153,24 +157,32 @@ package() {
   install -d "$cfg/quickshell/hub"
   cp -a "$_repo/ryoku/hub/quickshell/." "$cfg/quickshell/hub/"
 
-  # First-party GUI apps (ryowalls, ryovm): each ryoku/apps/<name>/quickshell
-  # ships as qs -c <name>, with its bin/ helpers on PATH, its .desktop entry,
-  # and its mark as the launcher icon. Mirrors ryoku/shell/deploy.sh so dropping
-  # in a new app dir ships it. The base config lands under /usr/share/ryoku/config
-  # for `ryoku materialize`; bins/desktop/icons go to the system tree directly.
-  local appdir appname icon gomod helperdir helper b d
+  # First-party GUI apps: a Quickshell app (ryowalls, ryovm) ships its
+  # quickshell/ tree as qs -c <name>; a compiled app (ryomotion) has a
+  # CMakeLists.txt and builds to a /usr/bin/<name> binary. Either way its bin/
+  # helpers, .desktop and icon are installed. Dropping in a new app dir ships it.
+  local appdir appname icon gomod helperdir helper b d has_qs has_cmake
   for appdir in "$_repo"/ryoku/apps/*/; do
-    [ -d "${appdir}quickshell" ] || continue
+    has_qs=0; [ -d "${appdir}quickshell" ] && has_qs=1
+    has_cmake=0; [ -f "${appdir}CMakeLists.txt" ] && has_cmake=1
+    [ "$has_qs" = 1 ] || [ "$has_cmake" = 1 ] || continue
     appname="$(basename "$appdir")"
-    install -d "$cfg/quickshell/$appname"
-    cp -a "${appdir}quickshell/." "$cfg/quickshell/$appname/"
+    if [ "$has_qs" = 1 ]; then
+      install -d "$cfg/quickshell/$appname"
+      cp -a "${appdir}quickshell/." "$cfg/quickshell/$appname/"
+    fi
+    if [ "$has_cmake" = 1 ]; then
+      # compiled Qt app: build to a binary named for the app dir.
+      cmake -S "$appdir" -B "${appdir}build" -G Ninja -DCMAKE_BUILD_TYPE=Release
+      cmake --build "${appdir}build"
+      install -Dm755 "${appdir}build/$appname" "$pkgdir/usr/bin/$appname"
+    fi
     if [ -d "${appdir}bin" ]; then
       for b in "${appdir}bin/"*; do
         [ -f "$b" ] && install -Dm755 "$b" "$pkgdir/usr/bin/$(basename "$b")"
       done
     fi
-    # Go helper(s): a subdir with go.mod builds to a bin named for the module
-    # (ryovm/fetch -> ryovm-fetch). Mirrors ryoku/shell/deploy.sh.
+    # Go helper(s): a subdir with go.mod builds to a bin named for the module.
     for gomod in "${appdir}"*/go.mod; do
       [ -f "$gomod" ] || continue
       helperdir="$(dirname "$gomod")"
@@ -183,6 +195,7 @@ package() {
       [ -f "$d" ] && install -Dm644 "$d" "$pkgdir/usr/share/applications/$(basename "$d")"
     done
     icon="${appdir}quickshell/logo.svg"
+    [ -f "$icon" ] || icon="${appdir}logo.svg"
     [ -f "$icon" ] || icon="$_repo/ryoku/assets/brand/logo-mark.svg"
     install -Dm644 "$icon" "$pkgdir/usr/share/icons/hicolor/scalable/apps/$appname.svg"
   done

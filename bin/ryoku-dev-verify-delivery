@@ -51,7 +51,8 @@ while IFS= read -r f; do
 done < <(find ryoku/apps -type f \
 	-not -path '*/quickshell/*' -not -path '*/bin/*' \
 	-not -name '*.desktop' -not -name '*.md' -not -name 'README*' \
-	-not -name '*.go' -not -name 'go.mod' -not -name 'go.sum' ! -executable)
+	-not -name '*.go' -not -name 'go.mod' -not -name 'go.sum' \
+	-not -name '*.cpp' -not -name '*.h' -not -name '*.qml' -not -name 'CMakeLists.txt' ! -executable)
 
 (( fail )) || say "delivery: every ryoku/apps config is shipped by a package, installer, or deploy path"
 

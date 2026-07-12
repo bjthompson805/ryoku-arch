@@ -1,5 +1,5 @@
 import QtQuick
-import "Singletons"
+import RyoMotion
 
 // A panel section: a small let-spaced title with a hairline, then its content.
 Column {
@@ -10,6 +10,7 @@ Column {
     spacing: 13
     Item {
         width: g.width; height: 13
+        visible: g.title !== ""
         Text {
             id: gh
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter

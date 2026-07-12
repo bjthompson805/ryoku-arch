@@ -4,28 +4,26 @@
 
 ### Added
 - `ryomotion/`: **Ryoku Motion**, a new first-party app: a native, on-brand
-  screen-demo recorder + editor (an answer to Screen Studio / borumi / openscreen),
-  built by translating openscreen's region-based editor (MIT) into Quickshell/QML
-  + ffmpeg. It records the screen with a cursor track, then shapes the clip **live**
-  on a true WYSIWYG stage: a left tool rail (Canvas, Frame, Zoom, Cut, Speed, Text,
-  Overlay, Music, Cursor, Export) drives a contextual panel, and a region timeline
-  holds the edits. Region model (ported from openscreen): **zoom** regions (manual
-  depth + focus, or cursor-follow **auto-zoom** -- depth scales, easing and
-  transition windows ported from openscreen), **cut** spans (removed from the
-  result), **speed** spans (per-section rate), **text** overlays, and **video
-  overlays** (clip-in-clip / PiP). Background is the Beautify look ported to video
-  (gradient / solid / image, padding, roundness, shadow, border) with a canvas
-  **aspect** (auto / 16:9 / 9:16 / 4:3 / 1:1); plus a **music** track and
-  **cursor** controls. Export is MP4 or GIF with quality tiers (Source / 1080p /
-  720p) and a stats readout, and an in-app clip picker (over a native Browse escape
-  hatch) keeps opening cohesive. Backend `bin/ryomotion` does capture
-  (gpu-screen-recorder + a 60Hz cursor logger) and a single ffmpeg graph that
-  composites the framed background, crop-zoom, drawtext and video overlays, then
-  cut + per-segment re-speed (video + audio) and music mix, at the chosen quality.
-  UI in `quickshell/` (`App.qml`, `Stage.qml`, `Rail.qml`, `Timeline.qml`,
-  `Inspector.qml`, `OpenSheet.qml`, `Singletons/Project.qml`, `Theme`, reusable
-  controls). No new dependency: ffmpeg, imagemagick, gpu-screen-recorder,
-  qt6-multimedia, jq and zenity already ship.
+  screen-demo recorder + editor (an answer to Screen Studio / borumi / openscreen).
+  It is a standalone **Qt6/QML app on libmpv** (`src/` C++ + `qml/`, built by
+  CMake), not a Quickshell config: one engine drives both the live preview and
+  the export, so an ffmpeg **lavfi** graph rendered by mpv in the editor is the
+  same graph the exporter bakes -- **what you see is what you get**, no separate
+  preview that drifts from the render. A left tool rail (Canvas, Frame, Zoom, Cut,
+  Speed, Text, Overlay, Music, Cursor, Export) drives a contextual panel; the
+  centre is a live mpv stage you edit directly (**drag** the zoom focus, text and
+  overlay right on the preview); a timeline carries draggable zoom/speed/text/
+  overlay markers. **Cut is direct** -- mark a section on the clip lane and remove
+  it; it vanishes and shows as a gap, no abstract blocks. Background is the
+  Beautify look ported to video (gradient / solid / image, padding, roundness,
+  shadow, border) with a canvas **aspect** (auto / 16:9 / 9:16 / 4:3 / 1:1), plus
+  cursor-follow **auto-zoom** (openscreen math, MIT), a **music** track, and MP4 /
+  GIF export with quality tiers (Source / 1080p / 720p). The `ryomotion` binary is
+  the editor; `bin/ryomotion-cli` is the backend (capture via gpu-screen-recorder
+  + a 60Hz cursor logger; the shared ffmpeg graph builder for preview + render).
+  New hard deps `mpv` (libmpv) and `qt6-declarative`; built by `ryoku-desktop`'s
+  PKGBUILD (which now compiles CMake apps, not just Quickshell ones). ffmpeg,
+  imagemagick, jq and zenity already ship.
 - `ryowalls/`: a wallpaper **studio**, not just a browser. A new **Adjust** mode
   (a third tab beside Browse and Tune) shapes the picked wallpaper live in the
   rice preview. For an image: a colour **grade** (brightness, contrast,

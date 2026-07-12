@@ -1,5 +1,5 @@
 import QtQuick
-import "Singletons"
+import RyoMotion
 
 Rectangle {
     id: b

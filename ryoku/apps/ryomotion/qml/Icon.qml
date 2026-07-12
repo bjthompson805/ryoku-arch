@@ -1,9 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 
-// Stroked vector icons from SVG path data, the same renderer Ryoku Settings and
-// ryowalls use, so glyphs match the rest of the desktop. Tint-able, scalable,
-// no asset files. One `name` -> one path in `defs`.
+// Stroked vector icons from SVG path data. Tint-able, scalable, no asset files.
 Item {
     id: icon
 
@@ -33,11 +31,10 @@ Item {
         "stop": "M6 6h12v12H6z",
         "plus": "M12 5v14 M5 12h14",
         "minus": "M5 12h14",
+        "scissors": "M6 5a2 2 0 1 0 0 4a2 2 0 0 0 0 -4z M6 15a2 2 0 1 0 0 4a2 2 0 0 0 0 -4z M20 5L9 16 M20 19L9 8",
         "trash": "M3 6h18 M8 6V4a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2 M19 6l-1 14a1 1 0 0 1 -1 1H7a1 1 0 0 1 -1 -1L5 6 M10 11v6 M14 11v6",
         "folder": "M3 6a1 1 0 0 1 1 -1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1H4a1 1 0 0 1 -1 -1z",
         "film": "M4 4h16v16H4z M4 9h16 M4 15h16 M8.5 4v16 M15.5 4v16",
-        "chevron-left": "M15 6l-6 6 6 6",
-        "chevron-right": "M9 6l6 6 -6 6",
         "close": "M6 6l12 12M18 6L6 18",
         "check": "M5 12.5l4.2 4.2L19 7",
         "image": "M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1H3a1 1 0 0 1 -1 -1V6a1 1 0 0 1 1 -1z M8 11a1.5 1.5 0 1 0 0 .01 M21 16l-5-5-7 7",

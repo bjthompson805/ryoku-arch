@@ -1,8 +1,7 @@
 import QtQuick
-import "Singletons"
+import RyoMotion
 
-// Labelled value slider: name left, live readout right, a track + draggable knob.
-// preventStealing so a drag adjusts the value instead of scrolling the panel.
+// Labelled value slider: name left, live readout right, track + draggable knob.
 Item {
     id: sl
     property string label: ""
@@ -11,7 +10,6 @@ Item {
     property real value: 0
     property int decimals: 0
     property string suffix: ""
-    property bool bipolar: false
     signal moved(real v)
 
     implicitWidth: 240
@@ -24,7 +22,6 @@ Item {
     }
 
     Text {
-        id: lab
         anchors.left: parent.left; anchors.top: parent.top
         text: sl.label; color: Theme.idle
         font.family: Theme.font; font.pixelSize: 12; font.weight: Font.Medium
@@ -41,8 +38,7 @@ Item {
         height: 4; radius: 2; color: Qt.rgba(1, 1, 1, 0.12)
         Rectangle {
             anchors.top: parent.top; anchors.bottom: parent.bottom
-            x: sl.bipolar ? Math.min(0.5, sl.frac) * parent.width : 0
-            width: sl.bipolar ? Math.abs(sl.frac - 0.5) * parent.width : parent.width * sl.frac
+            width: parent.width * sl.frac
             radius: 2; color: Theme.ember
         }
         Rectangle {

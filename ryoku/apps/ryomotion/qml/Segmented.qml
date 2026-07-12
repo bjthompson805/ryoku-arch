@@ -1,5 +1,5 @@
 import QtQuick
-import "Singletons"
+import RyoMotion
 
 // A row of equal-width options; the selected one glows ember.
 Row {

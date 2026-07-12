@@ -6,10 +6,11 @@
 # plus cursor-follow zoom. The zoom math (depth scales, easing, transition
 # windows) is ported from openscreen (MIT); see docs/ for attribution.
 #
-#   ryomotion record [--region|--monitor]   start recording (screen + cursor track)
-#   ryomotion stop                           stop the active recording
-#   ryomotion status                         print recording state as JSON
-#   ryomotion render <project.json> [out]    render a project to mp4/gif
+#   ryomotion-cli record [--region|--monitor]  start recording (screen + cursor track)
+#   ryomotion-cli stop                          stop the active recording
+#   ryomotion-cli status                        print recording state as JSON
+#   ryomotion-cli graph <project.json>          print the mpv lavfi-complex preview graph
+#   ryomotion-cli render <project.json> [out]   render a project to mp4/gif
 #
 # A project.json is a small document the editor writes; `render` is pure and
 # testable: give it a clip and it produces a framed, zoomed video.
@@ -183,26 +184,27 @@ auto_regions() {
   ' "$cur"
 }
 
-cmd_render() {
-  local proj="${1:?project.json required}" out="${2:-}"
-  need ffmpeg; need ffprobe; need jq; need magick
-  [[ -r $proj ]] || die "no such project: $proj"
+# escape a value for use inside an ffmpeg filter argument (paths, text).
+_mesc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/:/\\:/g' -e "s/'/\\\\'/g"; }
 
-  local clip cur fmt fps quality pad round shadow borderW borderColor zen depth aspect musicPath musicVol
-  clip=$(jq -r '.clip' "$proj"); cur=$(jq -r '.cursor // ""' "$proj")
-  fmt=$(jq -r '.format // "mp4"' "$proj"); fps=$(jq -r '.fps // 60' "$proj")
-  quality=$(jq -r '.quality // "good"' "$proj")
+# ---- prep: generate framing assets (bg+shadow, rounded mask, border) --------
+# Writes bg.png, mask.png, border.png (if any) + a `dims` file into <dir>.
+# Shared by the live preview (graph) and the export (render).
+cmd_prep() {
+  local proj="${1:?project.json required}" dir="${2:?dir required}"
+  need ffprobe; need magick; need jq
+  mkdir -p "$dir"
+  local clip pad round shadow borderW borderColor aspect kind a b solid angle image
+  clip=$(jq -r '.clip' "$proj")
   pad=$(jq -r '.padding // 0.06' "$proj"); round=$(jq -r '.roundness // 18' "$proj")
   shadow=$(jq -r '.shadow // 0.35' "$proj")
   borderW=$(jq -r '.border.w // 0' "$proj"); borderColor=$(jq -r '.border.color // "#ffffff"' "$proj")
-  zen=$(jq -r 'if (.zoom.auto // false) then "true" elif ((.zoom.regions // [] | length) > 0) then "true" else "false" end' "$proj")
-  depth=$(jq -r '.zoom.depth // 3' "$proj"); aspect=$(jq -r '.aspect // "auto"' "$proj")
-  musicPath=$(jq -r '.music.path // ""' "$proj"); musicVol=$(jq -r '.music.volume // 0.6' "$proj")
+  aspect=$(jq -r '.aspect // "auto"' "$proj")
+  kind=$(jq -r '.bg.kind // "gradient"' "$proj")
+  a=$(jq -r '.bg.a // "#4facfe"' "$proj"); b=$(jq -r '.bg.b // "#00c6a7"' "$proj")
+  solid=$(jq -r '.bg.solid // "#2b3350"' "$proj"); angle=$(jq -r '.bg.angle // 135' "$proj")
+  image=$(jq -r '.bg.image // ""' "$proj")
   [[ -r $clip ]] || die "clip not found: $clip"
-  [[ -n $out ]] || out="${proj%.json}_export.${fmt}"
-
-  # atempo only spans 0.5..2.0; chain to reach any rate.
-  _atempo() { awk -v s="$1" 'BEGIN{o="";while(s>2){o=o"atempo=2.0,";s/=2}while(s<0.5){o=o"atempo=0.5,";s*=2}printf "%satempo=%.4f", o, s}'; }
 
   local W H DUR
   W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$clip" | head -1)
@@ -211,10 +213,6 @@ cmd_render() {
   [[ -n $W && -n $H ]] || die "cannot probe clip dimensions"
   DUR=${DUR:-0}
 
-  local tmp bg mask; tmp=$(mktemp -d); bg="$tmp/bg.png"; mask="$tmp/mask.png"
-  trap 'rm -rf "${tmp:-}"' EXIT
-
-  # canvas = padded video, expanded to the chosen aspect, video centred.
   local cw ch vx vy
   read -r cw ch vx vy _ < <(awk -v w="$W" -v h="$H" -v p="$pad" -v asp="$aspect" 'BEGIN{
     m=(w>h?w:h); pad=int(m*p+0.5); bw=w+2*pad; bh=h+2*pad; cw=bw; ch=bh; ar=0;
@@ -223,53 +221,57 @@ cmd_render() {
     if(cw%2)cw++; if(ch%2)ch++; vx=int((cw-w)/2); vy=int((ch-h)/2); if(vx<0)vx=0; if(vy<0)vy=0;
     printf "%d %d %d %d %d\n", cw, ch, vx, vy, pad }')
 
-  # background
-  local kind a b solid angle image
-  kind=$(jq -r '.bg.kind // "gradient"' "$proj")
-  a=$(jq -r '.bg.a // "#4facfe"' "$proj"); b=$(jq -r '.bg.b // "#00c6a7"' "$proj")
-  solid=$(jq -r '.bg.solid // "#2b3350"' "$proj"); angle=$(jq -r '.bg.angle // 135' "$proj")
-  image=$(jq -r '.bg.image // ""' "$proj")
   case "$kind" in
-  solid) magick -size "${cw}x${ch}" "xc:${solid}" "$tmp/base.png" ;;
-  image) if [[ -r $image ]]; then magick "$image" -resize "${cw}x${ch}^" -gravity center -extent "${cw}x${ch}" "$tmp/base.png"
-         else magick -size "${cw}x${ch}" "xc:${solid}" "$tmp/base.png"; fi ;;
-  *) magick -size "${cw}x${ch}" -define gradient:angle="$angle" "gradient:${a}-${b}" "$tmp/base.png" 2>/dev/null \
-       || magick -size "${cw}x${ch}" "gradient:${a}-${b}" "$tmp/base.png" ;;
+  solid) magick -size "${cw}x${ch}" "xc:${solid}" "$dir/base.png" ;;
+  image) if [[ -r $image ]]; then magick "$image" -resize "${cw}x${ch}^" -gravity center -extent "${cw}x${ch}" "$dir/base.png"
+         else magick -size "${cw}x${ch}" "xc:${solid}" "$dir/base.png"; fi ;;
+  *) magick -size "${cw}x${ch}" -define gradient:angle="$angle" "gradient:${a}-${b}" "$dir/base.png" 2>/dev/null \
+       || magick -size "${cw}x${ch}" "gradient:${a}-${b}" "$dir/base.png" ;;
   esac
 
-  # shadow: blurred rounded black rect at the video rect, offset (0, SHADOW_DY).
   local sx0 sy0 sx1 sy1 salpha
   sx0=$vx; sy0=$((vy + SHADOW_DY)); sx1=$((vx + W - 1)); sy1=$((vy + H - 1 + SHADOW_DY))
   salpha=$(awk -v s="$shadow" 'BEGIN{printf "%.3f", s}')
-  magick "$tmp/base.png" \
+  magick "$dir/base.png" \
     \( -size "${cw}x${ch}" xc:none -fill "rgba(0,0,0,${salpha})" \
        -draw "roundrectangle ${sx0},${sy0} ${sx1},${sy1} ${round},${round}" -blur "0x${SHADOW_BLUR}" \) \
-    -compose over -composite "$bg"
+    -compose over -composite "$dir/bg.png"
   magick -size "${W}x${H}" xc:black -fill white \
-    -draw "roundrectangle 0,0 $((W - 1)),$((H - 1)) ${round},${round}" "$mask"
+    -draw "roundrectangle 0,0 $((W - 1)),$((H - 1)) ${round},${round}" "$dir/mask.png"
 
-  # optional border, overlaid on the video edges.
-  local border_input=()
+  local hasBorder=0
   if [[ $(awk -v x="$borderW" 'BEGIN{print (x>0)}') == 1 ]]; then
     local bhw; bhw=$(awk -v x="$borderW" 'BEGIN{printf "%d", x/2}')
     magick -size "${W}x${H}" xc:none -stroke "$borderColor" -strokewidth "$borderW" -fill none \
-      -draw "roundrectangle ${bhw},${bhw} $((W - 1 - bhw)),$((H - 1 - bhw)) ${round},${round}" "$tmp/border.png"
-    border_input=(-i "$tmp/border.png")
+      -draw "roundrectangle ${bhw},${bhw} $((W - 1 - bhw)),$((H - 1 - bhw)) ${round},${round}" "$dir/border.png"
+    hasBorder=1
   fi
+  printf '%s %s %s %s %s %s %s %s\n' "$W" "$H" "$DUR" "$cw" "$ch" "$vx" "$vy" "$hasBorder" >"$dir/dims"
+}
 
-  # zoom crop expression (project regions, else cursor-derived).
+# ---- build the framing lavfi graph (shared by preview + export) ------------
+# Emits ONE graph string: movie-sourced bg/mask/border/overlays + crop-zoom +
+# rounding + drawtext. Identical for mpv (lavfi-complex) and ffmpeg; only the
+# main-input label and output label differ.
+#   build_graph <proj> <dir> <main_label> <out_label>
+build_graph() {
+  local proj="$1" dir="$2" main="$3" outlbl="$4"
+  local W H DUR cw ch vx vy hasBorder
+  read -r W H DUR cw ch vx vy hasBorder <"$dir/dims"
+  local zen depth cur
+  zen=$(jq -r 'if (.zoom.auto // false) then "true" elif ((.zoom.regions // [] | length) > 0) then "true" else "false" end' "$proj")
+  depth=$(jq -r '.zoom.depth // 3' "$proj"); cur=$(jq -r '.cursor // ""' "$proj")
+
   local vf_zoom=""
   if [[ $zen == true ]]; then
     mapfile -t regions < <(jq -r '.zoom.regions[]? | "\(.start) \(.end) \(.cx // 0.5) \(.cy // 0.5)"' "$proj")
     if ((${#regions[@]} == 0)) && [[ -n $cur && -r $cur ]]; then mapfile -t regions < <(auto_regions "$cur"); fi
     if ((${#regions[@]} > 0)); then
-      local Z FX FY
-      IFS=$'\t' read -r Z FX FY < <(zoom_exprs "$depth" "${regions[@]}")
+      local Z FX FY; IFS=$'\t' read -r Z FX FY < <(zoom_exprs "$depth" "${regions[@]}")
       vf_zoom="crop=w='iw/(${Z})':h='ih/(${Z})':x='(iw-iw/(${Z}))*(${FX})':y='(ih-ih/(${Z}))*(${FY})',scale=${W}:${H}:flags=bicubic,"
     fi
   fi
 
-  # text overlays: drawtext on the framed canvas, enabled over each span.
   local drawchain=""
   while IFS=$'\t' read -r ts te tx ty tsz tcol ttext; do
     [[ -n $ts ]] || continue
@@ -279,15 +281,84 @@ cmd_render() {
     drawchain="${drawchain},drawtext=text='${esc}':font='Space Grotesk':fontcolor=${tcol}:fontsize=${fs}:x=(${cw}*${tx}-text_w/2):y=(${ch}*${ty}-text_h/2):enable='between(t,${ts},${te})'"
   done < <(jq -r '.texts[]? | "\(.start)\t\(.end)\t\(.x)\t\(.y)\t\(.size)\t\(.color)\t\(.text)"' "$proj")
 
-  # video overlays (clip-in-clip): scaled + positioned on the canvas, per span.
-  local overlay_input=() ovs_ok=() op ostart oend ox oy osc
+  local bgp maskp g last
+  bgp=$(_mesc "$dir/bg.png"); maskp=$(_mesc "$dir/mask.png")
+  g="movie='${bgp}':loop=0,setpts=N/(30*TB)[bg];movie='${maskp}':loop=0,setpts=N/(30*TB)[mask];"
+  g="${g}${main}setpts=PTS-STARTPTS,${vf_zoom}scale=${W}:${H}:flags=bicubic,format=rgba[v0];[v0][mask]alphamerge[vr];[bg][vr]overlay=${vx}:${vy}:format=auto:shortest=1[f0]"
+  last="f0"
+  if [[ $hasBorder == 1 ]]; then
+    local bdp; bdp=$(_mesc "$dir/border.png")
+    g="${g};movie='${bdp}':loop=0,setpts=N/(30*TB)[bd];[${last}][bd]overlay=${vx}:${vy}:shortest=1[fb]"; last="fb"
+  fi
+  if [[ -n $drawchain ]]; then g="${g};[${last}]${drawchain#,}[ft]"; last="ft"; fi
+
+  local oi=0 op ostart oend ox oy osc
   while IFS=$'\t' read -r op ostart oend ox oy osc; do
     [[ -n $op && -r $op ]] || continue
-    overlay_input+=(-i "$op")
-    ovs_ok+=("${op}"$'\t'"${ostart}"$'\t'"${oend}"$'\t'"${ox}"$'\t'"${oy}"$'\t'"${osc}")
+    local ow opp; ow=$(awk -v c="$cw" -v s="$osc" 'BEGIN{printf "%d", c*s}'); opp=$(_mesc "$op")
+    g="${g};movie='${opp}':loop=0,scale=w=${ow}:h=-2[ov$oi];[${last}][ov$oi]overlay=x='(main_w*${ox}-overlay_w/2)':y='(main_h*${oy}-overlay_h/2)':shortest=1:enable='between(t,${ostart},${oend})'[of$oi]"
+    last="of$oi"; oi=$((oi + 1))
   done < <(jq -r '.overlays[]? | "\(.path)\t\(.start)\t\(.end)\t\(.x)\t\(.y)\t\(.scale)"' "$proj")
 
-  # final segments from trims (spans to remove) + speeds (per-span rate).
+  g="${g};[${last}]null${outlbl}"
+  printf '%s\n' "$g"
+}
+
+# ---- graph: print the mpv `vf` chain for the live preview -------------------
+# Video-only (zoom + text) so mpv gets clean timestamps; the QML stage draws the
+# background/shadow/padding and rounds the item. Zoom + text use the SAME
+# expressions the exporter bakes, so the video matches the export exactly.
+cmd_graph() {
+  local proj="${1:?project.json required}"
+  need ffprobe; need jq
+  local clip cur zen depth W H
+  clip=$(jq -r '.clip' "$proj"); cur=$(jq -r '.cursor // ""' "$proj")
+  zen=$(jq -r 'if (.zoom.auto // false) then "true" elif ((.zoom.regions // [] | length) > 0) then "true" else "false" end' "$proj")
+  depth=$(jq -r '.zoom.depth // 3' "$proj")
+  W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$clip" | head -1)
+  H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$clip" | head -1)
+  [[ -n $W && -n $H ]] || { printf 'null\n'; return; }
+
+  local chain=""
+  if [[ $zen == true ]]; then
+    mapfile -t regions < <(jq -r '.zoom.regions[]? | "\(.start) \(.end) \(.cx // 0.5) \(.cy // 0.5)"' "$proj")
+    if ((${#regions[@]} == 0)) && [[ -n $cur && -r $cur ]]; then mapfile -t regions < <(auto_regions "$cur"); fi
+    if ((${#regions[@]} > 0)); then
+      local Z FX FY; IFS=$'\t' read -r Z FX FY < <(zoom_exprs "$depth" "${regions[@]}")
+      chain="crop=w='iw/(${Z})':h='ih/(${Z})':x='(iw-iw/(${Z}))*(${FX})':y='(ih-ih/(${Z}))*(${FY})',scale=${W}:${H}:flags=bicubic"
+    fi
+  fi
+  while IFS=$'\t' read -r ts te tx ty tsz tcol ttext; do
+    [[ -n $ts ]] || continue
+    local esc fs
+    esc=$(printf '%s' "$ttext" | sed -e 's/\\/\\\\/g' -e 's/:/\\:/g' -e "s/'/\\\\'/g" -e 's/%/\\%/g')
+    fs=$(awk -v s="$tsz" -v c="$H" 'BEGIN{printf "%d", s*c}')
+    chain="${chain:+${chain},}drawtext=text='${esc}':font='Space Grotesk':fontcolor=${tcol}:fontsize=${fs}:x=(${W}*${tx}-text_w/2):y=(${H}*${ty}-text_h/2):enable='between(t,${ts},${te})'"
+  done < <(jq -r '.texts[]? | "\(.start)\t\(.end)\t\(.x)\t\(.y)\t\(.size)\t\(.color)\t\(.text)"' "$proj")
+  [[ -z $chain ]] && chain="null"
+  printf '[vid1]%s[vo]\n' "$chain"
+}
+
+# ---- render: framing (shared graph) + cut/speed segmentation + audio --------
+cmd_render() {
+  local proj="${1:?project.json required}" out="${2:-}"
+  need ffmpeg; need ffprobe; need jq; need magick
+  [[ -r $proj ]] || die "no such project: $proj"
+  local clip fmt fps quality musicPath musicVol
+  clip=$(jq -r '.clip' "$proj"); fmt=$(jq -r '.format // "mp4"' "$proj")
+  fps=$(jq -r '.fps // 60' "$proj"); quality=$(jq -r '.quality // "good"' "$proj")
+  musicPath=$(jq -r '.music.path // ""' "$proj"); musicVol=$(jq -r '.music.volume // 0.6' "$proj")
+  [[ -r $clip ]] || die "clip not found: $clip"
+  [[ -n $out ]] || out="${proj%.json}_export.${fmt}"
+
+  _atempo() { awk -v s="$1" 'BEGIN{o="";while(s>2){o=o"atempo=2.0,";s/=2}while(s<0.5){o=o"atempo=0.5,";s*=2}printf "%satempo=%.4f", o, s}'; }
+
+  local tmp; tmp=$(mktemp -d); trap 'rm -rf "${tmp:-}"' EXIT
+  cmd_prep "$proj" "$tmp" >/dev/null
+  local W H DUR cw ch vx vy hasBorder
+  read -r W H DUR cw ch vx vy hasBorder <"$tmp/dims"
+  local framing; framing=$(build_graph "$proj" "$tmp" "[0:v]" "[framed]")
+
   jq -r '.trims[]? | "\(.start) \(.end)"' "$proj" >"$tmp/trims"
   jq -r '.speeds[]? | "\(.start) \(.end) \(.speed)"' "$proj" >"$tmp/speeds"
   mapfile -t segs < <(awk -v dur="$DUR" '
@@ -308,50 +379,35 @@ cmd_render() {
       }
     }' "$tmp/trims" "$tmp/speeds")
 
-  # a plain pass = one segment, full length, unit speed, no trims.
   local simple=0 s0 e0 sp0
   if ((${#segs[@]} == 0)); then simple=1
-  elif ((${#segs[@]} == 1)); then
-    read -r s0 e0 sp0 <<<"${segs[0]}"
-    [[ $(awk -v s="$sp0" 'BEGIN{print (s==1)}') == 1 ]] && simple=1
-  fi
+  elif ((${#segs[@]} == 1)); then read -r s0 e0 sp0 <<<"${segs[0]}"; [[ $(awk -v s="$sp0" 'BEGIN{print (s==1)}') == 1 ]] && simple=1; fi
 
-  # downscale for quality tiers (never upscale).
+  # bound the encode: the framing graph has infinite movie sources (fine for the
+  # live preview, but the export must stop). output length = sum of kept spans / speed.
+  local outdur
+  if ((${#segs[@]} == 0)); then outdur=$DUR
+  else outdur=$(printf '%s\n' "${segs[@]}" | awk '{d+=($2-$1)/$3} END{printf "%.3f", d+0.05}'); fi
+
   local scalev="" crf=18
   case "$quality" in
   medium) (( ch > 720 )) && scalev="scale=-2:720:flags=bicubic,"; crf=21 ;;
   good)   (( ch > 1080 )) && scalev="scale=-2:1080:flags=bicubic," ;;
   esac
 
-  # video filtergraph. inputs: 0 clip, 1 bg, 2 mask, [border], [music].
-  local fg framed nextidx
-  fg="[0:v]setpts=PTS-STARTPTS,${vf_zoom}scale=${W}:${H}:flags=bicubic,format=rgba[vz];[vz][2:v]alphamerge[vr];[1:v][vr]overlay=${vx}:${vy}:format=auto[fr0]"
-  framed="fr0"; nextidx=3
-  if ((${#border_input[@]} > 0)); then fg="${fg};[fr0][${nextidx}:v]overlay=${vx}:${vy}[fr1]"; framed="fr1"; nextidx=$((nextidx + 1)); fi
-  if [[ -n $drawchain ]]; then fg="${fg};[${framed}]${drawchain#,}[frd]"; framed="frd"; fi
-  # composite the video overlays onto the framed canvas (original timeline).
-  local oi os2 oe2 ox2 oy2 osc2 ow2
-  for ((oi = 0; oi < ${#ovs_ok[@]}; oi++)); do
-    IFS=$'\t' read -r _ os2 oe2 ox2 oy2 osc2 <<<"${ovs_ok[$oi]}"
-    ow2=$(awk -v c="$cw" -v s="$osc2" 'BEGIN{printf "%d", c*s}')
-    fg="${fg};[${nextidx}:v]scale=w=${ow2}:h=-2[ovs$oi];[${framed}][ovs$oi]overlay=x='(main_w*${ox2}-overlay_w/2)':y='(main_h*${oy2}-overlay_h/2)':enable='between(t,${os2},${oe2})'[ovf$oi]"
-    framed="ovf$oi"; nextidx=$((nextidx + 1))
-  done
-
-  local mapv="[outv]" i n
+  local fg="$framing" mapv="[outv]" i n
   if ((simple == 1)); then
-    fg="${fg};[${framed}]${scalev}format=yuv420p[outv]"
+    fg="${fg};[framed]${scalev}format=yuv420p[outv]"
   else
     n=${#segs[@]}; local splitlbl="" concatv=""
     for ((i = 0; i < n; i++)); do splitlbl="${splitlbl}[fs$i]"; concatv="${concatv}[v$i]"; done
-    fg="${fg};[${framed}]split=${n}${splitlbl}"
+    fg="${fg};[framed]split=${n}${splitlbl}"
     for ((i = 0; i < n; i++)); do read -r s0 e0 sp0 <<<"${segs[$i]}"; fg="${fg};[fs$i]trim=start=${s0}:end=${e0},setpts=(PTS-STARTPTS)/${sp0}[v$i]"; done
     fg="${fg};${concatv}concat=n=${n}:v=1:a=0[cv];[cv]${scalev}format=yuv420p[outv]"
   fi
 
-  # audio: original track cut+re-timed to match, plus optional music.
-  local afg="" aud="" mapa="" musidx
-  local hasA; hasA=$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$clip" | head -1)
+  local afg="" aud="" mapa="" hasA
+  hasA=$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$clip" | head -1)
   if [[ -n $hasA ]]; then
     if ((simple == 1)); then afg="[0:a]asetpts=PTS-STARTPTS[aud]"; aud="aud"
     else
@@ -367,25 +423,24 @@ cmd_render() {
   local music_input=()
   if [[ -n $musicPath && -r $musicPath ]]; then
     music_input=(-i "$musicPath")
-    musidx=$nextidx
     local mvol; mvol=$(awk -v v="$musicVol" 'BEGIN{printf "%.3f", v}')
-    if [[ -n $aud ]]; then afg="${afg};[${musidx}:a]volume=${mvol}[mus];[${aud}][mus]amix=inputs=2:duration=first:dropout_transition=0[outa]"
-    else afg="${afg}${afg:+;}[${musidx}:a]volume=${mvol}[outa]"; fi
+    if [[ -n $aud ]]; then afg="${afg};[1:a]volume=${mvol}[mus];[${aud}][mus]amix=inputs=2:duration=first:dropout_transition=0[outa]"
+    else afg="${afg}${afg:+;}[1:a]volume=${mvol}[outa]"; fi
     mapa="[outa]"
   elif [[ -n $aud ]]; then mapa="[${aud}]"; fi
 
   local full="$fg${afg:+;$afg}"
-  local -a inputs=(-i "$clip" -i "$bg" -i "$mask" "${border_input[@]}" "${overlay_input[@]}" "${music_input[@]}")
+  local -a inputs=(-i "$clip" "${music_input[@]}")
 
   if [[ $fmt == gif ]]; then
     local gfps comp; gfps=$(awk -v f="$fps" 'BEGIN{print (f>30?20:f)}'); comp="$tmp/composite.mp4"
-    ffmpeg -y "${inputs[@]}" -filter_complex "$full" -map "$mapv" -an -c:v libx264 -pix_fmt yuv420p -crf 18 -preset fast "$comp" 2>"$tmp/err" || { tail -6 "$tmp/err" >&2; die "gif compositing failed"; }
+    ffmpeg -y "${inputs[@]}" -filter_complex "$full" -map "$mapv" -an -t "$outdur" -c:v libx264 -pix_fmt yuv420p -crf 18 -preset fast "$comp" 2>"$tmp/err" || { tail -6 "$tmp/err" >&2; die "gif compositing failed"; }
     ffmpeg -y -i "$comp" -vf "fps=${gfps},palettegen=stats_mode=diff" "$tmp/pal.png" 2>/dev/null || die "gif palette failed"
     ffmpeg -y -i "$comp" -i "$tmp/pal.png" -lavfi "fps=${gfps}[x];[x][1:v]paletteuse=dither=sierra2_4a" "$out" 2>/dev/null || die "gif render failed"
   else
     local -a amap
     if [[ -n $mapa ]]; then amap=(-map "$mapa" -c:a aac -b:a 192k); else amap=(-an); fi
-    ffmpeg -y "${inputs[@]}" -filter_complex "$full" -map "$mapv" "${amap[@]}" \
+    ffmpeg -y "${inputs[@]}" -filter_complex "$full" -map "$mapv" "${amap[@]}" -t "$outdur" \
       -c:v libx264 -pix_fmt yuv420p -crf "$crf" -preset medium -movflags +faststart "$out" 2>"$tmp/err" || { tail -6 "$tmp/err" >&2; die "mp4 render failed"; }
   fi
   echo "$out"
@@ -398,6 +453,8 @@ main() {
   stop) cmd_stop "$@" ;;
   status) cmd_status "$@" ;;
   render) cmd_render "$@" ;;
+  graph) cmd_graph "$@" ;;
+  prep) cmd_prep "$@" ;;
   _cursorlog) cmd_cursorlog "$@" ;;
   ""|-h|--help)
     grep -E '^#( |$)' "$0" | sed -E 's/^# ?//'; ;;

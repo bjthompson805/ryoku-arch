@@ -1,10 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import "Singletons"
+import RyoMotion
 
-// The tool rail: a vertical strip of icon buttons down the left edge. Picking
-// one switches the contextual panel (the Inspector) beside it. Icon + label,
-// the selected one lit in ember with a left accent, like openscreen's rail.
+// The tool rail down the left edge; picking a tool switches the Inspector panel.
 Rectangle {
     id: rail
     width: 74
@@ -22,6 +20,7 @@ Rectangle {
         { "key": "cursor", "icon": "cursor", "label": "Cursor" },
         { "key": "export", "icon": "export", "label": "Export" }
     ]
+
     Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: Theme.hair }
 
     Column {
@@ -37,7 +36,7 @@ Rectangle {
                 required property var modelData
                 readonly property bool on: Project.tool === modelData.key
                 width: 66
-                height: 52
+                height: 50
 
                 Rectangle {
                     anchors.fill: parent
