@@ -3,14 +3,18 @@
 ## Unreleased
 
 ### Added
-- **Rices: the reworked, full-desktop theming system (backend).** `ryoku-hub`
-  gains a `rice` command set that captures the whole desktop look (the four
-  `~/.config/ryoku` stores, wallpaper, launcher hero, cursor) as a named,
-  versioned rice, applies one with a layered merge that leaves a recipient's
-  personal keys untouched, flips the colour master and writes a fixed palette
-  when the rice pins one, and reverts to a pristine snapshot in one step
-  (`rice list | capture | apply | restore | save | fork | delete`). The
-  Appearance Rices tab that drives it lands next (`backend/rice.go`).
+- **Rices: the reworked, full-desktop theming system.** The Appearance
+  **Themes** tab is now **Rices**: browse whole-desktop looks as big-preview
+  cards, apply one in a tap, and restore your original setup in one click. A
+  rice captures the whole look (the four `~/.config/ryoku` stores, wallpaper,
+  launcher hero, cursor) as a named, versioned document; applying it merges only
+  look keys so a recipient's personal settings stay put, flips the colour master
+  and writes a fixed palette when the rice pins one, and every apply first
+  snapshots the live setup so **Restore original** is a byte-for-byte revert.
+  Save the current desktop as a rice, duplicate or delete your own, and see
+  which is active. The community store and shipped showcase rices land next
+  (`RicesPage.qml`, `RiceTile.qml`, `RiceDetail.qml`, `AppearancePage.qml`,
+  `backend/rice.go`).
 - **The Visualizer tab gains four new looks and deeper control.** Style now
   offers **Line** (a stiff angular readout), **Segments** (a lit LED stack per
   band), **Radial** (a ring of bars around a pulsing centre) and **Circle** (a

@@ -176,7 +176,7 @@ Item {
         anchors.left: parent.left
         anchors.top: parent.top
         model: [
-            { "key": "themes", "label": "Themes" },
+            { "key": "rices", "label": "Rices" },
             { "key": "look", "label": "Look" },
             { "key": "borders", "label": "Borders" },
             { "key": "cursor", "label": "Cursor" },
@@ -229,7 +229,7 @@ Item {
             width: flick.width - 12
             height: item ? item.implicitHeight : 0
             y: 0
-            sourceComponent: page.group === "themes" ? themeComp
+            sourceComponent: page.group === "rices" ? ricesComp
                 : page.group === "look" ? lookComp
                 : page.group === "borders" ? bordersComp
                 : page.group === "cursor" ? cursorComp
@@ -247,12 +247,8 @@ Item {
     }
 
     Component {
-        id: themeComp
-        UnderConstruction {
-            implicitHeight: flick.height
-            icon: "palette"
-            blurb: "Full-system themes are being rebuilt from scratch. The previous rices have been retired while the new theming system takes shape."
-        }
+        id: ricesComp
+        RicesPage {}
     }
 
     Component {
