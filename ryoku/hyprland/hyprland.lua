@@ -34,11 +34,6 @@ require("modules.window_rules")
 require("modules.fullscreen")
 require("modules.autostart")
 
--- selected theme's real Lua (motion, decoration nuances). after the base
--- modules but before settings.lua, so a Look-tab tweak still wins over the
--- theme.
-optional("theme")
-
 -- machine-state written by the hub (ryoku-hub), never shipped. after the base
 -- modules so the GUI's tweaks override the defaults, before user.lua so a
 -- hand-written user file still wins.

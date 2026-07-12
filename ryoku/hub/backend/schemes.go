@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed schemes/light.json schemes/dark.json
@@ -83,4 +84,83 @@ func applyScheme(mode string) error {
 	hyprReload()
 	_ = exec.Command("pkill", "-USR1", "-x", "kitty").Run()
 	return nil
+}
+
+// themeState persists the palette master: whether colours track the wallpaper
+// (wallust) and, when they don't, which curated scheme is locked. Lives at
+// ~/.config/ryoku/theme.json.
+type themeState struct {
+	FollowWallpaper bool   `json:"followWallpaper"`
+	Scheme          string `json:"scheme,omitempty"`
+}
+
+func themeStatePath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "ryoku", "theme.json")
+}
+
+// loadThemeState defaults FollowWallpaper=true on a missing/blank file (the
+// shipped behaviour: colours track the wallpaper).
+func loadThemeState() themeState {
+	s := themeState{FollowWallpaper: true}
+	if b, err := os.ReadFile(themeStatePath()); err == nil {
+		_ = json.Unmarshal(b, &s)
+	}
+	return s
+}
+
+func saveThemeState(s themeState) {
+	_ = atomicWrite(themeStatePath(), mustJSON(s), 0o644)
+}
+
+func wallustCacheDir() string {
+	base := os.Getenv("XDG_CACHE_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".cache")
+	}
+	return filepath.Join(base, "wallust")
+}
+
+func kittyThemePath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		base = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(base, "kitty", "current-theme.conf")
+}
+
+// paletteAccent = the active-border colour: color4 by wallust convention.
+func paletteAccent(p map[string]string) string {
+	if c := p["color4"]; c != "" {
+		return c
+	}
+	return p["foreground"]
+}
+
+// renderKitty fills kitty's current-theme.conf from the palette (cursor =
+// foreground), matches the wallust kitty template.
+func renderKitty(p map[string]string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "background %s\n", p["background"])
+	fmt.Fprintf(&b, "foreground %s\n", p["foreground"])
+	fmt.Fprintf(&b, "cursor %s\n", p["foreground"])
+	fmt.Fprintf(&b, "cursor_text_color %s\n", p["background"])
+	fmt.Fprintf(&b, "selection_background %s\n", p["color8"])
+	fmt.Fprintf(&b, "selection_foreground %s\n", p["foreground"])
+	for i := range 16 {
+		key := fmt.Sprintf("color%d", i)
+		fmt.Fprintf(&b, "%s %s\n", key, p[key])
+	}
+	return b.String()
+}
+
+func mustJSON(v any) []byte {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return []byte("{}")
+	}
+	return b
 }

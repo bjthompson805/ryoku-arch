@@ -475,10 +475,6 @@ func runHypr(args []string) error {
 	switch args[0] {
 	case "get":
 		o := loadOverrides()
-		// a pre-migration theme.lua folds into the store once, so the UI shows
-		// the live look instead of fighting it. no reload needed: the folded
-		// values equal what the stale copy already applied.
-		_ = healThemeLua(&o)
 		_ = writeGeneratedLua(o) // re-emit settings.lua if a deploy wiped it
 		return printJSON(o)
 	case "defaults":
@@ -527,18 +523,6 @@ func runHypr(args []string) error {
 			return fmt.Errorf("hypr variants needs a layout code")
 		}
 		return printJSON(listKbVariants(args[1]))
-	case "themes":
-		return printJSON(listThemes())
-	case "theme":
-		if len(args) < 2 {
-			return fmt.Errorf("hypr theme needs a slug")
-		}
-		return applyTheme(args[1])
-	case "colorsource":
-		if len(args) < 2 {
-			return fmt.Errorf("hypr colorsource needs follow|fixed")
-		}
-		return setFollowWallpaper(args[1] == "follow")
 	case "scheme":
 		if len(args) < 2 {
 			return printJSON(map[string]string{"scheme": currentScheme()})

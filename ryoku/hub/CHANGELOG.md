@@ -137,6 +137,17 @@
   **Reserve space below the island** toggle closes the top gap when off
   (windows rise to the frame, the island floats over them).
 
+### Removed
+- **Appearance Themes is under construction.** The full-system theme "rices" (a
+  bento grid that swapped the look and real Hyprland motion Lua) are retired: the
+  tab now shows an "under construction" placeholder. Gone with them are the
+  shipped `hyprland/themes/` folder, the `ryoku-hub hypr theme|themes|colorsource`
+  backend, and the `theme.lua` layer that `hyprland.lua` loaded. Colours still
+  follow the wallpaper or a fixed Light or Dark palette (Appearance -> Wallpaper).
+  A leftover `~/.config/hypr/theme.lua` is pruned by `ryoku doctor`
+  (`AppearancePage.qml`, `ThemesPage.qml`, `ThemeTile.qml`, `backend/theme.go`,
+  `backend/schemes.go`, `backend/hypr.go`).
+
 ### Fixed
 - **Live preview and touchpad toggles work again.** Every appearance/input
   preview (and any saved tap-to-click divergence) generated

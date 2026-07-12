@@ -259,6 +259,48 @@ func TestReconcileHyprlandConfigNoConfig(t *testing.T) {
 	}
 }
 
+func TestReconcileThemeLua(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("PATH", "")
+
+	hypr := filepath.Join(home, ".config", "hypr")
+	if err := os.MkdirAll(hypr, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	themeLua := filepath.Join(hypr, "theme.lua")
+
+	// absent: nothing to prune.
+	if r := reconcileThemeLua(false); r.status != recOK {
+		t.Fatalf("absent: status=%s, want ok", r.status.label())
+	}
+
+	// present: check-only reports the fix without removing the file.
+	if err := os.WriteFile(themeLua, []byte("hl.curve(\"x\", {})\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := reconcileThemeLua(true); r.status != recWouldFix {
+		t.Fatalf("check-only: status=%s detail=%q, want todo", r.status.label(), r.detail)
+	}
+	if !sys.Exists(themeLua) {
+		t.Fatal("check-only must not remove theme.lua")
+	}
+
+	// fix: the orphaned file is pruned.
+	if r := reconcileThemeLua(false); r.status != recFixed {
+		t.Fatalf("fix: status=%s detail=%q, want fixed", r.status.label(), r.detail)
+	}
+	if sys.Exists(themeLua) {
+		t.Fatal("fix must remove the orphaned theme.lua")
+	}
+
+	// idempotent: a second run is a clean ok.
+	if r := reconcileThemeLua(false); r.status != recOK {
+		t.Fatalf("second run: status=%s, want ok", r.status.label())
+	}
+}
+
 // the snapper reconciler's decision logic lives in planSnapper, a pure
 // function of an observed snapperState. exercising it directly stays
 // hermetic: no real /etc, no snapper or btrfs invocation, just the branch

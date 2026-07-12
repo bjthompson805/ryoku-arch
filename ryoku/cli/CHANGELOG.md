@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- **`doctor` prunes an orphaned `theme.lua`.** Removing the Appearance Themes
+  feature left a `~/.config/hypr/theme.lua` on boxes that had a theme applied, and
+  `hyprland.lua` no longer loads it. A new reconciler removes the dead file so the
+  config dir matches the shipped layout (`internal/doctor/doctor.go`).
 - **`ryoku update` shows real, determinate progress.** The run-state the update
   island and the Hub's Updates page watch now carries the update's ordered
   stages (snapshot, packages, AUR, apply, reload, doctor, finalize), each with

@@ -115,6 +115,7 @@ func reconcilers() []reconciler {
 		{"SDDM greeter theme", reconcileGreeterTheme},
 		{"fastfetch readout emblem", reconcileFastfetchEmblem},
 		{"Hyprland config integrity", reconcileHyprlandConfig},
+		{"orphaned theme.lua", reconcileThemeLua},
 		{"follow-mouse default", reconcileFollowMouseDefault},
 		{"ryoku shell daemon", reconcileShellDaemon},
 		{"failed services", reconcileFailedUnits},
@@ -1571,9 +1572,30 @@ func reconcileHyprlandConfig(checkOnly bool) recResult {
 
 	if e := liveConfigErrors(live); e != "" {
 		return warnRes("Hyprland is rejecting its config: %s", firstLine(e)).
-			withFix("check ~/.config/hypr/user.lua, settings.lua, or theme.lua")
+			withFix("check ~/.config/hypr/user.lua or settings.lua")
 	}
 	return okRes("Hyprland config loads cleanly")
+}
+
+// reconcileThemeLua prunes an orphaned ~/.config/hypr/theme.lua. The Appearance
+// Themes feature copied a rice's motion Lua there and hyprland.lua loaded it via
+// optional("theme"); both are gone now, so the file no longer loads and lingers
+// as dead state, only on a box that had a theme applied. Remove it so the config
+// dir matches the shipped layout. Idempotent: ok when absent.
+func reconcileThemeLua(checkOnly bool) recResult {
+	p := filepath.Join(sys.ConfigHome(), "hypr", "theme.lua")
+	if !sys.Exists(p) {
+		return okRes("no orphaned theme.lua")
+	}
+	if checkOnly {
+		return wouldRes("orphaned theme.lua from the retired Themes feature: %s", p).
+			withFix("run `ryoku doctor` to remove it")
+	}
+	if err := os.Remove(p); err != nil {
+		return failRes("could not remove orphaned theme.lua: %v", err).
+			withFix("remove %s by hand", p)
+	}
+	return fixedRes("removed the orphaned theme.lua left by the retired Themes feature")
 }
 
 // reconcileDisplayModes recovers a monitor a degraded link left below its

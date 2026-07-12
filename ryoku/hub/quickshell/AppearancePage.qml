@@ -17,7 +17,7 @@ Item {
     // Read by the hub to drop an unsaved live preview when this page is left.
     readonly property bool previewDirty: store.dirty
 
-    property string group: "themes"
+    property string group: "look"
     property var cursorThemes: []
 
     Process {
@@ -248,7 +248,11 @@ Item {
 
     Component {
         id: themeComp
-        ThemesPage {}
+        UnderConstruction {
+            implicitHeight: flick.height
+            icon: "palette"
+            blurb: "Full-system themes are being rebuilt from scratch. The previous rices have been retired while the new theming system takes shape."
+        }
     }
 
     Component {
@@ -552,7 +556,7 @@ Item {
                 width: Math.min(parent.width, 620)
                 wrapMode: Text.WordWrap
                 text: page.scheme === "follow"
-                    ? "Border colours follow the wallpaper palette. Turn off \u201cColours follow wallpaper\u201d in Themes to set fixed colours."
+                    ? "Border colours follow the wallpaper palette. Pick a fixed Light or Dark palette in Wallpaper to set fixed colours."
                     : "Borders use the fixed colours below."
                 color: Theme.dim
                 font.family: Theme.font
@@ -757,7 +761,7 @@ Item {
                     text: page.scheme === "light" || page.scheme === "dark"
                         ? "A fixed " + page.scheme + " palette, kept across wallpaper changes."
                         : page.scheme === "custom"
-                          ? "A theme owns the palette now. Pick Follow, Light, or Dark to change it."
+                          ? "A fixed palette is set. Pick Follow, Light, or Dark to change it."
                           : "Colours are derived from your wallpaper and update when it changes."
                     color: Theme.dim
                     font.family: Theme.font

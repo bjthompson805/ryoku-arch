@@ -143,7 +143,7 @@ Item {
         }
 
         // Ryoku-style workspace numeral: a bold zero-padded mono ordinal in the
-        // top-left, vermillion when active/hovered (mirrors the Hub ThemeTile).
+        // top-left, vermillion when active/hovered.
         // Above the previews (z), on a faint chip so it reads over any window.
         Rectangle {
             id: numChip
