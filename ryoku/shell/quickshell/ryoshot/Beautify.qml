@@ -53,6 +53,7 @@ Item {
     property real adjSat: 0
     property string ratioKey: "auto"
     property bool watermark: false
+    readonly property string userName: Quickshell.env("USER") || "user"
 
     readonly property var presets: [
         { "a": "#4facfe", "b": "#00c6a7", "ang": 135 },
@@ -410,7 +411,7 @@ Item {
                 // ---------- SHARE ----------
                 Group {
                     title: "SHARE"
-                    ToggleRow { width: parent.width; label: "Watermark (力 Ryoku)"; on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
+                    ToggleRow { width: parent.width; label: "Watermark (力 handle)"; on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
                 }
             }
         }
@@ -535,18 +536,46 @@ Item {
             }
 
             // watermark
-            Text {
+            Row {
+                id: wmark
                 visible: beautify.watermark
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.margins: Math.max(14, beautify.padding * 0.28)
-                text: "\u529b Ryoku"
-                color: Qt.rgba(1, 1, 1, 0.85)
-                font.family: "Noto Sans CJK JP"
-                font.pixelSize: Math.max(16, beautify.fullW * 0.018)
-                font.weight: Font.DemiBold
-                style: Text.Raised
-                styleColor: Qt.rgba(0, 0, 0, 0.35)
+                anchors.margins: Math.max(16, beautify.padding * 0.32)
+                spacing: wmark.fs * 0.55
+                readonly property real fs: Math.max(15, beautify.fullW * 0.016)
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: wmark.fs * 1.72
+                    height: wmark.fs * 1.72
+                    radius: width * 0.3
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#f4602c" }
+                        GradientStop { position: 1.0; color: "#c31f16" }
+                    }
+                    border.width: Math.max(1, wmark.fs * 0.09)
+                    border.color: Qt.rgba(1, 1, 1, 0.3)
+                    Text {
+                        anchors.centerIn: parent
+                        text: "\u529b"
+                        color: "#ffffff"
+                        font.family: "Noto Sans CJK JP"
+                        font.pixelSize: wmark.fs * 1.02
+                        font.weight: Font.Bold
+                    }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "<b>" + beautify.userName + "</b><font color=\"#f5b53f\">@RyokuArch</font>"
+                    textFormat: Text.StyledText
+                    color: "#ffffff"
+                    font.family: "Space Grotesk"
+                    font.pixelSize: wmark.fs
+                    font.weight: Font.DemiBold
+                    style: Text.Raised
+                    styleColor: Qt.rgba(0, 0, 0, 0.45)
+                }
             }
         }
 

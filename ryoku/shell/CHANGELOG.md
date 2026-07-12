@@ -11,7 +11,8 @@
   (transparent); Frame has padding, roundness and a coloured border; Shadow has
   strength, blur, distance and a direction dial; plus Adjust (brightness /
   contrast / saturation) and a Ratio row with social formats (X, Instagram,
-  Story, LinkedIn, YouTube, Pinterest) and an optional 力 watermark. Copy or Save
+  Story, LinkedIn, YouTube, Pinterest) and an optional watermark (a 力 badge and
+  your `user@RyokuArch` handle). Copy or Save
   through the same path as a plain shot, so it matches the desktop and needs no
   new dependency (`Beautify.qml`, `Slider.qml`, `Dial.qml`, `Toolbar.qml`,
   `shell.qml`).
