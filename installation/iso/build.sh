@@ -176,6 +176,12 @@ EOF
   exit 1
 fi
 
+# mkarchiso reuses a populated work dir: with a completed build already there it
+# skips the airootfs rebuild and re-emits the OLD image, silently shipping an ISO
+# without the edits just made (a stale-image trap on every rebuild). Start clean.
+# a prior `sudo mkarchiso` leaves the tree root-owned, so match that privilege.
+if [[ $EUID -eq 0 ]]; then rm -rf "$WORK_DIR"; else sudo rm -rf "$WORK_DIR"; fi
+
 log "Running mkarchiso (requires root)"
 install -d "$OUT_DIR"
 # default sudoers env_reset drops SOURCE_DATE_EPOCH, so a non-root local build

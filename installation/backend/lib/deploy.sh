@@ -22,6 +22,7 @@ ryoku_deploy() {
 
   ryoku_deploy_repo              # [ryoku] stanza + mirrorlist + keyring trust (local)
   ryoku_deploy_packages          # pacman -S the desktop set (needs net)
+  ryoku_seed_hypr_keymap         # chosen kb_layout into the base config, pre-materialize
   ryoku_deploy_materialize "$u"  # `ryoku materialize` as the user
   ryoku_deploy_seed "$h"         # unpackaged: brand, wallpapers, ~/.npmrc
   ryoku_deploy_chown "$u"        # own root-seeded files before the user steps
@@ -197,6 +198,27 @@ ryoku_deploy_materialize() {
   arch-chroot /mnt runuser -u "$u" -- env "HOME=/home/$u" "USER=$u" "LOGNAME=$u" \
     ryoku materialize \
     || log "materialize: warning, ryoku materialize failed (continuing)"
+}
+
+# seed the desktop keyboard layout into the base config BEFORE materialize copies
+# it into ~/.config. keyboard.lua is user-owned (never re-materialized), so this
+# one edit sticks across updates; without it a non-us user gets a us Hyprland
+# session and a password typed there mismatches the install-time one.
+ryoku_seed_hypr_keymap() {
+  local kb=/mnt/usr/share/ryoku/config/hypr/keyboard.lua
+  local xkbl=${RYOKU_XKB_LAYOUT:-} xkbv=${RYOKU_XKB_VARIANT:-}
+  [[ -n $xkbl ]] || xkbl=$RYOKU_KEYMAP
+  [[ $xkbl == us && -z $xkbv ]] && return 0   # shipped default is already us
+  if [[ -n ${RYOKU_DRYRUN:-} ]]; then
+    log "DRYRUN: seed $kb -> kb_layout=$xkbl kb_variant=$xkbv"
+    return 0
+  fi
+  [[ -f $kb ]] || { log "keyboard seed: skip ($kb not present)"; return 0; }
+  sed -i \
+    -e "s/kb_layout = \"[^\"]*\"/kb_layout = \"$xkbl\"/" \
+    -e "s/kb_variant = \"[^\"]*\"/kb_variant = \"$xkbv\"/" \
+    "$kb"
+  log "seeded Hyprland keyboard layout: $xkbl${xkbv:+ ($xkbv)}"
 }
 
 # seed the user-data nothing else owns: brand assets + wallpapers (shell

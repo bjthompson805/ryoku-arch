@@ -676,6 +676,86 @@ func summarizeGPU(lines []string) string {
 // in that layout. Best effort. WIRE target.
 func applyKeymap(code string) { _ = exec.Command("loadkeys", code).Run() }
 
+// validXkbLayout reports whether l is a real X11/XKB layout, from
+// `localectl list-x11-keymap-layouts` (probed once, cached). A bogus layout would
+// make cage/Hyprland fail to start, so xkbFromKeymap falls back on this. When
+// localectl is unavailable the check trusts the input rather than forcing "us".
+var (
+	xkbLayouts map[string]bool
+	xkbProbed  bool
+)
+
+func validXkbLayout(l string) bool {
+	if !xkbProbed {
+		xkbProbed = true
+		if out, ok := run("localectl", "list-x11-keymap-layouts"); ok {
+			xkbLayouts = map[string]bool{}
+			for _, line := range strings.Split(out, "\n") {
+				if s := strings.TrimSpace(line); s != "" {
+					xkbLayouts[s] = true
+				}
+			}
+		}
+	}
+	if xkbLayouts == nil {
+		return true
+	}
+	return xkbLayouts[l]
+}
+
+// xkbFromKeymap maps a console keymap (what the picker offers, from
+// `localectl list-keymaps`) to the X11/XKB layout the graphical stack needs: the
+// installer's cage session, the greeter's /etc/X11 keymap, and Hyprland's
+// kb_layout. Console and XKB names coincide for most layouts; a suffix (de-latin1
+// -> de) or alias (uk -> gb) needs translating. Anything that is not a real XKB
+// layout falls back to "us" so a pick can never break the compositor.
+func xkbFromKeymap(code string) (layout, variant string) {
+	if code == "" {
+		return "us", ""
+	}
+	base := code
+	if i := strings.IndexByte(code, '-'); i > 0 {
+		base = code[:i]
+	}
+	switch base {
+	case "uk":
+		base = "gb"
+	case "trq", "trf":
+		base = "tr"
+	}
+	if validXkbLayout(base) {
+		return base, ""
+	}
+	if validXkbLayout(code) {
+		return code, ""
+	}
+	return "us", ""
+}
+
+// keymapRelaunch handles the one thing loadkeys cannot: the graphical wizard runs
+// in cage (Wayland), whose keyboard layout is fixed at launch, so a password typed
+// after the keyboard pick would still be captured in cage's launch layout (us) and
+// then fail at a login prompt on the user's real layout. When the picked layout
+// differs from cage's active one, write it for ryoku-installer-session and return
+// true so the caller quits; the session relaunches cage under the chosen layout
+// and the wizard resumes past the keyboard step (RYOKU_KB_PRESET). Console path
+// (no cage): loadkeys already applies to the VT, so this is a no-op.
+func keymapRelaunch(code string) bool {
+	if os.Getenv("RYOKU_SESSION") != "graphical" {
+		return false
+	}
+	lay, varnt := xkbFromKeymap(code)
+	active := os.Getenv("RYOKU_XKB")
+	if active == "" {
+		active = "us" // cage's default when the session set nothing
+	}
+	if lay == active {
+		return false
+	}
+	_ = os.WriteFile("/tmp/ryoku-xkb", []byte(code+"\n"+lay+"\n"+varnt+"\n"), 0o644)
+	return true
+}
+
 // applyExit runs the post-install action chosen on the done screen. reboot and
 // poweroff hand off to systemd; anything else just returns so the live session
 // ends and drops to a shell.
@@ -718,6 +798,7 @@ func (m model) installEnv() []string {
 		}
 		return "0"
 	}
+	xkbLay, xkbVar := xkbFromKeymap(m.picks["keyboard"])
 	env := []string{
 		"RYOKU_DISK=" + m.diskDev,
 		// No default for the disk strategy: an empty value MUST reach the backend so
@@ -728,6 +809,8 @@ func (m model) installEnv() []string {
 		"RYOKU_USERNAME=" + def(m.picks["username"], "ryoku"),
 		"RYOKU_PASSWORD_HASH=" + m.pwHash,
 		"RYOKU_KEYMAP=" + def(m.picks["keyboard"], "us"),
+		"RYOKU_XKB_LAYOUT=" + xkbLay,
+		"RYOKU_XKB_VARIANT=" + xkbVar,
 		"RYOKU_LOCALE=" + def(m.picks["locale"], "en_US.UTF-8"),
 		"RYOKU_TIMEZONE=" + def(m.picks["timezone"], "UTC"),
 		"RYOKU_PROFILE=" + def(m.picks["profile"], "vm"),

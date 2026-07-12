@@ -25,6 +25,17 @@
   `ryoku doctor`, and `ryoku materialize` all manage.
 
 ### Fixed
+- A package that downloads corrupt under load no longer permanently fails the
+  install. pacstrap's one retry reused the target cache, so a corrupt cached
+  package (bad PGP signature -- which non-interactive pacstrap cannot answer the
+  delete prompt for) failed the retry identically; the retry now clears the target
+  package cache first, so it re-fetches the package clean.
+- The chosen keyboard layout reaches the graphical stack, not just the console.
+  `lib/chroot.sh` writes `/etc/X11/xorg.conf.d/00-keyboard.conf` (X11 / Xwayland /
+  the SDDM greeter) beside `vconsole.conf`, and `lib/deploy.sh` seeds the layout
+  into the target's user-owned `hypr/keyboard.lua` before `materialize` lays it,
+  so the desktop keyboard matches the install choice. The TUI passes the derived
+  `RYOKU_XKB_LAYOUT` / `RYOKU_XKB_VARIANT`.
 - The pacman keyring is built and verified BEFORE the disk is touched, not at
   pacstrap after the wipe. `ryoku-install` runs `ryoku_ensure_keyring` in the
   preflight phase now, and the helper dies with clear guidance if the keyring is

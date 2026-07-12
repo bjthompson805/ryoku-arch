@@ -156,7 +156,7 @@ def main():
         env = (f"RYOKU_DISK=/dev/vda RYOKU_PROFILE={args.profile} "
                f"RYOKU_HOSTNAME=ryoku-test RYOKU_USERNAME={args.user} "
                f"RYOKU_DISK_STRATEGY=whole RYOKU_WIPE_CONFIRMED=1 RYOKU_SKIP_AUR=1 "
-               f"RYOKU_REPO=/usr/share/ryoku RYOKU_PASSWORD_HASH='{pwhash}'")
+               f"RYOKU_REPO=/usr/share/ryoku RYOKU_KEYMAP=it RYOKU_XKB_LAYOUT=it RYOKU_PASSWORD_HASH='{pwhash}'")
         if args.dry:
             env += " RYOKU_DRYRUN=1"
         env += repo_env
@@ -202,6 +202,13 @@ def main():
                 missing.append(f"{kind}:{path}")
         if "enabled" not in sh(child, "systemctl --root=/mnt2 is-enabled sddm 2>&1"):
             missing.append("sddm not enabled (no greeter on boot)")
+        for desc, cmd in [
+            ("vconsole KEYMAP=it", "grep -q '^KEYMAP=it' /mnt2/etc/vconsole.conf && echo KBOK"),
+            ("X11 XkbLayout it", "grep -q 'XkbLayout.*\"it\"' /mnt2/etc/X11/xorg.conf.d/00-keyboard.conf && echo KBOK"),
+            ("hypr kb_layout it", f"grep -q 'kb_layout = \"it\"' /mnt2/home/{args.user}/.config/hypr/keyboard.lua && echo KBOK"),
+        ]:
+            if "KBOK" not in sh(child, cmd):
+                missing.append("keymap: " + desc)
         sh(child, "umount -R /mnt2 2>/dev/null || true")
         child.sendline("poweroff")
         child.expect(pexpect.EOF, timeout=120)

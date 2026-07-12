@@ -30,6 +30,24 @@ ryoku_cfg_keymap() {
   write_file /mnt/etc/vconsole.conf <<EOF
 KEYMAP=$RYOKU_KEYMAP
 EOF
+  # X11/Xwayland and the SDDM greeter never read the console keymap, so set the
+  # XKB layout too. the TUI derives it from the chosen keymap (RYOKU_XKB_LAYOUT);
+  # a manual install without it falls back to the keymap name. skip a plain us
+  # layout (the X.Org default) so unchanged installs write no file.
+  local xkbl=${RYOKU_XKB_LAYOUT:-} xkbv=${RYOKU_XKB_VARIANT:-}
+  [[ -n $xkbl ]] || xkbl=$RYOKU_KEYMAP
+  if [[ $xkbl != us || -n $xkbv ]]; then
+    log "X11 keyboard layout: $xkbl${xkbv:+ ($xkbv)}"
+    run install -d /mnt/etc/X11/xorg.conf.d
+    write_file /mnt/etc/X11/xorg.conf.d/00-keyboard.conf <<EOF
+Section "InputClass"
+    Identifier "system-keyboard"
+    MatchIsKeyboard "on"
+    Option "XkbLayout" "$xkbl"
+    Option "XkbVariant" "$xkbv"
+EndSection
+EOF
+  fi
 }
 
 ryoku_cfg_timezone() {

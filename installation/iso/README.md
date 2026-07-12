@@ -107,15 +107,17 @@ Write the ISO to a USB stick with `dd` (or **Rufus in DD mode** on Windows):
 dd if=ryoku-<date>-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
-**Ventoy is supported.** Ventoy loop-mounts the ISO and injects the `img_dev` /
-`img_loop` boot parameters, which archiso's loop-mount hook honours, so the image
-boots and runs its live session the same as a raw `dd` write. The boot entries
-carry `cow_label=vtoycow` alongside the `cow_spacesize=1G` fallback: create a
-Ventoy persistence partition labelled `vtoycow` for a disk-backed live overlay,
-or rely on the 1 GiB tmpfs overlay otherwise (this is what fixes the "no space
-left" reports). Ventoy's default (normal) mode is the supported path for this
-systemd-boot ISO; a raw `dd` / Rufus-DD write to a dedicated stick is the
-fallback if a machine's firmware balks at Ventoy's shim.
+**Ventoy is supported.** Ventoy does not write the ISO to a disk; it presents the
+ISO file as a virtual block device. In UEFI it hooks the firmware block-I/O
+protocol and chainloads the ISO's own systemd-boot; once the kernel is up its
+initramfs hook recreates the mapping with device-mapper (`vtoydm`/`dmsetup`). The
+virtual device carries the ISO's own label, so archiso's `archisosearchuuid`
+finds the squashfs and the live session runs the same as a raw `dd` write. The
+boot entries carry `cow_spacesize=1G`, so the live writable overlay is a 1 GiB
+tmpfs (larger than archiso's 256 MiB default, which a long install can exhaust
+into "no space left" errors). Ventoy's default (normal) mode is the supported
+path for this systemd-boot ISO; a raw `dd` / Rufus-DD write to a dedicated stick
+is the fallback if a machine's firmware balks at Ventoy's shim.
 
 Both firmware paths (UEFI systemd-boot, BIOS syslinux) expose the same three
 entries; the default is always the first:

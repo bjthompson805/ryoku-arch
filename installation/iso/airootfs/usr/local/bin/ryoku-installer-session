@@ -16,12 +16,13 @@ export WLR_RENDERER=pixman             # software render, fine on VMs / GPUs wit
 export WLR_RENDERER_ALLOW_SOFTWARE=1   # live session has no GPU driver yet
 
 log=/var/log/ryoku-session.log
+kbfile=/tmp/ryoku-xkb   # the keyboard step writes the chosen layout here (see below)
 
 # the console TUI: the installer on the raw VT. every non-graphical path routes
 # through here so the user always reaches a working installer.
 run_console() {
 	echo "ryoku: starting the installer on the console (16-color fallback)." >&2
-	ryoku-tui
+	RYOKU_SESSION=console ryoku-tui
 }
 
 # printed only when BOTH the graphical and console TUIs have exited, so a user
@@ -45,7 +46,20 @@ EOF
 run_graphical() {
 	command -v cage >/dev/null 2>&1 && command -v foot >/dev/null 2>&1 || return 1
 	compgen -G '/dev/dri/card*' >/dev/null 2>&1 || return 1
-	cage -- foot -o term=xterm-256color -f 'JetBrainsMono Nerd Font:size=14' -e ryoku-tui >"$log" 2>&1
+	# cage's keyboard layout is fixed at launch and loadkeys never reaches a
+	# wayland session, so the keyboard step writes the chosen layout to $kbfile and
+	# quits; we relaunch cage under it (below) so the PASSWORD is captured in the
+	# user's real layout instead of us. Without this a non-us password silently
+	# mismatches every login prompt after install.
+	local kmap="" lay="" var=""
+	if [[ -r $kbfile ]]; then
+		{ IFS= read -r kmap; IFS= read -r lay; IFS= read -r var; } <"$kbfile" || true
+	fi
+	local -a genv=(RYOKU_SESSION=graphical)
+	[[ -n $kmap ]] && genv+=("RYOKU_KB_PRESET=$kmap")
+	[[ -n $lay ]] && genv+=("RYOKU_XKB=$lay" "XKB_DEFAULT_LAYOUT=$lay")
+	[[ -n $var ]] && genv+=("XKB_DEFAULT_VARIANT=$var")
+	env "${genv[@]}" cage -- foot -o term=xterm-256color -f 'JetBrainsMono Nerd Font:size=14' -e ryoku-tui >"$log" 2>&1
 }
 
 # a missing installer binary is a corrupt image: say so loudly, don't hang.
@@ -57,9 +71,17 @@ fi
 
 # try the graphical TUI a few times (transient wayland/seat races on real boots),
 # then fall back to the console TUI. a clean quit from either ends the session.
+rm -f "$kbfile"   # clear any stale layout from a prior boot; first run has no preset
 tries=0
 while true; do
+	prev=""; [[ -r $kbfile ]] && prev=$(sed -n 2p "$kbfile")
 	if run_graphical; then
+		# a keyboard (re)pick rewrote $kbfile; relaunch cage under the new layout.
+		now=""; [[ -r $kbfile ]] && now=$(sed -n 2p "$kbfile")
+		if [[ $now != "$prev" ]]; then
+			tries=0
+			continue
+		fi
 		break
 	fi
 	tries=$((tries + 1))

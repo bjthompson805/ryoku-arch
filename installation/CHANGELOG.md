@@ -18,7 +18,10 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   boot fallbacks on both firmware paths.
 - Install verification: `installation/tests/` (`container-install.sh`,
   `install-vm.py`, `iso-stage-check.sh`) plus the root `tests/install-*.sh`
-  fixtures; `RYOKU_SKIP_AUR` for unattended and CI installs.
+  fixtures; `RYOKU_SKIP_AUR` for unattended and CI installs. `install-vm.py`
+  installs with a non-us keymap (`it`) and asserts it lands in `vconsole.conf`,
+  the X11 `00-keyboard.conf`, and Hyprland `keyboard.lua`, guarding the
+  keyboard-layout fix end-to-end.
 - Docs: `installation/README.md` (the map), `backend/lib/README.md` (the
   per-stage reference), `tui/README.md`, and `docs/installation-hardware.md` (the
   real-hardware playbook).
@@ -39,6 +42,15 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   live kernel needed VMD to see the NVMe.
 
 ### Fixed
+- The chosen keyboard layout now reaches every place a password is typed, so a
+  non-us layout no longer locks you out after install. The graphical installer
+  runs in a Wayland session (cage) whose layout is fixed at launch and `loadkeys`
+  only affects the text console, so a password set on (say) an Italian keyboard
+  was captured as us and then failed at the login prompt. The keyboard step now
+  relaunches the session under the chosen layout (the password is captured in it),
+  and the install writes that layout to the console (`vconsole.conf`), the
+  X11/greeter (`/etc/X11/xorg.conf.d/00-keyboard.conf`), and Hyprland
+  (`keyboard.lua`), so installer, SDDM greeter, desktop, and console all agree.
 - The TUI's connectivity gate no longer false-negatives on ICMP-filtered
   networks. `netOnline` still treats a default route as online, but its fallback
   fetches an Arch mirror over HTTPS instead of pinging `8.8.8.8` (ICMP is dropped

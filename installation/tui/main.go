@@ -491,7 +491,7 @@ type step struct {
 }
 
 func steps() []step {
-	return []step{
+	all := []step{
 		{key: "keyboard", title: "Keyboard layout", kind: kSelect, items: keymaps(),
 			desc: []string{"Type to filter · j/k or ↑↓ to move.", "Sets console.keyMap + xkb.layout."}},
 		{key: "locale", title: "System locale", kind: kSelect, items: locales(),
@@ -520,6 +520,13 @@ func steps() []step {
 		{key: "review", title: "Review", kind: kConfirm,
 			desc: []string{"Last safe point, nothing written yet."}},
 	}
+	// On the graphical relaunch (keymapRelaunch), the keyboard layout is already
+	// chosen and cage runs under it; drop the step so the wizard resumes at locale,
+	// with the password captured in the user's real layout.
+	if os.Getenv("RYOKU_KB_PRESET") != "" {
+		return all[1:]
+	}
+	return all
 }
 
 func keymaps() []item {
@@ -787,6 +794,9 @@ func newModel() model {
 		progSpr:  harmonica.NewSpring(harmonica.FPS(30), 6.0, 0.7),
 		sSpr:     harmonica.NewSpring(harmonica.FPS(30), 9.0, 0.8),
 		enterPos: 1,
+	}
+	if kb := os.Getenv("RYOKU_KB_PRESET"); kb != "" {
+		m.picks["keyboard"] = kb
 	}
 	hw := ensureHW()
 	m.hwOK, m.hwHybrid = hw.ok, hw.hybrid
@@ -1068,6 +1078,9 @@ func (m model) onKey(k string) (tea.Model, tea.Cmd) {
 				m.diskTotal = diskSizeOf(m.diskDev)
 			}
 			if s.key == "keyboard" {
+				if keymapRelaunch(m.picks["keyboard"]) {
+					return m, tea.Quit // session relaunches cage under the chosen layout
+				}
 				applyKeymap(m.picks["keyboard"])
 			}
 			m.advance()

@@ -3,12 +3,29 @@
 ## Unreleased
 
 ### Fixed
-- **Full Ventoy support.** All boot entries (UEFI + BIOS) now carry
-  `cow_label=vtoycow` beside `cow_spacesize=1G`: a Ventoy persistence partition
-  labelled `vtoycow` becomes the disk-backed live overlay, else the 1 GiB tmpfs
-  stands. Ventoy already booted the image (it injects `img_dev`/`img_loop`, which
-  archiso's loop-mount hook honours); the README's "do not boot from Ventoy"
-  warning was wrong and is replaced with the supported setup.
+- **The live ISO no longer hangs at boot; Ventoy boots reliably.** The
+  `cow_label=vtoycow` parameter (added for Ventoy persistence) made archiso wait
+  30 s for a `/dev/disk/by-label/vtoycow` device and then drop to an initramfs
+  emergency shell when it was absent -- that is, on every plain USB/`dd` boot and
+  every Ventoy boot without a `vtoycow` persistence partition, which is the normal
+  case. It is removed. The `cow_spacesize=1G` tmpfs overlay is the live writable
+  layer on all media. Ventoy's normal mode boots the image through its
+  device-mapper virtualization (it presents the ISO as a virtual block device, not
+  via `img_dev`/`img_loop` injection); the README is corrected to match.
+- **The live serial console (`ttyS0`) now gets a login.** The boot entries make
+  `tty0` the primary console, so systemd-getty-generator never spawned
+  `serial-getty@ttyS0`; the serial console was dead, which also meant the
+  automated `install-vm.py` boot/install test could never drive the ISO. The
+  profile now enables `serial-getty@ttyS0.service`, so headless/recovery and the
+  install test reach a root shell.
+- **The initramfs builds clean.** The stock archiso PXE hooks (`archiso_pxe_*`)
+  pulled `ipconfig`/`nfsmount`/`nbd-client` from packages the ISO does not ship,
+  so every build errored per-hook and flagged the image "possibly incomplete".
+  Ryoku boots from USB/Ventoy/`dd`, never PXE, so those hooks are dropped from
+  `mkinitcpio.conf.d/archiso.conf`; a real initramfs error is now visible.
+- **`build.sh` no longer ships a stale ISO.** mkarchiso reuses a populated work
+  dir and skips the airootfs rebuild, silently re-emitting the previous image
+  without the edits just made; the build now clears the work dir first.
 - The live installer session (`ryoku-installer-session`) no longer drops a Ventoy
   or GPU-less user to a bare shell with no installer. It checks for a DRM/KMS card
   node before launching cage (skipping three dead retries when wayland can never

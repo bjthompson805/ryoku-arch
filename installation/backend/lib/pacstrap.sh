@@ -78,12 +78,18 @@ ryoku_pacstrap() {
 
   ryoku_ensure_keyring
   log "installing ${#pkgs[@]} packages (profile=$RYOKU_PROFILE)"
-  # one retry: a wifi drop mid-download otherwise kills the install with raw
-  # pacman errors; the second run reuses everything already in the target cache.
+  # one retry: a wifi drop or a corrupt download otherwise kills the install with
+  # raw pacman errors. the retry clears the target cache first (below), so a
+  # package that downloaded corrupt does not fail it a second time on the cache.
   if ! run pacstrap -K /mnt "${pkgs[@]}"; then
-    log "pacstrap failed (usually the connection dropping under load); retrying once"
+    log "pacstrap failed (connection drop, or a package that downloaded corrupt under load); clearing the target cache and retrying once"
+    # a plain retry reuses the target cache, but a package that downloaded corrupt
+    # (bad PGP signature) makes pacman prompt to delete it -- which the
+    # non-interactive pacstrap cannot answer, so the retry fails identically on the
+    # poisoned cache. drop the cached downloads so the retry re-fetches them clean.
+    run_sh 'rm -f /mnt/var/cache/pacman/pkg/*.pkg.tar.* 2>/dev/null || true'
     run pacstrap -K /mnt "${pkgs[@]}" \
-      || die "pacstrap failed twice. Check the network (Wi-Fi can drop under sustained download) and re-run the installer; packages already fetched are cached on the target and will not download again."
+      || die "pacstrap failed twice (network, or repeated package corruption). Check the connection (Wi-Fi can drop under sustained download) and re-run the installer."
   fi
 
   log "writing /etc/fstab"
