@@ -74,6 +74,65 @@ Item {
         };
     }
 
+    // hand-drawn look: a deterministic per-item jitter (seeded from the item's
+    // points so it stays stable across repaints) wobbles the stroke.
+    function rSeed(a) {
+        var p0 = a.points[0], p1 = a.points[a.points.length - 1];
+        return (Math.abs(Math.round(p0.x * 13.1 + p0.y * 7.3 + p1.x * 3.7 + p1.y * 5.9)) % 100000) + 1;
+    }
+    function rMaker(seed) {
+        var s = seed;
+        return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    }
+    function rSeg(x0, y0, x1, y1, amp, rnd, out) {
+        out.push(Qt.point(x0 + (rnd() - 0.5) * amp * 0.6, y0 + (rnd() - 0.5) * amp * 0.6));
+        for (var i = 1; i < 3; i++) {
+            var t = i / 3;
+            out.push(Qt.point(x0 + (x1 - x0) * t + (rnd() - 0.5) * amp,
+                              y0 + (y1 - y0) * t + (rnd() - 0.5) * amp));
+        }
+        out.push(Qt.point(x1 + (rnd() - 0.5) * amp * 0.6, y1 + (rnd() - 0.5) * amp * 0.6));
+        return out;
+    }
+    function roughMain(a) {
+        var rnd = rMaker(rSeed(a));
+        var amp = Math.min(Math.max((a.width || 4) * 0.9, 2.5), 7);
+        var p0 = lp(a, 0), p1 = lp(a, 1);
+        var out = [];
+        if (a.type === "line" || a.type === "arrow")
+            return rSeg(p0.x, p0.y, p1.x, p1.y, amp, rnd, out);
+        if (a.type === "rect") {
+            var xa = Math.min(p0.x, p1.x), xb = Math.max(p0.x, p1.x);
+            var ya = Math.min(p0.y, p1.y), yb = Math.max(p0.y, p1.y);
+            rSeg(xa, ya, xb, ya, amp, rnd, out);
+            rSeg(xb, ya, xb, yb, amp, rnd, out);
+            rSeg(xb, yb, xa, yb, amp, rnd, out);
+            rSeg(xa, yb, xa, ya, amp, rnd, out);
+            return out;
+        }
+        if (a.type === "ellipse") {
+            var cx = (p0.x + p1.x) / 2, cy = (p0.y + p1.y) / 2;
+            var rx = Math.abs(p1.x - p0.x) / 2, ry = Math.abs(p1.y - p0.y) / 2;
+            var steps = 22;
+            for (var i = 0; i <= steps; i++) {
+                var ang = (i / steps) * Math.PI * 2;
+                var jr = 1 + (rnd() - 0.5) * 0.06;
+                out.push(Qt.point(cx + Math.cos(ang) * rx * jr, cy + Math.sin(ang) * ry * jr));
+            }
+            return out;
+        }
+        return out;
+    }
+    function roughHead(a) {
+        if (a.type !== "arrow") return [];
+        var rnd = rMaker(rSeed(a) + 7);
+        var h = arrowHead(a);
+        var out = [];
+        rSeg(h.a.x, h.a.y, h.tip.x, h.tip.y, 2.5, rnd, out);
+        rSeg(h.tip.x, h.tip.y, h.b.x, h.b.y, 2.5, rnd, out);
+        return out;
+    }
+
     Repeater {
         model: { canvas.revision; return canvas.items(); }
 
@@ -83,13 +142,14 @@ Item {
             readonly property var a: modelData
             readonly property bool present: a !== undefined && a !== null && a.points !== undefined
             readonly property bool isText: present && a.type === "text" && a.points.length >= 1
-            readonly property bool valid: present && a.points.length >= 2 && a.type !== "blur"
+            readonly property bool isCounter: present && a.type === "counter" && a.points.length >= 1
+            readonly property bool valid: present && a.points.length >= 2 && a.type !== "blur" && a.type !== "pixelate"
             readonly property string kind: valid ? a.type : (isText ? "text" : "")
             anchors.fill: parent
-            visible: valid || isText
+            visible: valid || isText || isCounter
 
             Rectangle {
-                visible: cell.valid && cell.kind === "rect"
+                visible: cell.valid && cell.kind === "rect" && cell.a.rough !== true
                 x: cell.valid ? Math.min(cell.a.points[0].x, cell.a.points[1].x) - canvas.sx : 0
                 y: cell.valid ? Math.min(cell.a.points[0].y, cell.a.points[1].y) - canvas.sy : 0
                 width: cell.valid ? Math.abs(cell.a.points[1].x - cell.a.points[0].x) : 0
@@ -119,8 +179,8 @@ Item {
                 anchors.fill: parent
                 antialiasing: true
                 preferredRendererType: Shape.CurveRenderer
-                visible: cell.valid && (cell.kind === "line" || cell.kind === "arrow"
-                    || cell.kind === "pen")
+                visible: cell.valid && (cell.kind === "pen"
+                    || ((cell.kind === "line" || cell.kind === "arrow") && cell.a.rough !== true))
 
                 ShapePath {
                     strokeColor: cell.valid ? canvas.strokeColorOf(cell.a) : "transparent"
@@ -145,7 +205,7 @@ Item {
                 anchors.fill: parent
                 antialiasing: true
                 preferredRendererType: Shape.CurveRenderer
-                visible: cell.valid && cell.kind === "ellipse"
+                visible: cell.valid && cell.kind === "ellipse" && cell.a.rough !== true
                 readonly property var eg: (cell.valid && cell.kind === "ellipse") ? canvas.ellipseGeom(cell.a) : null
 
                 ShapePath {
@@ -176,7 +236,7 @@ Item {
                 anchors.fill: parent
                 antialiasing: true
                 preferredRendererType: Shape.CurveRenderer
-                visible: cell.valid && cell.kind === "arrow"
+                visible: cell.valid && cell.kind === "arrow" && cell.a.rough !== true
                 readonly property var pts: (cell.valid && cell.kind === "arrow") ? canvas.arrowHead(cell.a) : null
 
                 ShapePath {
@@ -203,6 +263,52 @@ Item {
                 font.pixelSize: cell.isText ? cell.a.size : 16
                 textFormat: Text.PlainText
                 renderType: Text.NativeRendering
+            }
+
+            Shape {
+                id: roughShape
+                anchors.fill: parent
+                antialiasing: true
+                preferredRendererType: Shape.CurveRenderer
+                visible: cell.valid && cell.a.rough === true
+                ShapePath {
+                    strokeColor: cell.valid ? cell.a.color : "transparent"
+                    strokeWidth: cell.valid ? cell.a.width : 0
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    joinStyle: ShapePath.RoundJoin
+                    PathPolyline { path: (cell.valid && cell.a.rough === true) ? canvas.roughMain(cell.a) : [] }
+                }
+                ShapePath {
+                    strokeColor: (cell.valid && cell.a.type === "arrow") ? cell.a.color : "transparent"
+                    strokeWidth: (cell.valid && cell.a.type === "arrow") ? cell.a.width : 0
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    joinStyle: ShapePath.RoundJoin
+                    PathPolyline { path: (cell.valid && cell.a.rough === true && cell.a.type === "arrow") ? canvas.roughHead(cell.a) : [] }
+                }
+            }
+
+            Rectangle {
+                id: counterBadge
+                readonly property real cr: cell.isCounter ? ((cell.a.width || 4) * 2.5 + 9) : 14
+                visible: cell.isCounter
+                x: cell.isCounter ? cell.a.points[0].x - canvas.sx - cr : 0
+                y: cell.isCounter ? cell.a.points[0].y - canvas.sy - cr : 0
+                width: cr * 2
+                height: cr * 2
+                radius: cr
+                color: cell.isCounter ? cell.a.color : "transparent"
+                border.color: "#ffffff"
+                border.width: 2
+                Text {
+                    anchors.centerIn: parent
+                    text: cell.isCounter ? cell.a.n : ""
+                    color: "#ffffff"
+                    font.family: "Space Grotesk"
+                    font.pixelSize: counterBadge.cr * 1.05
+                    font.weight: Font.Bold
+                }
             }
         }
     }

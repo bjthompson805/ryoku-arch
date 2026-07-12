@@ -12,6 +12,7 @@ Item {
     property bool canUndo: false
     property bool canRedo: false
     property bool settingsOpen: false
+    property bool activeRough: false
 
     readonly property real gearCenterX: gear.x + row.x + gear.width / 2
 
@@ -25,6 +26,7 @@ Item {
     signal uploadRequested()
     signal settingsRequested()
     signal beautifyRequested()
+    signal roughToggled()
 
     readonly property color glassBg: Qt.rgba(22 / 255, 17 / 255, 11 / 255, 0.92)
     readonly property color glassBorder: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.14)
@@ -41,7 +43,9 @@ Item {
         { id: "pen",     icon: "pen",     implemented: true },
         { id: "marker",  icon: "marker",  implemented: true },
         { id: "text",    icon: "text",    implemented: true },
-        { id: "blur",    icon: "blur",    implemented: true }
+        { id: "blur",    icon: "blur",    implemented: true },
+        { id: "pixelate", icon: "pixelate", implemented: true },
+        { id: "counter", icon: "counter", implemented: true }
     ]
 
     readonly property var swatches: [
@@ -120,6 +124,10 @@ Item {
                     }
                 }
             }
+
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
+
+            IconButton { icon: "sketch"; active: tb.activeRough; onClicked: tb.roughToggled() }
 
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 

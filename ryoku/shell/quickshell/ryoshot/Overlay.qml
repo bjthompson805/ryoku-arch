@@ -77,17 +77,17 @@ Item {
             paintCursor: false
         }
 
-        function blurItems() {
+        function effectItems() {
             var src = overlay.model ? overlay.model.items : [];
             var out = [];
             for (var i = 0; i < src.length; i++)
-                if (src[i] && src[i].type === "blur") out.push(src[i]);
-            if (overlay.draft && overlay.draft.type === "blur") out.push(overlay.draft);
+                if (src[i] && (src[i].type === "blur" || src[i].type === "pixelate")) out.push(src[i]);
+            if (overlay.draft && (overlay.draft.type === "blur" || overlay.draft.type === "pixelate")) out.push(overlay.draft);
             return out;
         }
 
         Repeater {
-            model: { overlay.annRevision; return scene.blurItems(); }
+            model: { overlay.annRevision; return scene.effectItems(); }
 
             Item {
                 required property var modelData
@@ -97,6 +97,8 @@ Item {
                 readonly property real ry: valid ? Math.min(a.points[0].y, a.points[1].y) - overlay.sy : 0
                 readonly property real rw: valid ? Math.abs(a.points[1].x - a.points[0].x) : 0
                 readonly property real rh: valid ? Math.abs(a.points[1].y - a.points[0].y) : 0
+                readonly property bool isPix: valid && a.type === "pixelate"
+                readonly property real block: valid ? ((a.width || 4) * 2 + 8) : 12
                 x: rx
                 y: ry
                 width: rw
@@ -118,6 +120,19 @@ Item {
                     anchors.fill: parent
                     source: blurSrc
                     radius: 64
+                    visible: !parent.isPix
+                }
+
+                ShaderEffectSource {
+                    anchors.fill: parent
+                    visible: parent.isPix
+                    sourceItem: frozen
+                    live: false
+                    recursive: false
+                    sourceRect: Qt.rect(parent.rx, parent.ry, parent.rw, parent.rh)
+                    textureSize: Qt.size(Math.max(1, Math.round(parent.rw / parent.block)),
+                                         Math.max(1, Math.round(parent.rh / parent.block)))
+                    smooth: false
                 }
             }
         }

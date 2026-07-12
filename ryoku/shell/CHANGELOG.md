@@ -21,6 +21,12 @@
   current look to `~/.config/ryoku/ryoshot-beautify.json`, so every later capture
   opens already styled without re-tuning, and *Reset* returns to it. The shadow
   now casts in the direction the dial points (`Beautify.qml`).
+- **Ryoshot annotation gains counters, pixelate redaction and a hand-drawn
+  style.** The toolbar adds a numbered **counter** stamp (click to drop 1, 2, 3…
+  badges that scale with the pen width), a **pixelate** region for redaction (a
+  mosaic over the frozen shot, beside the existing blur), and a **sketch** toggle
+  that renders rectangles, ellipses, lines and arrows with a wobbly hand-drawn
+  look (`Toolbar.qml`, `Icon.qml`, `AnnLayer.qml`, `Overlay.qml`, `shell.qml`).
 
 ### Fixed
 - **`ryoku deploy` preserves every user file now, matching a packaged update.**

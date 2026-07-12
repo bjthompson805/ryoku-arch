@@ -17,6 +17,7 @@ ShellRoot {
     property string activeTool: "rect"
     property color activeColor: vermilion
     property int activeWidth: 4
+    property bool activeRough: false
 
     property var model: Ann.create()
     property var draft: null
@@ -94,6 +95,17 @@ ShellRoot {
         textEditing = false;
         bumpAnn();
     }
+    function countCounters() {
+        var n = 0, its = model.items;
+        for (var i = 0; i < its.length; i++)
+            if (its[i].type === "counter") n += 1;
+        return n;
+    }
+    function placeCounter(gx, gy) {
+        var p = clampToSel(gx, gy);
+        model.add({ type: "counter", points: [p], color: String(activeColor), width: activeWidth, n: countCounters() + 1 });
+        bumpAnn();
+    }
 
     function bboxOf(a) {
         var xs = a.points.map(function (p) { return p.x; });
@@ -104,6 +116,10 @@ ShellRoot {
             var size = a.size || 16;
             var w = Math.max((a.text ? a.text.length : 1) * size * 0.6, size);
             return { x: x0, y: y0, w: w, h: size * 1.4 };
+        }
+        if (a.type === "counter") {
+            var cr = (a.width || 4) * 2.5 + 9;
+            return { x: x0 - cr, y: y0 - cr, w: 2 * cr, h: 2 * cr };
         }
         return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     }
@@ -124,7 +140,7 @@ ShellRoot {
 
     function hitOne(a, gx, gy) {
         var tol = Math.max(a.width || 4, 8);
-        if (a.type === "rect" || a.type === "marker" || a.type === "blur" || a.type === "text")
+        if (a.type === "rect" || a.type === "marker" || a.type === "blur" || a.type === "pixelate" || a.type === "text")
             return inBox(gx, gy, bboxOf(a), a.type === "text" ? 0 : tol);
         if (a.type === "line" || a.type === "arrow")
             return distToSeg(gx, gy, a.points[0], a.points[1]) <= tol;
@@ -140,6 +156,8 @@ ShellRoot {
             var nx = (gx - (b.x + b.w / 2)) / rx, ny = (gy - (b.y + b.h / 2)) / ry;
             return nx * nx + ny * ny <= 1;
         }
+        if (a.type === "counter")
+            return inBox(gx, gy, bboxOf(a), tol);
         return false;
     }
 
@@ -187,9 +205,11 @@ ShellRoot {
         bumpAnn();
     }
 
+    function isRoughable(t) { return t === "rect" || t === "ellipse" || t === "line" || t === "arrow"; }
     function beginDraw(gx, gy) {
         if (!globalSel || activeTool === "select") return;
         if (activeTool === "text") { placeText(gx, gy); return; }
+        if (activeTool === "counter") { placeCounter(gx, gy); return; }
         var p = clampToSel(gx, gy);
         pressPoint = p;
         capturing = true;
@@ -198,7 +218,7 @@ ShellRoot {
         else if (activeTool === "marker")
             draft = { type: "marker", points: [p, p], color: "#f5d020", width: activeWidth, filled: true };
         else
-            draft = { type: activeTool, points: [p, p], color: String(activeColor), width: activeWidth, filled: false };
+            draft = { type: activeTool, points: [p, p], color: String(activeColor), width: activeWidth, filled: false, rough: activeRough && isRoughable(activeTool) };
         bumpAnn();
     }
     function updateDraw(gx, gy) {
@@ -612,6 +632,7 @@ ShellRoot {
                     canUndo: { root.annRevision; return root.model ? root.model.canUndo() : false; }
                     canRedo: { root.annRevision; return root.model ? root.model.canRedo() : false; }
                     settingsOpen: root.settingsOpen
+                    activeRough: root.activeRough
 
                     x: {
                         if (!win.selLocal) return 0;
@@ -634,6 +655,7 @@ ShellRoot {
                     onSaveRequested: root.doSave()
                     onUploadRequested: root.doUpload()
                     onSettingsRequested: root.settingsOpen = toolbar.settingsOpen
+                    onRoughToggled: root.activeRough = !root.activeRough
                     onBeautifyRequested: {
                         if (root.textEditing) root.commitText();
                         root.clearSelection();
