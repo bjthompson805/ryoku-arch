@@ -5,6 +5,10 @@
 # Core system
 base
 base-devel
+# rust: the shell's wallpaper daemon (awww) and other AUR dependencies are Rust
+# programs, so the toolchain is part of the base set (not the optional dev
+# toolchains in dev.packages), and every Ryoku machine can always build them.
+rust
 linux
 linux-firmware
 mkinitcpio
@@ -61,6 +65,11 @@ xdg-user-dirs
 qt6-wayland
 qt6ct
 adwaita-icon-theme
+# gnome-themes-extra ships the standalone Adwaita-dark GTK theme the Hyprland
+# autostart selects (gsettings gtk-theme). Without it that name resolves to
+# nothing on disk and GTK3 apps -- notably the xdg-desktop-portal-gtk file
+# chooser -- fall back to the built-in light Adwaita in a dark session.
+gnome-themes-extra
 # Papirus-Dark is the shipped Qt icon theme (ryoku/shell/qt6ct/qt6ct.conf); it
 # covers named freedesktop icons (e.g. network-wired) that Adwaita ships only as
 # -symbolic, so the launcher's all-apps grid resolves every entry's logo.

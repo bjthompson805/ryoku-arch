@@ -26,8 +26,10 @@ catppuccin-cursors-mocha
 # fail to build; best-effort, like every package in this set.
 apple_cursor
 
-# Palette generator for the shell: wallpaper to terminal and Hyprland colors.
-wallust
+# wallust (the wallpaper -> color palette generator) now ships first-class from
+# the [ryoku] repo as a ryoku-desktop dependency, not the AUR: its AUR package
+# pins a checksum against Codeberg's auto-generated source archive, which
+# Codeberg regenerates non-reproducibly, so the pin drifts and the build fails.
 
 # Wallpaper daemon the shell drives: ryoku-shell runs `awww`/`awww-daemon` for the
 # animated wallpaper transitions. Upstream renamed swww to awww; it is AUR-only, so

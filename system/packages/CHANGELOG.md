@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `base.packages`: add `gnome-themes-extra`, the standalone `Adwaita-dark` GTK
+  theme the Hyprland autostart selects (`gsettings gtk-theme`). Without it that
+  name has nothing on disk, so GTK3 apps -- notably the `xdg-desktop-portal-gtk`
+  file chooser (the browser upload dialog) -- fell back to the built-in light
+  Adwaita even in the dark session. It is also a hard `depends` of
+  `ryoku-desktop`, which reaches existing boxes on `ryoku update` (an optdepend
+  never installs on `-Syu`).
 - `ryoku-extras-install`: installs and removes `nautilus-pack` guests, skips
   `optional`-tier items in a whole-bundle install (they install one at a time),
   and turns an aborted `interactive` fetch into a *deferred* state. Repo installs
@@ -105,6 +112,16 @@
   app on Wayland.
 - `base.packages`: add `snap-pac` for automatic pre/post Btrfs snapshots around
   pacman transactions, wired to the snapper `root` config by the installer.
+
+### Changed
+- `aur.packages`: drop `wallust`. It moved to the `[ryoku]` repo as a hard
+  `ryoku-desktop` dependency (its AUR package pins a checksum against Codeberg's
+  auto-generated source archive, which Codeberg regenerates non-reproducibly, so
+  the pin drifts and the build fails), so the AUR set no longer carries it.
+- `base.packages`: add `rust`, and `dev.packages`: drop it. The shell's wallpaper
+  daemon (`awww`) and other AUR dependencies are Rust programs, so the toolchain
+  belongs in the always-installed base set, not the optional dev toolchains; every
+  fresh install can build them.
 
 ### Fixed
 - `hardware.packages`: the `amd-nvidia` profile now pulls `[amd]` + `[intel]`
