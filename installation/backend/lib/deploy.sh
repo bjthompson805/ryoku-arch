@@ -215,8 +215,8 @@ ryoku_seed_hypr_keymap() {
   fi
   [[ -f $kb ]] || { log "keyboard seed: skip ($kb not present)"; return 0; }
   sed -i \
-    -e "s/kb_layout = \"[^\"]*\"/kb_layout = \"$xkbl\"/" \
-    -e "s/kb_variant = \"[^\"]*\"/kb_variant = \"$xkbv\"/" \
+    -e "s|kb_layout = \"[^\"]*\"|kb_layout = \"$xkbl\"|" \
+    -e "s|kb_variant = \"[^\"]*\"|kb_variant = \"$xkbv\"|" \
     "$kb"
   log "seeded Hyprland keyboard layout: $xkbl${xkbv:+ ($xkbv)}"
 }

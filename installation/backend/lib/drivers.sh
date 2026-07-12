@@ -17,7 +17,7 @@ ryoku_drivers() {
 		name="ryoku-driver-$vendor.sh"
 		run cp "$dir/$vendor.sh" "/mnt/root/$name"
 		if ! run timeout 900 arch-chroot /mnt env RYOKU_DRYRUN="${RYOKU_DRYRUN:-}" bash "/root/$name"; then
-			log "drivers: $vendor.sh timed out (>15m) or failed; continuing without it (the iGPU still drives the display)"
+			log "drivers: $vendor.sh timed out (>15m) or failed; continuing so the install finishes (fix drivers after first boot with ryoku doctor)"
 		fi
 		run rm -f "/mnt/root/$name"
 	done

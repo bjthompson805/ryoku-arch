@@ -18,7 +18,16 @@ ryoku_configure() {
 
 ryoku_cfg_locale() {
   log "locale: $RYOKU_LOCALE"
-  run sed -i "s|^#\(${RYOKU_LOCALE} \)|\1|" /mnt/etc/locale.gen
+  # dots escaped so en_US.UTF-8 can only match its own line.
+  run sed -i "s|^#\(${RYOKU_LOCALE//./\\.} \)|\1|" /mnt/etc/locale.gen
+  # a locale locale.gen does not list (a manual RYOKU_LOCALE, a slimmed file)
+  # would generate nothing and leave every tool warning "cannot set locale";
+  # append it so locale-gen builds exactly what locale.conf names.
+  if [[ -z ${RYOKU_DRYRUN:-} && $RYOKU_LOCALE == *.* ]] \
+    && ! grep -q "^${RYOKU_LOCALE} " /mnt/etc/locale.gen; then
+    log "locale: $RYOKU_LOCALE not listed in locale.gen, appending"
+    printf '%s %s\n' "$RYOKU_LOCALE" "${RYOKU_LOCALE##*.}" >>/mnt/etc/locale.gen
+  fi
   write_file /mnt/etc/locale.conf <<EOF
 LANG=$RYOKU_LOCALE
 EOF
