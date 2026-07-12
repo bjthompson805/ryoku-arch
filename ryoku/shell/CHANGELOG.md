@@ -54,6 +54,14 @@
   plain grab when the tool is absent (`Beautify.qml`).
 
 ### Fixed
+- **Setting a wallpaper with no wallpaper daemon installed says so instead of
+  hanging and going silent.** With neither `awww` nor `swww` on the box (an
+  AUR build that never landed), every image apply ground through ~15s of
+  retrying a daemon that does not exist and then returned as if it had worked.
+  The daemon start now fails fast when the binary is absent and the apply
+  returns a real error naming the fix (`install awww`, or `ryoku doctor` heals
+  it), which the shell surfaces like any other wallpaper failure
+  (`ipc/wallpaper.go`).
 - **Styles with a fixed baseline no longer freeze on screen when the music
   stops.** With the idle wave off, the circle and the radial centre ring kept a
   constant radius that never shrank to nothing, so the render ticker halted and
