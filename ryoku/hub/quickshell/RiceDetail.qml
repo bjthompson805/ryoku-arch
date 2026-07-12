@@ -14,11 +14,38 @@ Item {
     signal applied(var layers)
     signal forked()
     signal removed()
+    signal wallpaperRequested()
 
     implicitWidth: 600
     implicitHeight: col.implicitHeight
 
     readonly property var layerKeys: detail.rice.layers ? Object.keys(detail.rice.layers) : []
+
+    readonly property bool hasImage: (detail.rice.preview || "") !== ""
+    readonly property color mockSurface: {
+        var s = "";
+        if (detail.rice.look && detail.rice.look.shell && detail.rice.look.shell.surfaceColor)
+            s = detail.rice.look.shell.surfaceColor;
+        else if (detail.rice.surface)
+            s = detail.rice.surface;
+        return s !== "" ? s : Theme.surfaceLo;
+    }
+    readonly property color mockAccent: {
+        var a = "";
+        if (detail.rice.look && detail.rice.look.hypr && detail.rice.look.hypr.appearance && detail.rice.look.hypr.appearance.activeBorder)
+            a = detail.rice.look.hypr.appearance.activeBorder;
+        else if (detail.rice.accent)
+            a = detail.rice.accent;
+        return a !== "" ? a : Theme.ember;
+    }
+    readonly property real mockRounding: {
+        var r;
+        if (detail.rice.look && detail.rice.look.hypr && detail.rice.look.hypr.appearance && detail.rice.look.hypr.appearance.rounding !== undefined)
+            r = detail.rice.look.hypr.appearance.rounding;
+        else
+            r = detail.rice.rounding;
+        return (r === undefined || r === null) ? 8 : r;
+    }
 
     function changeSummary() {
         var parts = [];
@@ -97,22 +124,32 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 1
                 radius: Theme.radius
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Theme.keyTop }
-                    GradientStop { position: 1.0; color: Theme.surfaceLo }
-                }
-                Icon {
+                visible: !detail.hasImage
+                color: detail.mockSurface
+                Rectangle {
                     anchors.centerIn: parent
-                    name: "palette"
-                    size: 46
-                    tint: Theme.faint
-                    visible: pv.status !== Image.Ready
+                    width: parent.width * 0.5
+                    height: parent.height * 0.56
+                    radius: Math.min(detail.mockRounding, 30)
+                    color: Qt.lighter(detail.mockSurface, 1.35)
+                    border.width: 2
+                    border.color: detail.mockAccent
+                    Row {
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.margins: 12
+                        spacing: 7
+                        Rectangle { width: 9; height: 9; radius: 4.5; color: detail.mockAccent }
+                        Rectangle { width: 9; height: 9; radius: 4.5; color: Qt.rgba(1, 1, 1, 0.18) }
+                        Rectangle { width: 9; height: 9; radius: 4.5; color: Qt.rgba(1, 1, 1, 0.18) }
+                    }
                 }
             }
             Image {
                 id: pv
                 anchors.fill: parent
                 anchors.margins: 1
+                visible: detail.hasImage
                 source: detail.rice.preview || ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
@@ -167,6 +204,11 @@ Item {
                 label: "Duplicate"
                 icon: "plus"
                 onClicked: detail.forked()
+            }
+            HubButton {
+                label: "Set wallpaper"
+                icon: "image"
+                onClicked: detail.wallpaperRequested()
             }
             HubButton {
                 label: "Delete"

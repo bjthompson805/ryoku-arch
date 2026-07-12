@@ -19,6 +19,14 @@
   bespoke wallpapers arrive with the art (`RicesPage.qml`, `RiceTile.qml`,
   `RiceDetail.qml`, `AppearancePage.qml`, `backend/rice.go`,
   `backend/ricestore.go`).
+- **Rices show a preview and take a wallpaper.** A rice with no image renders a
+  live mockup from its own surface, accent and rounding, so both the tiles and
+  the detail read at a glance; a captured rice shows its bundled wallpaper. The
+  detail gains **Set wallpaper**, which bundles a chosen image into the rice
+  (`ryoku-hub rice setwall`) as both its applied wallpaper and its preview. The
+  store registry carries `accent`/`surface`/`rounding` hints so browse tiles
+  preview before install (`RiceTile.qml`, `RiceDetail.qml`, `RicesPage.qml`,
+  `backend/rice.go`, `backend/ricestore.go`).
 - **The Visualizer tab gains four new looks and deeper control.** Style now
   offers **Line** (a stiff angular readout), **Segments** (a lit LED stack per
   band), **Radial** (a ring of bars around a pulsing centre) and **Circle** (a

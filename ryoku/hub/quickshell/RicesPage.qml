@@ -80,6 +80,12 @@ Item {
         installProc.command = ["ryoku-hub", "rice", "install", id];
         installProc.running = true;
     }
+    function setwall(path) {
+        if (!path || page.selectedSlug === "")
+            return;
+        setwallProc.command = ["ryoku-hub", "rice", "setwall", page.selectedSlug, path];
+        setwallProc.running = true;
+    }
 
     Process {
         id: listProc
@@ -117,6 +123,7 @@ Item {
     Process { id: deleteProc; onExited: (code, status) => { page.selectedSlug = ""; page.reload(); } }
     Process { id: forkProc; onExited: (code, status) => { page.selectedSlug = ""; page.reload(); } }
     Process { id: installProc; onExited: (code, status) => { page.reload(); page.loadCatalog(); } }
+    Process { id: setwallProc; onExited: (code, status) => page.reload() }
 
     Column {
         id: browse
@@ -360,6 +367,16 @@ Item {
             onApplied: layers => page.applyRice(page.selectedSlug, layers)
             onForked: page.fork(page.selectedSlug)
             onRemoved: page.del(page.selectedSlug)
+            onWallpaperRequested: wallPicker.open()
         }
+    }
+
+    ImagePicker {
+        id: wallPicker
+        onPicked: p => {
+            page.setwall(("" + p).replace("file://", ""));
+            wallPicker.active = false;
+        }
+        onCanceled: wallPicker.active = false
     }
 }

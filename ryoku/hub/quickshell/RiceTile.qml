@@ -16,6 +16,34 @@ Rectangle {
     property bool store: false
     readonly property bool installed: !!tile.rice.installed
 
+    // preview colours: from the rice's own look (local) or the store entry's
+    // hints (catalog), used to draw a mockup when there is no image.
+    readonly property bool hasImage: tile.preview !== ""
+    readonly property color mockSurface: {
+        var s = "";
+        if (tile.rice.look && tile.rice.look.shell && tile.rice.look.shell.surfaceColor)
+            s = tile.rice.look.shell.surfaceColor;
+        else if (tile.rice.surface)
+            s = tile.rice.surface;
+        return s !== "" ? s : Theme.surfaceLo;
+    }
+    readonly property color mockAccent: {
+        var a = "";
+        if (tile.rice.look && tile.rice.look.hypr && tile.rice.look.hypr.appearance && tile.rice.look.hypr.appearance.activeBorder)
+            a = tile.rice.look.hypr.appearance.activeBorder;
+        else if (tile.rice.accent)
+            a = tile.rice.accent;
+        return a !== "" ? a : Theme.ember;
+    }
+    readonly property real mockRounding: {
+        var r;
+        if (tile.rice.look && tile.rice.look.hypr && tile.rice.look.hypr.appearance && tile.rice.look.hypr.appearance.rounding !== undefined)
+            r = tile.rice.look.hypr.appearance.rounding;
+        else
+            r = tile.rice.rounding;
+        return (r === undefined || r === null) ? 8 : r;
+    }
+
     implicitWidth: 320
     implicitHeight: 250
     radius: Theme.radius
@@ -38,23 +66,32 @@ Rectangle {
 
         Rectangle {
             anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.keyTop }
-                GradientStop { position: 1.0; color: Theme.surfaceLo }
-            }
-            Icon {
+            visible: !tile.hasImage
+            color: tile.mockSurface
+            Rectangle {
                 anchors.centerIn: parent
-                name: "palette"
-                size: 34
-                weight: 1.5
-                tint: Theme.faint
-                visible: img.status !== Image.Ready
+                width: parent.width * 0.62
+                height: parent.height * 0.6
+                radius: Math.min(tile.mockRounding, 26)
+                color: Qt.lighter(tile.mockSurface, 1.35)
+                border.width: 2
+                border.color: tile.mockAccent
+                Row {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 8
+                    spacing: 5
+                    Rectangle { width: 6; height: 6; radius: 3; color: tile.mockAccent }
+                    Rectangle { width: 6; height: 6; radius: 3; color: Qt.rgba(1, 1, 1, 0.18) }
+                    Rectangle { width: 6; height: 6; radius: 3; color: Qt.rgba(1, 1, 1, 0.18) }
+                }
             }
         }
 
         Image {
             id: img
             anchors.fill: parent
+            visible: tile.hasImage
             source: tile.preview
             fillMode: Image.PreserveAspectCrop
             asynchronous: true

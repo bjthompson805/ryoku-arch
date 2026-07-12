@@ -521,12 +521,36 @@ func listRiceEntries() []riceListEntry {
 	out := []riceListEntry{}
 	for _, r := range listRices() {
 		e := riceListEntry{Rice: r, Compat: riceCompat(r.CreatedWith), Active: r.Slug == active}
-		if p := filepath.Join(ricesDir(), r.Slug, "preview.png"); isFile(p) {
+		dir := filepath.Join(ricesDir(), r.Slug)
+		if p := filepath.Join(dir, "preview.png"); isFile(p) {
 			e.Preview = "file://" + p
+		} else if r.Assets.Wallpaper != "" && isFile(filepath.Join(dir, r.Assets.Wallpaper)) {
+			e.Preview = "file://" + filepath.Join(dir, r.Assets.Wallpaper)
 		}
 		out = append(out, e)
 	}
 	return out
+}
+
+// setRiceWallpaper bundles a chosen image into a user rice as its wallpaper, so
+// it applies on the desktop and doubles as the rice's preview.
+func setRiceWallpaper(slug, src string) error {
+	if !validRiceSlug(slug) {
+		return fmt.Errorf("bad rice slug %q", slug)
+	}
+	if !isFile(src) {
+		return fmt.Errorf("no such image: %s", src)
+	}
+	r, dir, err := loadRice(slug)
+	if err != nil {
+		return err
+	}
+	asset := "wall" + filepath.Ext(src)
+	if err := copyFile(src, filepath.Join(dir, asset)); err != nil {
+		return err
+	}
+	r.Assets.Wallpaper = asset
+	return saveRice(r)
 }
 
 // --- edit / delete / fork --------------------------------------------------
@@ -656,6 +680,11 @@ func runRice(args []string) error {
 			return fmt.Errorf("rice publish needs a slug and a store path")
 		}
 		return publishRice(args[1], args[2])
+	case "setwall":
+		if len(args) < 3 {
+			return fmt.Errorf("rice setwall needs a slug and an image path")
+		}
+		return setRiceWallpaper(args[1], args[2])
 	default:
 		return fmt.Errorf("unknown rice subcommand: %s", args[0])
 	}

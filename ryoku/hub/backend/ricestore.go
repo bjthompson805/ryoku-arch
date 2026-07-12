@@ -31,6 +31,9 @@ type riceStoreEntry struct {
 	Palette     string   `json:"palette,omitempty"`
 	Wallpaper   string   `json:"wallpaper,omitempty"`
 	Hero        string   `json:"hero,omitempty"`
+	Accent      string   `json:"accent,omitempty"`
+	Surface     string   `json:"surface,omitempty"`
+	Rounding    int      `json:"rounding,omitempty"`
 }
 
 type riceRegistry struct {
@@ -197,6 +200,21 @@ func publishRice(slug, storeDir string) error {
 		CreatedWith: r.CreatedWith, Color: r.Color.Mode,
 		Manifest: "rices/" + slug + "/rice.json",
 		Poster:   poster, Palette: palette,
+	}
+	if hy, ok := r.Look["hypr"]; ok {
+		if ap, ok := hy["appearance"].(map[string]any); ok {
+			if v, ok := ap["activeBorder"].(string); ok {
+				entry.Accent = v
+			}
+			if v, ok := ap["rounding"].(float64); ok {
+				entry.Rounding = int(v)
+			}
+		}
+	}
+	if sh, ok := r.Look["shell"]; ok {
+		if v, ok := sh["surfaceColor"].(string); ok {
+			entry.Surface = v
+		}
 	}
 	if r.Assets.Wallpaper != "" {
 		entry.Wallpaper = extrasReleaseURL(slug + "-" + r.Assets.Wallpaper)
