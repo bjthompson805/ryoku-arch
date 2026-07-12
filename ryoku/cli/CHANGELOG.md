@@ -7,6 +7,13 @@
   feature left a `~/.config/hypr/theme.lua` on boxes that had a theme applied, and
   `hyprland.lua` no longer loads it. A new reconciler removes the dead file so the
   config dir matches the shipped layout (`internal/doctor/doctor.go`).
+- **`ryoku recovery` restores the `wallust` palette generator.** wallust now ships
+  from the `[ryoku]` repo as a hard `ryoku-desktop` dependency, so a fresh install
+  and `ryoku update` (pacman) already carry it. Recovery now also ensures it
+  (`pacman -S --needed wallust` on a box with `[ryoku]` configured, gated on the
+  package step so `--no-packages` skips it), so the panic button puts back a
+  wallust that an old broken AUR build had dropped and colors follow the wallpaper
+  again.
 - **`ryoku update` shows real, determinate progress.** The run-state the update
   island and the Hub's Updates page watch now carries the update's ordered
   stages (snapshot, packages, AUR, apply, reload, doctor, finalize), each with

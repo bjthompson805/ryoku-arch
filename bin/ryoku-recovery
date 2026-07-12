@@ -151,4 +151,14 @@ if pacman -Q ryoku-desktop >/dev/null 2>&1; then
   say "packaged install detected: staying on the pacman update channel"
 fi
 
+# ensure the shell's palette generator: wallust ships from the [ryoku] repo as a
+# ryoku-desktop depend, but a box whose wallust was dropped (an old broken AUR
+# build) needs it put back. a plain package install, gated on the package step
+# (--no-packages skips it) and best-effort, so a fetch failure never blocks the
+# rescue.
+if [[ $DO_PACKAGES == 1 ]] && grep -qs '^\[ryoku\]' /etc/pacman.conf; then
+  say "ensuring the wallust palette generator from [ryoku]"
+  sudo pacman -S --needed --noconfirm wallust || warn "could not install wallust (continuing)"
+fi
+
 say "recovery done: Ryoku restored to $CHANNEL ($commit). log out and back in if the shell did not reload."
