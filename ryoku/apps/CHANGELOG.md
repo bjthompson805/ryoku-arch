@@ -24,7 +24,10 @@
   export with quality tiers (Source / 1080p / 720p). The `ryomotion` binary is the
   editor; `bin/ryomotion-cli` is the backend: capture via **wf-recorder**
   (wlr-screencopy, so recording works on multi-GPU / NVIDIA-hybrid boxes where
-  GPU-EGL recorders fall back to software and refuse) at 60fps, system audio captured natively with pw-record (wf-recorder's own
+  GPU-EGL recorders fall back to software and refuse) at the display's own
+  refresh rate (a 120/165Hz panel records as smoothly as it looks, not a flat
+  60), the ultrafast x264 preset keeping real-time encoding from falling behind
+  at native resolution; system audio captured natively with pw-record (wf-recorder's own
   audio path is dead where libpulse can't connect), and a 60Hz cursor logger;
   the shared ffmpeg graph builder bakes the export. The preview plays the clip
   audio and the music track live through QtMultimedia. New hard deps

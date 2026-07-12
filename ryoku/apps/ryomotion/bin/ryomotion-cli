@@ -83,8 +83,16 @@ cmd_record() {
   rw=$(printf '%s' "$mon" | jq -r '(.width / (.scale // 1)) | floor')
   rh=$(printf '%s' "$mon" | jq -r '(.height / (.scale // 1)) | floor')
 
-  # constant 60fps, x264/yuv420p for universal compatibility.
-  local -a wargs=(-c libx264 -x yuv420p -r 60 -y)
+  # capture at the display's own refresh rate so motion is as smooth as what you
+  # see: a flat 60fps looks choppy next to a 120/165Hz panel. the ultrafast preset
+  # is what keeps real-time encoding from falling behind at 2560x1600@165 (veryfast
+  # drops the tail on stop); x264/yuv420p for universal playback, since VAAPI can't
+  # ingest the cross-GPU buffer on hybrid boxes. this is an editing source, re-encoded
+  # on export, so ultrafast's lighter compression costs nothing downstream.
+  local fps
+  fps=$(printf '%s' "$mon" | jq -r '(.refreshRate // 60) | round')
+  if (( fps < 60 )); then fps=60; elif (( fps > 240 )); then fps=240; fi
+  local -a wargs=(-c libx264 -p preset=ultrafast -x yuv420p -r "$fps" -y)
   if [[ $mode == region ]]; then
     need slurp
     geom=$(slurp -f '%x,%y %wx%h' 2>/dev/null || true)
