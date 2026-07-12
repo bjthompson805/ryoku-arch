@@ -103,6 +103,7 @@ func reconcilers() []reconciler {
 		{"limine UKI boot tree", reconcileLimineUKITree},
 		{"limine snapshot sync", reconcileLimineOSName},
 		{"pacman database lock", reconcilePacmanLock},
+		{"stale update run-state", reconcileStaleUpdateRun},
 		{"stale install crypt mapper", reconcileStaleCryptMapper},
 		{"ryoku package channel", reconcileRyokuChannel},
 		{"stale dev residue", reconcileDevResidue},
@@ -658,6 +659,52 @@ func reconcilePacmanLock(checkOnly bool) recResult {
 		return failRes("could not remove stale lock: %v", err).withFix("sudo rm %s", lock)
 	}
 	return fixedRes("removed stale pacman lock")
+}
+
+// ---- reconciler: stale update run-state --------------------------------------
+
+// reconcileStaleUpdateRun clears the run-state file a crashed `ryoku update`
+// left in "running" (or an unanswered "prompt"): the shell's update island and
+// the Hub keep rendering that phantom run for the rest of the session. A live
+// `ryoku update` (stage 1 or --stage2) owns the file and is left alone; so is
+// the update this doctor may itself be running inside (the process match).
+// updateProcessLive: is a `ryoku update` (stage 1 or --stage2) running right
+// now? A package var so tests can stub it: a real pgrep scan is neither
+// hermetic (a dev's live update flips the result) nor guaranteed cheap.
+var updateProcessLive = func() bool {
+	return exec.Command("pgrep", "-f", "ryoku update").Run() == nil
+}
+
+func reconcileStaleUpdateRun(checkOnly bool) recResult {
+	dir := os.Getenv("XDG_RUNTIME_DIR")
+	if dir == "" {
+		dir = "/tmp"
+	}
+	path := filepath.Join(dir, "ryoku-update.json")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return okRes("no update run-state")
+	}
+	var st struct {
+		Phase string `json:"phase"`
+	}
+	if json.Unmarshal(b, &st) != nil || (st.Phase != "running" && st.Phase != "prompt") {
+		return okRes("update run-state is settled")
+	}
+	if updateProcessLive() {
+		return okRes("an update is running; run-state is live")
+	}
+	if checkOnly {
+		return wouldRes("update island stuck on a crashed run (phase %s)", st.Phase).withFix("rm %s", path)
+	}
+	idle := []byte(`{"phase":"idle"}`)
+	if os.WriteFile(path+".tmp", idle, 0o644) == nil && os.Rename(path+".tmp", path) == nil {
+		return fixedRes("cleared a crashed update's run-state")
+	}
+	if err := os.Remove(path); err != nil {
+		return failRes("could not clear the stale run-state: %v", err).withFix("rm %s", path)
+	}
+	return fixedRes("cleared a crashed update's run-state")
 }
 
 // ---- reconciler: stale install crypt mapper ----------------------------------

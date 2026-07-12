@@ -1331,3 +1331,50 @@ func TestMergeLimineConfHealsAdoptedRoot(t *testing.T) {
 		}
 	}
 }
+
+func TestReconcileStaleUpdateRun(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", dir)
+	path := filepath.Join(dir, "ryoku-update.json")
+
+	// hermetic: a dev box's real `ryoku update` (or a sandbox where process
+	// scans stall) must not steer the result.
+	prev := updateProcessLive
+	updateProcessLive = func() bool { return false }
+	t.Cleanup(func() { updateProcessLive = prev })
+
+	// no run-state at all: nothing to do.
+	if res := reconcileStaleUpdateRun(true); res.status != recOK {
+		t.Errorf("missing file = %v (%s), want ok", res.status, res.detail)
+	}
+
+	// a settled phase is left alone.
+	if err := os.WriteFile(path, []byte(`{"phase":"idle"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if res := reconcileStaleUpdateRun(true); res.status != recOK {
+		t.Errorf("idle phase = %v (%s), want ok", res.status, res.detail)
+	}
+
+	// a crashed run (phase running, no live `ryoku update`) is flagged...
+	if err := os.WriteFile(path, []byte(`{"phase":"running","label":"x"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if res := reconcileStaleUpdateRun(true); res.status != recWouldFix {
+		t.Errorf("stale running = %v (%s), want would-fix", res.status, res.detail)
+	}
+	// ...and idled in place by the fix pass.
+	if res := reconcileStaleUpdateRun(false); res.status != recFixed {
+		t.Errorf("fix pass = %v (%s), want fixed", res.status, res.detail)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var st struct {
+		Phase string `json:"phase"`
+	}
+	if json.Unmarshal(b, &st) != nil || st.Phase != "idle" {
+		t.Errorf("run-state after fix = %s, want phase idle", b)
+	}
+}

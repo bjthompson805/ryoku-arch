@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **`doctor` clears a crashed update's stuck progress.** A `ryoku update` that
+  dies mid-run (power loss, OOM, a kill) leaves the run-state file in
+  "running", so the shell's update island and the Hub keep rendering a phantom
+  update for the rest of the session. A new reconciler idles a running/prompt
+  run-state with no live `ryoku update` process behind it
+  (`internal/doctor/doctor.go`, covered by `TestReconcileStaleUpdateRun`).
 - **`doctor` prunes an orphaned `theme.lua`.** Removing the Appearance Themes
   feature left a `~/.config/hypr/theme.lua` on boxes that had a theme applied, and
   `hyprland.lua` no longer loads it. A new reconciler removes the dead file so the
@@ -99,6 +105,12 @@
   update`/`doctor`/`status`/...) are unchanged.
 
 ### Fixed
+- **A stale pacman lock no longer fails `ryoku update`.** A `db.lck` left by a
+  crashed pacman made `pacman -Syu` abort, and the fix (doctor's stale-lock
+  repair) only ran later in the same update it had just failed. The updater now
+  runs that repair right before `pacman -Syu`: an in-use lock (a pacman
+  actually running) is left alone, a stateless leftover is removed
+  (`internal/updater/update.go`).
 - **Doctor heals the boot-menu countdown loop.** On boxes where
   limine-mkinitcpio-hook 1.37+ adopted the `/Ryoku Linux` placeholder as the
   menu directory, the flat placeholder's boot stanza

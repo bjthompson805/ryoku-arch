@@ -84,6 +84,7 @@ func Update(args []string) error {
 
 	progress.at("packages")
 	progress.logf("Updating system packages (pacman)")
+	clearStalePacmanLock()
 	if err := sys.Sudo("pacman", "-Syu", "--noconfirm"); err != nil {
 		e := fmt.Errorf("pacman -Syu failed; system unchanged from this point, see `ryoku rollback`: %w", err)
 		progress.fail(e)
@@ -178,6 +179,22 @@ func rashinReindex() {
 	if err := sys.Run("ryoku-rashin", "index"); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: rashin reindex failed: %v\n", err)
 	}
+}
+
+// clearStalePacmanLock mirrors doctor's reconcilePacmanLock right before the
+// system upgrade: a db.lck left by a crashed pacman would fail the very update
+// the user is running to heal the box. A lock owned by a live pacman is left
+// alone. Composed from sys primitives, same reason as snapHelpers below.
+func clearStalePacmanLock() {
+	const lock = "/var/lib/pacman/db.lck"
+	if !sys.Exists(lock) {
+		return
+	}
+	if exec.Command("pgrep", "-x", "pacman").Run() == nil {
+		return
+	}
+	progress.logf("Removing a stale pacman lock (no pacman running)")
+	_ = sys.Sudo("rm", "-f", lock)
 }
 
 // snapHelpers: the snapshot facts the offer gates on, composed from sys
