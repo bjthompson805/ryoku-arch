@@ -56,6 +56,8 @@ Item {
     readonly property string userName: Quickshell.env("USER") || "user"
     property bool composeOnly: false
     property string composeMode: ""
+    property bool hd: false
+    property bool busy: false
 
     readonly property var presets: [
         { "a": "#4facfe", "b": "#00c6a7", "ang": 135 },
@@ -110,14 +112,39 @@ Item {
     readonly property real fullW: ratioV <= 0 ? minW : (ratioV >= minW / minH ? minH * ratioV : minW)
     readonly property real fullH: ratioV <= 0 ? minH : (ratioV >= minW / minH ? minH : minW / ratioV)
 
+    // grab the composition to `path`. HD (opt-in) reroutes through the GPU
+    // upscaler first: waifu2x doubles the resolution with no denoise so text edges
+    // stay crisp. A missing tool or an already-large shot falls back to the grab.
+    readonly property string rawTmp: "/tmp/ryoshot-beautified-raw.png"
     function exportStage(path, cb) {
+        beautify.busy = true;
+        function done(ok) { beautify.busy = false; if (cb) cb(ok); }
+        var target = beautify.hd ? beautify.rawTmp : path;
         var scheduled = stage.grabToImage(function (r) {
             var ok = false;
-            try { ok = r ? r.saveToFile(path) : false; }
+            try { ok = r ? r.saveToFile(target) : false; }
             catch (e) { console.log("ryoshot: beautify grab failed: " + e); }
-            if (cb) cb(ok);
+            if (!ok) { done(false); return; }
+            if (beautify.hd) hdProc.upscale(target, path, function () { done(true); });
+            else done(true);
         }, Qt.size(Math.round(beautify.fullW), Math.round(beautify.fullH)));
-        if (!scheduled && cb) cb(false);
+        if (!scheduled) done(false);
+    }
+    Process {
+        id: hdProc
+        property var cb: null
+        function upscale(src, dst, cb_) {
+            hdProc.cb = cb_;
+            command = ["sh", "-c",
+                'src="$1"; dst="$2"; m=/usr/share/waifu2x-ncnn-vulkan/models-cunet; ' +
+                'h=$(identify -format "%h" "$src" 2>/dev/null | head -1); ' +
+                'if command -v waifu2x-ncnn-vulkan >/dev/null 2>&1 && [ "${h:-0}" -gt 0 ] && [ "${h:-0}" -lt 2000 ]; then ' +
+                'waifu2x-ncnn-vulkan -i "$src" -o "$dst" -s 2 -n 0 -m "$m" >/dev/null 2>&1 && [ -s "$dst" ] || cp -f "$src" "$dst"; ' +
+                'else cp -f "$src" "$dst"; fi',
+                "sh", src, dst];
+            running = true;
+        }
+        onExited: (code, status) => { var f = hdProc.cb; hdProc.cb = null; if (f) f(); }
     }
 
     // ---- named looks + persisted default ----
@@ -134,7 +161,7 @@ Item {
         cfg.padding = beautify.padding; cfg.roundness = beautify.roundness; cfg.borderW = beautify.borderW; cfg.borderColor = beautify.borderColor.toString();
         cfg.shadowStrength = beautify.shadowStrength; cfg.shadowBlur = beautify.shadowBlur; cfg.shadowDist = beautify.shadowDist; cfg.shadowAngle = beautify.shadowAngle;
         cfg.adjBright = beautify.adjBright; cfg.adjContrast = beautify.adjContrast; cfg.adjSat = beautify.adjSat;
-        cfg.ratioKey = beautify.ratioKey; cfg.watermark = beautify.watermark;
+        cfg.ratioKey = beautify.ratioKey; cfg.watermark = beautify.watermark; cfg.hd = beautify.hd;
         cfgFile.writeAdapter();
     }
     function loadDefault() {
@@ -143,7 +170,7 @@ Item {
         beautify.padding = cfg.padding; beautify.roundness = cfg.roundness; beautify.borderW = cfg.borderW; beautify.borderColor = cfg.borderColor;
         beautify.shadowStrength = cfg.shadowStrength; beautify.shadowBlur = cfg.shadowBlur; beautify.shadowDist = cfg.shadowDist; beautify.shadowAngle = cfg.shadowAngle;
         beautify.adjBright = cfg.adjBright; beautify.adjContrast = cfg.adjContrast; beautify.adjSat = cfg.adjSat;
-        beautify.ratioKey = cfg.ratioKey; beautify.watermark = cfg.watermark;
+        beautify.ratioKey = cfg.ratioKey; beautify.watermark = cfg.watermark; beautify.hd = cfg.hd;
     }
     // reset strips all styling back to the raw capture.
     function resetDefault() {
@@ -200,6 +227,7 @@ Item {
             property real adjSat: 0
             property string ratioKey: "auto"
             property bool watermark: false
+            property bool hd: false
         }
     }
 
@@ -252,8 +280,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
             TopBtn { label: "Back"; onTapped: beautify.closeRequested() }
-            TopBtn { label: "Copy"; onTapped: beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.copyRequested(beautify.exportTmp); }) }
-            TopBtn { label: "Save image"; accent: true; onTapped: beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.saveRequested(beautify.exportTmp); }) }
+            TopBtn { label: beautify.busy ? "Working\u2026" : "Copy"; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.copyRequested(beautify.exportTmp); }); } }
+            TopBtn { label: beautify.busy ? "Working\u2026" : "Save image"; accent: true; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.saveRequested(beautify.exportTmp); }); } }
         }
     }
 
@@ -434,6 +462,7 @@ Item {
                 Group {
                     title: "SHARE"
                     ToggleRow { width: parent.width; label: "Watermark (力 handle)"; on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
+                    ToggleRow { width: parent.width; label: "HD \u00d72 (AI upscale)"; on: beautify.hd; onToggled: (v) => beautify.hd = v }
                 }
             }
         }

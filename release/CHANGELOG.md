@@ -17,6 +17,10 @@
   hyprcursor, pango, cairo, pkgconf) and skips the new self-repo packages in its
   official-repo dependency check.
 
+### Changed
+- `ryoku-desktop`'s `waifu2x-ncnn-vulkan` optdepend now also covers ryoshot's
+  Beautify HD ×2 export (previously ryowalls Enhance only).
+
 ### Fixed
 - **A published package filename never changes bytes again.** makepkg is not
   reproducible (BUILDDATE alone reshuffles the compressed bytes), and every

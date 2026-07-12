@@ -30,6 +30,11 @@
   **sketch** toggle that renders rectangles, ellipses, lines and arrows with a
   smooth hand-drawn stroke (`Toolbar.qml`, `Icon.qml`, `AnnLayer.qml`,
   `Overlay.qml`, `shell.qml`).
+- **Beautify HD ×2 export (opt-in AI upscale).** A SHARE toggle runs the export
+  through the GPU (`waifu2x`, no denoise so text stays crisp) to double the
+  resolution before Copy/Save. Off by default and saved with your default, so it
+  can bake in automatically; it skips already-large shots and falls back to the
+  plain grab when the tool is absent (`Beautify.qml`).
 
 ### Fixed
 - **`ryoku deploy` preserves every user file now, matching a packaged update.**

@@ -107,7 +107,7 @@ optdepends=(
   'wallust: wallpaper-derived color palette (AUR)'
   'awww: animated wallpaper transitions (AUR)'
   'mpvpaper: video (live) wallpaper playback, ryowalls Live tab (AUR)'
-  'waifu2x-ncnn-vulkan: ryowalls AI Enhance (upscales images and, frame by frame, video)'
+  'waifu2x-ncnn-vulkan: AI upscale for ryowalls Enhance and ryoshot Beautify HD export'
   'tesseract: OCR text grab (pill Super+D)'
   'tesseract-data-eng: English OCR language data'
   'zbar: QR code scanning (pill Super+D)'
