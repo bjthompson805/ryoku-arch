@@ -314,7 +314,7 @@ Item {
                 topRightRadius: 0
                 bottomLeftRadius: 0
                 bottomRightRadius: height / 3
-                color: Config.surfaceColor
+                color: "transparent"
                 width: nLeftRow.implicitWidth + 2 * nacreFace.capPad
                 Behavior on width { NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic } }
 
@@ -364,7 +364,7 @@ Item {
                 topRightRadius: 0
                 bottomLeftRadius: height / 3
                 bottomRightRadius: height / 3
-                color: Config.surfaceColor
+                color: "transparent"
                 width: nCentreRow.implicitWidth + 2 * nacreFace.capPad
                 Behavior on width { NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic } }
 
@@ -412,7 +412,7 @@ Item {
                 topRightRadius: 0
                 bottomLeftRadius: height / 3
                 bottomRightRadius: 0
-                color: Config.surfaceColor
+                color: "transparent"
                 width: nRightRow.implicitWidth + 2 * nacreFace.capPad
                 Behavior on width { NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic } }
 
