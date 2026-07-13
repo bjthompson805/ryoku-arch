@@ -56,6 +56,8 @@ Singleton {
     FileView {
         id: regionFile
         path: root.regionFilePath
+        blockLoading: true
+        atomicWrites: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
