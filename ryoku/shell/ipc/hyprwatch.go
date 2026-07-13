@@ -121,7 +121,6 @@ func (d *daemon) consumeHyprEvents(r io.Reader) {
 			case d.widgetSig <- struct{}{}:
 			default:
 			}
-			livePauseReconcile()
 		}
 		if mon, ok := parseFocusedMon(line); ok {
 			d.setMonitor(mon)

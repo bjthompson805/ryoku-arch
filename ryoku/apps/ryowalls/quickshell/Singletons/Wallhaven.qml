@@ -639,10 +639,8 @@ Singleton {
             property int saturation: 0
             property int threshold: 0
             property bool contrast: false
-            // live wallpapers: which second of the video wallust samples, and
-            // whether mpvpaper pauses while a window covers it.
+            // live wallpapers: which second of the video wallust samples.
             property real frame: 1
-            property bool pauseWhenCovered: false
             // live wallpaper motion: max fps (15-60; 60 plays at the clip's own
             // rate) and screen mapping (fill = cover, fit = letterbox).
             property int liveFps: 60

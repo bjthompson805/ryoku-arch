@@ -62,6 +62,22 @@
   returns a real error naming the fix (`install awww`, or `ryoku doctor` heals
   it), which the shell surfaces like any other wallpaper failure
   (`ipc/wallpaper.go`).
+- **Live (video) wallpapers stop freezing and play smooth and native.** Three
+  bugs made a live wallpaper set, then freeze on the first frame, then stutter
+  when it did move. (1) The daemon paused mpvpaper whenever the active workspace
+  held any window (`pauseWhenCovered` plus the `desktopVisible` "a window covers
+  it" heuristic borrowed from the widget layer), so on a single-monitor desktop
+  opening one window froze the wallpaper even though it shows through gaps and
+  around windows. A live wallpaper is meant to move, so it plays continuously
+  now: the covered-pause path (`livePauseReconcile`, the `pause-sync` mode, the
+  hyprwatch hook, and the ryowalls "Pause when covered" toggle) is gone. (2)
+  Playback ran with `video-sync=display-resample`, which needs the panel refresh
+  to pace frames, but mpvpaper's libmpv render path never reports one, so the
+  resampler ran blind and juddered; it paces to the clip's own rate now. (3) 4K
+  clips dropped frames downscaling with the default scalers, so `profile=fast`
+  uses cheap scalers (invisible on a background) while hwdec keeps decode on the
+  GPU, so playback stays native and smooth (`ipc/wallpaper.go`,
+  `ipc/hyprwatch.go`, ryowalls `SettingsPanel.qml`, `Singletons/Wallhaven.qml`).
 - **Styles with a fixed baseline no longer freeze on screen when the music
   stops.** With the idle wave off, the circle and the radial centre ring kept a
   constant radius that never shrank to nothing, so the render ticker halted and

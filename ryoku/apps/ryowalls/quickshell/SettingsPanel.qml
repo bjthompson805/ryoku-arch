@@ -117,24 +117,6 @@ Item {
 
             Item {
                 width: parent.width
-                height: 24
-                Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Pause live wallpaper when covered"; color: Theme.cream; font.family: Theme.font; font.pixelSize: 13; font.weight: Font.Medium }
-                Toggle {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    on: Wallhaven.settings.pauseWhenCovered
-                    onToggled: (v) => {
-                        Wallhaven.settings.pauseWhenCovered = v;
-                        Wallhaven.saveSettings();
-                        Quickshell.execDetached(["ryoku-shell", "wallpaper", "pause-sync"]);
-                    }
-                }
-            }
-
-            Rectangle { width: parent.width; height: 1; color: Theme.line }
-
-            Item {
-                width: parent.width
                 height: 38
                 Column {
                     anchors.left: parent.left
