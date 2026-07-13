@@ -50,8 +50,10 @@
   it, so it ships in the ISO and reaches boxes on `ryoku update`.
 - **Webcam self-view overlay** replaces the mpv `ryoku-cmd-mirror` PiP. The 力
   deck's Mirror tile and the record island now toggle a shaped, draggable camera
-  bubble on a Wayland layer surface (aspect / roundness / size / flip controls,
-  position persisted to `~/.config/ryoku/camera.json`); it stays across workspace
+  bubble on a Wayland layer surface, reshaped in place by Figma-style on-canvas
+  handles: drag the bottom-right grip to any size/shape, the top-left dot for
+  corner roundness, plus a flip toggle. Size, shape, flip and position persist to
+  `~/.config/ryoku/camera.json`; it stays across workspace
   switches and gpu-screen-recorder captures it into recordings. The feed is a
   native `CameraFeed` item in the `ryoku-blobs` QML plugin, which now hard-depends
   on `qt6-multimedia` (linked at runtime, required to build) so the `.so` loads on
