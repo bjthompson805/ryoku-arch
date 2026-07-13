@@ -61,9 +61,17 @@
   window rule are removed.
 
 ### Changed
-- `ryoku-desktop`: the live (video) wallpaper optdepends are `phonto` (AMD/Intel
-  VAAPI) and `mpvpaper` (NVIDIA NVDEC), GPU-picked at runtime, replacing the
-  single mpvpaper optdepend.
+- **The live (video) wallpaper backend now ships hard via `ryoku-shell`, not as
+  GPU-picked `ryoku-desktop` optdepends.** `ryoku-shell` also builds and installs
+  `ryoku-livewall`, the tiny C video-wallpaper daemon (it software-decodes a
+  downscaled clip into `wl_shm` on a `wlr-layer-shell` surface, so ~40 MB RSS on
+  any GPU vendor instead of mpv/mpvpaper's 300-700 MB), gaining `wayland`,
+  `wayland-protocols`, and `ffmpeg` makedepends plus `ffmpeg` and `wayland`
+  depends. `ryoku-desktop` drops its now-obsolete `phonto` (AMD/Intel VAAPI) and
+  `mpvpaper` (NVIDIA NVDEC) optdepends, since the one backend reaches every box
+  through the hard `ryoku-shell` dependency
+  (`release/packages/ryoku-shell/PKGBUILD`,
+  `release/packages/ryoku-desktop/PKGBUILD`).
 - **`waifu2x-ncnn-vulkan` is now a hard dependency of `ryoku-desktop`** (moved out
   of optdepends), so ryoshot's Beautify HD ×2 export and ryowalls Enhance reach
   every user: `pacman -Syu` pulls it onto existing boxes on `ryoku update`, and it
