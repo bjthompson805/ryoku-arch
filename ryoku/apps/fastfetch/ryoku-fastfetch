@@ -4,17 +4,22 @@
 # mode" when it thinks stdout isn't a real TTY, which SILENTLY disables image
 # logos and falls back to ASCII -- so in kitty we force `--pipe false` to keep
 # the image. Outside kitty: chafa if present, else fastfetch's default.
+#
+# Bounded with `timeout` so a slow probe can never freeze the shell greeting:
+# a stuck process makes /proc enumeration block, and WM/DE detection scans it.
 set -uo pipefail
 
 config="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/config.jsonc"
-[ -f "$config" ] || exec fastfetch "$@"
+if [ ! -f "$config" ]; then
+  timeout 8 fastfetch "$@"
+  exit 0
+fi
 
 if [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM:-}" = "xterm-kitty" ]; then
-  exec fastfetch --config "$config" --pipe false "$@"
+  timeout 8 fastfetch --config "$config" --pipe false "$@"
+elif command -v chafa >/dev/null 2>&1; then
+  timeout 8 fastfetch --config "$config" --logo-type chafa "$@"
+else
+  timeout 8 fastfetch --config "$config" --logo-type none "$@"
 fi
-
-if command -v chafa >/dev/null 2>&1; then
-  exec fastfetch --config "$config" --logo-type chafa "$@"
-fi
-
-exec fastfetch --config "$config" --logo-type none "$@"
+exit 0
