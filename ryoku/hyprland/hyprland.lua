@@ -6,7 +6,13 @@
 -- pcall instead of emergency mode, and ryoku doctor repairs it.
 local function optional(mod)
     if package.searchpath == nil or package.searchpath(mod, package.path) then
-        pcall(require, mod)
+        local ok, err = pcall(require, mod)
+        if not ok then
+            -- degrade, but say so: a syntax error in a hand-edited drop-in
+            -- (user.lua, monitors_user.lua) otherwise vanishes without a trace
+            -- and the user is left guessing why their edits do nothing.
+            print("ryoku: optional config module '" .. mod .. "' failed to load: " .. tostring(err))
+        end
     end
 end
 

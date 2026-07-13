@@ -510,3 +510,9 @@
   window spawned away from the cursor lost focus at once. `follow_mouse = 2`
   detaches keyboard focus from the pointer: a new window keeps focus, and a click
   moves it.
+- `hyprland/hyprland.lua`: a broken optional drop-in says so in the log. An
+  `optional()` module that exists but fails to load (a syntax error in a
+  hand-edited `user.lua` or `monitors_user.lua`) was swallowed whole, so the
+  user's edits silently did nothing; the pcall error is now printed, naming
+  the module and the parse failure, while the config still degrades instead
+  of hitting the emergency overlay.
