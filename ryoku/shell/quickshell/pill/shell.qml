@@ -488,9 +488,10 @@ ShellRoot {
             readonly property bool nacre: Config.barStyle === "nacre"
             // triptych and nacre both keep a hairline top edge and grow three
             // lobes under the module clusters, so the bar dips between them and
-            // the wallpaper shows in the gaps. gated on frameEnabled: turning the
-            // frame off drops the lobes (the top frame) but keeps the modules.
-            readonly property bool triptychLobes: barTop && (triptych || nacre) && !monFullscreen && Config.frameEnabled
+            // the wallpaper shows in the gaps. these islands are the bar design
+            // and stay whether the frame is on or off; the frame toggle strips
+            // only the screen border ring, never the bar.
+            readonly property bool triptychLobes: barTop && (triptych || nacre) && !monFullscreen
             readonly property real frameTopVisible: Math.max(0, Config.effectiveFrameBorder - 50)
             // a vertical band needs room for stacked content; floor it at 30.
             readonly property real barBand: Math.max(Config.barHeight, barVertical ? 30 : 0) * s
