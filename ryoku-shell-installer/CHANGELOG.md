@@ -85,6 +85,12 @@
 
 ### Fixed
 
+- The `[ryoku]` stanza swap pins `/etc/pacman.conf` to 0644. The whole-file
+  rename writes a new inode whose mode followed the invoking user's umask
+  (sudo propagates it), so a umask-077 box flipped pacman.conf to 0600 and
+  broke every non-root pacman reader, including this installer's own resume
+  read; the swap now chmods before the atomic mv, and the stanza is composed
+  in one redirection so no helper temp file can be left behind.
 - `install.sh` refuses a non-systemd system before downloading anything. The
   binary already refuses (the session and services are systemd units), but the
   bootstrap let Artix users fetch the installer first and fail mid-run; the

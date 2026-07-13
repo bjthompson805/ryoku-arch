@@ -694,10 +694,13 @@ func stepRepo(e *engine) error {
 		// whole-file swap, not `>>`: a crash mid-append could leave a truncated
 		// stanza that pacman rejects while a resume's regex check still sees
 		// `[ryoku]` and skips the repair. mv on the same fs commits atomically.
-		if err := e.sudoSh(`printf '%s' '` + pacmanStanza + `' > /etc/pacman.conf.ryoku-stanza && ` +
-			`cat /etc/pacman.conf /etc/pacman.conf.ryoku-stanza > /etc/pacman.conf.ryoku-new && ` +
-			`mv -f /etc/pacman.conf.ryoku-new /etc/pacman.conf && ` +
-			`rm -f /etc/pacman.conf.ryoku-stanza`); err != nil {
+		// chmod pins 0644: the new inode's mode would otherwise follow the
+		// invoking user's umask (sudo propagates it), and a umask-077 box would
+		// flip pacman.conf to 0600, breaking every non-root pacman reader,
+		// including this installer's own resume read above.
+		if err := e.sudoSh(`{ cat /etc/pacman.conf && printf '%s' '` + pacmanStanza + `'; } > /etc/pacman.conf.ryoku-new && ` +
+			`chmod 644 /etc/pacman.conf.ryoku-new && ` +
+			`mv -f /etc/pacman.conf.ryoku-new /etc/pacman.conf`); err != nil {
 			return err
 		}
 		e.say("added the [ryoku] repository to /etc/pacman.conf")
