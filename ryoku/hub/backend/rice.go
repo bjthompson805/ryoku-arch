@@ -418,7 +418,12 @@ func applyRice(slug string, layers []string) error {
 	_ = snapshotStores(".previous")
 	ensureBaseline()
 
-	overlayStore(hyprStorePath(), r.Look["hypr"], riceHyprLook)
+	// a store write failing (disk full, bad perms) must surface: silently
+	// applying half a rice reports success over mixed state. .previous (above)
+	// is the one-click way back either way.
+	if err := overlayStore(hyprStorePath(), r.Look["hypr"], riceHyprLook); err != nil {
+		return fmt.Errorf("apply hypr look: %w", err)
+	}
 	if len(layers) > 0 && r.Layers != nil {
 		hy := readJSONMap(hyprStorePath())
 		changed := false
@@ -435,8 +440,12 @@ func applyRice(slug string, layers []string) error {
 			_ = atomicWrite(hyprStorePath(), mustJSON(hy), 0o644)
 		}
 	}
-	overlayStore(shellStorePath(), r.Look["shell"], riceShellLook)
-	overlayStore(launcherStorePath(), r.Look["launcher"], riceLauncherLook)
+	if err := overlayStore(shellStorePath(), r.Look["shell"], riceShellLook); err != nil {
+		return fmt.Errorf("apply shell look: %w", err)
+	}
+	if err := overlayStore(launcherStorePath(), r.Look["launcher"], riceLauncherLook); err != nil {
+		return fmt.Errorf("apply launcher look: %w", err)
+	}
 
 	st := loadThemeState()
 	if r.Color.Mode == "fixed" {

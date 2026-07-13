@@ -201,6 +201,18 @@
   `backend/schemes.go`, `backend/hypr.go`).
 
 ### Fixed
+- **Applying a rice reports a failed store write instead of claiming success
+  over mixed state.** The three look overlays (hypr, shell, launcher) discarded
+  their write errors, so a disk-full or bad-permission failure mid-apply left
+  some stores restyled and others not, with the UI saying done; the first
+  failure now surfaces, and the pre-apply `.previous` snapshot stays the
+  one-click way back (`backend/rice.go`).
+- **Plugin and Nautilus-pack installs are all-or-nothing.** A failed download
+  of a file the manifest names used to be skipped silently, landing a
+  half-plugin (or a right-click pack missing actions) that still reported
+  installed; a miss now aborts the install, `manifest.json` is written last so
+  an aborted plugin never looks installed, and the payload files land through
+  the atomic temp-and-rename writer (`backend/extras.go`).
 - **Hub drawers and dropdowns animate open/close instead of snapping.** The
   Dropdown popup had no enter/exit transition (it blinked in and out), and the
   Wi-Fi password row, its "Connection failed" line, and the GPU readiness-checks

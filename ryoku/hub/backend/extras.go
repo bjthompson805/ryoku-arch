@@ -479,8 +479,10 @@ func removePlugin(id string) error {
 
 // ensurePlugin pulls a plugin's full source tree from the catalogue
 // (plugins/<id>/) into the data dir, returns that dir. reads the manifest
-// to know which files to grab (entryPoints + commands), so a plugin only
-// ships what it declares. per file is best-effort; missing optional file is fine.
+// to know which files to grab (entryPoints + commands + files). README and
+// the preview are cosmetic and skip on a miss; everything the manifest names
+// IS the plugin, so a failed fetch aborts the install, and manifest.json
+// lands last so an aborted run never looks installed.
 func ensurePlugin(id string) (string, error) {
 	rel := "plugins/" + id
 	manRaw, err := fetch(extrasBase() + "/" + rel + "/manifest.json")
@@ -501,16 +503,10 @@ func ensurePlugin(id string) (string, error) {
 		return "", err
 	}
 	write := func(name string, data []byte, mode os.FileMode) error {
-		p := filepath.Join(dst, filepath.Clean(name))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(p, data, mode)
-	}
-	if err := write("manifest.json", manRaw, 0o644); err != nil {
-		return "", err
+		return atomicWrite(filepath.Join(dst, filepath.Clean(name)), data, mode)
 	}
 
+	optional := map[string]bool{"README.md": true, "assets/preview.gif": true}
 	files := []string{"README.md", "assets/preview.gif"}
 	for _, f := range man.EntryPoints {
 		files = append(files, f)
@@ -522,7 +518,10 @@ func ensurePlugin(id string) (string, error) {
 	for _, f := range files {
 		b, err := fetch(extrasBase() + "/" + rel + "/" + f)
 		if err != nil {
-			continue // optional or absent, skip
+			if optional[f] {
+				continue
+			}
+			return "", fmt.Errorf("plugin %q: could not fetch %s: %w", id, f, err)
 		}
 		mode := os.FileMode(0o644)
 		if strings.HasPrefix(f, "bin/") {
@@ -531,6 +530,9 @@ func ensurePlugin(id string) (string, error) {
 		if err := write(f, b, mode); err != nil {
 			return "", err
 		}
+	}
+	if err := write("manifest.json", manRaw, 0o644); err != nil {
+		return "", err
 	}
 	// seed the plugin's preset block into plugins.json so its settings exist in
 	// the right place the moment it lands (forgotten again on uninstall).
@@ -610,16 +612,14 @@ func ensureNautilusPack(id string) (string, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}
+	// the scripts ARE the pack: silently skipping a failed fetch would land a
+	// pack with missing right-click actions that still reports installed.
 	for _, s := range man.Scripts {
 		b, err := fetch(extrasBase() + "/" + path + "/scripts/" + s)
 		if err != nil {
-			continue
+			return "", fmt.Errorf("nautilus pack %q: could not fetch %s: %w", id, s, err)
 		}
-		p := filepath.Join(root, filepath.Clean(s))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return "", err
-		}
-		if err := os.WriteFile(p, b, 0o755); err != nil {
+		if err := atomicWrite(filepath.Join(root, filepath.Clean(s)), b, 0o755); err != nil {
 			return "", err
 		}
 	}
