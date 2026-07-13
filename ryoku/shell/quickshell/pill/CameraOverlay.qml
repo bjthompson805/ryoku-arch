@@ -75,6 +75,7 @@ PanelWindow {
         height: win.bh
 
         readonly property real rad: Camera.roundness * Math.min(width, height) / 2
+        property string dragMode: "" // "" | move | resize | round -- from the drag below
 
         // rounded backdrop + cue, shown until the first camera frame arrives (the
         // feed is transparent while the camera warms up).
@@ -120,12 +121,12 @@ PanelWindow {
             border.color: Theme.brand
         }
 
-        // Figma-style edit handles (roundness dot, resize grip, flip): revealed
-        // on hover, hidden while recording so they are never in the shot. Fills
-        // the bubble; its grips win the grab over the move-drag below.
+        // Figma-style edit handles (roundness dot, resize grip, flip): pure
+        // visuals; the single DragHandler below moves / resizes / rounds by press
+        // zone. Revealed on hover, hidden while recording (never in the shot).
         CameraHandles {
             anchors.fill: parent
-            maxEdge: win.maxEdge
+            mode: bubble.dragMode
             opacity: (bubbleHov.hovered && !Recorder.anyActive) ? 1 : 0
             visible: opacity > 0.01
             Behavior on opacity { NumberAnimation { duration: 140 } }
@@ -136,33 +137,56 @@ PanelWindow {
             cursorShape: Qt.SizeAllCursor
         }
 
-        // whole-bubble drag: writes the global logical position back to Camera so
-        // every per-screen overlay tracks it and it survives workspace switches.
+        // one drag, three modes chosen by press zone: the bottom-right corner
+        // resizes (free-form w/h), the top-left dot sets roundness, anywhere else
+        // moves. a single handler avoids nested-drag grab fights, and the move
+        // write survives workspace switches (every per-screen overlay tracks it).
         DragHandler {
             id: drag
             target: null
-            dragThreshold: 8
-            property real sx: 0
-            property real sy: 0
-            property real ax: 0
-            property real ay: 0
+            dragThreshold: 6
+            property real ox: 0 // value at press: gx (move) or bw (resize)
+            property real oy: 0 // value at press: gy (move) or bh (resize)
+            property real ax: 0 // scene x at press
+            property real ay: 0 // scene y at press
             onActiveChanged: {
-                if (drag.active) {
-                    drag.sx = win.gx;
-                    drag.sy = win.gy;
-                    drag.ax = drag.centroid.scenePosition.x;
-                    drag.ay = drag.centroid.scenePosition.y;
+                if (!drag.active) {
+                    bubble.dragMode = "";
+                    return;
                 }
+                const cx = drag.centroid.pressPosition.x;
+                const cy = drag.centroid.pressPosition.y;
+                const w = bubble.width;
+                const h = bubble.height;
+                if (Recorder.anyActive)
+                    bubble.dragMode = "move"; // no shape edits mid-recording
+                else if (cx > w - 30 && cy > h - 30)
+                    bubble.dragMode = "resize";
+                else if (Math.hypot(cx - bubble.rad, cy - bubble.rad) < 20)
+                    bubble.dragMode = "round";
+                else
+                    bubble.dragMode = "move";
+                drag.ax = drag.centroid.scenePosition.x;
+                drag.ay = drag.centroid.scenePosition.y;
+                drag.ox = bubble.dragMode === "resize" ? win.bw : win.gx;
+                drag.oy = bubble.dragMode === "resize" ? win.bh : win.gy;
             }
             onCentroidChanged: {
                 if (!drag.active)
                     return;
-                const nx = drag.sx + (drag.centroid.scenePosition.x - drag.ax);
-                const ny = drag.sy + (drag.centroid.scenePosition.y - drag.ay);
-                // clamp so the bubble stays fully on this monitor: no teleport
-                // and no vanish when dragged past an edge.
-                Camera.px = Math.max(win.monX, Math.min(win.monX + win.screenW - win.bw, nx));
-                Camera.py = Math.max(win.monY, Math.min(win.monY + win.screenH - win.bh, ny));
+                const dx = drag.centroid.scenePosition.x - drag.ax;
+                const dy = drag.centroid.scenePosition.y - drag.ay;
+                if (bubble.dragMode === "resize") {
+                    Camera.bw = Math.max(Camera.minEdge, Math.min(win.maxEdge, drag.ox + dx));
+                    Camera.bh = Math.max(Camera.minEdge, Math.min(win.maxEdge, drag.oy + dy));
+                } else if (bubble.dragMode === "round") {
+                    const mr = Math.min(bubble.width, bubble.height) / 2;
+                    const d = Math.max(0, Math.min(mr, (drag.centroid.position.x + drag.centroid.position.y) / 2));
+                    Camera.roundness = mr > 0 ? d / mr : 0;
+                } else {
+                    Camera.px = Math.max(win.monX, Math.min(win.monX + win.screenW - win.bw, drag.ox + dx));
+                    Camera.py = Math.max(win.monY, Math.min(win.monY + win.screenH - win.bh, drag.oy + dy));
+                }
             }
         }
     }
