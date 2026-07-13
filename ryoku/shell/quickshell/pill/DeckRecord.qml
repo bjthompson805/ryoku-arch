@@ -8,12 +8,12 @@ import "Singletons"
 /**
  * record zone of the 力 deck = capture control + the recordings list under one
  * roof. running state shows a pulsing REC tag, elapsed clock and pause/stop;
- * idle shows a Record button that drops an inline mode menu (display / region /
- * with-sound variants). the recordings list sits directly below, so the whole
- * "record" concern is one group instead of two. requestClose() dismisses the
- * deck before any capture (region slurp, gpu-screen-recorder, xdg-open) so the
- * panel is never in the frame. the deck renders the "Record" eyebrow + count
- * above us; `recCount` is published up for it.
+ * idle shows a Record button that opens the floating recording island in its
+ * pre-record chooser (capture mode + audio toggles, then Quick / Studio / Edit).
+ * the recordings list sits directly below, so the whole "record" concern is one
+ * group instead of two. requestClose() dismisses the deck before the island opens
+ * (and before any capture) so the panel is never in the frame. the deck renders
+ * the "Record" eyebrow + count above us; `recCount` is published up for it.
  */
 Item {
     id: root

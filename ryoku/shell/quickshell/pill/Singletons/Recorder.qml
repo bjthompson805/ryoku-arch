@@ -16,8 +16,8 @@ Singleton {
     // the sidebar Record button opens the floating island in its pre-record
     // chooser, where the capture toggles and the Quick / Studio / Edit actions live.
     property bool chooserOpen: false
-    // studio recording runs ryomotion (the OpenScreen fork) headless: our island
-    // is the toolbar, so ryomotion's own HUD stays hidden and we drive start/stop.
+    // studio capture records with gpu-screen-recorder (below) and hands the clip
+    // to the ryomotion editor; our island is the toolbar and drives start/stop.
     property bool studioActive: false
     readonly property bool anyActive: root.active || root.studioActive
     // owning backend: "gsr" | "wf" | "" when idle.
