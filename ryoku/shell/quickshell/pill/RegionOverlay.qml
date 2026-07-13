@@ -28,6 +28,12 @@ PanelWindow {
     }
     readonly property real monX: mon ? mon.x : 0
     readonly property real monY: mon ? mon.y : 0
+    // logical screen size (Hyprland reports physical width/height + scale). The
+    // window's own width/height are 0 until it maps, so gating `visible` on them
+    // deadlocks (never sized -> never visible -> never sized); use these instead.
+    readonly property real monScale: mon && mon.scale > 0 ? mon.scale : 1
+    readonly property real screenW: mon ? mon.width / win.monScale : (modelData ? modelData.width : 0)
+    readonly property real screenH: mon ? mon.height / win.monScale : (modelData ? modelData.height : 0)
 
     // Recorder.regionGeom is "WxH+X+Y" (global logical); parse to this screen's coords.
     readonly property var box: {
@@ -41,13 +47,13 @@ PanelWindow {
             h: parseInt(m[2])
         };
     }
-    readonly property bool onScreen: box && box.x < win.width && box.y < win.height && (box.x + box.w) > 0 && (box.y + box.h) > 0
+    readonly property bool onScreen: box && box.x < win.screenW && box.y < win.screenH && (box.x + box.w) > 0 && (box.y + box.h) > 0
 
     // the clear box clamped to this screen.
     readonly property real bx: box ? Math.max(0, box.x) : 0
     readonly property real by: box ? Math.max(0, box.y) : 0
-    readonly property real bw: box ? Math.min(win.width, box.x + box.w) - bx : 0
-    readonly property real bh: box ? Math.min(win.height, box.y + box.h) - by : 0
+    readonly property real bw: box ? Math.min(win.screenW, box.x + box.w) - bx : 0
+    readonly property real bh: box ? Math.min(win.screenH, box.y + box.h) - by : 0
     readonly property color dim: Qt.rgba(0, 0, 0, 0.45)
 
     screen: modelData
@@ -64,8 +70,8 @@ PanelWindow {
     mask: Region {}
 
     // four dim bands framing the clear box (top / bottom / left / right).
-    Rectangle { color: win.dim; x: 0; y: 0; width: win.width; height: win.by }
-    Rectangle { color: win.dim; x: 0; y: win.by + win.bh; width: win.width; height: win.height - (win.by + win.bh) }
+    Rectangle { color: win.dim; x: 0; y: 0; width: win.screenW; height: win.by }
+    Rectangle { color: win.dim; x: 0; y: win.by + win.bh; width: win.screenW; height: win.screenH - (win.by + win.bh) }
     Rectangle { color: win.dim; x: 0; y: win.by; width: win.bx; height: win.bh }
-    Rectangle { color: win.dim; x: win.bx + win.bw; y: win.by; width: win.width - (win.bx + win.bw); height: win.bh }
+    Rectangle { color: win.dim; x: win.bx + win.bw; y: win.by; width: win.screenW - (win.bx + win.bw); height: win.bh }
 }
