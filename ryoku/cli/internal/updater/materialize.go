@@ -56,6 +56,12 @@ func Materialize() error {
 			"  `ryoku materialize` applies a packaged install's config; on a dev checkout run `ryoku deploy` instead", base)
 	}
 
+	// ~/.config/ryoku is where the shell's JSON stores live (shell.json,
+	// launcher.json, hypr.json). The package ships no file under it, so the
+	// walk below never creates it, and the shell's QML self-seed cannot make
+	// parent directories: guarantee it here, at install and on every update.
+	_ = os.MkdirAll(filepath.Join(dest, "ryoku"), 0o755)
+
 	current, err := walkRel(base)
 	if err != nil {
 		return fmt.Errorf("scan %s: %w", base, err)

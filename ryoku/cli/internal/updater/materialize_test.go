@@ -37,6 +37,11 @@ func TestMaterializePreservesGeneratedAndUserFiles(t *testing.T) {
 	wantFile(t, filepath.Join(dest, "hypr/user.lua"), "seed header")
 	wantFile(t, filepath.Join(dest, "fastfetch/config.jsonc"), "ryoku")
 	wantFile(t, filepath.Join(dest, "kitty/current-theme.conf"), "16110b")
+	// the shell's JSON stores live in ~/.config/ryoku, which no shipped file
+	// creates; materialize guarantees it so the QML self-seed can write there.
+	if st, err := os.Stat(filepath.Join(dest, "ryoku")); err != nil || !st.IsDir() {
+		t.Errorf("materialize did not create the ryoku config dir: %v", err)
+	}
 
 	// Runtime regenerates the drop-in seeds; user adds extra keyboard layouts,
 	// a user file, and customizes the fastfetch readout.

@@ -105,6 +105,12 @@
   update`/`doctor`/`status`/...) are unchanged.
 
 ### Fixed
+- **`materialize` guarantees `~/.config/ryoku` exists.** The shell's JSON
+  stores (shell.json, launcher.json, hypr.json) live there, but the package
+  ships no file under it and the shell's QML self-seed cannot create parent
+  directories, so on a box where nothing had written a setting yet the seeds
+  failed silently. Materialize now creates the directory at install and on
+  every update (`internal/updater/materialize.go`).
 - **A stale pacman lock no longer fails `ryoku update`.** A `db.lck` left by a
   crashed pacman made `pacman -Syu` abort, and the fix (doctor's stale-lock
   repair) only ran later in the same update it had just failed. The updater now
