@@ -15,6 +15,8 @@ ships() {
 # feature -> package that provides it
 declare -A need=(
   [wallpaper-daemon]=awww-git
+  [live-wallpaper]=phonto
+  [live-wallpaper-nvidia]=mpvpaper
   [palette]=wallust
   [clipboard-history]=cliphist
   [color-picker]=hyprpicker
