@@ -90,9 +90,15 @@ Item {
         return a;
     }
     function startQuick() {
-        hud.starting = true;
         Recorder.chooserOpen = false;
-        quickTimer.restart();
+        if (hud.optRegion) {
+            // region: slurp picks the box first (the island melts away), then the
+            // recording bar returns once capture actually starts.
+            Recorder.startRegion(hud.optDesktopAudio, hud.optMic);
+        } else {
+            hud.starting = true;
+            quickTimer.restart();
+        }
     }
     Timer { id: quickTimer; interval: 420; onTriggered: { Recorder.start(hud.recordArgs()); hud.starting = false; } }
     // studio and import both open ryomotion; a bare launch until the app grows

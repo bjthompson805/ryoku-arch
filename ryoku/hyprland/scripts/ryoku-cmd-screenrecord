@@ -219,16 +219,22 @@ region_geometry_gsr() {
   local x
   local y
 
-  require_command "$slurp_cmd" slurp
-  geometry="$("$slurp_cmd" -f "%wx%h+%x+%y" 2>/dev/null || true)"
-  [[ -n $geometry ]] || return 0
+  # the island can pre-pick the region (slurp runs in the shell before the
+  # recording state shows), passed as --geometry; honour it and skip slurp.
+  if [[ -n ${region_geom_override:-} ]]; then
+    geometry="$region_geom_override"
+  else
+    require_command "$slurp_cmd" slurp
+    geometry="$("$slurp_cmd" -f "%wx%h+%x+%y" 2>/dev/null || true)"
+    [[ -n $geometry ]] || return 0
 
-  if [[ $geometry == *" "* ]]; then
-    pos="${geometry%% *}"
-    size="${geometry#* }"
-    x="${pos%,*}"
-    y="${pos#*,}"
-    geometry="${size}+${x}+${y}"
+    if [[ $geometry == *" "* ]]; then
+      pos="${geometry%% *}"
+      size="${geometry#* }"
+      x="${pos%,*}"
+      y="${pos#*,}"
+      geometry="${size}+${x}+${y}"
+    fi
   fi
 
   if [[ ! $geometry =~ ^[0-9]+x[0-9]+[+-][0-9]+[+-][0-9]+$ ]]; then
@@ -244,6 +250,12 @@ region_geometry_gsr() {
 region_geometry_wf() {
   local slurp_cmd="${RYOKU_SCREENRECORD_SLURP:-slurp}"
   local geometry
+
+  # island-provided region (WxH+X+Y) -> wf-recorder's "X,Y WxH".
+  if [[ -n ${region_geom_override:-} && $region_geom_override =~ ^([0-9]+)x([0-9]+)[+]([0-9]+)[+]([0-9]+)$ ]]; then
+    printf '%s,%s %sx%s' "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    return
+  fi
 
   require_command "$slurp_cmd" slurp
   geometry="$("$slurp_cmd" 2>/dev/null || true)"
@@ -548,6 +560,7 @@ action="auto"
 mode="fullscreen"
 desktop_audio=false
 microphone_audio=false
+region_geom_override=""
 
 while (($# > 0)); do
   case "$1" in
@@ -592,6 +605,10 @@ while (($# > 0)); do
   --help|-h|help)
     usage
     exit 0
+    ;;
+  --geometry)
+    shift
+    region_geom_override="${1:-}"
     ;;
   *)
     echo "ryoku-cmd-screenrecord: unknown argument: $1" >&2
