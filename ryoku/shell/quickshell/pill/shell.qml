@@ -1307,6 +1307,17 @@ ShellRoot {
         RegionOverlay {}
     }
 
+    // the self-view is a recording companion: when the last capture stops, clear
+    // it so it does not linger. a plain mirror toggled on with no recording just
+    // stays until toggled off (no anyActive transition to clear it).
+    Connections {
+        target: Recorder
+        function onAnyActiveChanged() {
+            if (!Recorder.anyActive)
+                Camera.active = false;
+        }
+    }
+
     // draggable, shaped webcam bubble; stays across workspaces, captured by gsr.
     Variants {
         model: Quickshell.screens
