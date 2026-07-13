@@ -3,10 +3,10 @@
 # ryomotion: Ryoku Motion, the screen-demo recorder and editor. A Linux build of
 # the OpenScreen fork (github.com/neur0map/ryomotion), rebranded to Ryo Motion
 # and packaged for the [ryoku] repo. The shell's record island opens it for a
-# studio capture and for importing a clip to edit; the one-click quick capture
-# stays on gpu-screen-recorder. Native Linux capture is a later phase; today the
-# app uses OpenScreen's browser pipeline (screen through the portal, audio
-# through PipeWire).
+# studio capture and for importing a clip to edit. It records natively on Linux
+# with gpu-screen-recorder (electron/recording/linuxCapture.ts) -- the same
+# backend as the shell's one-click capture -- instead of OpenScreen's browser
+# pipeline, falling back to the browser recorder only when gsr is unavailable.
 #
 # Electron app: built from source into an unpacked tree under /opt with a
 # /usr/bin/ryomotion launcher. The fork pins node 22 (.nvmrc), and its bundled
