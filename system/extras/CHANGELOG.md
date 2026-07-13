@@ -3,13 +3,16 @@
 ## Unreleased
 
 ### Fixed
-- **`ryoku-pkg-cachyos` actually enables `x86_64_v3` on a stock pacman.conf.**
-  The Architecture edit only matched an uncommented `Architecture =` line, but
-  stock Arch ships it commented (`#Architecture = auto`), so the sed silently
-  changed nothing: the [cachyos-v3] repo was added and every install from it
-  then failed with "architecture x86_64_v3 not found". All three shapes are
-  handled now (uncommented: append; commented: replace; absent: insert under
-  `[options]`), and the result is verified so a no-op can never strand the repo.
+- **`ryoku-pkg-cachyos` hardens the `Architecture = x86_64_v3` edit.** The old
+  sed only matched one exact spacing of an active `Architecture =` line and
+  reported nothing when it matched nothing, so a nonstandard or hand-edited
+  pacman.conf (spacing variants, a commented or absent line) kept rejecting
+  every [cachyos-v3] package with "architecture x86_64_v3 not found" after the
+  repo was added. Any active line now gets the value appended whatever its
+  spacing; a config without one gets the line inserted under `[options]`
+  (never by rewriting a commented line, which could sit inside a repo section
+  and break pacman's parse); and the result is verified, so a remaining no-op
+  exits loudly instead of stranding the repo.
 - `ryoku-pkg-aur-add` refuses to run as root with one clear message. makepkg
   cannot build as root, so a root invocation used to die per package with
   yay's cryptic refusal instead of saying what to do (run it as your user).
