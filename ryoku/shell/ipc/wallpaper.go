@@ -240,15 +240,15 @@ func (d *daemon) showWallpaperInstant(pic string) error {
 	return exec.Command(wallDaemon, "img", pic, "--transition-type", "none").Run()
 }
 
-// --- live (video) wallpapers: backend by GPU --------------------------------
+// --- live (video) wallpapers: awww still + a GPU video daemon on top ---------
 //
-// awww is image/GIF only, so a video plays on its own wlr background surface
-// through a decoder chosen by GPU: phonto (GStreamer VAAPI) is lean on AMD/Intel
-// but has no working NVIDIA decode, so a box with an NVIDIA GPU plays through
-// mpvpaper, whose hwdec uses NVDEC. Exactly one wallpaper surface is ever mapped:
-// setting a video stops the awww image daemon so nothing shows underneath (the
-// image never bleeds through); setting an image stops the video daemon and brings
-// awww back.
+// awww is image/GIF only, so a video plays through a GPU-picked video daemon on
+// its own wlr background surface: phonto (GStreamer VAAPI) on AMD/Intel, mpvpaper
+// (mpv hwdec/NVDEC) on NVIDIA where VAAPI is unavailable. awww stays up under it
+// showing the clip's own first frame, so the desktop always shows the clip's
+// content (the opaque video covers awww; anything it doesn't cover is the clip's
+// still, never a stale image), and switching back to an image transitions from
+// that real frame instead of the pre-video image awww would otherwise restore.
 
 const (
 	daemonPhonto   = "phonto"   // GStreamer VAAPI: lean on AMD/Intel, no NVIDIA
@@ -311,8 +311,10 @@ func stopLive() {
 	_ = exec.Command("pkill", "-9", "-x", liveDaemon).Run()
 }
 
-// showAny: route a video to the live daemon and an image to awww, stopping the
-// other backend so exactly one surface paints.
+// showAny: route a video to the live path (awww still + video daemon) and an
+// image to awww. an image set stops the video daemon so awww's still (the clip's
+// frame, or the previous image) is revealed, and awww transitions from that real
+// frame, never a stale cache.
 func (d *daemon) showAny(pic string) error {
 	if isVideo(pic) {
 		return d.showLiveWallpaper(pic)
@@ -321,66 +323,36 @@ func (d *daemon) showAny(pic string) error {
 	return d.showWallpaper(pic)
 }
 
-// showLiveWallpaper: play the video looping on its own background surface through
-// the GPU's live daemon (phonto/VAAPI or mpvpaper/NVDEC). Before launching, the
-// awww image daemon is stopped so its surface can't show through beneath.
+// showLiveWallpaper: show the clip through awww + the GPU's video daemon. awww
+// paints the clip's own first frame and stays up under the video, so the desktop
+// always shows the clip's content: the opaque video covers awww; any area it does
+// not cover (letterbox, or the moment before its first frame) is the clip's own
+// still, not a stale image or black; and a later switch to an image transitions
+// from that still, not the pre-video image awww's cache would restore. It is also
+// the whole wallpaper when no video daemon is installed (the clip's frame, shown
+// statically).
 func (d *daemon) showLiveWallpaper(pic string) error {
-	// backend not installed: the pick must still apply, so degrade to a still
-	// frame through the image daemon. the live daemon stays a true optional
-	// enhancement (with it the wallpaper moves; without it it is the clip's
-	// frame), so ryowalls reports success either way.
-	if _, err := exec.LookPath(liveDaemon); err != nil {
-		d.liveStill(pic)
-		return nil
+	if frame := liveFrame(pic); frame != "" && ensureWallDaemon() {
+		_ = d.showWallpaperInstant(frame)
 	}
-	stopLive()        // kill any prior instance
-	stopImageDaemon() // remove awww's surface so no image bleeds under the video
+	if _, err := exec.LookPath(liveDaemon); err != nil {
+		return nil // no video daemon: the clip's still is the wallpaper
+	}
+	stopLive() // kill any prior video daemon; awww's frame shows under until the new paints
 	cmd := exec.Command(liveDaemon, liveLaunchArgs(pic)...)
 	if err := cmd.Start(); err != nil {
-		d.liveStill(pic) // couldn't launch it; show the frame instead
-		return nil
+		return nil // couldn't launch it; awww keeps the clip's frame
 	}
-	// reap when it exits (a later stopLive pkills it); the daemon outlives it.
 	go func() { _ = cmd.Wait() }()
-	// wait until the process exists so a later stopLive can see it. pgrep is true
-	// the moment it execs, well before it paints, so a slow start still counts up.
+	// return once the process exists (pgrep is true well before it paints; awww's
+	// still covers the gap), so a later stopLive can see and kill it.
 	for range 80 {
 		if liveAlive() {
 			return nil
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	// it exec'd but its process is already gone: decode failed or it crashed. it
-	// left no surface, so show a still frame rather than a black desktop.
-	d.liveStill(pic)
 	return nil
-}
-
-// liveStill degrades a video pick to one frame shown through the image daemon,
-// for when phonto is absent or its GPU decode fails. best-effort: reports whether
-// it painted anything.
-func (d *daemon) liveStill(pic string) bool {
-	if frame := liveFrame(pic); frame != "" && ensureWallDaemon() {
-		return d.showWallpaper(frame) == nil
-	}
-	return false
-}
-
-// stopImageDaemon stops the image daemon and waits until it no longer answers
-// IPC, so its background surface is torn down before the video daemon maps. else
-// the old image lingers under the starting video (the switch overlay): plain
-// `awww kill` returns before the daemon exits, and it can miss a daemon in a
-// non-default namespace. `kill -a` covers every namespace, and querying is
-// zombie-immune (a defunct daemon still matches a name-based pgrep but never
-// answers IPC).
-func stopImageDaemon() {
-	_ = exec.Command(wallDaemon, "kill", "-a").Run()
-	for range 40 {
-		if exec.Command(wallDaemon, "query").Run() != nil {
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
 }
 
 // liveFrame: one still from the video for wallust, which reads an image. offset

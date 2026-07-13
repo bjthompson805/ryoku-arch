@@ -93,11 +93,12 @@
   image beneath, with a GPU-picked hardware decoder.** The old path ran a full
   mpv (mpvpaper) that mapped its surface *over* the still `awww` image without
   stopping it, so any letterbox, gap, or launch delay showed the old image
-  through, and its documented per-loop leak grew to hundreds of MB. The daemon now
-  hands the background off cleanly (a video set stops the image daemon and waits
-  for it to exit before the clip maps, so the old image can't linger under the
-  starting video and exactly one surface is ever mapped) and picks the decoder by
-  GPU: `phonto` (lean
+  through, and its documented per-loop leak grew to hundreds of MB. Now `awww`
+  paints the clip's own first frame and stays under the video, so the desktop
+  always shows the clip's content (the opaque video covers it; anything it does
+  not is the clip's own still, never a stale image), and a later switch to an
+  image transitions from that real frame, not the pre-video image awww's cache
+  would otherwise restore. The decoder is GPU-picked: `phonto` (lean
   GStreamer/VAAPI) on AMD/Intel, `mpvpaper` (mpv `hwdec`=NVDEC) on NVIDIA, where
   VAAPI is unavailable and phonto would fall back to a heavy software decode. mpv
   runs `no-config load-scripts=no` (no mpris hijack), and a watcher relaunches it
