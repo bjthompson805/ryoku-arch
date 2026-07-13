@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Quick ShaderTools)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Quick ShaderTools Multimedia)
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -29,11 +29,12 @@ qt_add_qml_module(ryoku-blobs
         blobrect.cpp blobrect.hpp
         blobinvertedrect.cpp blobinvertedrect.hpp
         blobmaterial.cpp blobmaterial.hpp
+        camerafeed.cpp camerafeed.hpp
 )
 
-# The blob shapes are QQuickItems with scene-graph materials, so the module needs
-# Qt6::Quick (which pulls in Gui and Core); qt_add_qml_module only links Qml.
-target_link_libraries(ryoku-blobs PRIVATE Qt6::Quick)
+# The blob shapes are QQuickItems with scene-graph materials (Qt6::Quick, which
+# pulls in Gui and Core); the camera feed captures the webcam via Qt6::Multimedia.
+target_link_libraries(ryoku-blobs PRIVATE Qt6::Quick Qt6::Multimedia)
 
 # Ship both the dynamic plugin and its backing library in the module directory,
 # and give the plugin an $ORIGIN rpath so it resolves the backing from its own

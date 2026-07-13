@@ -5,10 +5,11 @@ import Quickshell
 import "Singletons"
 
 // the sidebar's quick-action strip: screen-capture helpers (Lens, Color, OCR,
-// Mirror, QR) plus a Clipboard-history button, as a flat tile row with hairline
-// dividers over a Ryoku wave. each capture tile runs a self-contained
-// ~/.config/hypr/scripts helper and closes the sidebar (requestClose) so the
-// action owns the whole screen; the Clipboard tile emits clipboardRequested.
+// QR) plus a Mirror toggle and a Clipboard-history button, as a flat tile row
+// with hairline dividers over a Ryoku wave. each capture tile runs a
+// self-contained ~/.config/hypr/scripts helper and closes the sidebar
+// (requestClose) so the action owns the whole screen; Mirror toggles the Camera
+// self-view overlay, and the Clipboard tile emits clipboardRequested.
 Item {
     id: tools
 
@@ -24,7 +25,7 @@ Item {
         { "key": "lens",   "glyph": "lens",       "label": "Lens",   "argv": [tools.scripts + "ryoku-cmd-google-lens"] },
         { "key": "color",  "glyph": "eyedropper", "label": "Color",  "argv": [tools.scripts + "ryoku-cmd-color-picker"] },
         { "key": "ocr",    "glyph": "ocr",        "label": "OCR",    "argv": [tools.scripts + "ryoku-cmd-ocr"] },
-        { "key": "mirror", "glyph": "webcam",     "label": "Mirror", "argv": [tools.scripts + "ryoku-cmd-mirror"] },
+        { "key": "mirror", "glyph": "webcam",     "label": "Mirror", "cam": true },
         { "key": "qr",     "glyph": "qr",         "label": "QR",     "argv": [tools.scripts + "ryoku-cmd-qr-scan"] },
         { "key": "clip",   "glyph": "clipboard",  "label": "Clipboard", "clip": true }
     ]
@@ -121,7 +122,16 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onEntered: tools.hovered = tile.modelData.key
                     onExited: if (tools.hovered === tile.modelData.key) tools.hovered = ""
-                    onClicked: tile.modelData.clip ? tools.clipboardRequested() : tools.launch(tile.modelData.argv)
+                    onClicked: {
+                        if (tile.modelData.clip)
+                            tools.clipboardRequested();
+                        else if (tile.modelData.cam) {
+                            Camera.toggle();
+                            tools.requestClose();
+                        } else {
+                            tools.launch(tile.modelData.argv);
+                        }
+                    }
                 }
 
                 // hairline divider on the leading edge of every slot but the first.

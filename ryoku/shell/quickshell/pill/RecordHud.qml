@@ -463,6 +463,7 @@ Item {
             RecordButton { s: hud.s; glyph: Recorder.regionGeom !== "" ? "region" : "monitor"; tint: Recorder.regionGeom !== "" ? Theme.cream : Theme.subtle; onTapped: { if (Recorder.regionGeom !== "") Recorder.regionGeom = ""; else Recorder.pickRegion(); } }
             RecordButton { s: hud.s; glyph: hud.optDesktopAudio ? "speaker" : "speaker-off"; tint: hud.optDesktopAudio ? Theme.cream : Theme.subtle; onTapped: hud.optDesktopAudio = !hud.optDesktopAudio }
             RecordButton { s: hud.s; glyph: hud.optMic ? "mic" : "mic-off"; tint: hud.optMic ? Theme.cream : Theme.subtle; onTapped: hud.optMic = !hud.optMic }
+            RecordButton { s: hud.s; glyph: "webcam"; tint: Camera.active ? Theme.cream : Theme.subtle; onTapped: Camera.toggle() }
 
             Rectangle {
                 width: (hud.layoutVertical ? 18 : 1) * hud.s

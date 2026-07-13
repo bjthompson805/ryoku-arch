@@ -57,13 +57,6 @@ hl.window_rule({
 })
 
 hl.window_rule({
-    name  = "float-webcam-mirror",
-    match = { title = "ryoku-mirror" },
-    float = true,
-    size  = { 360, 270 },
-})
-
-hl.window_rule({
 	name   = "float-ryoku-settings",
 	match  = { title = "^(Ryoku Settings)$" },
 	float  = true,
