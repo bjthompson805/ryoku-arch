@@ -486,6 +486,15 @@ ShellRoot {
             readonly property bool triptych: Config.barStyle === "triptych"
             readonly property bool delos: Config.barStyle === "delos"
             readonly property bool nacre: Config.barStyle === "nacre"
+            readonly property bool inir: Config.barStyle === "inir"
+            readonly property bool aurora: Config.barStyle === "aurora"
+            readonly property bool angel: Config.barStyle === "angel"
+            // inir/aurora/angel are flat frame-off bars ported from iNiR: the Bar
+            // paints its own flush, full-width background (TUI / translucent glass /
+            // brutalist) instead of riding the frame band, so the frame grows no
+            // band under them and no lobes. They read as a flat edge-to-edge bar
+            // and are meant for frame-off.
+            readonly property bool flatBar: inir || aurora || angel
             // triptych and nacre both keep a hairline top edge and grow three
             // blob lobes under the module clusters, so the bar dips between them
             // (organic dips). the dips persist whether the frame is on or off --
@@ -663,8 +672,8 @@ ShellRoot {
                     anchors.margins: -50
                     group: blobGroup
                     radius: overlay.nacre ? 0 : Config.frameRadius
-                    borderTop: overlay.nacre ? Config.frameBorder : ((overlay.barTop && !overlay.triptych && !overlay.delos) ? (Config.effectiveFrameBorder + overlay.barBand) : Config.effectiveFrameBorder)
-                    borderBottom: (overlay.barBottom && !overlay.delos) ? (Config.effectiveFrameBorder + overlay.barBand) : Config.effectiveFrameBorder
+                    borderTop: overlay.nacre ? Config.frameBorder : ((overlay.barTop && !overlay.triptych && !overlay.delos && !overlay.flatBar) ? (Config.effectiveFrameBorder + overlay.barBand) : Config.effectiveFrameBorder)
+                    borderBottom: (overlay.barBottom && !overlay.delos && !overlay.flatBar) ? (Config.effectiveFrameBorder + overlay.barBand) : Config.effectiveFrameBorder
                     borderLeft: (overlay.barLeft && !overlay.delos) ? (Config.effectiveFrameBorder + overlay.barBand) : Config.effectiveFrameBorder
                     borderRight: (overlay.barRight && !overlay.delos) ? (Config.effectiveFrameBorder + overlay.barBand) : Config.effectiveFrameBorder
                     opacity: Config.frameOpacity

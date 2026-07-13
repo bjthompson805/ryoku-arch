@@ -31,6 +31,12 @@ Item {
     readonly property real moduleSpan: Math.round(bar.band * 0.76)
     readonly property bool triptych: Config.barStyle === "triptych"
     readonly property bool nacre: Config.barStyle === "nacre"
+    readonly property bool inir: Config.barStyle === "inir"
+    readonly property bool aurora: Config.barStyle === "aurora"
+    readonly property bool angel: Config.barStyle === "angel"
+    // the flat iNiR-ported skins: a flush full-width bar painting its own
+    // background (TUI / glass / brutalist), no frame band, no lobes.
+    readonly property bool flatBar: inir || aurora || angel
     // triptych wraps each cluster in a transparent hugger and shell.qml grows a
     // matching frame lobe under it, so the bar dips between the three; every
     // other skin keeps the hugger invisible and the plain straight band.
@@ -49,6 +55,8 @@ Item {
     // cluster is hidden (no bell), so the toast falls back to the bar end.
     readonly property real bellCenter: bar.nacre
         ? (nacreLoader.item ? nacreLoader.item.bellCenter : -1)
+        : bar.flatBar
+        ? (flatLoader.item ? flatLoader.item.bellCenter : -1)
         : (Config.barShowStatus ? hStatus.bellCenter : -1)
 
     property int seedWsId: -1
@@ -81,8 +89,8 @@ Item {
     Item {
         id: face
         anchors.fill: parent
-        visible: !bar.nacre
-        enabled: !bar.nacre
+        visible: !bar.nacre && !bar.flatBar
+        enabled: !bar.nacre && !bar.flatBar
 
         // ---- left island: seal + workspaces + title --------------------
         Rectangle {
@@ -439,6 +447,154 @@ Item {
                         interactive: false
                         BarTray { id: nTray; s: bar.s; trayWindow: bar.trayWindow; menuEdgeY: bar.height }
                     }
+                }
+            }
+        }
+    }
+
+    // ---- flat iNiR skins: a flush full-width bar carrying borderless modules
+    // (inir TUI, aurora glass, angel brutalist). loaded only when active, so the
+    // other skins pay nothing for it.
+    Loader {
+        id: flatLoader
+        anchors.fill: parent
+        active: bar.flatBar
+        sourceComponent: flatComp
+    }
+    Component {
+        id: flatComp
+        Item {
+            id: flatFace
+
+            readonly property real edge: 16 * bar.s
+            // the visible bell's centre, so the toast grows from it like the inbox.
+            readonly property real bellCenter: Config.barShowStatus ? flatStatus.bellCenter : -1
+
+            // a hairline cell divider; the TUI feel is inir's alone, so the other
+            // two flat skins hide it and the Row drops the gap.
+            component Sep: Rectangle {
+                visible: bar.inir
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(1, bar.s)
+                height: Math.round(bar.moduleSpan * 0.62)
+                color: Qt.alpha(Theme.border, 0.7)
+            }
+
+            // full-width flush surface. inir: flat opaque TUI panel; aurora:
+            // translucent glass the wallpaper shows through; angel: opaque with a
+            // heavy base border and a bright inset top edge (the brutalist glow).
+            Rectangle {
+                anchors.fill: parent
+                readonly property color surf: Config.matchWallpaper ? Wallust.surface : Config.surfaceColor
+                readonly property color deep: Config.matchWallpaper ? Wallust.base : Config.surfaceColor
+                color: bar.aurora ? Qt.alpha(surf, 0.5) : (bar.angel ? deep : surf)
+
+                Rectangle { // aurora top sheen
+                    visible: bar.aurora
+                    anchors { left: parent.left; right: parent.right; top: parent.top }
+                    height: Math.max(1, bar.s)
+                    color: Qt.alpha(Theme.cream, 0.16)
+                }
+                Rectangle { // angel inset top glow
+                    visible: bar.angel
+                    anchors { left: parent.left; right: parent.right; top: parent.top }
+                    height: Math.max(1, 2 * bar.s)
+                    color: Qt.alpha(Theme.brand, 0.6)
+                }
+                Rectangle { // base border: inir hairline, aurora subtle, angel heavy
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: bar.angel ? Math.max(2, 3 * bar.s) : Math.max(1, bar.s)
+                    color: bar.angel ? Theme.lineStrong : Qt.alpha(Theme.border, bar.aurora ? 0.55 : 1.0)
+                }
+            }
+
+            // ---- left cluster: seal, workspaces, stats, media ----
+            Row {
+                anchors.left: parent.left
+                anchors.leftMargin: flatFace.edge
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 6 * bar.s
+
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    width: bar.moduleSpan
+                    filled: false
+                    onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
+                    BrandMark { size: 11 * bar.s }
+                }
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    padX: 6 * bar.s
+                    interactive: false
+                    BarWorkspaces { s: bar.s; activeWsId: bar.activeWsId }
+                }
+                Sep {}
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    padX: 8 * bar.s
+                    interactive: false
+                    BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                }
+                Sep { visible: bar.inir && Config.barShowMedia && Media.present }
+                BarReveal {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    dropWhenClosed: true
+                    shown: Config.barShowMedia && Media.present
+                    BarModule {
+                        id: flatMediaMod
+                        s: bar.s
+                        height: bar.moduleSpan
+                        onTapped: flatMedia.toggle()
+                        onWheeled: (steps) => bar.nudgeVolume(steps)
+                        onHoveredChanged: bar.hoverPopoutRequested("media", flatMediaMod.mapToItem(null, flatMediaMod.width / 2, flatMediaMod.height / 2).x, flatMediaMod.hovered)
+                        BarMedia { id: flatMedia; s: bar.s }
+                    }
+                }
+            }
+
+            // ---- centre: clock ----
+            BarModule {
+                id: flatClockMod
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                s: bar.s
+                height: bar.moduleSpan
+                padX: 13 * bar.s
+                onTapped: bar.popoutRequested("calendar", flatClockMod.mapToItem(null, flatClockMod.width / 2, flatClockMod.height / 2).x)
+                BarClock { s: bar.s }
+            }
+
+            // ---- right cluster: status, tray ----
+            Row {
+                anchors.right: parent.right
+                anchors.rightMargin: flatFace.edge
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 6 * bar.s
+
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    visible: Config.barShowStatus
+                    interactive: false
+                    BarStatus { id: flatStatus; s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                }
+                Sep { visible: bar.inir && flatTray.count > 0 }
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    visible: flatTray.count > 0
+                    padX: 11 * bar.s
+                    interactive: false
+                    BarTray { id: flatTray; s: bar.s; trayWindow: bar.trayWindow; menuEdgeY: bar.height }
                 }
             }
         }

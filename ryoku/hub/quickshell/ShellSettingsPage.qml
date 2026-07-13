@@ -814,7 +814,10 @@ Item {
                             { "key": "stele", "label": "Stele", "hint": "engraved" },
                             { "key": "triptych", "label": "Triptych", "hint": "islands" },
                             { "key": "delos", "label": "Delos", "hint": "one island" },
-                            { "key": "nacre", "label": "Nacre", "hint": "frosted pods" }
+                            { "key": "nacre", "label": "Nacre", "hint": "frosted pods" },
+                            { "key": "inir", "label": "iNiR", "hint": "flat TUI" },
+                            { "key": "aurora", "label": "Aurora", "hint": "glass" },
+                            { "key": "angel", "label": "Angel", "hint": "brutalist" }
                         ]
                         current: draft.barStyle
                         onChosen: (k) => page.edit("barStyle", k)

@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- **Three flat frame-off bar styles ported from snowarch's iNiR: `inir`,
+  `aurora`, `angel`.** Each is a flush, full-width bar at the screen edge with
+  borderless modules (seal, workspaces, stats and now-playing left; the clock
+  centred; status and tray right), painting its own surface instead of riding
+  the frame band, and no lobes. `inir` is a solid TUI panel with hairline cell
+  separators; `aurora` is translucent glass the wallpaper shows through with a
+  soft top sheen (translucency, not a gaussian frost: a Wayland layer cannot
+  blur its live backdrop); `angel` is an opaque brutalist panel with a heavy
+  base border and a bright inset top edge. Meant for the frame off; pick them in
+  Ryoku Settings, Shell (`Bar.qml`, `shell.qml`, `Singletons/Config.qml`,
+  `popouts/Popout.qml`, and the Hub `ShellSettingsPage.qml`).
 - **The desktop mark and name are now user-overridable across the shell.** Every
   力 seal in the chrome (the bar, launcher, overview, the pill deck and popouts,
   desktop widgets and the calendar, the wallpaper switcher, ryoshot's watermark,

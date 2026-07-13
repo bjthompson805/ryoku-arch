@@ -40,8 +40,8 @@ Singleton {
 
     // bar = the shell's resting face, drawn on the frame's thickened edge
     // (Bar.qml). barPosition is "top" or "bottom"; barStyle picks the skin,
-    // one of noctalia and caelestia (carried from the reference shells) or the
-    // native aegis, stele, triptych, and delos (a single floating island). barHeight = the band the edge swells by (scaled per
+    // one of noctalia and caelestia (reference shells), the native aegis, stele,
+    // triptych, nacre and delos, or the flat frame-off iNiR skins inir/aurora/angel. barHeight = the band the edge swells by (scaled per
     // monitor). barShowTitle / barShowMedia / barShowStatus gate the focused
     // window title, the now-playing module, and the status cluster.
     // barOccupiedWorkspaces shows only workspaces with windows (plus the

@@ -246,8 +246,9 @@ Item {
     // empty band to collapse: it narrows back toward the module it grew from
     // (curW tracks the melt, centred on the trigger), so the band retracts into
     // that lobe and the dips return around it -- the popout melts back into the
-    // frame it came out of.
-    readonly property bool dipHost: Config.barStyle === "delos" || ((Config.barStyle === "triptych" || Config.barStyle === "nacre") && atTop)
+    // frame it came out of. the flat iNiR skins (inir/aurora/angel) narrow-melt
+    // too: they have no band, so a full-width neck would hang over the bar.
+    readonly property bool dipHost: Config.barStyle === "delos" || (atTop && ["triptych", "nacre", "inir", "aurora", "angel"].includes(Config.barStyle))
 
     BlobRect {
         id: bodyBlob
