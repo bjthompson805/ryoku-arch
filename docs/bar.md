@@ -18,11 +18,12 @@ Ryoku Settings drives the bar through `Config`:
     active dot widens into an accent lozenge with its number; the stacked clock.
   - **`caelestia`** the numbered workspace cell strip inside one container pill
     with a sliding indicator; Material Symbols Rounded iconography.
-  - **`nacre`** three soft frosted capsules floating on a flat, straight band (no
-    frame dip): the seal, now-playing, and title left; the clock, hollow-ring
-    workspaces, and a live CPU/RAM/temp readout centred; status and tray right.
-    The stats open a resources popout, and the workspace rings light the active
-    one in the accent.
+  - **`nacre`** the triptych dip, restyled: three dark islands (blob lobes fused
+    to a hairline top edge) with the frame dipping between them so the wallpaper
+    shows in the gaps. The seal, now-playing, and title left; the clock,
+    hollow-ring workspaces, and a live CPU/RAM/temp readout centred; status and
+    tray right. The stats open a resources popout, and the workspace rings light
+    the active one in the accent.
 - `barHeight` and `fontScale` size it. Everything scales off `s =
   monitor.height / 1080 x fontScale` (clamped 0.7-1.6). The band the frame swells
   by is `barBand = barHeight x s`; modules size against `moduleSpan =

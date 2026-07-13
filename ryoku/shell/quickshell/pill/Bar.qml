@@ -38,12 +38,12 @@ Item {
     readonly property real edgeMargin: (bar.triptych ? 12 : 24) * bar.s
     // each cluster hugger's rect in overlay coords (the bar sits at the overlay
     // origin), so shell.qml can fuse a blob lobe beneath it.
-    readonly property real leftX: leftIsland.x
-    readonly property real leftW: leftIsland.width
-    readonly property real centreX: centreIsland.x
-    readonly property real centreW: centreIsland.width
-    readonly property real rightX: rightIsland.x
-    readonly property real rightW: rightIsland.width
+    readonly property real leftX: bar.nacre ? (nacreLoader.item ? nacreLoader.item.leftX : 0) : leftIsland.x
+    readonly property real leftW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.leftW : 0) : leftIsland.width
+    readonly property real centreX: bar.nacre ? (nacreLoader.item ? nacreLoader.item.centreX : 0) : centreIsland.x
+    readonly property real centreW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.centreW : 0) : centreIsland.width
+    readonly property real rightX: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightX : 0) : rightIsland.x
+    readonly property real rightW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightW : 0) : rightIsland.width
     // the bell's along-axis centre (from the status cluster), so the toast
     // popout can grow from the bell like the inbox does. -1 when the status
     // cluster is hidden (no bell), so the toast falls back to the bar end.
@@ -286,13 +286,21 @@ Item {
             id: nacreFace
 
             readonly property real capPad: 12 * bar.s
-            readonly property color capFill: Qt.alpha(Theme.bright, 0.1)
             readonly property real edge: 16 * bar.s
             // the bell's centre, published up so the toast grows from it.
             readonly property real bellCenter: Config.barShowStatus ? nStatus.bellCenter : -1
             // a side capsule must not reach the centred centre capsule: cap the
             // width each side may take, so the title elides instead of overlapping.
             readonly property real sideMax: Math.max(0, (nacreFace.width - nCentreCap.width) / 2 - nacreFace.edge - 14 * bar.s)
+            // cluster rects, published up so shell.qml grows a blob lobe under
+            // each (the triptych mechanic): the frame dips between them and the
+            // wallpaper shows in the gaps.
+            readonly property real leftX: nLeftCap.x
+            readonly property real leftW: nLeftCap.width
+            readonly property real centreX: nCentreCap.x
+            readonly property real centreW: nCentreCap.width
+            readonly property real rightX: nRightCap.x
+            readonly property real rightW: nRightCap.width
 
             // left capsule: seal, now-playing, title.
             Rectangle {
@@ -303,7 +311,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 height: bar.moduleSpan
                 radius: height / 2
-                color: nacreFace.capFill
+                color: "transparent"
                 width: nLeftRow.implicitWidth + 2 * nacreFace.capPad
                 Behavior on width { NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic } }
 
@@ -350,7 +358,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 height: bar.moduleSpan
                 radius: height / 2
-                color: nacreFace.capFill
+                color: "transparent"
                 width: nCentreRow.implicitWidth + 2 * nacreFace.capPad
                 Behavior on width { NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic } }
 
@@ -389,12 +397,13 @@ Item {
 
             // right capsule: status glyphs, tray.
             Rectangle {
+                id: nRightCap
                 anchors.right: parent.right
                 anchors.rightMargin: nacreFace.edge
                 anchors.verticalCenter: parent.verticalCenter
                 height: bar.moduleSpan
                 radius: height / 2
-                color: nacreFace.capFill
+                color: "transparent"
                 width: nRightRow.implicitWidth + 2 * nacreFace.capPad
                 Behavior on width { NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic } }
 
