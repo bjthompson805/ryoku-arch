@@ -48,6 +48,11 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   be present; the Hyprland plugins, wallust (`rust`), and Ryoku.Blobs
   (`qt6-multimedia` + `ffmpeg`) were missing, so the smoke test - and the publish
   gate that reuses it - could not build the `[ryoku]` set.
+- The ISO reproducibility check (`installation/tests/iso-stage-check.sh`) diffs
+  the twice-staged tree with `--no-dereference`. The baked payload carries
+  symlinks (the qylock lockscreen's vendored `QtGraphicalEffects` QML imports,
+  archiso wants-units), and following them made `diff` error on the dangling
+  targets and fail the build even when the trees were byte-identical.
 - The TUI catches a failed password hash at the password screen. `hashPassword`
   shells out to `openssl passwd -6`; on a failure it returned "" and the wizard
   marched on, handing the backend an empty `RYOKU_PASSWORD_HASH` that only died

@@ -72,7 +72,11 @@ for n in 1 2; do
   rm -f "$tmp/stage$n/profile/airootfs/usr/share/ryoku/.payload"
 done
 
-if diff -qr "$tmp/stage1/profile" "$tmp/stage2/profile" >"$tmp/diff" 2>&1; then
+# --no-dereference: the payload bakes symlinks (the qylock lockscreen vendors
+# QtGraphicalEffects QML imports; archiso wants-units point at not-yet-installed
+# services), so following them makes diff error on the dangling targets. Compare
+# the links themselves, which is what byte-reproducibility actually means here.
+if diff --no-dereference -qr "$tmp/stage1/profile" "$tmp/stage2/profile" >"$tmp/diff" 2>&1; then
   printf 'iso-stage-check: PASS (staging tree is reproducible)\n'
 else
   printf 'iso-stage-check: FAIL (staging tree differs between runs)\n' >&2
