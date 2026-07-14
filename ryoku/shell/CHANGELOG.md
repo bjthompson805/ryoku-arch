@@ -170,13 +170,16 @@
   gone. `ryoku-livewall` (a small C daemon) maps no GPU or EGL driver: it
   software-decodes a downscaled clip on the CPU into `wl_shm` buffers on a
   `wlr-layer-shell` background surface and lets `wp_viewport` upscale to the
-  output, so it sits around 40 MB regardless of GPU vendor (measured 40 MB PSS,
-  60 MB RSS, ~8% of one core at 720p30, flat across loops with no leak). The
-  shell transcodes each clip to a cached <=720p30 H.264 once so the CPU decode
-  stays cheap and the frame pool small, then launches livewall; `awww` (the
+  output. Its PSS tracks the panel (~40 MB at 720p, ~57 MB at 2048, ~78 MB at
+  2560px) and stays flat across loops with no leak, at ~8% of one core. The
+  shell transcodes each clip once to a cached H.264 at the monitor's logical
+  width (physical / fractional scale, capped at 2560 for RAM) so the moving
+  video renders near 1:1 with the panel instead of upscaled from a fixed 1280
+  to a blur, then launches livewall; `awww` (the
   image daemon, unchanged) paints the clip's still frame during that one-time
   transcode and stays under the video. Both wallpaper classes are now under the
-  100 MB requirement (static via awww ~31 MB, live via livewall ~40 MB). Hardware
+  100 MB requirement (static via awww ~31 MB, live via livewall ~40-78 MB by
+  panel size). Hardware
   video decode was investigated and rejected: it cannot beat 100 MB on NVIDIA.
   The ryowalls Fit knob now drives the mapping: fill crops the clip to the output
   aspect through the `wp_viewport` source rect (cover), fit letterboxes it whole
