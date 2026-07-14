@@ -121,6 +121,21 @@
   update`/`doctor`/`status`/...) are unchanged.
 
 ### Fixed
+- **`ryoku update` can no longer run stale home-deployed binaries over the
+  freshly materialized configs.** Stage2 resolved `ryoku-shell` (and `ryoku`
+  for the doctor step, and `ryoku-rashin`) on PATH, where a past `ryoku
+  recovery` or dev deploy in `~/.local/bin` outranks `/usr/bin`, so the update
+  quiesced and then relaunched the OLD daemon against the new QML tree -- on
+  beta 16 -> 17 that replayed the retired resident wallpaper switcher as an
+  endless reopen loop (the stale supervisor respawned the new one-shot
+  switcher every time it quit) -- and ran the OLD doctor, whose reconcilers
+  predate the release doing the healing. Every self-invocation now prefers the
+  packaged `/usr/bin` binary (`pkgBin`; PATH only on package-less checkouts).
+  stopShell also quiesces the previously missed `overview` component plus the
+  retired `plugins`/`wallpaper` residents (patterns anchored so a user's own
+  `qs -c wallpaper...`-named config never matches), and kills the video
+  players (`ryoku-livewall`, plus legacy `mpvpaper`/`phonto`) so no orphan
+  from the old release survives the swap (`internal/updater/update.go`).
 - **`rollback` no longer runs a `snapper rollback` that cannot restore the
   system.** Ryoku pins the root subvolume on the kernel cmdline and in fstab
   (`rootflags=subvol=@`), and snapper's rollback works by flipping the btrfs

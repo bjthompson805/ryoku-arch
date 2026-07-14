@@ -182,7 +182,7 @@ func rashinReindex() {
 		return
 	}
 	fmt.Println("==> Reindexing the Rashin vault")
-	if err := sys.Run("ryoku-rashin", "index"); err != nil {
+	if err := sys.Run(pkgBin("ryoku-rashin"), "index"); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: rashin reindex failed: %v\n", err)
 	}
 }
@@ -304,7 +304,10 @@ func askInstall(title, detail string, pkgs []string) bool {
 // of a copy baked into update. best-effort: a finding never fails update.
 func runFreshDoctor() {
 	fmt.Println("==> Running doctor")
-	_ = sys.Run("ryoku", "doctor")
+	// pkgBin, not PATH: on a box with ~/.local/bin residue the bare name is the
+	// STALE CLI, whose doctor predates the reconcilers this release ships --
+	// including the residue scan that would clear that very shadow.
+	_ = sys.Run(pkgBin("ryoku"), "doctor")
 }
 
 // Rollback guides restoring a snapshot. Ryoku pins the root subvolume on the
@@ -601,24 +604,53 @@ func hyprReload() {
 	}
 }
 
+// pkgBin resolves a Ryoku binary an update drives. The packaged /usr/bin copy
+// is preferred over a bare PATH lookup: a past `ryoku recovery` or dev deploy
+// leaves builds in ~/.local/bin that outrank /usr/bin, and driving those runs
+// stale code inside the very update meant to supersede it -- a stale daemon
+// restarted over the new QML replays an old supervisor against a one-shot
+// switcher (the beta-17 switcher-reopen loop), and a stale doctor predates the
+// reconcilers this release ships. A box without the package (a pure checkout)
+// falls back to PATH, where the just-deployed build is the right one.
+func pkgBin(name string) string {
+	if p := "/usr/bin/" + name; sys.Exists(p) {
+		return p
+	}
+	return name
+}
+
 // stopShell quiesces the desktop for a config swap: ask the daemon to quit,
 // wait for it to go, then drop orphaned surfaces still holding a config's
 // single-instance lock (one survivor kills the fresh daemon's components).
-// The component list mirrors shell/ipc/daemon.go; "plugins" is the retired
-// pill-era component, still reaped on boxes that predate its removal.
+// The component list mirrors shell/ipc/daemon.go; "plugins" and "wallpaper"
+// are retired resident components, still reaped on boxes whose live daemon
+// predates their removal.
 func stopShell() {
 	if !sys.Has("ryoku-shell") {
 		return
 	}
-	_ = exec.Command("ryoku-shell", "quit").Run()
+	shell := pkgBin("ryoku-shell")
+	_ = exec.Command(shell, "quit").Run()
 	for i := 0; i < 20; i++ {
-		if exec.Command("ryoku-shell", "ping").Run() != nil {
+		if exec.Command(shell, "ping").Run() != nil {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	for _, c := range []string{"pill", "launcher", "visualizer", "widgets", "plugins"} {
-		_ = exec.Command("pkill", "-f", "qs -c "+c).Run()
+	// the pattern is anchored: quickshell is a general-purpose tool, and a bare
+	// "qs -c wallpaper" would also match a user's own longer config name
+	// ("qs -c wallpaperclock"). the daemon always spawns the config name as the
+	// final argv element.
+	for _, c := range []string{"pill", "launcher", "visualizer", "widgets", "overview", "plugins", "wallpaper"} {
+		_ = exec.Command("pkill", "-f", "qs -c "+c+"($| )").Run()
+	}
+	// The video players outlive the daemon (spawned detached): kill the
+	// current one so the restarted daemon relaunches it on the new binary, and
+	// the legacy backends older releases shipped (mpvpaper, phonto) -- the new
+	// daemon no longer knows their names, and an orphan left on the background
+	// layer stacks above awww and swallows every static set after the update.
+	for _, p := range []string{"ryoku-livewall", "mpvpaper", "phonto"} {
+		_ = exec.Command("pkill", "-x", p).Run()
 	}
 	time.Sleep(200 * time.Millisecond)
 }
@@ -629,7 +661,7 @@ func startShell() {
 	if !sys.Has("ryoku-shell") {
 		return
 	}
-	cmd := exec.Command("setsid", "ryoku-shell", "daemon")
+	cmd := exec.Command("setsid", pkgBin("ryoku-shell"), "daemon")
 	logp := filepath.Join(sys.Xdg("XDG_STATE_HOME", ".local/state"), "ryoku-shell.log")
 	_ = os.MkdirAll(filepath.Dir(logp), 0o755)
 	if f, err := os.OpenFile(logp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644); err == nil {
