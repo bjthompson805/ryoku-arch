@@ -21,6 +21,7 @@ Item {
     property string highlightKey: ""
     property bool running: true
     property bool hovering: false
+    property bool scrollHold: false  // switcher just took a wheel tick; hold video off
 
     signal entered(var entry)
     signal chosen(var entry)
@@ -95,7 +96,7 @@ Item {
                 bg: row.bg
                 topRow: row.topRow
                 live: slot.visible
-                beltMoving: row.moving
+                beltMoving: row.moving || row.scrollHold
                 selected: !!slot.modelData && slot.modelData.path === row.highlightKey
                 onEntered: row.entered(slot.modelData)
                 onChosen: row.chosen(slot.modelData)

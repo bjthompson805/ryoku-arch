@@ -208,6 +208,9 @@ Item {
             readonly property real cH: Math.max(120 * body.s, Math.min(240 * body.s, rowH - 14 * body.s))
             readonly property real cW: Math.round(cH * 1.55)
             readonly property int cGap: Math.round(14 * body.s)
+            // held true for a beat after each wheel tick, so a live preview never
+            // spins up mid-scroll (only on a tile the pointer has settled on).
+            property bool scrolling: false
 
             WallRow {
                 id: topRow
@@ -223,6 +226,7 @@ Item {
                 bg: Theme.cardTop
                 running: body.active
                 hovering: rowsHover.hovered
+                scrollHold: rows.scrolling
                 highlightKey: body.hoverEntry ? body.hoverEntry.path : ""
                 onEntered: (e) => body.hoverEntry = e
                 onChosen: (e) => body.apply(e)
@@ -241,6 +245,7 @@ Item {
                 bg: Theme.cardTop
                 running: body.active
                 hovering: rowsHover.hovered
+                scrollHold: rows.scrolling
                 highlightKey: body.hoverEntry ? body.hoverEntry.path : ""
                 onEntered: (e) => body.hoverEntry = e
                 onChosen: (e) => body.apply(e)
@@ -253,8 +258,11 @@ Item {
                     var f = e.angleDelta.y * 3.2;
                     topRow.boostBy(f);
                     bottomRow.boostBy(-f);
+                    rows.scrolling = true;
+                    scrollCool.restart();
                 }
             }
+            Timer { id: scrollCool; interval: 450; onTriggered: rows.scrolling = false }
             HoverHandler {
                 id: rowsHover
                 onHoveredChanged: if (!hovered) body.hoverEntry = null

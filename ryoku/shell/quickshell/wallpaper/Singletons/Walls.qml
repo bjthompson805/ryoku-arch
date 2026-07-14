@@ -64,6 +64,7 @@ Singleton {
                         path: path,
                         name: path.substring(path.lastIndexOf("/") + 1),
                         thumb: p[3],
+                        preview: p.length > 6 ? p[6] : "",
                         hue: hue,
                         sat: sat,
                         group: Colors.bucket(hue, sat)

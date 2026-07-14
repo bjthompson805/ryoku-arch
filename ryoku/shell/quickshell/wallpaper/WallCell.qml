@@ -22,13 +22,16 @@ Item {
     signal chosen()
 
     readonly property bool isLive: cell.item && cell.item.type === "live"
+    // the small cached preview loop (index.sh builds it); "" until it exists, and
+    // the switcher never decodes the full-res original, so a hover never hitches.
+    readonly property string previewPath: (cell.item && cell.item.preview) ? cell.item.preview : ""
     readonly property int cut: Math.round(16 * s)
     readonly property int inset: cut + Math.round(6 * s)
     readonly property color accent: cell.selected ? Theme.brand : Qt.alpha(Theme.cream, 0.45)
 
     // play a clip only when it's the settled pick, after a short dwell, so a
     // drift or a cursor sweep never spins media pipelines up and down.
-    readonly property bool wantVideo: cell.isLive && cell.selected && !cell.beltMoving
+    readonly property bool wantVideo: cell.isLive && cell.previewPath.length > 0 && cell.selected && !cell.beltMoving
     property bool videoArmed: false
     onWantVideoChanged: {
         if (cell.wantVideo)
@@ -66,7 +69,7 @@ Item {
         active: cell.wantVideo && cell.videoArmed
         asynchronous: true
         source: "VideoPreview.qml"
-        onLoaded: item.path = cell.item.path
+        onLoaded: item.path = cell.previewPath
     }
 
     // unpicked tiles sit back a touch so the pick reads clearly.
