@@ -137,7 +137,7 @@ jobs:
               pacman -Sy --noconfirm archlinux-keyring
               pacman -Su --noconfirm --needed \
                 archiso git go base-devel cmake ninja \
-                qt6-base qt6-declarative qt6-shadertools
+                qt6-base qt6-declarative qt6-shadertools qt6-multimedia
               # checkout is owned by the runner UID, not container root;
               # build.sh runs `git archive` against it.
               git config --global --add safe.directory /repo

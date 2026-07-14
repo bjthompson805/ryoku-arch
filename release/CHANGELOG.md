@@ -87,13 +87,15 @@
   `installation/tests/container-install.sh`).
 
 ### Fixed
-- **The package build toolchain now installs the full makedepends union of the
-  `[ryoku]` packages.** `publish-repo.yml` (and the `container-install.sh` smoke
-  test that mirrors it) build with `makepkg --nodeps`, so every package's
-  makedepends must be pre-installed. `qt6-multimedia` + `ffmpeg` (Ryoku.Blobs
-  plays video) and the Hyprland plugin libs were missing, so `ryoku-blobs` failed
-  `build()` (Qt6 Multimedia not found) and the compositor plugins failed
-  `prepare()`. Both toolchains now install the union, so the repo publishes.
+- **Every build toolchain now installs the full makedepends union of the
+  `[ryoku]` packages.** The repo builders (`publish-repo.yml`, the
+  `container-install.sh` smoke test, and `install-test.yml`) build with `makepkg
+  --nodeps`, so each package's makedepends must be pre-installed; the ISO build
+  (`build-iso.yml`) prebuilds the Ryoku.Blobs plugin. `qt6-multimedia` + `ffmpeg`
+  (Ryoku.Blobs plays video) and the Hyprland plugin libs were missing across
+  them, so `ryoku-blobs` failed `build()` (Qt6 Multimedia not found), the
+  compositor plugins failed `prepare()`, and the ISO stage-check failed. All four
+  toolchains now install what they build.
 - **The camera self-view now hides when recording stops.** The webcam bubble is
   a recording companion, so the shell clears it when the last capture ends (a
   plain mirror toggled on with no recording stays until toggled off).

@@ -104,8 +104,10 @@ jobs:
             -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
             archlinux:latest bash -euo pipefail -c '
               pacman -Sy --noconfirm --needed archlinux-keyring
-              pacman -Su --noconfirm --needed base-devel git go cmake ninja \
-                qt6-shadertools qt6-declarative gnupg
+              pacman -Su --noconfirm --needed \
+                base-devel git go rust cmake ninja gnupg \
+                qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
+                hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf
               git config --global --add safe.directory /repo
               installation/tests/build-ryoku-repo.sh
               chown -R "$HOST_UID:$HOST_GID" /repo
