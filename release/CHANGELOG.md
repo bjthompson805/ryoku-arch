@@ -77,6 +77,14 @@
   every user: `pacman -Syu` pulls it onto existing boxes on `ryoku update`, and it
   is in `system/packages/base.packages` for fresh ISO installs. An optdepend never
   installs on `-Syu`, so existing boxes would never have received it.
+- **The publish is now gated on the container-install smoke test.** On every push
+  to `main` (and on a release tag), `publish-repo.yml` first builds the packages,
+  installs `ryoku-desktop`, and materializes a full config on Arch and CachyOS;
+  the sign-and-upload job `needs` that gate, so an unresolved dependency or a
+  config no package ships fails the publish instead of reaching users. The Hub
+  surfaces an update the moment the repo db lands, so the test now has to pass
+  before the db is published, not after (`.github/workflows/publish-repo.yml`,
+  `installation/tests/container-install.sh`).
 
 ### Fixed
 - **The camera self-view now hides when recording stops.** The webcam bubble is

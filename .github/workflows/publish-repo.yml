@@ -7,6 +7,10 @@ name: "Publish [ryoku] repo"
 # trigger. A push to unstable-dev never publishes; main only advances when the
 # maintainer fast-forwards it, so each advance rebuilds the repo with a new
 # commit-versioned package set that `ryoku update` (pacman -Syu) upgrades to.
+# The publish is gated on the container-install smoke test below: the repo is
+# signed and uploaded only after ryoku-desktop builds, installs, and materializes
+# a complete config on Arch and CachyOS, so a broken build fails the publish
+# instead of becoming a user-visible update.
 on:
   push:
     branches:
@@ -26,7 +30,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # gate: build the packages, install ryoku-desktop, and materialize a full
+  # config on Arch and CachyOS before anything is signed or uploaded. an
+  # unresolved dependency, or a config file no package ships, fails here, so a
+  # broken build never becomes a user-visible update (the Hub sees the repo the
+  # moment its db lands). mirrors the install-test container tier.
+  container-install:
+    name: "container install (${{ matrix.base }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        base: [arch, cachyos]
+    container:
+      image: ${{ matrix.base == 'cachyos' && 'cachyos/cachyos:latest' || 'archlinux:latest' }}
+    steps:
+      - name: Install git
+        run: pacman -Sy --noconfirm --needed git
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Build, install, and verify the config
+        run: installation/tests/container-install.sh ${{ matrix.base }}
+
   publish:
+    # only publish after the container-install gate passes on every base.
+    needs: container-install
     runs-on: ubuntu-latest
     timeout-minutes: 120
     # makepkg, repo-add, and pacman only exist on Arch, so the whole build runs
