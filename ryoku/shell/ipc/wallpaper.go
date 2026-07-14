@@ -462,7 +462,10 @@ func livewallSource(pic, capW string) string {
 	if os.MkdirAll(dir, 0o755) != nil {
 		return ""
 	}
-	tmp := out + ".tmp.mp4"
+	// pid-unique tmp: two rapid sets of the same clip transcode concurrently
+	// (the generation guard drops the launch, not the encode); a shared tmp
+	// would interleave both writers into a corrupt cached video.
+	tmp := out + ".tmp." + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".mp4"
 	err = exec.Command("ffmpeg", "-y", "-i", pic,
 		"-vf", "scale='min("+capW+",iw)':-2:flags=bicubic", "-r", "30",
 		"-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", tmp).Run()

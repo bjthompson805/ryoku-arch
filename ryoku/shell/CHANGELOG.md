@@ -164,6 +164,11 @@
   `lockSession` released the `lock.sh` process handle instead of reaping it, so
   every unlock left a defunct entry in the daemon's process table for the rest
   of the session.
+- `ipc/wallpaper.go`: two rapid sets of the same clip no longer corrupt its
+  transcode cache. Both encodes shared one `<out>.tmp.mp4` (the generation
+  guard drops the livewall launch, not the encode), interleaving two ffmpeg
+  writers into a garbage file that then got renamed into the cache and played
+  black. The tmp name is now pid+time unique.
 - **The now-playing elapsed line no longer pixelates near the end of a track.**
   The wavy seekbar sampled the filled portion with a fixed 48-point budget while
   the number of waves grew with the fill, so past the midpoint each crest got
