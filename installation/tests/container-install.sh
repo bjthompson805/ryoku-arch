@@ -39,8 +39,9 @@ log "base: $BASE"
 #    builds --nodeps.
 pacman -Sy --noconfirm --needed "${keyring[@]}"
 pacman -Syu --noconfirm --needed \
-  base-devel git go rust cmake ninja qt6-shadertools qt6-declarative gnupg \
-  hyprland hyprcursor pango cairo pkgconf
+  base-devel git go rust cmake ninja gnupg \
+  qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
+  hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf
 
 # pacman 7 runs install scriptlets in a sandbox that cannot open a network
 # namespace inside a container, so post-install hooks (fc-cache, icon cache, ...)

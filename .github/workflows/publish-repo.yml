@@ -92,15 +92,17 @@ jobs:
           set -euo pipefail
           # base-devel: makepkg + fakeroot + a C++20 gcc. go/cmake/ninja and the
           # qt6 modules compile the Ryoku binaries and the Ryoku.Blobs QML plugin
-          # (find_package(Qt6 COMPONENTS Quick ShaderTools)). hyprland (+ its
-          # ecosystem headers) plus hyprcursor/pango/cairo/pkgconf build the
-          # compositor plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins,
-          # hyprglass, imgborders); makepkg runs --nodeps, so their makedepends
-          # must be present here. rust (cargo) builds wallust from source. gnupg
-          # signs, rclone uploads, git backs checkout.
+          # (Qt6 Quick/ShaderTools/Multimedia; Blobs plays video, so qt6-multimedia
+          # + ffmpeg). hyprland (+ pango/cairo/pixman/libdrm/libinput/libxkbcommon/
+          # wayland/wayland-protocols) plus hyprcursor/pkgconf build the compositor
+          # plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins, hyprglass,
+          # imgborders); makepkg runs --nodeps, so their makedepends must be present
+          # here. rust (cargo) builds wallust from source. gnupg signs, rclone
+          # uploads, git backs checkout.
           pacman -Syu --noconfirm --needed \
-            base-devel git go rust cmake ninja qt6-shadertools qt6-declarative gnupg rclone \
-            hyprland hyprcursor pango cairo pkgconf
+            base-devel git go rust cmake ninja gnupg rclone \
+            qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
+            hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf
 
       - name: Checkout
         uses: actions/checkout@v4
