@@ -32,6 +32,12 @@
   The installer now records it as `/etc/ryoku/snapshots-disabled`, which the
   doctor reconciler honors; deleting the marker and running `ryoku doctor`
   enables snapshots later.
+- `lib/deploy.sh`: a failed `pacman-key --populate ryoku` aborts the install
+  with the real cause. It used to warn and continue, and the keyring seeds were
+  deleted regardless, so the guaranteed failure two lines later (`pacman -S
+  ryoku-desktop` under `SigLevel = Required`) surfaced as "check the network
+  and re-run", misdirecting away from the actual trust problem. The seeds now
+  stay in place for a retry.
 - `lib/chroot.sh`: the locale uncomment cannot silently generate nothing. The
   sed now escapes the dots (so `en_US.UTF-8` matches only its own line), and a
   locale that `locale.gen` does not list (a manual `RYOKU_LOCALE`, a slimmed

@@ -103,8 +103,11 @@ ryoku_repo_keyring() {
   run install -Dm644 "$kdir/ryoku.gpg"     "$kd/ryoku.gpg"
   run install -Dm644 "$kdir/ryoku-trusted" "$kd/ryoku-trusted"
   run install -Dm644 "$kdir/ryoku-revoked" "$kd/ryoku-revoked"
+  # a failed populate means pacman can never verify [ryoku] (SigLevel=Required):
+  # the very next step then fails with a message that reads like a network
+  # flake. stop HERE with the real cause instead; the seeds stay for a retry.
   run arch-chroot /mnt pacman-key --populate ryoku \
-    || log "warning: pacman-key --populate ryoku failed (continuing)"
+    || die "pacman-key --populate ryoku failed: the target cannot trust the [ryoku] repo, so the desktop set cannot install. Check /mnt/etc/pacman.d/gnupg and re-run the installer."
   run rm -f "$kd/ryoku.gpg" "$kd/ryoku-trusted" "$kd/ryoku-revoked"
 }
 
