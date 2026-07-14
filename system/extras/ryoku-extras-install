@@ -224,7 +224,7 @@ ensure_requires() {
           echo "DRYRUN: ensure the multilib repo is enabled"
         else
           echo "==> Ensuring the multilib repo is enabled"
-          ryoku-pkg-multilib || true
+          ryoku-pkg-multilib || die "could not enable the multilib repo; its lib32 packages would mis-route to AUR source builds"
         fi
         ;;
       cachyos)

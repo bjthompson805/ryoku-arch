@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Fixed
+- **A failed multilib enable now aborts the bundle instead of mis-routing its
+  packages.** `ensure_requires` ran `ryoku-pkg-multilib || true`, so when the
+  repo could not be enabled (sed no-op on a hand-edited pacman.conf, a failed
+  `-Sy`) the bundle's lib32/Steam items no longer resolved as official and were
+  silently routed to the AUR as source builds, failing late or building the
+  wrong thing. It now dies with the real cause, matching the `cachyos`
+  requirement's fail-closed behavior.
+- **`ryoku-pkg-cachyos` and `ryoku-pkg-multilib` serialize their pacman.conf
+  edits.** Both check-then-edit the file; two racing invocations (a double-fired
+  Hub install in two floating terminals) could each pass the idempotence check
+  and insert the repo stanza twice, leaving a pacman.conf pacman rejects. Both
+  scripts now take the same `$XDG_RUNTIME_DIR/ryoku-pkg-conf.lock` flock for
+  their whole body; the second holder just waits and exits on the idempotence
+  check.
 - **`ryoku-pkg-cachyos` hardens the `Architecture = x86_64_v3` edit.** The old
   sed only matched one exact spacing of an active `Architecture =` line and
   reported nothing when it matched nothing, so a nonstandard or hand-edited

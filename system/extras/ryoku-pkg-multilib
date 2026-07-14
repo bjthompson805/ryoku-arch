@@ -9,6 +9,12 @@ set -euo pipefail
 
 conf=/etc/pacman.conf
 
+# serialize the pacman.conf mutation below (same lock as ryoku-pkg-cachyos):
+# concurrent edits could double-uncomment or interleave; the second holder
+# waits, then exits on the idempotence check.
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/ryoku-pkg-conf.lock"
+flock 9
+
 if grep -qE '^\[multilib\]' "$conf"; then
   echo "multilib: already enabled"
   exit 0

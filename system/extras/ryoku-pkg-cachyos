@@ -15,6 +15,12 @@ conf=/etc/pacman.conf
 key=F3B607488DB35A47
 server=https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3
 
+# serialize the pacman.conf + keyring mutation below: a double-fired bundle
+# install (two Hub terminals racing) could otherwise duplicate the repo
+# stanza. the second holder just waits, then exits on the idempotence checks.
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/ryoku-pkg-conf.lock"
+flock 9
+
 if ! /lib/ld-linux-x86-64.so.2 --help 2>/dev/null | grep -q 'x86-64-v3 (supported'; then
   echo "ryoku-pkg-cachyos: this CPU does not support x86-64-v3; the CachyOS kernel needs it" >&2
   exit 1
