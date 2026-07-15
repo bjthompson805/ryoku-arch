@@ -427,12 +427,34 @@ cmd_console() {
 }
 
 # ---- stop ------------------------------------------------------------------
+# Graceful first: press the ACPI power button over the QEMU monitor socket and
+# give the guest up to 20s to shut down clean. A SIGKILL'd qemu loses the
+# guest's unflushed writes and can leave the qcow2 with leaked clusters — a
+# machine provisioned seconds before a hard stop came back missing files.
+# --force (or a guest that ignores ACPI, or no monitor) still kills.
 cmd_stop() {
 	require_engine
 	local conf; conf="$(conf_path "$1")"
+	local force="${2:-}"
 	vm_paths "$conf"
 	cd "$vms_dir"
+	if [ "$force" != "--force" ] && vm_running "$vm_pid" && [ -S "$vm_subdir/$vm_name-monitor.socket" ] && have python3; then
+		python3 -c 'import socket,sys,time; s=socket.socket(socket.AF_UNIX); s.settimeout(2); s.connect(sys.argv[1]); time.sleep(0.2); s.sendall(b"system_powerdown\n"); time.sleep(0.3)' \
+			"$vm_subdir/$vm_name-monitor.socket" >/dev/null 2>&1 || true
+		local i
+		for i in $(seq 1 80); do
+			vm_running "$vm_pid" || { echo "stopped $vm_name (clean shutdown)"; return 0; }
+			sleep 0.25
+		done
+	fi
 	quickemu --vm "$vm_name.conf" --kill >/dev/null 2>&1 || true
+	# don't return while qemu still holds the image lock: a seal or snapshot
+	# issued right after "stopped" would race the dying process and fail.
+	local j
+	for j in $(seq 1 20); do
+		vm_running "$vm_pid" || break
+		sleep 0.25
+	done
 	echo "stopped $vm_name"
 }
 
@@ -441,7 +463,7 @@ cmd_config() {
 	local conf; conf="$(conf_path "$1")"
 	local key="${2:?config needs a key}" val="${3-}"
 	case "$key" in
-		cpu_cores|ram|disk_size|display|guest_os|secureboot|tpm|iso|ryovm_os) ;;
+		cpu_cores|ram|disk_size|display|guest_os|secureboot|tpm|iso|ryovm_os|ryovm_ssh_user) ;;
 		*) die "config key not allowed: $key" ;;
 	esac
 	vm_paths "$conf"
@@ -488,7 +510,11 @@ cmd_ssh() {
 	vm_running "$vm_pid" || die "$vm_name is not running"
 	local port; port="$(port_of "$vm_ports" ssh)"
 	[ -n "$port" ] || die "$vm_name has no forwarded SSH port"
-	echo "ssh -o UserKnownHostsFile=$vm_subdir/$vm_name.known_hosts -o StrictHostKeyChecking=accept-new -p $port ${SUDO_USER:-$USER}@localhost"
+	# the guest account rarely has to match the host user: ryovm_ssh_user in
+	# the conf pins the login (config verb sets it); host username is only the
+	# fallback guess.
+	local user; user="$(conf_get "$conf" ryovm_ssh_user)"
+	echo "ssh -o UserKnownHostsFile=$vm_subdir/$vm_name.known_hosts -o StrictHostKeyChecking=accept-new -p $port ${user:-${SUDO_USER:-$USER}}@localhost"
 }
 
 # ---- delete ----------------------------------------------------------------
@@ -569,8 +595,16 @@ cmd_seal() {
 	vm_paths "$conf"
 	vm_running "$vm_pid" && die "stop $vm_name before sealing it"
 	[ -e "$vm_disk" ] || die "$vm_name has no disk yet; install it first, then seal"
-	qemu-img snapshot -d sealed "$vm_disk" >/dev/null 2>&1 || true
-	qemu-img snapshot -c sealed "$vm_disk" || die "could not write the seal"
+	# a machine stopped a breath ago can still hold the image lock while qemu
+	# exits; retry briefly instead of failing the seal on the race.
+	local t ok=""
+	for t in $(seq 1 12); do
+		if qemu-img snapshot -d sealed "$vm_disk" >/dev/null 2>&1 || true; qemu-img snapshot -c sealed "$vm_disk" 2>/dev/null; then
+			ok=1; break
+		fi
+		sleep 0.5
+	done
+	[ -n "$ok" ] || die "could not write the seal"
 	if grep -qE '^ryovm_sealed=' "$conf"; then
 		sed -i -E 's|^ryovm_sealed=.*|ryovm_sealed="1"|' "$conf"
 	else

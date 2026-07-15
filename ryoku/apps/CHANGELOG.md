@@ -173,6 +173,21 @@
   `PATH` and works from day one.
 
 ### Fixed
+- `ryovm/`: **Stop is a power button, not a hatchet.** `stop` sent quickemu's
+  --kill (SIGKILL) straight away: the guest's unflushed writes died with it —
+  a machine provisioned seconds before a stop came back missing files — and
+  the qcow2 took leaked-cluster damage that had to be repaired on the next
+  launch. The engine now presses the ACPI power button over the per-VM QEMU
+  monitor socket and gives the guest 20s to shut down clean (a cooperative
+  guest takes ~3s); the kill remains as the fallback and as an explicit
+  `stop <name> --force`. After a kill it also waits for the dying qemu to
+  release the image before returning, and `seal` retries briefly through
+  that same lock race instead of failing when asked a breath after a stop
+  (`bin/ryovm`).
+- `ryovm/`: **the SSH login user is per-machine.** The ssh verb guessed the
+  host username for the guest, which is usually wrong; `ryovm_ssh_user` in
+  the conf (set with `ryovm config <vm> ryovm_ssh_user <name>`) pins the
+  account, with the host name only as the fallback guess (`bin/ryovm`).
 - `ryovm/`: **SSH from the app survives more than one machine.** Every VM
   forwards its guest onto the same small host-port range, so the global
   `known_hosts` collided the moment a second machine answered on a port a
