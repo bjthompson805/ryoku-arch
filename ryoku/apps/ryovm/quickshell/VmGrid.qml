@@ -28,6 +28,25 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: BoardScrollBar {}
 
+        // yard roll-call on first population only: a populate transition never
+        // runs for delegates the view creates while scrolling (the old
+        // per-delegate Component.onCompleted animation replayed on every
+        // scroll-back and every model refresh — the launch/scroll flicker).
+        populate: Transition {
+            id: popT
+            SequentialAnimation {
+                PropertyAction { property: "opacity"; value: 0 }
+                PauseAnimation { duration: 50 * Math.min(popT.ViewTransition.index, 8) }
+                ParallelAnimation {
+                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.medium; easing.type: Theme.ease }
+                    NumberAnimation { property: "y"; from: popT.ViewTransition.destination.y + 14; to: popT.ViewTransition.destination.y; duration: Theme.medium; easing.type: Theme.ease }
+                }
+            }
+        }
+        add: Transition {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.medium; easing.type: Theme.ease }
+        }
+
         delegate: Item {
             id: slot
             required property var modelData
@@ -35,23 +54,10 @@ Item {
             width: list.width
             height: 68
             VmCard {
-                id: plate
                 width: parent.width - 6
                 item: slot.modelData
                 active: Vm.selectedName === slot.modelData.name
                 onPicked: Vm.select(slot.modelData.name)
-                // yard roll-call: plates drop in one after another on first paint.
-                opacity: 0
-                y: 14
-                Component.onCompleted: entrance.restart()
-                SequentialAnimation {
-                    id: entrance
-                    PauseAnimation { duration: 50 * Math.min(slot.index, 8) }
-                    ParallelAnimation {
-                        NumberAnimation { target: plate; property: "opacity"; to: 1; duration: Theme.medium; easing.type: Theme.ease }
-                        NumberAnimation { target: plate; property: "y"; to: 0; duration: Theme.medium; easing.type: Theme.ease }
-                    }
-                }
             }
         }
     }

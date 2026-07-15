@@ -173,6 +173,18 @@
   `PATH` and works from day one.
 
 ### Fixed
+- `ryovm/`: **the launch and scroll flicker is gone.** Three compounding
+  causes: the 5-second poll rebuilt the whole library from a fresh array even
+  when nothing changed (every card torn down and re-created, replaying its
+  entrance), the entrance animation itself ran from `Component.onCompleted` —
+  which also fires for delegates the view creates while scrolling back — and
+  the catalogue re-filtered (and so rebuilt all ~92 tiles) on every single
+  logo resolution during launch. The engine payloads are now compared before
+  they touch a model (identical poll = untouched model, stale detail stays on
+  screen until the fresh one lands instead of blinking every det-gated
+  section), the roll-call moved to the ListView's populate transition (first
+  population only, by design), and the catalogue split no longer depends on
+  the icon cache at all (`Singletons/Vm.qml`, `VmGrid.qml`, `OsGrid.qml`).
 - `ryowalls/`: **a skipped enhance now explains itself instead of looking dead.**
   The engine's `enhance` prints a one-line JSON verdict on exit (`result`, `kind`,
   the pixels it measured and the cap they met, a `why` on failure), and the panel

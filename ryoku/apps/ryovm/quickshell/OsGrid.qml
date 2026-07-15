@@ -25,8 +25,11 @@ Item {
     // curated headliners; everything else files under All systems.
     readonly property var popularSlugs: ["ubuntu", "debian", "archlinux", "linuxmint", "opensuse",
         "nixos", "alpine", "kali", "freebsd", "windows", "macos", "cachyos"]
-    readonly property var popular: { void Vm.iconRev; return Vm.osList.filter(o => g._match(o) && g.popularSlugs.indexOf(o.os) >= 0); }
-    readonly property var rest: { void Vm.iconRev; return Vm.osList.filter(o => g._match(o) && g.popularSlugs.indexOf(o.os) < 0); }
+    // no iconRev dependency: the curated split doesn't care which logos have
+    // resolved, and re-filtering on every icon landing rebuilt the whole grid
+    // dozens of times during launch (each card re-resolves its own art).
+    readonly property var popular: Vm.osList.filter(o => g._match(o) && g.popularSlugs.indexOf(o.os) >= 0)
+    readonly property var rest: Vm.osList.filter(o => g._match(o) && g.popularSlugs.indexOf(o.os) < 0)
     readonly property int total: popular.length + rest.length
 
     Flickable {

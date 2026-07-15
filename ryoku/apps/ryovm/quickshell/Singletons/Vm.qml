@@ -118,8 +118,12 @@ Singleton {
 
     // ---- library ------------------------------------------------------------
     function select(name) {
+        // re-selecting the same machine (the 5s poll) keeps the stale detail
+        // on screen until the fresh one lands — nulling it blinked every
+        // det-gated section once a poll.
+        if (name !== selectedName || detail === null)
+            detail = null;
         selectedName = name;
-        detail = null;
         if (name.length > 0) {
             getProc.command = ["ryovm", "get", name];
             getProc.running = true;
@@ -338,9 +342,16 @@ Singleton {
     Process {
         id: listProc
         command: ["ryovm", "list"]
+        property string last: ""
         stdout: StdioCollector {
             onStreamFinished: {
                 root.vmsLoading = false;
+                // identical payload = nothing happened: keep the same model
+                // object so the library never rebuilds (a fresh array every
+                // 5s poll tore down every card and replayed their entrance).
+                if (this.text === listProc.last)
+                    return;
+                listProc.last = this.text;
                 try {
                     var arr = JSON.parse(this.text);
                     root.vms = arr;
@@ -367,8 +378,12 @@ Singleton {
     }
     Process {
         id: getProc
+        property string last: ""
         stdout: StdioCollector {
             onStreamFinished: {
+                if (this.text === getProc.last && root.detail !== null)
+                    return;
+                getProc.last = this.text;
                 try { root.detail = JSON.parse(this.text); }
                 catch (e) { root.detail = null; }
             }
@@ -512,8 +527,12 @@ Singleton {
     }
     Process {
         id: usbProc
+        property string last: ""
         stdout: StdioCollector {
             onStreamFinished: {
+                if (this.text === usbProc.last && root.usb.length > 0)
+                    return;
+                usbProc.last = this.text;
                 try { root.usb = JSON.parse(this.text); } catch (e) { root.usb = []; }
             }
         }
