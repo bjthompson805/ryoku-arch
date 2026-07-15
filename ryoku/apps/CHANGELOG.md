@@ -173,6 +173,18 @@
   `PATH` and works from day one.
 
 ### Fixed
+- `ryovm/`: **the app knows whether SSH will answer before you click.** A
+  forwarded port is no promise: slirp accepts the TCP connect even while the
+  guest is still booting — or is a live ISO that will never run sshd — so
+  clicking SSH hung a silent terminal for minutes with no sign of life. The
+  engine now probes the actual SSH banner (1s, real signal) and `get` reports
+  `sshReady`; the REACH IT panel says "Guest is answering — connect away" in
+  green or exactly why not ("still booting, or no SSH server inside — live
+  ISOs never have one"), the manifest marks the port "· no answer", the SSH
+  annunciator lights only on real readiness, and the interactive attempt is
+  bounded at 20s with the diagnosis held on screen instead of an endless
+  blank hang (`bin/ryovm`, `VmStage.qml`, `VmDetail.qml`,
+  `Singletons/Vm.qml`).
 - `ryovm/`: **Stop is a power button, not a hatchet.** `stop` sent quickemu's
   --kill (SIGKILL) straight away: the guest's unflushed writes died with it —
   a machine provisioned seconds before a stop came back missing files — and

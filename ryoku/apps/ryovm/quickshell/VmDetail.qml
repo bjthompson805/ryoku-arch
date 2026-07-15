@@ -91,6 +91,7 @@ Item {
             name: pane.name
             installed: pane.det ? pane.det.installed === true : false
             disposable: pane.vm ? pane.vm.disposable === true : false
+            sshReady: pane.det ? pane.det.sshReady === true : false
             sealed: pane.det ? pane.det.sealed === true : (pane.vm ? pane.vm.sealed === true : false)
             tpmOn: pane.vm ? pane.vm.tpm === true : false
             uefiOn: pane.vm ? pane.vm.uefi !== false : true
@@ -282,8 +283,11 @@ Item {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 visible: pane.vm && (pane.vm.ssh || "").length > 0
-                                text: "Connection refused means the guest has no SSH server yet — install openssh inside it once."
-                                color: Theme.faint; font.family: Theme.font; font.pixelSize: 11
+                                text: pane.det && pane.det.sshReady === true
+                                    ? "Guest is answering — connect away."
+                                    : "Port is forwarded but the guest isn't answering yet: still booting, or no SSH server inside (live ISOs never have one)."
+                                color: pane.det && pane.det.sshReady === true ? Theme.ok : Theme.warn
+                                font.family: Theme.font; font.pixelSize: 11
                             }
 
                             // console line: honest about socket AND viewer.

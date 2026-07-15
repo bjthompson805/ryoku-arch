@@ -224,6 +224,14 @@ cmd_get() {
 		ssh="$(port_of "$vm_ports" ssh)"; spice="$(spice_target "$vm_ports" "$vm_subdir")"
 	fi
 	snaps="$(snaps_json "$vm_disk")"
+	# is anything actually answering on the forwarded ssh port? slirp accepts
+	# the TCP connect no matter what, so only the SSH banner is a real signal —
+	# a booting guest or a live ISO without sshd shows a forwarded port that
+	# leads nowhere, and the UI should say so instead of letting a click hang.
+	local ssh_ready=false
+	if [ "$running" = true ] && [ -n "$ssh" ]; then
+		timeout 1 bash -c "exec 3<>/dev/tcp/127.0.0.1/$ssh && head -c4 <&3 | grep -q '^SSH'" 2>/dev/null && ssh_ready=true
+	fi
 	disposable=false; [ "$running" = true ] && [ -e "$vm_subdir/$vm_name.disposable" ] && disposable=true
 	# sealed truth for the detail view comes from the disk itself.
 	sealed=false; printf '%s' "$snaps" | jq -e 'any(.[]; .name == "sealed")' >/dev/null 2>&1 && sealed=true
@@ -236,8 +244,9 @@ cmd_get() {
 		--argjson installed "$([ -e "$vm_disk" ] && echo true || echo false)" \
 		--argjson disposable "$disposable" --argjson sealed "$sealed" \
 		--argjson tpm "$tpm" --argjson secureboot "$sb" --argjson uefi "$uefi" \
+		--argjson sshready "$ssh_ready" \
 		--argjson snapshots "$snaps" --arg conf "$conf" --arg dir "$vm_subdir" \
-		'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$installed,ssh:$ssh,spice:$spice,disposable:$disposable,sealed:$sealed,tpm:$tpm,secureboot:$secureboot,uefi:$uefi,snapshots:$snapshots,conf:$conf,dir:$dir}'
+		'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$installed,ssh:$ssh,spice:$spice,disposable:$disposable,sealed:$sealed,tpm:$tpm,secureboot:$secureboot,uefi:$uefi,sshReady:$sshready,snapshots:$snapshots,conf:$conf,dir:$dir}'
 }
 
 # ---- create (catalogue OS, in-app download with live progress) --------------

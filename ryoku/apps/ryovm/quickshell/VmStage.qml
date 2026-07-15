@@ -22,6 +22,7 @@ Item {
     property string diskCap: ""
     property bool installed: false
     property bool disposable: false
+    property bool sshReady: false
     property bool sealed: false
     property bool tpmOn: false
     property bool uefiOn: true
@@ -194,7 +195,13 @@ Item {
                         : (stage.diskCap.length > 0 ? stage.diskCap + " · EMPTY" : "NONE")
                 }
                 Field { k: "Mode"; v: ({ "gtk": "WINDOW", "spice": "SPICE", "none": "HEADLESS" })[stage.mode] || stage.mode }
-                Field { k: "SSH"; v: stage.running && stage.ssh.length > 0 ? ":" + stage.ssh : "—"; vc: stage.running && stage.ssh.length > 0 ? Theme.ok : Theme.faint }
+                Field {
+                    k: "SSH"
+                    v: stage.running && stage.ssh.length > 0
+                        ? ":" + stage.ssh + (stage.sshReady ? "" : " · no answer")
+                        : "—"
+                    vc: stage.running && stage.sshReady ? Theme.ok : Theme.faint
+                }
                 Field { k: "Console"; v: stage.running && stage.spice.length > 0 ? "SPICE" : "—"; vc: stage.running && stage.spice.length > 0 ? Theme.ok : Theme.faint }
             }
 
@@ -207,7 +214,7 @@ Item {
                 Annunciator { label: "TPM"; lit: stage.tpmOn; tileW: 46 }
                 Annunciator { label: "DISK"; lit: stage.installed; tileW: 46 }
                 Annunciator { label: "NET"; lit: stage.running; tileW: 46 }
-                Annunciator { label: "SSH"; lit: stage.running && stage.ssh.length > 0; tileW: 46 }
+                Annunciator { label: "SSH"; lit: stage.running && stage.sshReady; tileW: 46 }
                 Annunciator { label: "SPICE"; lit: stage.running && stage.spice.length > 0; tileW: 50 }
                 Annunciator { label: "SEALED"; lit: stage.sealed; litColor: Theme.gold; tileW: 58 }
                 Annunciator { label: "BURN"; lit: stage.running && stage.disposable; warn: true; litColor: Theme.ember; tileW: 46 }

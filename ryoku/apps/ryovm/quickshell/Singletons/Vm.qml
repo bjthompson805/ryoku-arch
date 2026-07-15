@@ -185,6 +185,7 @@ Singleton {
         folderProc.running = true;
     }
     function openSsh(name) {
+        sshProc.vmName = name;
         sshProc.command = ["ryovm", "ssh", name];
         sshProc.running = true;
     }
@@ -564,13 +565,35 @@ Singleton {
                 var c = this.text.trim();
                 if (c.length === 0)
                     return;
-                // $TERMINAL wins over the shipped kitty; hold the window open on
-                // failure so "connection refused" is readable, with the fix.
-                var held = c + "; ec=$?; if [ $ec -ne 0 ]; then echo; "
-                    + "echo \"ssh exited $ec — the guest may have no SSH server yet; install openssh inside it once.\"; "
-                    + "echo \"press Enter to close\"; read _; fi";
+                // $TERMINAL wins over the shipped kitty. QEMU's user-net accepts
+                // the TCP connect while the guest is still booting, so a bare ssh
+                // sits in a pitch-black window with no sign of life (and a plain
+                // timeout would kill a session the user IS logged into). Narrate
+                // instead: say where and as whom, heartbeat while waiting for the
+                // real "SSH-" banner — however long the boot takes — then hand
+                // over to a plain interactive ssh. Held open on failure so the
+                // fix is readable.
+                var pm = c.match(/-p (\d+)/);
+                var um = c.match(/(\S+)@localhost/);
+                var script = [
+                    "cmd=$1; port=$2; vm=$3; user=$4",
+                    "printf '  %s — ssh to localhost:%s as \\033[1m%s\\033[0m\\n' \"$vm\" \"$port\" \"$user\"",
+                    "printf '  wrong account? set it once:  ryovm config %s ryovm_ssh_user <guest user>\\n\\n' \"$vm\"",
+                    "n=0",
+                    "until b=$(timeout 3 bash -c \"exec 3<>/dev/tcp/127.0.0.1/$port && head -c4 <&3\" 2>/dev/null); [ \"$b\" = \"SSH-\" ]; do",
+                    "  n=$((n+1))",
+                    "  printf '\\r  waiting for the guest to answer — ~%ss (a booting VM takes a while; Ctrl+C aborts) ' $((n*4))",
+                    "  if [ $n -eq 15 ]; then printf '\\n  a minute with no answer: a live installer ISO runs no SSH login — install the OS first; an installed guest needs openssh added inside it once.\\n'; fi",
+                    "  sleep 1",
+                    "done",
+                    "printf '\\n  answered — connecting.\\n\\n'",
+                    "$cmd",
+                    "ec=$?",
+                    "if [ $ec -ne 0 ]; then echo; echo \"ssh exited $ec — a password you never set means the guest has no '$user' account: ryovm config $vm ryovm_ssh_user <guest user>\"; echo 'press Enter to close'; read _; fi"
+                ].join("\n");
                 Quickshell.execDetached(["sh", "-c",
-                    "exec \"${TERMINAL:-kitty}\" --class ryovm-ssh -e sh -c \"$1\"", "--", held]);
+                    "exec \"${TERMINAL:-kitty}\" --class ryovm-ssh -e bash -c \"$1\" ryovm-ssh \"$2\" \"$3\" \"$4\" \"$5\"",
+                    "--", script, c, pm ? pm[1] : "", sshProc.vmName, um ? um[1] : ""]);
             }
         }
     }
