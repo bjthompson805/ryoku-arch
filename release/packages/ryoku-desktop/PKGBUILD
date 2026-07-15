@@ -98,6 +98,12 @@ depends=(
   # pinned Codeberg-archive checksum drifts and breaks the build -- so it resolves
   # as a hard depend and reaches every box on `ryoku update`.
   'wallust'
+  # animated wallpaper daemon the shell drives (`awww img` / `awww-daemon`).
+  # ships from [ryoku], not the AUR, so a fresh install and `ryoku update` always
+  # carry it: an AUR-only optdepend left boxes with no wallpaper daemon out of the
+  # box (no image at all, and ryowalls could list images but set none). See
+  # release/packages/awww/PKGBUILD.
+  'awww'
   # live (video) wallpapers: the daemon grabs one frame with ffmpeg to derive the
   # wallust palette. official repo, so a hard depend reaches existing boxes.
   'ffmpeg'
@@ -139,7 +145,6 @@ depends=(
   'ttf-material-symbols-variable'
 )
 optdepends=(
-  'awww: animated wallpaper transitions (AUR)'
   'tesseract: OCR text grab (pill Super+D)'
   'tesseract-data-eng: English OCR language data'
   'zbar: QR code scanning (pill Super+D)'

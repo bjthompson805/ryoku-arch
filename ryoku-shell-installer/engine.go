@@ -46,17 +46,15 @@ var sessionPkgs = []string{
 	"upower", "fuzzel", "curl", "libnotify", "python", "xdg-utils", "desktop-file-utils",
 	// tools the shell invokes by name (stash, launcher, media, night light)
 	"flatpak", "ffmpeg", "yt-dlp", "mpv", "libqalculate", "mpv-mpris", "songrec",
-	// rust: the shell's wallpaper daemon (awww) and other AUR deps are Rust
-	// programs; the toolchain ships by default (never gated on the devtools
-	// toggle) so they always build, matching the ISO's base set.
+	// rust: the toolchain ships by default (never gated on the devtools toggle)
+	// so a shell-installed box matches the ISO's base set, which carries it.
 	"rust",
 }
 
-// awww-git is the shell's wallpaper daemon; the rest are the standard Ryoku
-// extras, all best-effort here. wallust (the palette generator) is a hard
-// ryoku-desktop depend from [ryoku], so the packages step already pulled it,
-// and ryoku doctor (stepDoctor) heals awww/mpvpaper if a build here failed.
-var aurPkgs = []string{"awww-git", "bibata-cursor-theme-bin", "localsend-bin", "voxtype-bin"}
+// the standard Ryoku extras, all best-effort here. awww (the wallpaper daemon)
+// and wallust (the palette generator) are hard ryoku-desktop depends from the
+// [ryoku] repo, so the packages step already pulled them; no AUR build is needed.
+var aurPkgs = []string{"bibata-cursor-theme-bin", "localsend-bin", "voxtype-bin"}
 
 // system/packages/dev.packages; ryoku recovery builds from source and needs go.
 var devPkgs = []string{"go", "nodejs", "npm", "python", "python-pip", "python-pipx", "mise"}

@@ -111,7 +111,6 @@ func reconcilers() []reconciler {
 		{"desktop portal routing", reconcilePortalRouting},
 		{"cursor theme", reconcileCursorTheme},
 		{"Material Symbols icon font", reconcileIconFont},
-		{"wallpaper daemons", reconcileWallpaperDaemon},
 		{"shell config schema", reconcileShellConfig},
 		{"SDDM greeter theme", reconcileGreeterTheme},
 		{"fastfetch readout emblem", reconcileFastfetchEmblem},
@@ -840,32 +839,6 @@ func reconcileRyokuChannel(_ bool) recResult {
 			withFix("sudo pacman -S ryoku-keyring")
 	}
 	return okRes("ryoku package channel configured")
-}
-
-// ---- reconciler: wallpaper daemons -------------------------------------------
-
-// reconcileWallpaperDaemon heals a Ryoku desktop missing awww, the AUR image
-// wallpaper daemon the shell drives (swww renamed upstream). It is AUR-only, so
-// `ryoku update` (pacman) never pulls it, and a box that predates it -- or one
-// upgraded across the swww->awww rename -- silently can't set a static wallpaper.
-// Live (video) wallpapers ride ryoku-livewall, which ships inside ryoku-shell
-// (the [ryoku] repo) and so reaches boxes on `ryoku update` with no reconcile. In
-// fix mode the one-shot AUR add IS the fix; `--check` reports what it would add.
-func reconcileWallpaperDaemon(checkOnly bool) recResult {
-	if !sys.Exists(filepath.Join(sys.Home(), ".config", "hypr")) && !sys.Has("Hyprland") {
-		return okRes("not a Hyprland desktop")
-	}
-	if sys.Has("awww") || sys.Has("swww") {
-		return okRes("wallpaper daemon present")
-	}
-	broke := "static wallpapers and the still under live ones may not work"
-	if checkOnly {
-		return wouldRes("missing awww; %s", broke).withFix("ryoku-pkg-aur-add awww-git")
-	}
-	if err := sys.Run("ryoku-pkg-aur-add", "awww-git"); err != nil {
-		return failRes("could not install awww-git: %v", err).withFix("ryoku-pkg-aur-add awww-git")
-	}
-	return fixedRes("installed the wallpaper daemon: awww-git")
 }
 
 // ---- reconciler: Material Symbols icon font ------------------------------------

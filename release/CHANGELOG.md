@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- **`awww` now ships from the `[ryoku]` repo** as a hard `ryoku-desktop`
+  dependency, not the AUR. awww (swww renamed upstream) is the animated wallpaper
+  daemon the shell drives: `ryoku/shell/ipc/wallpaper.go` runs `awww img` on every
+  wallpaper set and starts `awww-daemon` on demand, so a fresh desktop with no
+  daemon shows no wallpaper at all and ryowalls can list images but set none. As
+  an AUR-only optdepend it was skipped on offline installs and best-effort on a
+  failed build, leaving boxes to heal it by hand with `ryoku doctor`. The new
+  PKGBUILD builds both binaries from a pinned upstream git commit (default
+  features, so no dav1d), and `ryoku-desktop` hard-depends on it, so `pacman -Syu`
+  pulls it onto every install and existing box. The publish workflow gains `lz4`
+  (awww's pkg-config build probe) and skips `awww` in its official-repo dependency
+  check.
 - Four new `[ryoku]` repo packages build the optional Hyprland compositor plugins
   the Hub can toggle, installed to `/usr/lib/hyprland/plugins/`:
   `hypr-dynamic-cursors`, `ryoku-hypr-plugins` (hyprbars + hyprfocus),

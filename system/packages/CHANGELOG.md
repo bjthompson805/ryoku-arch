@@ -127,6 +127,11 @@
   `ryoku-desktop` dependency (its AUR package pins a checksum against Codeberg's
   auto-generated source archive, which Codeberg regenerates non-reproducibly, so
   the pin drifts and the build fails), so the AUR set no longer carries it.
+- `aur.packages`: drop `awww-git`. The image wallpaper daemon `awww` moved to the
+  `[ryoku]` repo as a hard `ryoku-desktop` dependency (`release/packages/awww`), so
+  every install and `ryoku update` carries it. As an AUR package it was skipped on
+  offline installs and best-effort on a failed build, so a fresh box could come up
+  with no wallpaper daemon at all.
 - `base.packages`: add `rust`, and `dev.packages`: drop it. The shell's wallpaper
   daemon (`awww`) and other AUR dependencies are Rust programs, so the toolchain
   belongs in the always-installed base set, not the optional dev toolchains; every

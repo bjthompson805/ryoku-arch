@@ -31,10 +31,10 @@ apple_cursor
 # pins a checksum against Codeberg's auto-generated source archive, which
 # Codeberg regenerates non-reproducibly, so the pin drifts and the build fails.
 
-# Wallpaper daemon the shell drives: ryoku-shell runs `awww`/`awww-daemon` for the
-# animated wallpaper transitions. Upstream renamed swww to awww; it is AUR-only, so
-# it cannot be pacstrapped from base.
-awww-git
+# Wallpaper daemon (awww / awww-daemon): now ships first-class from the [ryoku]
+# repo as a hard ryoku-desktop dependency, not the AUR. The AUR build was skipped
+# on offline installs and best-effort on failure, so a fresh box could come up
+# with no wallpaper daemon at all; see release/packages/awww/PKGBUILD.
 
 # NVIDIA digital vibrance for the pill mixer's DISPLAY saturation fader, on
 # Wayland (ioctls on /dev/nvidia-modeset). AUR-only; a no-op on non-NVIDIA GPUs.

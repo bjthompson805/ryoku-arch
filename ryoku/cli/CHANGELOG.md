@@ -20,13 +20,13 @@
   feature left a `~/.config/hypr/theme.lua` on boxes that had a theme applied, and
   `hyprland.lua` no longer loads it. A new reconciler removes the dead file so the
   config dir matches the shipped layout (`internal/doctor/doctor.go`).
-- **`ryoku recovery` restores the `wallust` palette generator.** wallust now ships
-  from the `[ryoku]` repo as a hard `ryoku-desktop` dependency, so a fresh install
-  and `ryoku update` (pacman) already carry it. Recovery now also ensures it
-  (`pacman -S --needed wallust` on a box with `[ryoku]` configured, gated on the
-  package step so `--no-packages` skips it), so the panic button puts back a
-  wallust that an old broken AUR build had dropped and colors follow the wallpaper
-  again.
+- **`ryoku recovery` restores the `awww` wallpaper daemon and `wallust` palette
+  generator.** Both now ship from the `[ryoku]` repo as hard `ryoku-desktop`
+  dependencies, so a fresh install and `ryoku update` (pacman) already carry them.
+  Recovery now also ensures them (`pacman -S --needed awww wallust` on a box with
+  `[ryoku]` configured, gated on the package step so `--no-packages` skips it), so
+  the panic button puts back a daemon or generator an old broken AUR build had
+  dropped and the wallpaper and its colors come back.
 - **`ryoku update` shows real, determinate progress.** The run-state the update
   island and the Hub's Updates page watch now carries the update's ordered
   stages (snapshot, packages, AUR, apply, reload, doctor, finalize), each with
@@ -102,15 +102,12 @@
   converted before that, and the `/etc` case the installer never handled.
 
 ### Changed
-- **`doctor`'s wallpaper reconciler now heals only `awww`.** The live (video)
-  backend is `ryoku-livewall`, which ships inside the `ryoku-shell` package (the
-  `[ryoku]` repo, pulled by `ryoku update`) rather than the AUR, so the
-  reconciler no longer installs `phonto`/`mpvpaper` as AUR packages; only the
-  image daemon `awww` is still reconciled (`internal/doctor/doctor.go`).
-- `doctor`: the `wallpaper daemons` reconciler ensures both live-wallpaper
-  backends now (`phonto` for AMD/Intel, `mpvpaper` for NVDEC on NVIDIA) beside
-  `awww`, pointing at the one-shot `ryoku-pkg-aur-add`, so a box gets whichever
-  its GPU needs (and one from the mpvpaper-only era gains phonto).
+- **`doctor`'s AUR wallpaper reconciler is removed.** `awww` now ships from the
+  `[ryoku]` repo as a hard `ryoku-desktop` dependency (see the release changelog),
+  so `pacman -Syu` guarantees the image daemon on every install and update; the
+  reconciler that installed `awww-git` from the AUR (and, before that, phonto and
+  mpvpaper) is redundant and dropped, matching `wallust`, which has none
+  (`internal/doctor/doctor.go`).
 - **The CLI is split into focused packages.** The one-package `ryoku` program is
   now a thin dispatcher over `internal/updater` (update, status, rollback,
   channel, run-state, materialize, version), `internal/doctor` (the convergent

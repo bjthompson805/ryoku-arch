@@ -19,7 +19,7 @@ ships() {
 declare -A need=(
   # live wallpapers ride ryoku-livewall, which ships inside the ryoku-shell
   # package itself (phonto/mpvpaper were dropped with it, 7c20f7dd).
-  [wallpaper-daemon]=awww-git
+  [wallpaper-daemon]=awww
   [palette]=wallust
   [clipboard-history]=cliphist
   [color-picker]=hyprpicker

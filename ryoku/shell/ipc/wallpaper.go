@@ -13,10 +13,11 @@ import (
 	"time"
 )
 
-// the wallpaper daemon. swww was renamed to awww upstream; older installs still
-// have swww while newer ones have awww, and `ryoku update` never pulls the AUR
-// rename, so use whichever this box actually has (awww preferred). the CLI is
-// identical between them, so the transition presets work either way.
+// the wallpaper daemon. awww (swww renamed upstream) now ships from the [ryoku]
+// repo as a hard ryoku-desktop dependency, so `ryoku update` installs it on every
+// box; older installs may still carry the AUR swww or awww-git, whose binary
+// provides the same name. use whichever this box actually has (awww preferred).
+// the CLI is identical between them, so the transition presets work either way.
 var wallDaemon, wallDaemonStart = resolveWallDaemon()
 
 func resolveWallDaemon() (cli, start string) {

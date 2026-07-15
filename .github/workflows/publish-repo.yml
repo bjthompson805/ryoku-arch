@@ -97,12 +97,13 @@ jobs:
           # wayland/wayland-protocols) plus hyprcursor/pkgconf build the compositor
           # plugin packages (hypr-dynamic-cursors, ryoku-hypr-plugins, hyprglass,
           # imgborders); makepkg runs --nodeps, so their makedepends must be present
-          # here. rust (cargo) builds wallust from source. gnupg signs, rclone
+          # here. rust (cargo) builds wallust and awww from source (awww's
+          # common/build.rs probes liblz4, hence lz4). gnupg signs, rclone
           # uploads, git backs checkout.
           pacman -Syu --noconfirm --needed \
             base-devel git go rust cmake ninja gnupg rclone \
             qt6-base qt6-declarative qt6-shadertools qt6-multimedia \
-            hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf
+            hyprland hyprcursor pango cairo pixman libdrm libinput libxkbcommon wayland wayland-protocols ffmpeg pkgconf lz4
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -156,7 +157,7 @@ jobs:
               [[ -z $d ]] && continue
               # skip packages built here in [ryoku] (self-referential deps): the
               # ryoku* set, gpk, wallust, ryomotion, and the compositor plugins.
-              case "$d" in ryoku*|gpk|hypr-dynamic-cursors|hyprglass|imgborders|wallust|ryomotion) continue ;; esac
+              case "$d" in ryoku*|gpk|hypr-dynamic-cursors|hyprglass|imgborders|wallust|ryomotion|awww) continue ;; esac
               if ! pacman -Si "$d" >/dev/null 2>&1; then
                 echo "::error::$p: dependency '$d' not found in the official repos"
                 missing=1
