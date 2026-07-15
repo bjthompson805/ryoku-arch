@@ -218,6 +218,32 @@ if [ "$have_ffmpeg" -eq 1 ]; then
     bad "video unsupported verdict" "rc=$rc verdict=$verdict"
   fi
 
+  # ---- video: a wedged desktop swap must not hold the verb hostage ----------
+  # the enhanced clip IS the live wallpaper -> the engine triggers the swap,
+  # but detached: a ryoku-shell that blocks (stub sleeps 600s) must not delay
+  # the exit. Regression: the foreground swap pinned the UI's "Enhanced" state
+  # -- button hidden, every further click swallowed -- for the swap's whole life.
+  cat >"$shim/ryoku-shell" <<'EOF'
+#!/bin/sh
+touch "$SWAP_MARKER" 2>/dev/null
+sleep 600
+EOF
+  chmod +x "$shim/ryoku-shell"
+  export SWAP_MARKER="$work/swap-invoked"
+  ffmpeg -y -f lavfi -i "testsrc2=size=320x180:rate=10:duration=0.5" -c:v libx264 -pix_fmt yuv420p "$work/clip4.mkv" >/dev/null 2>&1
+  printf '%s' "$work/clip4.mkv" >"$XDG_STATE_HOME/ryoku-wallpaper"
+  swap_t0="$(date +%s)"
+  run_enhance "$work/clip4.mkv"
+  swap_took="$(( $(date +%s) - swap_t0 ))"
+  sleep 1   # give the detached stub a beat to write its marker
+  if [ "$rc" -eq 0 ] && [ "$swap_took" -lt 15 ] && [ -e "$SWAP_MARKER" ] \
+    && jq -e '.result=="done" and .kind=="video"' >/dev/null 2>&1 <<<"$verdict"; then
+    ok "video done returns instantly under a wedged swap (detached + guarded)"
+  else
+    bad "video done returns instantly under a wedged swap (detached + guarded)" "rc=$rc took=${swap_took}s marker=$([ -e "$SWAP_MARKER" ] && echo yes || echo no) verdict=$verdict"
+  fi
+  rm -f "$XDG_STATE_HOME/ryoku-wallpaper"
+
   # ---- live-list: local clips badge their real resolution -------------------
   mkdir -p "$HOME/Pictures/livewalls"
   cp "$work/clip.mp4" "$HOME/Pictures/livewalls/clip.mp4"

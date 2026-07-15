@@ -156,22 +156,31 @@ Singleton {
             // the exit code is authoritative for the final state; the watched file
             // drives only the live progress while it runs.
             var phase = code === 3 ? "unsupported" : code === 2 ? "sharp" : (code !== 0 ? "error" : "done");
-            // a run that outlived its pick reports through the status toast: its
-            // verdict describes a file the current selection never touched.
             if (root.selected !== root._enhItem) {
+                // a run that outlived its pick reports through the status toast: its
+                // verdict describes a file the current selection never touched.
                 root._enhReset();
                 root.status = phase === "done" ? "Enhance finished"
                     : phase === "sharp" ? "Enhance skipped: already sharp"
                     : "Enhance failed";
-                return;
+            } else {
+                // "done" fades after a moment; a skip or a failure stays put until
+                // the pick changes, so the reason is on screen whenever the user
+                // looks. The bar's fraction is zeroed for them — a frozen 60% bar
+                // under a failure note reads as a hang, not an explanation.
+                root.enhancePhase = phase;
+                if (phase === "done") root._enhClear.restart();
+                else root.enhanceFrac = 0;
             }
-            // "done" fades after a moment; a skip or a failure stays put until the
-            // pick changes, so the reason is on screen whenever the user looks. The
-            // bar's fraction is zeroed for them — a frozen 60% bar under a failure
-            // note reads as a hang, not an explanation.
-            root.enhancePhase = phase;
-            if (phase === "done") root._enhClear.restart();
-            else root.enhanceFrac = 0;
+            // a finished enhance is new bits on disk (a crisp .mp4 beside the
+            // source, or the image itself): the Live and Local grids list from
+            // disk, so refresh them or the result stays invisible until the app
+            // reopens. reload() re-picks the newest file — the fresh enhance —
+            // and the toast keeps the confirmation through that selection change.
+            if (code === 0 && (root.source === "live" || root.source === "local")) {
+                root.status = "Enhanced";
+                root.reload();
+            }
         }
     }
     Timer { id: _enhClear; interval: 3500; onTriggered: root._enhReset() }

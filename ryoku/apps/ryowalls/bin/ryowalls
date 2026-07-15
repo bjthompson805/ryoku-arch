@@ -192,7 +192,15 @@ enhance_video() {
 	rm -rf "$d"
 	enh_write "$out" "done" "$total" "$total"
 	enh_verdict done video 0 0 "$out"
-	still_current "$f" && ryoku-shell wallpaper set "$out" >/dev/null 2>&1 || true
+	# the desktop swap detaches, bounded at 20s: the shell's set can take seconds
+	# (wallust + livewall relaunch) or wedge outright, and the UI holds a dead
+	# "Enhanced" — button hidden, every click swallowed — until this process
+	# exits. The still-current guard runs before detaching, so a wallpaper the
+	# user moved off of is never yanked back; the straggler window is seconds
+	# wide, not the minutes-wide one the old detached worker had.
+	if still_current "$f"; then
+		(timeout 20 ryoku-shell wallpaper set "$out" >/dev/null 2>&1 </dev/null &)
+	fi
 }
 
 # grade an image with imagemagick: brightness / contrast / saturation / warmth,
