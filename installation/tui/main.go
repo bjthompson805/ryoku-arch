@@ -569,14 +569,33 @@ func profiles() []item {
 	return promote(all, []string{ensureHW().profile})
 }
 func diskStrategies() []item {
-	// Alongside is listed first so the picker's default highlighted item is the
-	// safer (non-destructive) option. A quick Enter then commits alongside; if
-	// the disk cannot host an alongside install (no ESP / no free space) the
-	// partition step's partReady gate blocks Tab and the user backs up to pick
-	// whole deliberately. Putting whole first turned a quick Enter into a wipe.
+	// Placeholder for the static step build; loadStep swaps in
+	// diskStrategiesFor(picked disk) the moment the step is entered.
+	return diskStrategiesFor(diskLayout{})
+}
+
+// diskStrategiesFor orders the strategies for the disk that was actually
+// picked. Alongside leads only when there is something on the disk to keep —
+// that is its whole point — and it only names Windows when Windows is really
+// there (the old static list promised "keep Windows" on blank disks). On a
+// populated disk the non-destructive option stays first so a quick Enter can
+// never wipe; a blank disk has nothing to protect, so it gets the single
+// whole-disk path with honest wording — nothing is erased by using an empty
+// disk.
+func diskStrategiesFor(dl diskLayout) []item {
+	if len(dl.parts) == 0 {
+		return []item{{"whole", "Use the whole disk", "blank disk · auto-layout"}}
+	}
+	whole := item{"whole", "Erase whole disk", "wipe & auto-layout"}
+	if dl.windows {
+		return []item{
+			{"alongside", "Install alongside Windows", "keep Windows · use free space"},
+			whole,
+		}
+	}
 	return []item{
-		{"alongside", "Install alongside Windows", "keep Windows · use free space"},
-		{"whole", "Erase whole disk", "wipe & auto-layout"},
+		{"alongside", "Install alongside", "keep existing partitions · use free space"},
+		whole,
 	}
 }
 
@@ -820,7 +839,13 @@ func (m *model) loadStep() {
 	s := m.cur()
 	switch s.kind {
 	case kSelect:
-		m.pick = newPicker(s.items, s.numbered)
+		items := s.items
+		if s.key == "disk" {
+			// strategies depend on what is actually on the picked disk; the
+			// static step list was built before any disk was chosen.
+			items = diskStrategiesFor(sysDiskLayout(m.diskDev))
+		}
+		m.pick = newPicker(items, s.numbered)
 		m.pick.height = m.listRows()
 	case kPartition:
 		m.diskG = m.diskTotal
@@ -1605,7 +1630,7 @@ func (m model) reviewBlockReason() string {
 }
 
 func (m model) layoutSummary() string {
-	n := 2 // @, @nix always
+	n := 3 // @, @log and @pkg always (what the backend actually creates)
 	if m.sepHome {
 		n++
 	}
@@ -1614,6 +1639,9 @@ func (m model) layoutSummary() string {
 	}
 	if m.backups {
 		n++
+	}
+	if m.swapG > 0 {
+		n++ // the swapfile lives in its own @swap
 	}
 	if len(m.kept) == 0 {
 		return fmt.Sprintf("wiped · btrfs %dsv", n)
@@ -1992,7 +2020,7 @@ func (m model) partBody(inner int) string {
 	if m.swapG > 0 {
 		note += fg(cDim, fmt.Sprintf("  ·  swap %dG", m.swapG))
 	}
-	note += fg(cDim, "  ·  @ / and @nix always included")
+	note += fg(cDim, "  ·  @ /, @log and @pkg always included")
 	b.WriteString("\n" + note)
 	return strings.TrimRight(b.String(), "\n")
 }

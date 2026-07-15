@@ -42,6 +42,20 @@ ISO detail live in `backend/CHANGELOG.md` and `iso/CHANGELOG.md`.
   live kernel needed VMD to see the NVMe.
 
 ### Fixed
+- **The disk step reads the disk it was given.** The strategy picker was a
+  static list that always led with "Install alongside Windows · keep Windows",
+  even on a factory-blank disk — a first-time user on an empty SSD was offered
+  a Windows to keep that doesn't exist, and a quick Enter walked them into a
+  dead-ended alongside layout. The strategies are now built from the picked
+  disk's real layout: a blank disk gets the single honest "Use the whole disk"
+  path (nothing exists to erase), a populated non-Windows disk leads with a
+  neutral "Install alongside · keep existing partitions", and only a disk that
+  actually carries an NTFS install promises to keep Windows. The layout
+  screen's footnote and subvolume count also stopped describing a layout the
+  backend never creates ("@ / and @nix always included" — the real always-set
+  is `@`, `@log` and `@pkg`, plus `@swap` when a swapfile is chosen), verified
+  against the backend's own `filesystem.sh` (`tui/main.go`, covered by
+  `TestDiskStrategiesMatchTheDisk`).
 - The packaged install smoke test (`installation/tests/container-install.sh`) now
   installs the full makedepends union of the `[ryoku]` packages, matching
   `publish-repo.yml`. It builds with `makepkg --nodeps`, so every makedepend must

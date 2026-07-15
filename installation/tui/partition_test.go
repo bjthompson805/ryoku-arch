@@ -309,17 +309,36 @@ func TestPartBlockReasonExplainsBlockedTab(t *testing.T) {
 	}
 }
 
-// disk-strategy picker pre-selects items[0], so a quick Enter commits the first
-// item. listing alongside first turns a fast Enter into the safe option
-// (alongside is gated by free-space / ESP checks elsewhere); whole first turned
-// a fast Enter into a disk wipe.
-func TestDiskStrategyFirstItemIsAlongside(t *testing.T) {
-	items := diskStrategies()
-	if len(items) == 0 {
-		t.Fatal("diskStrategies returned no items")
+// disk-strategy picker pre-selects items[0], so a quick Enter commits the
+// first item. The invariant is "a fast Enter never wipes anything that
+// exists": on a populated disk alongside leads (non-destructive), and it only
+// says "Windows" when an NTFS install is really there; a blank disk has
+// nothing to protect, so it gets the single whole-disk path with wording that
+// doesn't threaten to erase what isn't there.
+func TestDiskStrategiesMatchTheDisk(t *testing.T) {
+	// blank disk: one honest option, no "keep Windows" fiction.
+	blank := diskStrategiesFor(diskLayout{})
+	if len(blank) != 1 || blank[0].key != "whole" {
+		t.Fatalf("blank disk should offer only whole, got %+v", blank)
 	}
-	if items[0].key != "alongside" {
-		t.Fatalf("first strategy item is %q, want \"alongside\" (safer default)", items[0].key)
+	if strings.Contains(blank[0].label+blank[0].hint, "Windows") ||
+		strings.Contains(strings.ToLower(blank[0].label+blank[0].hint), "erase") {
+		t.Fatalf("blank-disk wording must not mention Windows or erasing: %+v", blank[0])
+	}
+
+	// populated non-Windows disk: alongside leads, without naming Windows.
+	pop := diskStrategiesFor(diskLayout{parts: []part{{dev: "/dev/vda1"}}})
+	if len(pop) < 2 || pop[0].key != "alongside" {
+		t.Fatalf("populated disk should lead with alongside, got %+v", pop)
+	}
+	if strings.Contains(pop[0].label, "Windows") {
+		t.Fatalf("non-Windows disk must not promise to keep Windows: %+v", pop[0])
+	}
+
+	// Windows disk: alongside leads and says so.
+	win := diskStrategiesFor(diskLayout{parts: []part{{dev: "/dev/vda1"}}, windows: true})
+	if len(win) < 2 || win[0].key != "alongside" || !strings.Contains(win[0].label, "Windows") {
+		t.Fatalf("windows disk should lead with alongside-Windows, got %+v", win)
 	}
 }
 
