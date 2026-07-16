@@ -78,6 +78,34 @@ ryoku_bootloader_finalize() {
   ryoku_windows_entry
 }
 
+# ryoku_limine_autoboot CONF: point default_entry at the Limine entry-path
+# ("<dir>/<kernel>") of the first kernel nested under the top-level OS directory,
+# and ensure remember_last_entry: yes. Limine's numeric default_entry counts
+# TOP-LEVEL entries only, so on the hook's collapsed-directory layout a bare
+# index lands on the sibling "/EFI fallback", which chainloads Limine and loops
+# the countdown; an entry path (CONFIG.md) autoboots the kernel leaf directly,
+# and remember_last_entry autoboots the last kernel used (e.g. a CachyOS kernel).
+# A flat menu (no directory) keeps default_entry: 1, its bootable placeholder.
+# Mirrors reconcileLimineAutoboot so a doctored box matches a fresh install.
+ryoku_limine_autoboot() {
+  local conf=$1 path tmp
+  path=$(awk '
+    { t = $0; sub(/^[[:space:]]+/, "", t) }
+    t ~ /^\/[^\/]/                 { dir = t; sub(/^\/\+?/, "", dir); next }
+    t ~ /^\/\/[^\/]/ && dir != "" { k = t; sub(/^\/\//, "", k); if (k != "Snapshots") { print dir "/" k; exit } }
+  ' "$conf")
+  [[ -n $path ]] || path=1
+  tmp=$(mktemp) || return 1
+  awk -v p="$path" '
+    /^default_entry:/       { print "default_entry: " p; next }
+    /^remember_last_entry:/ { print "remember_last_entry: yes"; next }
+    { print }
+  ' "$conf" >"$tmp"
+  grep -q '^default_entry:' "$tmp"       || sed -i "/^timeout:/a default_entry: $path" "$tmp"
+  grep -q '^remember_last_entry:' "$tmp" || sed -i "/^default_entry:/a remember_last_entry: yes" "$tmp"
+  mv "$tmp" "$conf"
+}
+
 # promote CONF: drop the flat "/Ryoku Linux" placeholder (entry line + its
 # indented options) and point default_entry at the first UKI inside the
 # /+Ryoku tree. pure file surgery, atomic, no chroot -- unit-tested by
@@ -89,8 +117,9 @@ ryoku_boot_limine_promote() {
     $0 == "/Ryoku Linux" { skip = 1; next }
     skip && /^[[:space:]]+[^[:space:]]/ { next }
     { skip = 0; print }
-  ' "$conf" | sed 's/^default_entry: 1$/default_entry: 2/' >"$tmp"
+  ' "$conf" >"$tmp"
   mv "$tmp" "$conf"
+  ryoku_limine_autoboot "$conf"
 }
 
 # repoint CONF for the adopted layout: limine-entry-tool 1.37+ keeps the flat
@@ -120,8 +149,9 @@ ryoku_boot_limine_repoint() {
     head { buf[n++] = $0; next }
     { print }
     END { if (head) for (i = 0; i < n; i++) print buf[i] }
-  ' "$conf" | sed 's/^default_entry: 1$/default_entry: 2/' >"$tmp"
+  ' "$conf" >"$tmp"
   mv "$tmp" "$conf"
+  ryoku_limine_autoboot "$conf"
 }
 
 # chroot_has: does $1 exist inside the target? dry-run = false, so the flow
@@ -348,7 +378,8 @@ EOF
 ryoku_builtin_limine_branding() {
   cat <<'EOF'
 timeout: 3
-default_entry: 2
+default_entry: 1
+remember_last_entry: yes
 interface_branding: Ryoku Bootloader
 interface_branding_color: F25623
 interface_help_color: F25623

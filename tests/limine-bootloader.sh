@@ -3,8 +3,8 @@
 # fixture test for the bootloader step's limine.conf handling: the config must
 # land at the ESP root (/boot/limine.conf, the one location limine-entry-tool
 # manages -- anything else shadows the generated kernel + snapshot entries),
-# default_entry must match the menu shape (1 = flat placeholder, 2 = first UKI
-# inside the tree), the post-AUR promote must retire the flat entry, and the
+# default_entry must match the menu shape (1 = flat placeholder, else the
+# kernel entry path), the post-AUR promote must retire the flat entry, and the
 # adopted-layout repoint must strip the leftover boot stanza from the menu
 # directory (a directory carrying a boot body cannot autoboot -- the countdown
 # loops) without touching foreign entries. all hermetic: dry-run for the
@@ -33,6 +33,8 @@ grep -qF 'DRYRUN: write /mnt/boot/limine.conf:' <<<"$out" \
   || fail "with_entry must write /boot/limine.conf (the ESP root), nothing else"
 grep -qF 'default_entry: 1' <<<"$out" \
   || fail "flat menu must default to entry 1 (there is no tree directory to skip)"
+grep -qF 'remember_last_entry: yes' <<<"$out" \
+  || fail "with_entry must ship remember_last_entry: yes"
 grep -qF 'default_entry: 2' <<<"$out" \
   && fail "flat menu left default_entry: 2 (would autoboot a second entry, e.g. Windows)"
 grep -qF '/Ryoku Linux' <<<"$out" || fail "with_entry missing the flat kernel entry"
@@ -41,11 +43,13 @@ grep -qF 'rm -f' <<<"$out" || fail "with_entry must remove the shadowing config 
 grep -qF '/mnt/boot/limine/limine.conf' <<<"$out" \
   || fail "the shadow candidate /boot/limine/limine.conf is not in the cleanup list"
 
-# --- branding_only: tool-managed menu keeps default_entry: 2 ---------------
+# --- branding_only: globals only; default + remember set, entries left to hook -
 out="$(ryoku_boot_limine_conf branding_only)"
-grep -qF 'default_entry: 2' <<<"$out" \
-  || fail "tool-managed menu must default past the /+Ryoku directory to the newest UKI"
-grep -qF '/Ryoku Linux' <<<"$out" && fail "branding_only must not carry the placeholder entry"
+grep -qF 'default_entry: 1' <<<"$out" \
+  || fail "branding_only must ship default_entry: 1 (finalize repoints to the kernel path once the hook builds the tree)"
+grep -qF 'remember_last_entry: yes' <<<"$out" \
+  || fail "branding_only must ship remember_last_entry: yes"
+grep -qE '^/Ryoku Linux' <<<"$out" && fail "branding_only must not carry the placeholder entry"
 
 # --- install_efi: the tool-refreshed binary path, never limine.efi ---------
 # shellcheck disable=SC2034  # consumed by the sourced ryoku_boot_install_efi
@@ -89,7 +93,8 @@ EOF
 ryoku_boot_limine_promote "$conf"
 grep -qF '/Ryoku Linux' "$conf" && fail "promote left the flat placeholder entry"
 grep -qF 'kernel_path: boot():/vmlinuz-linux' "$conf" && fail "promote left the placeholder's options"
-grep -qxF 'default_entry: 2' "$conf" || fail "promote must repoint default_entry at the tree's first UKI"
+grep -qxF 'default_entry: Ryoku/linux' "$conf" || fail "promote must repoint default_entry at the tree's first UKI entry path"
+grep -qxF 'remember_last_entry: yes' "$conf" || fail "promote must enable remember_last_entry so the last kernel autoboots"
 grep -qxF '/+Ryoku' "$conf" || fail "promote clobbered the tool's boot tree"
 grep -qxF '/Windows' "$conf" || fail "promote clobbered the Windows chainload entry"
 grep -qF 'interface_branding: Ryoku Bootloader' "$conf" || fail "promote clobbered the branding"
@@ -124,7 +129,8 @@ default_entry: 1
 EOF
 
 ryoku_boot_limine_repoint "$conf"
-grep -qxF 'default_entry: 2' "$conf" || fail "repoint must move the default off the tree directory"
+grep -qxF 'default_entry: Ryoku Linux/linux' "$conf" || fail "repoint must move the default onto the nested kernel entry path"
+grep -qxF 'remember_last_entry: yes' "$conf" || fail "repoint must enable remember_last_entry so the last kernel autoboots"
 grep -qF '/Ryoku Linux' "$conf" || fail "repoint dropped the adopted tree root"
 grep -qF '  //linux' "$conf" || fail "repoint damaged the nested kernel entry"
 grep -qF 'path: boot():/EFI/Linux/ryoku_linux.efi' "$conf" || fail "repoint damaged the UKI entry body"

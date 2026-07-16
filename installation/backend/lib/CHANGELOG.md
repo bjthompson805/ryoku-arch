@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+- `bootloader`: the post-AUR limine finalize points `default_entry` at the
+  kernel's entry path (`<dir>/<kernel>`) and sets `remember_last_entry: yes`,
+  instead of the bare `default_entry: 2` that lands on the `/EFI fallback` once
+  the hook makes the OS entry a directory, chainloading Limine and looping the
+  countdown. New `ryoku_limine_autoboot` helper, covered by
+  `tests/limine-bootloader.sh`.
+
 ### Added
 - Step helpers split by concern: `common`, `preflight`, `disk`, `luks`,
   `filesystem`, `pacstrap`, `chroot`, `deploy`, `bootloader`.
