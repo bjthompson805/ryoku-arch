@@ -6,10 +6,11 @@ import Quickshell.Io
 import "Singletons"
 
 // Updates section, wired to `ryoku status --json` via the Updates singleton.
-// idle = live status + the real list of incoming commits. "Update now" runs
-// the real `ryoku update` in a terminal; this page mirrors progress from the
-// run-state file the CLI publishes. when the system is current there are no
-// rows and the top-right island stays hidden.
+// idle = live status + a commit list: incoming commits when behind, else the
+// recent history the installed version runs, so the page is never blank.
+// "Update now" runs the real `ryoku update` in a terminal; this page mirrors
+// progress from the run-state file the CLI publishes. when the system is
+// current the list shows recent changes and the top-right island stays hidden.
 Item {
     id: page
 
@@ -153,6 +154,11 @@ Item {
         Quickshell.execDetached(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
     }
 
+    // idle list: incoming commits when behind, else the recent history the
+    // installed version contains, so the page is informative either way.
+    readonly property var sectionModel: Updates.available ? Updates.updates : Updates.recent
+    readonly property string sectionLabel: Updates.available ? "INCOMING COMMITS" : "RECENT CHANGES"
+
     // --- idle: status + pending updates -------------------------------------
     Flickable {
         id: flick
@@ -245,7 +251,7 @@ Item {
                         id: secLabel
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "INCOMING COMMITS"
+                        text: page.sectionLabel
                         color: Theme.dim
                         font.family: Theme.mono
                         font.pixelSize: 11
@@ -264,7 +270,7 @@ Item {
                 }
 
                 Repeater {
-                    model: Updates.updates
+                    model: page.sectionModel
 
                     delegate: UpdateRow {
                         required property var modelData
@@ -274,13 +280,15 @@ Item {
                         fromVersion: modelData.old
                         toVersion: modelData.new
                         first: index === 0
-                        last: index === Updates.updates.length - 1
+                        last: index === page.sectionModel.length - 1
                     }
                 }
 
                 Text {
-                    visible: Updates.updates.length === 0
-                    text: "Everything is up to date."
+                    visible: page.sectionModel.length === 0
+                    text: Updates.available
+                        ? "No commit details available."
+                        : "You're up to date. Recent changes will appear here once loaded."
                     color: Theme.faint
                     font.family: Theme.font
                     font.pixelSize: 13

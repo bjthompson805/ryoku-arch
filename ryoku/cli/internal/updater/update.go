@@ -398,6 +398,7 @@ type statusReport struct {
 	Available bool         `json:"available"`
 	Behind    int          `json:"pendingUpdates"`
 	Updates   []updateItem `json:"updates"`
+	Recent    []updateItem `json:"recent"`
 	Channel   string       `json:"channel"`
 	Snapshots int          `json:"snapshots"`
 }
@@ -418,6 +419,14 @@ func buildStatus() statusReport {
 			latest = u.New
 		}
 	}
+	return packagedStatus(installed, latest)
+}
+
+// packagedStatus builds the report for a packaged install from the running and
+// available package versions. The GitHub lookups are best-effort and stubbable
+// (RYOKU_GITHUB_API), so the sha/compare/recent branching is unit-testable
+// without pacman, the same reason wantedSnapperHelpers is split out.
+func packagedStatus(installed, latest string) statusReport {
 	installedSha := shortCommit(installed)
 	latestSha := shortCommit(latest)
 
@@ -425,11 +434,21 @@ func buildStatus() statusReport {
 		Installed: installedSha,
 		Latest:    latestSha,
 		Updates:   []updateItem{}, // non-nil, so a current box marshals [] like the git path
+		Recent:    []updateItem{}, // non-nil, so the JSON stays stable when nothing is fetched
 		Channel:   ryokuChannel(),
 		Snapshots: snapshotCount(),
 	}
-	// current, or the [ryoku] repo isn't synced yet: nothing incoming.
-	if installedSha == "" || latestSha == "" || installedSha == latestSha {
+	// up to date: nothing incoming, but list the recent history the installed
+	// version contains (best-effort, newest-first) so the Hub's Updates page
+	// still shows meaningful content instead of a blank section.
+	if installedSha != "" && installedSha == latestSha {
+		if rec := recentCommits(installedSha); len(rec) > 0 {
+			r.Recent = rec
+		}
+		return r
+	}
+	// the [ryoku] repo isn't synced yet: nothing to compare.
+	if installedSha == "" || latestSha == "" {
 		return r
 	}
 	r.Available = true

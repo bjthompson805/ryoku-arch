@@ -1,6 +1,9 @@
 package updater
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -74,5 +77,72 @@ func TestPromptAnswerRoundTrip(t *testing.T) {
 	}
 	if _, err := os.Stat(answerPath()); !os.IsNotExist(err) {
 		t.Fatal("awaitAnswer must consume the answer file")
+	}
+}
+
+// An up-to-date packaged box (installed == latest) reports nothing pending but
+// lists the recent history the installed commit contains, so the Hub's Updates
+// page still has content. packagedStatus is the pure core of buildStatus, so
+// this exercises the sha branching and the recent lookup without pacman.
+func TestPackagedStatusUpToDatePopulatesRecent(t *testing.T) {
+	srv, _ := stubRecent(t, [][2]string{
+		{"latest work", "86a91f4aaaa"},
+		{"earlier work", "1184abcdddd"},
+	})
+	t.Setenv("RYOKU_GITHUB_API", srv.URL)
+	t.Setenv("RYOKU_REPO_SLUG", "owner/repo")
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	ver := "0.12.6.r1184.g86a91f4-1" // installed == latest: shortCommit -> 86a91f4
+	r := packagedStatus(ver, ver)
+
+	if r.Behind != 0 {
+		t.Errorf("pendingUpdates = %d, want 0 when up to date", r.Behind)
+	}
+	if r.Available {
+		t.Error("available = true, want false when up to date")
+	}
+	if len(r.Updates) != 0 {
+		t.Errorf("updates = %d, want 0 (nothing incoming)", len(r.Updates))
+	}
+	if len(r.Recent) != 2 {
+		t.Fatalf("recent = %d, want 2 (from the stub)", len(r.Recent))
+	}
+	if r.Recent[0].Name != "latest work" || r.Recent[0].New != "86a91f4" {
+		t.Errorf("recent[0] = %+v, want {latest work, 86a91f4}", r.Recent[0])
+	}
+	// The Hub reads these JSON keys off `ryoku status --json`; pin them.
+	b, err := json.Marshal(r)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if js := string(b); !strings.Contains(js, `"pendingUpdates":0`) || !strings.Contains(js, `"recent":[{`) {
+		t.Errorf("status JSON = %s, want pendingUpdates:0 and a non-empty recent[]", js)
+	}
+}
+
+// Offline / rate-limited: the recent lookup fails, so the up-to-date report
+// degrades to an empty (non-nil) recent list with no error or hang, keeping the
+// JSON shape stable.
+func TestPackagedStatusUpToDateOfflineEmptyRecent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("RYOKU_GITHUB_API", srv.URL)
+	t.Setenv("RYOKU_REPO_SLUG", "owner/repo")
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	ver := "0.12.6.r1184.g86a91f4-1"
+	r := packagedStatus(ver, ver)
+
+	if r.Behind != 0 {
+		t.Errorf("pendingUpdates = %d, want 0 when up to date", r.Behind)
+	}
+	if r.Recent == nil {
+		t.Error("recent = nil, want a non-nil empty slice so the JSON stays stable")
+	}
+	if len(r.Recent) != 0 {
+		t.Errorf("recent = %d, want 0 on a failed lookup", len(r.Recent))
 	}
 }

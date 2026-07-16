@@ -163,3 +163,124 @@ func fetchCompare(base, head string) ([]updateItem, int, bool) {
 	}
 	return ups, total, true
 }
+
+// An up-to-date packaged box has nothing incoming, so the compare view above is
+// empty. It still runs a known commit (the installed ryoku-desktop), so it asks
+// the public GitHub repo for the recent history that commit contains: the last
+// handful of commit subjects, newest first, so the Hub's Updates page shows
+// "what you're running" instead of a blank section. Same best-effort + cached
+// contract as incomingCommits, keyed by the head sha (which only moves across a
+// release).
+
+func recentCacheFile() string {
+	return filepath.Join(sys.Xdg("XDG_CACHE_HOME", ".cache"), "ryoku", "recent.json")
+}
+
+// recentCache is the last resolved recent history, keyed by the head sha it was
+// fetched for. A hit (same head) short-circuits the network call, so repeated
+// status polls on an up-to-date box cost nothing.
+type recentCache struct {
+	Head    string       `json:"head"`
+	Updates []updateItem `json:"updates"`
+}
+
+// recentCommits returns the last commits reachable from head, newest first, as
+// display rows (subject in Name, short hash in New). An empty head means no
+// lookup runs. Best-effort: nil on any failure, so the status query never hangs
+// or errors when GitHub is offline or rate-limited.
+func recentCommits(head string) []updateItem {
+	if head == "" {
+		return nil
+	}
+	if c, ok := readRecentCache(head); ok {
+		return c.Updates
+	}
+	ups, ok := fetchRecent(head)
+	if !ok {
+		return nil
+	}
+	writeRecentCache(recentCache{Head: head, Updates: ups})
+	return ups
+}
+
+func readRecentCache(head string) (recentCache, bool) {
+	b, err := os.ReadFile(recentCacheFile())
+	if err != nil {
+		return recentCache{}, false
+	}
+	var c recentCache
+	if json.Unmarshal(b, &c) != nil {
+		return recentCache{}, false
+	}
+	if c.Head != head {
+		return recentCache{}, false
+	}
+	return c, true
+}
+
+func writeRecentCache(c recentCache) {
+	b, err := json.Marshal(c)
+	if err != nil {
+		return
+	}
+	if os.MkdirAll(filepath.Dir(recentCacheFile()), 0o755) != nil {
+		return
+	}
+	_ = os.WriteFile(recentCacheFile(), b, 0o644)
+}
+
+// listResponse is the slice of GitHub's list-commits payload we read. That
+// endpoint returns a bare array, newest first already, so no reversal is needed.
+type listResponse []struct {
+	SHA    string `json:"sha"`
+	Commit struct {
+		Message string `json:"message"`
+	} `json:"commit"`
+}
+
+// fetchRecent asks the GitHub list-commits API for the last commits reachable
+// from head (newest first, capped at per_page). Bounded and best-effort:
+// ok=false on any error, so status stays responsive when GitHub is offline or
+// rate-limited.
+func fetchRecent(head string) ([]updateItem, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+
+	url := githubAPI() + "/repos/" + ryokuRepoSlug() + "/commits?sha=" + head + "&per_page=10"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, false
+	}
+	// GitHub 403s an API request with no User-Agent; the media type pins the
+	// response shape.
+	req.Header.Set("User-Agent", "ryoku-cli")
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, false
+	}
+
+	var lr listResponse
+	if json.NewDecoder(resp.Body).Decode(&lr) != nil {
+		return nil, false
+	}
+
+	ups := make([]updateItem, 0, len(lr))
+	for _, c := range lr { // GitHub lists newest first already
+		subject := c.Commit.Message
+		if nl := strings.IndexByte(subject, '\n'); nl >= 0 {
+			subject = subject[:nl]
+		}
+		sha := c.SHA
+		if len(sha) > 7 {
+			sha = sha[:7]
+		}
+		ups = append(ups, updateItem{Name: subject, New: sha})
+	}
+	return ups, true
+}

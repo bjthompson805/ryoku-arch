@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Updates page stays useful when you are up to date.** A packaged box on the
+  latest release showed an empty Updates page (nothing incoming). It now lists
+  the recent changes the installed version carries, fetched from the GitHub
+  commit history (best-effort, cached), under a "Recent changes" heading, while
+  the "Update now" action stays hidden until an update is actually available
+  (`internal/updater/{update,commits}.go`, `UpdatesPage.qml`, `Singletons/Updates.qml`).
 - **App Launcher: a Background blur slider.** A new slider on the App Launcher
   page sets how much the desktop behind the command palette blurs while it is
   open (0 to 30 px; 0 keeps it sharp). It saves to `launcher.json` as `bgBlur`;
