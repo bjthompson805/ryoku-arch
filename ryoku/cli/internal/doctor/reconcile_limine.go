@@ -28,7 +28,8 @@ import (
 // limineBranding mirrors system/boot/limine/limine.conf (the globals): keep
 // the two in sync so a doctored box matches a fresh install.
 const limineBranding = `timeout: 3
-default_entry: 2
+default_entry: 1
+remember_last_entry: yes
 interface_branding: Ryoku Bootloader
 interface_branding_color: F25623
 interface_help_color: F25623
@@ -350,9 +351,9 @@ var limineBrandedKeys = []string{
 // carried, then the base's entries verbatim. the base is the ESP-root config
 // when the tool's boot tree lives there (never throw generated entries
 // away), else the shadow (the menu the firmware was actually showing).
-// default_entry falls back to 1 when the menu is still flat: with no
-// directory at entry 1, 2 would autoboot the second flat entry (e.g.
-// Windows).
+// default_entry is then pointed at the kernel's entry path (or 1 on a flat
+// menu) and remember_last_entry ensured by limineEnsureAutoboot, so the merged
+// menu autoboots the kernel instead of looping on the /EFI fallback.
 func mergeLimineConf(espConf, shadowConf string) string {
 	base := espConf
 	if !limineHasBootTree(espConf) && shadowConf != "" {
@@ -374,9 +375,6 @@ func mergeLimineConf(espConf, shadowConf string) string {
 	}
 
 	header := limineBranding
-	if !limineHasBootTree(base) {
-		header = strings.Replace(header, "default_entry: 2\n", "default_entry: 1\n", 1)
-	}
 
 	var b strings.Builder
 	b.WriteString("# Ryoku limine config -- branding globals + generated entries. managed by\n")
@@ -395,6 +393,7 @@ func mergeLimineConf(espConf, shadowConf string) string {
 	if !strings.HasSuffix(out, "\n") {
 		out += "\n"
 	}
+	out, _ = limineEnsureAutoboot(out)
 	return out
 }
 
@@ -821,4 +820,129 @@ func setLimineOSName(conf, name string) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// ---- reconciler: limine autoboot (the countdown must boot, not loop) ----------
+
+// limineDepth counts the leading '/' of a whitespace-trimmed menu line: 1 for a
+// top-level entry ("/Ryoku Linux"), 2 for a sub-entry ("//linux"), and so on.
+func limineDepth(trimmed string) int {
+	n := 0
+	for n < len(trimmed) && trimmed[n] == '/' {
+		n++
+	}
+	return n
+}
+
+// limineNodeName is the title of a menu line: leading slashes and the optional
+// '+' expanded-directory marker stripped.
+func limineNodeName(trimmed string) string {
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(trimmed, "/"), "+"))
+}
+
+// limineFirstKernelPath returns the Limine entry-path ("<dir>/<kernel>") of the
+// first bootable kernel nested under the top-level OS directory, or "" when the
+// menu is flat (the OS entry is a bootable leaf with no "//" child). Limine's
+// numeric default_entry counts TOP-LEVEL entries only, so on the
+// limine-mkinitcpio-hook 1.37 layout -- where the OS entry is a collapsed
+// directory and the kernel is a "//linux" sub-entry -- a bare index lands on the
+// sibling "/EFI fallback", which chainloads Limine again and re-shows the menu:
+// the countdown loop. An entry path (CONFIG.md: default_entry may be a path like
+// "OSes/Arch Linux") addresses the kernel leaf directly and autoboots.
+func limineFirstKernelPath(conf string) string {
+	dir, inDir := "", false
+	for _, l := range strings.Split(conf, "\n") {
+		t := strings.TrimLeft(l, " \t")
+		switch limineDepth(t) {
+		case 1:
+			dir, inDir = limineNodeName(t), true
+		case 2:
+			if inDir {
+				if child := limineNodeName(t); child != "" && !strings.EqualFold(child, "Snapshots") {
+					return dir + "/" + child
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// limineEnsureAutoboot rewrites the global prelude so the countdown boots a real
+// kernel and remembers the last one: default_entry becomes the entry path to the
+// first nested kernel (autoboot-safe past the collapsed OS directory; "1" on a
+// still-flat menu), and remember_last_entry: yes is ensured so the box autoboots
+// the last kernel used (e.g. a CachyOS kernel picked once). Pure and idempotent:
+// changed=false when the prelude already says exactly this.
+func limineEnsureAutoboot(conf string) (string, bool) {
+	want := limineFirstKernelPath(conf)
+	if want == "" {
+		want = "1"
+	}
+	prelude, body := splitLimineConf(conf)
+	var out []string
+	changed, setDefault, hasRemember := false, false, false
+	for _, l := range strings.Split(prelude, "\n") {
+		t := strings.TrimSpace(l)
+		switch {
+		case strings.HasPrefix(t, "default_entry:"):
+			setDefault = true
+			nl := "default_entry: " + want
+			out = append(out, nl)
+			changed = changed || l != nl
+		case strings.HasPrefix(t, "remember_last_entry:"):
+			hasRemember = true
+			if t == "remember_last_entry: yes" {
+				out = append(out, l)
+			} else {
+				out = append(out, "remember_last_entry: yes")
+				changed = true
+			}
+		default:
+			out = append(out, l)
+		}
+	}
+	if !setDefault {
+		out = append(out, "default_entry: "+want)
+		changed = true
+	}
+	if !hasRemember {
+		out = append(out, "remember_last_entry: yes")
+		changed = true
+	}
+	newPrelude := strings.Join(out, "\n")
+	if body == "" {
+		return newPrelude, changed
+	}
+	return newPrelude + "\n" + body, changed
+}
+
+// reconcileLimineAutoboot makes the countdown autoboot the kernel instead of
+// looping. The installer and older reconcilers set a numeric default_entry
+// believing it lands on the kernel "inside" the boot-menu directory, but Limine
+// counts top-level entries, so on the hook's collapsed-directory layout the
+// index lands on the "/EFI fallback" -- which chainloads Limine again, so the
+// timeout re-shows the menu forever and the user must pick the kernel by hand.
+// Point default_entry at the kernel's entry path and remember the last booted
+// kernel. Runs on every `ryoku update`, so existing boxes heal without a
+// reinstall; idempotent once the prelude is right.
+func reconcileLimineAutoboot(checkOnly bool) recResult {
+	if !sys.PkgInstalled("limine") {
+		return okRes("not a limine-managed boot on this box")
+	}
+	b, err := os.ReadFile(limineESPConf)
+	if err != nil {
+		return okRes("no readable %s; the layout reconciler owns that", limineESPConf)
+	}
+	fixed, changed := limineEnsureAutoboot(string(b))
+	if !changed {
+		return okRes("limine autoboots the kernel and remembers the last one")
+	}
+	if checkOnly {
+		return wouldRes("limine default_entry lands on the EFI fallback, not the kernel, so the boot countdown loops forever").
+			withFix("ryoku doctor points default_entry at the kernel entry path and enables remember_last_entry")
+	}
+	if err := writeRootFile(limineESPConf, fixed, "0644"); err != nil {
+		return failRes("could not update %s: %v", limineESPConf, err)
+	}
+	return fixedRes("pointed default_entry at the kernel entry path and enabled remember_last_entry, so the countdown autoboots the last kernel used")
 }

@@ -580,7 +580,7 @@ remember_last_entry: yes
 
 	t.Run("tool tree as base keeps entries and snapshots", func(t *testing.T) {
 		got := mergeLimineConf(tree, shadow)
-		for _, want := range []string{"/+Ryoku", "//+Snapshots", "interface_branding: Ryoku Bootloader", "remember_last_entry: yes", "default_entry: 2"} {
+		for _, want := range []string{"/+Ryoku", "//+Snapshots", "interface_branding: Ryoku Bootloader", "remember_last_entry: yes", "default_entry: Ryoku/linux"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("merged config missing %q:\n%s", want, got)
 			}
@@ -1323,7 +1323,7 @@ func TestMergeLimineConfHealsAdoptedRoot(t *testing.T) {
 		t.Errorf("merge left the placeholder boot stanza:\n%s", merged)
 	}
 	for _, want := range []string{
-		"default_entry: 2", // a tree keeps the default past the directory
+		"default_entry: Ryoku Linux/linux", // entry path into the boot directory autoboots the kernel
 		"  //linux",
 		"interface_branding: Ryoku Bootloader",
 		"/EFI fallback",
@@ -1331,6 +1331,58 @@ func TestMergeLimineConfHealsAdoptedRoot(t *testing.T) {
 		if !strings.Contains(merged, want) {
 			t.Errorf("merged config missing %q:\n%s", want, merged)
 		}
+	}
+}
+
+// TestLimineEnsureAutoboot covers the countdown-loop fix on the real adopted
+// layout: default_entry: 2 lands on the /EFI fallback (which re-launches Limine),
+// so it must become the kernel's entry path, with remember_last_entry enabled.
+func TestLimineEnsureAutoboot(t *testing.T) {
+	const conf = `timeout: 3
+default_entry: 2
+interface_branding: Ryoku Bootloader
+
+/Ryoku Linux
+  //linux
+  protocol: efi
+  path: boot():/EFI/Linux/ryoku_linux.efi
+
+     //Snapshots
+     comment: 5 / 5 snapshots
+
+/EFI fallback
+    protocol: efi
+    path: boot():/EFI/BOOT/BOOTX64.EFI
+
+/Windows
+    protocol: efi_chainload
+`
+	if p := limineFirstKernelPath(conf); p != "Ryoku Linux/linux" {
+		t.Fatalf("first kernel path = %q, want Ryoku Linux/linux", p)
+	}
+	got, changed := limineEnsureAutoboot(conf)
+	if !changed {
+		t.Fatal("expected a change: default_entry: 2 loops on the EFI fallback")
+	}
+	if !strings.Contains(got, "default_entry: Ryoku Linux/linux") {
+		t.Errorf("default_entry not repointed at the kernel path:\n%s", got)
+	}
+	if strings.Contains(got, "default_entry: 2") {
+		t.Errorf("the looping default_entry: 2 is still present:\n%s", got)
+	}
+	if !strings.Contains(got, "remember_last_entry: yes") {
+		t.Errorf("remember_last_entry not enabled:\n%s", got)
+	}
+	if again, changed2 := limineEnsureAutoboot(got); changed2 || again != got {
+		t.Error("limineEnsureAutoboot is not idempotent")
+	}
+	// a flat menu (no nested kernel) keeps default_entry: 1, the bootable placeholder.
+	const flat = "timeout: 3\ndefault_entry: 2\n\n/Ryoku Linux\n    protocol: linux\n    path: boot():/vmlinuz-linux\n"
+	if p := limineFirstKernelPath(flat); p != "" {
+		t.Errorf("flat menu should have no nested kernel path, got %q", p)
+	}
+	if fg, _ := limineEnsureAutoboot(flat); !strings.Contains(fg, "default_entry: 1") {
+		t.Errorf("flat menu should default to entry 1:\n%s", fg)
 	}
 }
 

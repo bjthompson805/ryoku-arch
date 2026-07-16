@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **`doctor` heals the looping limine boot countdown.** On the
+  limine-mkinitcpio-hook layout the OS entry is a directory and the kernel is a
+  `//` sub-entry, but `default_entry` was a bare `2`, which Limine resolves as
+  the second top-level entry (the `/EFI fallback`, which chainloads Limine), so
+  the countdown looped forever and the user had to pick the kernel by hand. A
+  new `limine autoboot` reconciler repoints `default_entry` at the kernel's
+  entry path and enables `remember_last_entry`, so existing installs autoboot
+  the last kernel used on the next `ryoku update` and fresh installs match
+  (`internal/doctor/reconcile_limine.go`, `TestLimineEnsureAutoboot`).
 - **`doctor` keeps the desktop brand off a broken logo image.** brand.json's
   `markImage` override (Ryoku Settings, Shell, Global) wins over the text seal
   everywhere in system chrome, but a moved or unreadable image leaves every

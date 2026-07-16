@@ -101,6 +101,7 @@ func reconcilers() []reconciler {
 		{"limine boot menu layout", reconcileLimineLayout},
 		{"limine boot entry", reconcileLimineBootEntry},
 		{"limine UKI boot tree", reconcileLimineUKITree},
+		{"limine autoboot", reconcileLimineAutoboot},
 		{"limine snapshot sync", reconcileLimineOSName},
 		{"pacman database lock", reconcilePacmanLock},
 		{"stale update run-state", reconcileStaleUpdateRun},
