@@ -124,7 +124,15 @@ So the schema is half a page, never a whole one. The correct order for any page:
    renders.
 
 The action bar is the first surface to build, because it is the one whose
-absence silently destroys work rather than merely looking wrong.
+absence silently destroys work rather than merely looking wrong. It is built:
+Ryoku.Ui/ActionBar.qml, both states verified. It also splits the two verbs the
+old pages ran together, revert discards unsaved edits and reset writes factory
+values, which is itself an edit and leaves the page dirty.
+
+The remaining surfaces, in the order they hurt: the live previews (Viz, Clock,
+Weather, Calendar, MockDesktop), the update console, the monitor drag-arrange,
+keybind capture, the bezier editor, store cards, scan lists, file pickers,
+empty and loading states. inventory.json has them per page.
 
 ## What rendering all 30 pages actually proved
 

@@ -1,0 +1,74 @@
+import QtQuick
+import "Singletons"
+
+// The bar every settings page needs before it needs anything else. A page that
+// previews live and cannot save does not look broken, it looks fine and then
+// eats the edit on the way out, so this exists as one component rather than as
+// something each page remembers to build.
+//
+// Revert and Reset are not the same verb and the old pages conflated them:
+//   revert  discards unsaved edits, back to what is on disk
+//   reset   sets every key to its factory value, which is itself an edit
+// Reset is destructive and sits behind a divider, away from Save.
+Item {
+    id: bar
+
+    property int dirty: 0
+    property string cleanText: "SAVED · LIVE ON YOUR DESKTOP"
+    property string savingText: ""
+
+    signal saved()
+    signal reverted()
+    signal reset()
+
+    implicitHeight: 60
+
+    Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Tokens.line }
+
+    Row {
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: parent.left
+        anchors.leftMargin: Tokens.s5
+        spacing: Tokens.s3
+
+        Rectangle {
+            width: 6; height: 6
+            anchors.verticalCenter: parent.verticalCenter
+            color: Tokens.ink
+            // a heartbeat, not an alarm: 600ms each way
+            SequentialAnimation on opacity {
+                running: bar.dirty > 0
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.3; duration: 600 }
+                NumberAnimation { to: 1.0; duration: 600 }
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: bar.dirty > 0
+                  ? bar.dirty + (bar.dirty === 1 ? " CHANGE" : " CHANGES") + " · PREVIEWING · NOT SAVED"
+                  : bar.cleanText
+            color: bar.dirty > 0 ? Tokens.ink : Tokens.inkDim
+            font.family: Tokens.ui
+            font.pixelSize: 11
+            font.weight: Font.Medium
+            font.letterSpacing: 1.6
+        }
+    }
+
+    Row {
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right: parent.right
+        anchors.rightMargin: Tokens.s6
+        spacing: Tokens.s3
+
+        Btn { text: "RESET TO DEFAULTS"; onAct: bar.reset() }
+        Rectangle {
+            width: 1; height: 22
+            color: Tokens.line
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        Btn { text: "REVERT"; armed: bar.dirty > 0; onAct: bar.reverted() }
+        Btn { text: "SAVE"; primary: true; armed: bar.dirty > 0; onAct: bar.saved() }
+    }
+}
