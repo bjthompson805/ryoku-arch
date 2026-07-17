@@ -31,26 +31,65 @@ ShellRoot {
     }
 
     // --- backdrop blur -----------------------------------------------------
-    // Frost the desktop behind the palette while it is open, by how much the App
-    // Launcher page's slider says (LauncherConfig.bgBlur, px; 0 = off). Hyprland
-    // blur size and enable are global (no per-layer size), so this reads the live
-    // blur on open, drives it to the chosen strength, and puts it back on hide,
-    // turning blur on even when the user keeps it off globally. The low-power
-    // blur switch (weak GPUs) suppresses it. Hyprland's Lua parser takes runtime
-    // config through `hyprctl eval`, not `keyword`.
+    // Frost the desktop behind the palette while it is open, to the strength the
+    // App Launcher page sets (LauncherConfig.bgBlur, px; 0 = off). Hyprland blur
+    // is a single global knob (no per-layer size), so this reads the live blur as
+    // the baseline on open, drives it to that strength, and restores the exact
+    // baseline on hide -- frosting even when blur is off globally. The low-power
+    // switch (weak GPUs) suppresses it. Runtime config goes through `hyprctl eval`.
+    //
+    // All writes serialize through blurWriter: the force (open) and restore
+    // (close) were independent fire-and-forget evals with no ordering guarantee,
+    // so a slower compositor could apply them reversed and strand blur forced-on
+    // after close, flickering through the reorder. The baseline is read only from
+    // a drained compositor and only when well-formed, so a mid-transition or a
+    // failed read can never become a wrong, sticky baseline.
     property bool blurForced: false
+    property bool blurKnown:  false
     property bool savedBlurEnabled: false
-    property int  savedBlurSize: 5
+    property int  savedBlurSize: 0
 
+    // serialized writer: one `hyprctl eval` at a time. A newer request while it
+    // runs replaces the pending one (only the final state matters) and fires when
+    // the current write exits, so writes reach the compositor strictly in order.
+    property string blurPending: ""
+    Process {
+        id: blurWriter
+        onRunningChanged: {
+            if (running || root.blurPending === "")
+                return;
+            var next = root.blurPending;
+            root.blurPending = "";
+            command = ["hyprctl", "eval", next];
+            running = true;
+        }
+    }
     function evalBlur(enabled, size) {
-        Quickshell.execDetached(["hyprctl", "eval",
-            "hl.config({ decoration = { blur = { enabled = " + (enabled ? "true" : "false")
-                + ", size = " + Math.max(1, size) + " } } })"]);
+        var cmd = "hl.config({ decoration = { blur = { enabled = " + (enabled ? "true" : "false")
+            + ", size = " + Math.max(1, size) + " } } })";
+        if (blurWriter.running) {
+            root.blurPending = cmd;
+            return;
+        }
+        blurWriter.command = ["hyprctl", "eval", cmd];
+        blurWriter.running = true;
+    }
+
+    function forceBackdropBlur() {
+        root.blurForced = true;
+        var want = LauncherConfig.bgBlur | 0;
+        root.evalBlur(want > 0, want);
     }
     function applyBackdropBlur() {
-        if (Performance.blurDisabled)
+        if (Performance.blurDisabled || root.blurForced)
             return;
-        blurProbe.running = true;
+        // Read the true baseline only once the writer has fully drained (the
+        // compositor now reflects the real blur); while a restore is still in
+        // flight, reuse the baseline the last clean read captured.
+        if (!blurWriter.running && root.blurPending === "")
+            blurProbe.running = true;
+        else if (root.blurKnown)
+            root.forceBackdropBlur();
     }
     function restoreBackdropBlur() {
         if (!root.blurForced)
@@ -59,9 +98,9 @@ ShellRoot {
         root.evalBlur(root.savedBlurEnabled, root.savedBlurSize);
     }
 
-    // Read the live compositor blur once per open (the real baseline to put
-    // back), then push the launcher's strength. Ignored if the palette closed
-    // before the read returned.
+    // Read the live compositor blur (the real baseline to put back), then push
+    // the launcher's strength. A closed palette or a malformed read leaves global
+    // blur untouched, so the launcher never strands a guessed value in the config.
     Process {
         id: blurProbe
         command: ["sh", "-c", "hyprctl getoption -j decoration:blur:enabled; hyprctl getoption -j decoration:blur:size"]
@@ -77,13 +116,12 @@ ShellRoot {
                 } catch (e) {
                     return;
                 }
-                if (!root.blurForced) {
-                    root.savedBlurEnabled = en.bool === true;
-                    root.savedBlurSize = sz.int > 0 ? sz.int : 5;
-                }
-                root.blurForced = true;
-                var want = LauncherConfig.bgBlur | 0;
-                root.evalBlur(want > 0, want);
+                if (typeof en.bool !== "boolean" || typeof sz.int !== "number")
+                    return;
+                root.savedBlurEnabled = en.bool;
+                root.savedBlurSize = sz.int;
+                root.blurKnown = true;
+                root.forceBackdropBlur();
             }
         }
     }

@@ -173,6 +173,20 @@
   plain grab when the tool is absent (`Beautify.qml`).
 
 ### Fixed
+- **The App Launcher's backdrop blur no longer strands the compositor blur
+  forced-on after the palette closes, and stops flickering on the way out.** The
+  launcher drives the global Hyprland blur (a single knob, no per-layer size) to
+  the App Launcher page's strength while open and restores the prior blur on
+  hide. The force (open) and the restore (close) were two independent
+  fire-and-forget `hyprctl eval` calls with no ordering guarantee, so on a slower
+  or loaded compositor the restore could reach it before the force and leave blur
+  stranded on after close (the reorder itself reads as a flicker); a fast desktop
+  always applied them in order, which hid it here. The async baseline probe could
+  also read a mid-transition value and make a wrong blur sticky. Every write now
+  serializes through one channel, newest request winning in issue order, so a
+  rapid open/close settles to its final state cleanly; the baseline is read only
+  from a drained compositor and only when well-formed, so a mid-flight or failed
+  read can never become the restored value (`quickshell/launcher/shell.qml`).
 - **Upgrading with a live wallpaper active no longer strands the old video
   player over every static set.** Releases through beta 16 played live
   wallpapers with mpvpaper (phonto in the interim GPU-picked era), spawned
