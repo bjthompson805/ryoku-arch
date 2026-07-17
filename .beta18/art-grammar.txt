@@ -9,21 +9,27 @@ illustration. flux/dev renders. Ask it for "greek marble bust" and it builds a
 and it draws manga, which is still figurative and still anime. recraft's
 line_art returns real vector outlines: single weight, no fill, no shading.
 
-The SVG is the point. It carries three flat fills and no gradients:
+The SVG is the point: flat fills, no gradients, so it remaps straight onto the
+ramp. No duotone grade, no S-curve, no tonal ceiling to police. The art is
+on-palette by construction and stays vector, crisp at any size, ~25KB. Qt
+renders SVG natively.
 
-    rgb(0,0,0)        the linework      -> #cdc4ba  (ink)
-    rgb(173,174,176)  a mid tone        -> #7a756e  (inkFaint)
-    rgb(254,254,254)  ground AND the    -> #000000  (paper)
-                      interior of every
-                      outlined shape
+Two traps, both of which cost a pass:
 
-so it remaps straight onto the ramp. No duotone grade, no S-curve, no tonal
-ceiling to police: the art is on-palette by construction and stays vector, so
-it is crisp at any size and costs ~25KB. Qt renders SVG natively.
+1. Every generation picks its OWN greys. One file came back with linework at
+   rgb(57,58,58), another at rgb(0,0,0), another at rgb(96,95,100). Matching
+   fills by string silently misses whatever it did not predict, and the missed
+   fill stays near-black and invisible. Bucket by luminance instead:
 
-The trap: white is not only the background. It is also painted inside every
-outlined shape, over the black. Map it to `none` and the outlines collapse into
-solid silhouettes. Map it to paper.
+       L > 0.75  -> #000000  paper
+       L < 0.35  -> #cdc4ba  ink
+       otherwise -> #7a756e  inkFaint
+
+   bin/art/regrade-svg.py does exactly this. Use it, do not hand-map.
+
+2. The light fill is not only the background. It is painted inside every
+   outlined shape, over the linework. Map it to `none` and every outline
+   collapses into a solid silhouette. Map it to paper.
 
 Prompt grammar:
 
