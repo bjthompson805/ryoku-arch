@@ -1,15 +1,41 @@
-black and white manga panel art, flat 2d ink illustration, bold brush inking, benday screentone dot shading, seinen comic linework, {subj}, pure black background bleeding to the edges, bone white ink, no paper border, no frame, no margin, no canvas edge, absolutely flat, no rendering, no 3d, no photograph, no gradient, no colour, no text, no letters, no signature, no watermark
+Ryoku art pipeline (beta18)
 
-Notes that cost several passes to learn:
-- Lead with the MEDIUM. "greek marble bust" makes flux render a 3d sculpture no
-  matter what style words follow; "manga panel art ... a greek statue head"
-  draws one. Never say "marble".
-- linocut / stencil / screenprint prompts frame the art on white paper. The
-  no-paper-border clause is not optional for edge-to-edge UI art.
-- "no text" is weak: stencil prompts still produced "bnjemi" and "2017".
-  Check output before shipping.
-- Verify, do not eyeball: measure chromatic pixels and the midtone fraction.
-  The reference (Berserk) sits at 0.00% colour / 69% near-black / 12.5%
-  near-white / 18% mid. A 3d render lands near 25% mid. Above ~20% mid means
-  it is being rendered, not drawn.
-- fal-ai/flux/dev, ~4s for 2 images at 1024px. Key: ~/.config/fal/key.
+Model: fal-ai/recraft/v3/text-to-image, style "vector_illustration/line_art".
+Key: ~/.config/fal/key. Returns an SVG, not a raster.
+
+Why this and not flux: the art has to read as a minimal instrument mark, not an
+illustration. flux/dev renders. Ask it for "greek marble bust" and it builds a
+3d sculpture and lights it, whatever style words follow; lead with the medium
+and it draws manga, which is still figurative and still anime. recraft's
+line_art returns real vector outlines: single weight, no fill, no shading.
+
+The SVG is the point. It carries three flat fills and no gradients:
+
+    rgb(0,0,0)        the linework      -> #cdc4ba  (ink)
+    rgb(173,174,176)  a mid tone        -> #7a756e  (inkFaint)
+    rgb(254,254,254)  ground AND the    -> #000000  (paper)
+                      interior of every
+                      outlined shape
+
+so it remaps straight onto the ramp. No duotone grade, no S-curve, no tonal
+ceiling to police: the art is on-palette by construction and stays vector, so
+it is crisp at any size and costs ~25KB. Qt renders SVG natively.
+
+The trap: white is not only the background. It is also painted inside every
+outlined shape, over the black. Map it to `none` and the outlines collapse into
+solid silhouettes. Map it to paper.
+
+Prompt grammar:
+
+    <subject>, reduced to pure single-weight outlines, extremely minimal,
+    white lines on pure black, no fill, no shading, no texture
+
+Subjects stay Greek and Japanese: a helmeted profile, a coiled dragon, a
+blindfolded figure with scales, a plum branch, a torii, a sun disc. Keep one
+subject per mark. The style does the work; a long subject clause fights it.
+
+Verify, do not eyeball. Rasterise and measure: chromatic pixels must be 0.00%,
+and the ink fraction should sit near 6-17% (a mark, not a picture). Anything
+above ~20% midtone means it is being rendered rather than drawn.
+
+The old flux grammar is gone. It produced anime.
