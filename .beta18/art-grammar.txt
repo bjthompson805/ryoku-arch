@@ -1,0 +1,15 @@
+black and white manga panel art, flat 2d ink illustration, bold brush inking, benday screentone dot shading, seinen comic linework, {subj}, pure black background bleeding to the edges, bone white ink, no paper border, no frame, no margin, no canvas edge, absolutely flat, no rendering, no 3d, no photograph, no gradient, no colour, no text, no letters, no signature, no watermark
+
+Notes that cost several passes to learn:
+- Lead with the MEDIUM. "greek marble bust" makes flux render a 3d sculpture no
+  matter what style words follow; "manga panel art ... a greek statue head"
+  draws one. Never say "marble".
+- linocut / stencil / screenprint prompts frame the art on white paper. The
+  no-paper-border clause is not optional for edge-to-edge UI art.
+- "no text" is weak: stencil prompts still produced "bnjemi" and "2017".
+  Check output before shipping.
+- Verify, do not eyeball: measure chromatic pixels and the midtone fraction.
+  The reference (Berserk) sits at 0.00% colour / 69% near-black / 12.5%
+  near-white / 18% mid. A 3d render lands near 25% mid. Above ~20% mid means
+  it is being rendered, not drawn.
+- fal-ai/flux/dev, ~4s for 2 images at 1024px. Key: ~/.config/fal/key.

@@ -1,0 +1,2 @@
+singleton Tokens Tokens.qml
+singleton Spans Spans.qml

@@ -25,6 +25,15 @@ hl.env("GSK_RENDERER", "gl")
 
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 
+-- Shared QML modules (Ryoku.Ui, Ryoku.PluginKit, Ryoku.Blobs) live in
+-- /usr/lib/qt6/qml on an installed system, which Qt finds on its own. A
+-- deploy.sh checkout puts them under ~/.local instead, and only the daemon
+-- injects that path (ipc/daemon.go setupQmlImportPath) -- so the configs it
+-- supervises resolve the imports while `qs -c hub` from a keybind does not.
+-- Set it for the session so both paths behave the same.
+hl.env("QML_IMPORT_PATH",  os.getenv("HOME") .. "/.local/lib/qt6/qml")
+hl.env("QML2_IMPORT_PATH", os.getenv("HOME") .. "/.local/lib/qt6/qml")
+
 
 hl.env("EDITOR", "nvim")
 hl.env("VISUAL", "nvim")

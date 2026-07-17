@@ -85,7 +85,7 @@ say "installed $bindir/ryoku-shell"
 
 # The launcher's "@" radio engine: it lives with the hyprland leaf scripts
 # (packaged into /usr/bin by ryoku-desktop), but the launcher calls it by bare
-# name — a dev deploy must put it on PATH too or a repo-ahead launcher points
+# name, a dev deploy must put it on PATH too or a repo-ahead launcher points
 # at a script the installed package does not ship yet.
 install -m755 "$here/../hyprland/scripts/ryoku-cmd-radio" "$bindir/ryoku-cmd-radio"
 say "installed $bindir/ryoku-cmd-radio"
@@ -170,6 +170,15 @@ if command -v cmake >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
 else
   say "skipping Ryoku.Blobs plugin (cmake/ninja not found)"
 fi
+
+# Install the Ryoku.Ui QML module: the design system every surface imports --
+# the shell's configs, the Hub and the first-party apps. Pure QML, a plain copy.
+# Note the import path only reaches `qs` when the daemon launches it; a Hub
+# started from a keybind needs QML_IMPORT_PATH from the session
+# (hyprland/modules/env.lua). An installed system puts it in /usr/lib/qt6/qml
+# instead, which Qt finds unaided.
+say "installing Ryoku.Ui module"
+"$here/../ui/install.sh" "$qmldir"
 
 # Install the Ryoku.PluginKit QML module (the signature kit a plugin imports for
 # its content) onto the same import path. Pure QML, so a plain copy, no toolchain.

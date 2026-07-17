@@ -235,6 +235,13 @@ package() {
   install -d "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit"
   cp -a "$_repo/ryoku/shell/quickshell/plugins/kit/." "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit/"
   rm -f "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit/install.sh"
+
+  # Ryoku.Ui: the design system the shell, the Hub and the apps all import.
+  # In /usr/lib/qt6/qml so Qt resolves it without an import path, whichever
+  # way a surface was launched.
+  install -d "$pkgdir/usr/lib/qt6/qml/Ryoku/Ui"
+  cp -a "$_repo/ryoku/ui/." "$pkgdir/usr/lib/qt6/qml/Ryoku/Ui/"
+  rm -f "$pkgdir/usr/lib/qt6/qml/Ryoku/Ui/install.sh"
   chmod -R u=rwX,go=rX "$pkgdir/usr/lib/qt6/qml/Ryoku/PluginKit"
 
   # wallust palette gen (templates feed kitty, Hyprland, shell colors).
