@@ -81,6 +81,37 @@ RYOKU_MONITOR_JSON="$tmp/swapped.json" RYOKU_MONITORS_CONF="$conf" RYOKU_MONITOR
 grep -q 'output = "DP-2", mode = "3840x2160@60"' "$conf" || fail "load did not remap Dell to its new connector DP-2"
 grep -q 'output = "DP-1", mode = "2560x1440@144"' "$conf" || fail "load did not remap LG to its new connector DP-1"
 
+# --- scale snapping on the GUI paths: an invalid scale (stale draft, old or
+# hand-edited profile) must never reach Hyprland or disk -- the compositor
+# rejects it with the "Invalid scale" overlay on every login and substitutes
+# its own. 1.5 is invalid for 1280x720 (1280/1.5 = 853.33); nearest valid: 1.6.
+cat >"$tmp/tv.json" <<'JSON'
+[{"name":"HDMI-A-1","make":"Acme","model":"TV720","serial":"T1","width":1280,"height":720,
+  "physicalWidth":700,"physicalHeight":390,"refreshRate":60.0,"x":0,"y":0,"scale":1.0,
+  "transform":0,"vrr":false,"disabled":false,"focused":true,"mirrorOf":"none",
+  "availableModes":["1280x720@60.00Hz","1366x768@60.00Hz"]}]
+JSON
+tvlayout='[{"id":"Acme|TV720|T1","output":"HDMI-A-1","mode":"1280x720@60","position":"0x0","scale":1.5,"transform":0,"vrr":0,"mirror":"none","disabled":false}]'
+runT() { RYOKU_MONITOR_JSON="$tmp/tv.json" RYOKU_MONITORS_CONF="$conf" \
+  RYOKU_MONITORS_DIR="$profiles" RYOKU_MONITORS_APPLIED="$tmp/tv-applied.json" "$mon" "$@"; }
+runT apply "$tvlayout" >/dev/null
+has "$conf" 'scale = 1.6' "apply did not snap the invalid 720p scale 1.5 to 1.6"
+grep -qF 'scale = 1.5' "$conf" && fail "apply persisted the invalid scale 1.5"
+jq -e '.monitors[0].scale == 1.6' "$tmp/tv-applied.json" >/dev/null \
+  || fail "the applied layout recorded the invalid scale instead of the snapped one"
+runT save tv "$tvlayout" >/dev/null
+jq -e '.monitors[0].scale == 1.6' "$profiles/tv.json" >/dev/null \
+  || fail "save persisted the invalid scale into the profile"
+
+# --- list: the per-resolution ladders the hub's scale stepper walks. Only
+# Hyprland-valid scales (1/120 multiples dividing both dims to whole pixels),
+# and never below a 640x360 logical desktop: 720p tops out at 2x, and the odd
+# 1366x768 panel has exactly four steps.
+runT list | jq -e '.[0].scaleLadders["1280x720"] == [0.5,0.5333,0.625,0.6667,0.8,0.8333,1,1.0667,1.25,1.3333,1.6,1.6667,2]' >/dev/null \
+  || fail "wrong 1280x720 scale ladder: $(runT list | jq -c '.[0].scaleLadders["1280x720"]')"
+runT list | jq -e '.[0].scaleLadders["1366x768"] == [0.5,0.6667,1,2]' >/dev/null \
+  || fail "wrong 1366x768 scale ladder: $(runT list | jq -c '.[0].scaleLadders["1366x768"]')"
+
 # --- autoscale DPI snapping: the wanted scale must be Hyprland-valid for the
 # panel (a 1/120 multiple dividing both dims to whole pixels), never the raw DPI
 # bucket, which Hyprland rejects with an "Invalid scale" error on many panels.

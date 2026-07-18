@@ -36,6 +36,29 @@ monitors_user="${RYOKU_MONITORS_USER:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/mon
 # forced DPI pass wipes it.
 applied_layout="${RYOKU_MONITORS_APPLIED:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/monitors-applied.json}"
 
+# jq prelude for every scale-touching path. Hyprland only accepts a scale that
+# is a 1/120 multiple AND divides the mode's pixel width and height into whole
+# logical pixels (src/output/Monitor.cpp: exact integer check, no epsilon);
+# anything else draws the "Invalid scale" overlay and the compositor picks a
+# neighbour itself. valid_scales() mirrors that rule with integer math
+# ((w*120) % k == 0), so it reproduces Hyprland's acceptance set exactly.
+# snap() returns the valid scale nearest a target; k=120 (1.0) always
+# qualifies, so it never comes up empty. ladder() is the stepper-facing subset
+# the hub walks: 0.5x-3x, never shrinking the logical desktop below 640x360
+# (the dusky/GNOME floor), which caps a 720p panel at 2x.
+jq_scale_lib='
+  def valid_scales($w; $h):
+    [ range(30; 721)
+      | select((($w * 120) % .) == 0 and (($h * 120) % .) == 0)
+      | (. / 120 * 10000 | round) / 10000 ];
+  def snap($w; $h; $target):
+    valid_scales($w; $h) | min_by((. - $target) | if . < 0 then - . else . end);
+  def ladder($w; $h):
+    [ valid_scales($w; $h)[]
+      | select(. >= 0.5 and . <= 3 and ($w / .) >= 640 and ($h / .) >= 360) ]
+    | if length == 0 then [1] else . end;
+'
+
 # names pinned in monitors_user.lua, one per line. empty if none.
 pinned_outputs() {
   [[ -f $monitors_user ]] || return 0
@@ -91,17 +114,7 @@ is_vm_guest() {
 dpi_specs() {
   local vm=false
   if is_vm_guest; then vm=true; fi
-  jq -r --argjson vm "$vm" '
-    def abs: if . < 0 then - . else . end;
-    # Nearest scale to $target that Hyprland accepts for a w x h panel: a 1/120
-    # multiple (1.0 .. 3.0) whose logical width and height both land on whole
-    # pixels. This mirrors what robust tools (HyprDynamicMonitors, omarchy) do.
-    def snap($w; $h; $target):
-      [ range(120; 361) | . / 120
-        | select(((($w / .) - (($w / .) | round)) | abs) < 0.01
-             and ((($h / .) - (($h / .) | round)) | abs) < 0.01) ] as $valid
-      | if ($valid | length) == 0 then 1.0
-        else ($valid | min_by(((. - $target) | abs)) | (. * 10000 | round) / 10000) end;
+  jq -r --argjson vm "$vm" "$jq_scale_lib"'
     def dpiscale($name; $w; $h; $pw):
       ( if $vm or ($name | startswith("Virtual-")) or (($pw // 0) <= 0) then 1.0
         else ($w * 25.4 / $pw) as $d
@@ -396,13 +409,20 @@ cmd_toggle() {
 cmd_list() {
   require_hyprctl
   require_jq
-  monitors_json | jq -c '[ .[] | {
+  monitors_json | jq -c "$jq_scale_lib"'[ .[] | {
     name, description, make, model, serial,
     id: ((.make // "") + "|" + (.model // "") + "|" + (.serial // "")),
     width, height, refresh: (.refreshRate | round),
     x, y, scale, transform, vrr, disabled, focused,
     mirror: (.mirrorOf // "none"),
-    modes: (.availableModes // [])
+    modes: (.availableModes // []),
+    scaleLadders: (
+      ( [ (.availableModes // [])[] | capture("^(?<w>[0-9]+)x(?<h>[0-9]+)")? ]
+        + [ { w: (.width | tostring), h: (.height | tostring) } ] )
+      | map({ w: (.w | tonumber), h: (.h | tonumber) })
+      | unique_by([.w, .h])
+      | map({ key: "\(.w)x\(.h)", value: ladder(.w; .h) })
+      | from_entries )
   } ]'
 }
 
@@ -424,6 +444,22 @@ apply_specs() {
       + (if (.vrr // 0) != 0 then ", vrr = \(.vrr)" else "" end)
       + (if (.mirror // "") != "" and (.mirror // "") != "none" then ", mirror = \(.mirror|@json)" else "" end)
     end')
+}
+
+# Snap every explicit scale in a layout (JSON array on stdin) to a value
+# Hyprland will actually accept for its mode. Without this, an invalid scale
+# from a stale draft, an old profile, or a hand-edited file is both applied
+# (error overlay, compositor substitutes its own value) and persisted, so the
+# overlay returns on every login. Only entries whose mode parses as WxH are
+# checkable; highrr/preferred entries pass through (their pixel size is not
+# known here, and every generated seed uses scale 1).
+sanitize_layout() {
+  jq -c "$jq_scale_lib"'
+    map(if (.disabled // false) or ((.scale // null) == null)
+           or (((.mode // "") | test("^[0-9]+x[0-9]+")) | not) then .
+        else ((.mode | capture("^(?<w>[0-9]+)x(?<h>[0-9]+)")) as $d
+              | .scale = snap(($d.w | tonumber); ($d.h | tonumber); .scale))
+        end)'
 }
 
 # write monitors.lua from an explicit layout (JSON array on stdin), keeping the
@@ -475,6 +511,7 @@ cmd_apply() {
   require_jq
   local json="${1:-}"
   [[ -n $json ]] || json="$(cat)"
+  json="$(printf '%s' "$json" | sanitize_layout)"
   printf '%s' "$json" | apply_specs
   printf '%s' "$json" | write_monitors_explicit
   mkdir -p "$(dirname "$applied_layout")"
@@ -490,6 +527,7 @@ cmd_save() {
   local name="${1:-}" json="${2:-}"
   [[ -n $name ]] || { echo "ryoku-monitor: save needs a profile name" >&2; return 1; }
   [[ -n $json ]] || json="$(cat)"
+  json="$(printf '%s' "$json" | sanitize_layout)"
   mkdir -p "$monitors_dir"
   printf '%s' "$json" | jq '{monitors: .}' >"$monitors_dir/$name.json"
   printf '%s' "$json" | apply_specs
@@ -530,7 +568,7 @@ load_layout_file() {
       | . as $m
       | (first($live[] | select(((.make // "") + "|" + (.model // "") + "|" + (.serial // "")) == $m.id) | .name)) as $out
       | select($out != null)
-      | $m + { output: $out } ]')"
+      | $m + { output: $out } ]' | sanitize_layout)"
   printf '%s' "$resolved" | apply_specs
   printf '%s' "$resolved" | write_monitors_explicit
 }
@@ -596,6 +634,7 @@ Usage: ryoku-monitor <command>
   toggle      Switch between mirror and extend.
   list        Print the connected monitors as JSON (for Ryoku Settings).
   apply JSON  Apply an explicit layout live (JSON array of monitor specs).
+              Scales snap to the nearest Hyprland-valid value for each mode.
   save NAME JSON  Apply a layout and save it as a hardware-keyed profile.
   load NAME   Apply a saved profile, matching displays by hardware identity.
   profiles    List saved profiles as JSON (each tagged if it matches now).

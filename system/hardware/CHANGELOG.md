@@ -101,6 +101,19 @@
   proprietary modules otherwise.
 
 ### Fixed
+- `display/ryoku-monitor`: the Settings paths (`apply`, `save`, `load`) now
+  snap every explicit scale to the nearest Hyprland-valid value for its mode (a
+  1/120 multiple dividing width and height to whole logical pixels), the same
+  rule `autoscale` already applied. A stale draft or an old profile carrying
+  e.g. 1.5 for a 1280x720 mode was sent raw: Hyprland drew the "Invalid scale"
+  overlay, picked its own value, and the invalid number was still written to
+  monitors.lua and the applied layout, so the overlay came back at every login.
+  `list` now also emits per-resolution `scaleLadders` (the valid scales between
+  0.5x and 3x that keep at least a 640x360 logical desktop: a 720p panel tops
+  out at 2x, and the odd 1366x768 offers exactly 0.5/0.67/1/2) for the Hub's
+  scale stepper, and the shared snap searches 0.25x-6x so a deliberate sub-1x
+  choice on a small panel survives instead of being forced up. Covered by
+  `tests/monitor-profiles.sh` (snap on apply/save/load, ladder contents).
 - `drivers/nvidia.sh`: on the stock `linux` kernel install the PREBUILT
   `nvidia-open` (matched to the kernel, so there is no DKMS build to fail on a
   fresh kernel) instead of `nvidia-open-dkms`; custom kernels still use `-dkms` +
