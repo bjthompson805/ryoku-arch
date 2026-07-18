@@ -68,11 +68,11 @@ Item {
         anchors.fill: parent
         contentHeight: col.height + Tokens.s5
         clip: true
-        ScrollBar.vertical: ScrollBar { contentItem: Rectangle { implicitWidth: 3; color: Tokens.line } }
+        ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
 
         Column {
             id: col
-            width: flick.width
+            width: flick.width - 14
             spacing: Tokens.s5
 
             Repeater {
@@ -83,23 +83,38 @@ Item {
                     width: col.width
                     title: modelData === "" ? "OTHER" : modelData
 
+                    // bento: pack this group's declared spans into flush rows,
+                    // so no row ends in dead space. minSpan keeps a cell usable
+                    // on a narrow sheet.
+                    readonly property var groupRows: sheet.rows.filter(function (r) { return r.group === sect.modelData })
+                    readonly property int minSpan: {
+                        for (var n = 1; n <= Spans.cols; n++)
+                            if (n * colWidth + (n - 1) * gutter >= 290) return n;
+                        return Spans.cols;
+                    }
+                    readonly property var packed: Spans.pack(
+                        groupRows.map(function (r) { return (r.ctl === "seg" && (r.opts || []).length >= 3) ? Spans.cols : Spans.of(r.ctl, (r.opts || []).length); }),
+                        minSpan)
+
                     Repeater {
-                        model: sheet.rows.filter(function (r) { return r.group === sect.modelData })
+                        model: sect.groupRows
                         Cell {
                             id: cell
                             required property var modelData
+                            required property int index
                             readonly property var r: modelData
                             readonly property int optCount: (r.opts || []).length
 
-                            width: sect.span(Spans.of(r.ctl, optCount))
-                            height: Spans.rows(r.ctl) * Tokens.cellH + (Spans.rows(r.ctl) - 1) * Tokens.s2
-                            block: Spans.isBlock(r.ctl)
+                            width: sect.span(sect.packed[index] || 4)
+                            height: neededHeight
+                            block: Spans.isBlock(r.ctl) || (r.ctl === "seg" && cell.optCount >= 3)
+                            footH: (r.ctl === "pick" || r.ctl === "text") ? 34 : 0
                             controlWidth: Spans.inlineWidth(r.ctl, optCount, width)
 
                             label: r.label
                             desc: r.desc || ""
                             unit: r.pct ? "%" : (r.unit || "")
-                            value: sheet.shown(r)
+                            value: (r.ctl === "text" || r.ctl === "seg") ? "" : sheet.shown(r)
                             def: sheet.shownDef(r)
                             changed: sheet.isChanged(r)
                             source: r.src + ".json"
@@ -115,6 +130,7 @@ Item {
                                     case "chips": return chipsC;
                                     case "multi": return multiC;
                                     case "pick": return pickC;
+                                    case "gallery": return galleryC;
                                     default: return textC;
                                     }
                                 }
@@ -155,7 +171,8 @@ Item {
                             Component {
                                 id: segC
                                 Seg {
-                                    anchors.right: parent.right
+                                    anchors.right: cell.block ? undefined : parent.right
+                                    anchors.left: cell.block ? parent.left : undefined
                                     anchors.verticalCenter: parent.verticalCenter
                                     options: cell.r.opts
                                     current: String(sheet.val(cell.r))
@@ -186,6 +203,15 @@ Item {
                                 }
                             }
                             Component {
+                                id: galleryC
+                                Gallery {
+                                    anchors.fill: parent
+                                    options: Silhouette.skins
+                                    current: String(sheet.val(cell.r))
+                                    onChose: (k) => sheet.edited(cell.r.key, k)
+                                }
+                            }
+                            Component {
                                 id: pickC
                                 PickBar {
                                     anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -197,10 +223,7 @@ Item {
                             Component {
                                 id: textC
                                 Rectangle {
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 170
-                                    height: 26
+                                    anchors.fill: parent
                                     color: "transparent"
                                     radius: Tokens.radius
                                     border.width: ti.activeFocus ? 2 : Tokens.border
@@ -211,6 +234,10 @@ Item {
                                         anchors.leftMargin: 8
                                         anchors.rightMargin: 8
                                         verticalAlignment: Text.AlignVCenter
+                                        clip: true
+                                        // show the head of a long value at rest, not
+                                        // a scrolled-to-the-cursor tail.
+                                        autoScroll: activeFocus
                                         color: Tokens.ink
                                         font.family: Tokens.ui
                                         font.pixelSize: 12

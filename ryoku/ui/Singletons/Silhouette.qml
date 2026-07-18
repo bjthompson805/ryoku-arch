@@ -30,56 +30,113 @@ Singleton {
         c.closePath();
     }
 
+    function dot(c, x, y, r) {
+        c.beginPath(); c.arc(x, y, r, 0, 2 * Math.PI); c.closePath();
+    }
+
+    // engraved [ ] brackets of width w, height h, centred on y.
+    function bracket(c, x, y, w, h) {
+        var t = h / 2;
+        c.beginPath(); c.moveTo(x + 3, y - t); c.lineTo(x, y - t); c.lineTo(x, y + t); c.lineTo(x + 3, y + t); c.stroke();
+        c.beginPath(); c.moveTo(x + w - 3, y - t); c.lineTo(x + w, y - t); c.lineTo(x + w, y + t); c.lineTo(x + w - 3, y + t); c.stroke();
+    }
+
+    // Each tile is a faithful mini-bar: the shared layout (seal, workspaces, a
+    // centred clock, status glyphs) painted in the skin's own treatment, so the
+    // gallery reads like the real bar and the skins tell apart at a glance.
     // fgA/dimA let a selected tile lift without changing the drawing.
     function draw(c, kind, W, H, fgA, dimA) {
         var fg = "rgba(205,196,186," + fgA + ")";
         var dim = "rgba(205,196,186," + dimA + ")";
-        var by = 10, bh = 12, i;
-        c.fillStyle = fg; c.strokeStyle = fg; c.lineWidth = 1;
+        var faint = "rgba(205,196,186," + (dimA * 0.5) + ")";
+        var cx = W / 2, cy = H / 2, i;
+        var ws = [16, 24, 32], st = [W - 30, W - 22, W - 14];
+        c.lineWidth = 1; c.fillStyle = fg; c.strokeStyle = fg;
 
         if (kind === "noctalia") {
-            for (i = 0; i < 4; i++) { pill(c, 4 + i * 30, by, 24, bh, 6); c.fill() }
+            // rounded capsules, dot workspaces (active lozenge), a clock pill
+            dot(c, 6, cy, 2.5); c.fill();
+            pill(c, 13, cy - 3, 12, 6, 3); c.fill();
+            c.fillStyle = dim; dot(c, 31, cy, 2.2); c.fill(); dot(c, 39, cy, 2.2); c.fill();
+            pill(c, cx - 15, cy - 5, 30, 10, 5); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, st[i], cy, 2.2); c.fill(); }
         } else if (kind === "caelestia") {
-            pill(c, 4, by, W - 8, bh, 6); c.fillStyle = dim; c.fill();
-            c.fillStyle = fg; pill(c, 8, by + 2, 22, bh - 4, 4); c.fill();
-            c.fillStyle = dim;
-            for (i = 1; i < 4; i++) { pill(c, 8 + i * 26, by + 2, 22, bh - 4, 4); c.stroke() }
+            // a numbered cell strip in one container pill, active cell lit
+            dot(c, 6, cy, 2.5); c.fill();
+            c.fillStyle = dim; pill(c, 13, cy - 5, 34, 10, 5); c.fill();
+            c.fillStyle = fg; pill(c, 15, cy - 3, 9, 6, 3); c.fill();
+            c.fillStyle = dim; pill(c, cx - 15, cy - 5, 30, 10, 5); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, st[i], cy, 2.2); c.fill(); }
         } else if (kind === "aegis") {
-            for (i = 0; i < 4; i++) {
-                c.fillStyle = dim; c.fillRect(4 + i * 30, by, 24, bh);
-                c.fillStyle = fg; c.fillRect(4 + i * 30, by + bh - 2, 24, 2);
-            }
+            // flat modules, a hairline accent underline on the active workspace
+            c.fillRect(4, cy - 3, 5, 6);
+            c.fillStyle = dim; for (i = 0; i < 3; i++) c.fillRect(ws[i], cy - 3, 6, 6);
+            c.fillStyle = fg; c.fillRect(ws[0], cy + 4, 6, 1);
+            c.fillRect(cx - 16, cy - 4, 1, 8);
+            c.fillStyle = dim; c.fillRect(cx - 12, cy - 3, 26, 6);
+            for (i = 0; i < 3; i++) c.fillRect(st[i], cy - 3, 6, 6);
         } else if (kind === "stele") {
-            for (i = 0; i < 4; i++) {
-                var x0 = 4 + i * 30;
-                c.beginPath(); c.moveTo(x0 + 4, by); c.lineTo(x0, by); c.lineTo(x0, by + bh); c.lineTo(x0 + 4, by + bh); c.stroke();
-                c.beginPath(); c.moveTo(x0 + 20, by); c.lineTo(x0 + 24, by); c.lineTo(x0 + 24, by + bh); c.lineTo(x0 + 20, by + bh); c.stroke();
-                c.fillStyle = dim; c.fillRect(x0 + 7, by + 4, 10, 4);
-            }
+            // engraved bracket cells around the active workspace and the clock
+            c.fillStyle = fg; c.fillRect(4, cy - 3, 5, 6);
+            c.strokeStyle = fg; bracket(c, 13, cy, 13, 10); c.fillRect(18, cy - 1, 3, 2);
+            c.fillStyle = dim; dot(c, 34, cy, 2); c.fill(); dot(c, 41, cy, 2); c.fill();
+            c.strokeStyle = dim; bracket(c, cx - 16, cy, 32, 10);
+            c.fillStyle = dim; c.fillRect(cx - 10, cy - 2, 20, 4);
+            for (i = 0; i < 3; i++) { dot(c, st[i], cy, 2); c.fill(); }
         } else if (kind === "triptych") {
-            var w3 = (W - 8 - 12) / 3;
-            for (i = 0; i < 3; i++) { pill(c, 4 + i * (w3 + 6), by, w3, bh, 5); c.fill() }
+            // three rounded islands with dips between, a cluster in each
+            var tgap = 6, tiw = (W - 6 - 2 * tgap) / 3;
+            var tix = [3, 3 + tiw + tgap, 3 + 2 * (tiw + tgap)], tj;
+            for (i = 0; i < 3; i++) {
+                c.fillStyle = dim; pill(c, tix[i], cy - 6, tiw, 12, 6); c.fill();
+                c.fillStyle = fg;
+                for (tj = 0; tj < 3; tj++) { dot(c, tix[i] + tiw / 2 + (tj - 1) * 7, cy, 1.8); c.fill(); }
+            }
         } else if (kind === "delos") {
-            pill(c, W / 2 - 22, by - 2, 44, bh + 4, 8); c.fill();
-            c.fillStyle = dim; c.fillRect(4, by + 5, W - 8, 1);
-        } else if (kind === "nacre") {
-            var w4 = (W - 8 - 10) / 3;
-            c.fillStyle = dim; c.fillRect(2, by - 4, W - 4, 1);
+            // the whole bar collapsed into one floating island
+            var dw = Math.min(W * 0.44, 62), dx = cx - dw / 2, dj;
+            c.fillStyle = dim; pill(c, dx, cy - 6, dw, 12, 6); c.fill();
             c.fillStyle = fg;
-            for (i = 0; i < 3; i++) { pill(c, 4 + i * (w4 + 5), by, w4, bh, 5); c.fill() }
+            for (dj = 0; dj < 3; dj++) { dot(c, cx + (dj - 1) * 12, cy, 2); c.fill(); }
+        } else if (kind === "nacre") {
+            // three dark islands under a persistent hairline top edge
+            c.fillStyle = fg; c.fillRect(3, cy - 8, W - 6, 1);
+            var ngap = 6, niw = (W - 6 - 2 * ngap) / 3;
+            var nix = [3, 3 + niw + ngap, 3 + 2 * (niw + ngap)], nj;
+            for (i = 0; i < 3; i++) {
+                c.fillStyle = dim; pill(c, nix[i], cy - 3, niw, 11, 5); c.fill();
+                c.fillStyle = fg;
+                for (nj = 0; nj < 3; nj++) { dot(c, nix[i] + niw / 2 + (nj - 1) * 7, cy + 2, 1.7); c.fill(); }
+            }
         } else if (kind === "inir") {
-            c.fillStyle = dim; c.fillRect(0, by, W, bh);
-            c.strokeStyle = fg;
-            for (i = 1; i < 5; i++) { c.beginPath(); c.moveTo(i * W / 5, by); c.lineTo(i * W / 5, by + bh); c.stroke() }
+            // flat full-width TUI panel, hairline cell separators
+            c.fillStyle = dim; c.fillRect(0, cy - 8, W, 16);
+            c.fillStyle = fg; dot(c, 7, cy, 2); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, ws[i], cy, 1.7); c.fill(); }
+            pill(c, cx - 12, cy - 2, 24, 4, 2); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, st[i], cy, 1.8); c.fill(); }
+            c.strokeStyle = faint;
+            c.beginPath(); c.moveTo(Math.round(W * 0.35), cy - 6); c.lineTo(Math.round(W * 0.35), cy + 6); c.stroke();
+            c.beginPath(); c.moveTo(Math.round(W * 0.67), cy - 6); c.lineTo(Math.round(W * 0.67), cy + 6); c.stroke();
         } else if (kind === "aurora") {
-            var g = c.createLinearGradient(0, by, 0, by + bh);
-            g.addColorStop(0, "rgba(205,196,186," + (fgA * 0.56) + ")");
-            g.addColorStop(1, "rgba(205,196,186,0.06)");
-            c.fillStyle = g; c.fillRect(0, by, W, bh);
-            c.fillStyle = fg; c.fillRect(0, by, W, 1);
+            // translucent glass, a soft top sheen
+            var g = c.createLinearGradient(0, cy - 8, 0, cy + 8);
+            g.addColorStop(0, "rgba(205,196,186," + (fgA * 0.5) + ")");
+            g.addColorStop(1, "rgba(205,196,186,0.05)");
+            c.fillStyle = g; c.fillRect(0, cy - 8, W, 16);
+            c.fillStyle = fg; c.fillRect(0, cy - 8, W, 1);
+            c.fillStyle = dim; dot(c, 7, cy, 2); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, ws[i], cy, 1.7); c.fill(); }
+            pill(c, cx - 12, cy - 2, 24, 4, 2); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, st[i], cy, 1.8); c.fill(); }
         } else if (kind === "angel") {
-            c.fillStyle = dim; c.fillRect(0, by, W, bh);
-            c.fillStyle = fg; c.fillRect(0, by, W, 2); c.fillRect(0, by + bh - 3, W, 3);
+            // opaque brutalist panel, heavy base, bright inset top edge
+            c.fillStyle = dim; c.fillRect(0, cy - 8, W, 16);
+            c.fillStyle = fg; c.fillRect(0, cy - 8, W, 2); c.fillRect(0, cy + 5, W, 3);
+            dot(c, 7, cy, 2); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, ws[i], cy, 1.7); c.fill(); }
+            pill(c, cx - 12, cy - 2, 24, 4, 2); c.fill();
+            for (i = 0; i < 3; i++) { dot(c, st[i], cy, 1.8); c.fill(); }
         }
     }
 }

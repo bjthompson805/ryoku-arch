@@ -21,7 +21,7 @@ Singleton {
         case "sw":      return 4;
         case "step":    return 4;
         case "slid":    return 6;
-        case "seg":     return o <= 2 ? 4 : (o === 3 ? 6 : 8);
+        case "seg":     return o <= 2 ? 4 : (o === 3 ? 8 : 8);
         case "chips":   return 10;
         case "pick":    return 5;
         case "multi":   return 12;
@@ -39,6 +39,31 @@ Singleton {
         return 1;
     }
 
+    // Bento packing: greedy-fill rows of `cols` columns, then stretch each row
+    // to the full width, so a sheet never ends in a ragged right edge. Input is
+    // the declared spans in order; output is the adjusted spans, same order.
+    // `minSpan` lifts a span that would render below a usable width.
+    function pack(declared, minSpan) {
+        var out = [], row = [], used = 0;
+        function close() {
+            if (row.length === 0) return;
+            var spare = cols - used, i;
+            var each = Math.floor(spare / row.length);
+            for (i = 0; i < row.length; i++) row[i].s += each;
+            row[row.length - 1].s += spare - each * row.length;
+            for (i = 0; i < row.length; i++) out.push(row[i].s);
+            row = []; used = 0;
+        }
+        for (var i = 0; i < declared.length; i++) {
+            var s = Math.min(cols, Math.max(declared[i], minSpan || 1));
+            if (used + s > cols) close();
+            row.push({ s: s });
+            used += s;
+        }
+        close();
+        return out;
+    }
+
     // does the control get its own band under the text, or sit beside it?
     function isBlock(ctl) {
         return rows(ctl) > 1;
@@ -53,6 +78,7 @@ Singleton {
         case "slid": return Math.round(cellWidth * 0.42);
         case "seg":  return Math.max(52, 52 * (options || 2));
         case "pick": return 0;    // pick owns the cell foot, not a side slot
+        case "text": return 0;    // free entry owns the cell foot, like pick
         }
         return 0;
     }

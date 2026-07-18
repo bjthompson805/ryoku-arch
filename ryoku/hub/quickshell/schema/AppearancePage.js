@@ -43,6 +43,15 @@ var rows = [
     {
         "tab": "Look",
         "group": "SHAPE",
+        "key": "appearance.borderPartOfWindow",
+        "label": "Border inside window",
+        "desc": "Count the border as part of the window size instead of drawn outside it",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "TILING",
         "key": "appearance.layout",
         "label": "Tiling layout",
         "desc": "How tiles arrange: binary splits, master and stack, or a strip",
@@ -56,7 +65,15 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "SHAPE",
+        "group": "TILING",
+        "ctl": "layoutdemo",
+        "label": "",
+        "desc": "",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "TILING",
         "key": "plugins.hyprscrolling.columnWidth",
         "label": "Column width",
         "desc": "Share of the screen each column takes, scrolling layout only",
@@ -69,10 +86,130 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "SHAPE",
+        "group": "TILING",
         "key": "plugins.hyprscrolling.followFocus",
         "label": "Scroll to follow focus",
         "desc": "The strip scrolls to keep focus in view, scrolling layout only",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "DWINDLE",
+        "key": "dwindle.preserveSplit",
+        "label": "Preserve split",
+        "desc": "Keep the split direction when windows close and reopen",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "DWINDLE",
+        "key": "dwindle.smartSplit",
+        "label": "Smart split",
+        "desc": "Split toward the corner of the window the cursor is nearest",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "DWINDLE",
+        "key": "dwindle.smartResizing",
+        "label": "Smart resizing",
+        "desc": "Resize toward the direction of the mouse rather than a fixed edge",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "DWINDLE",
+        "key": "dwindle.defaultSplitRatio",
+        "label": "Default split ratio",
+        "desc": "Size a new split gives the new window, 1.0 is even",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.1,
+        "hi": 1.9
+    },
+    {
+        "tab": "Look",
+        "group": "DWINDLE",
+        "key": "dwindle.forceSplit",
+        "label": "Force split side",
+        "desc": "Where a new window always lands: follow the cursor, or force one side",
+        "ctl": "seg",
+        "src": "hypr.json",
+        "opts": [
+            "follow",
+            "left/top",
+            "right/bottom"
+        ]
+    },
+    {
+        "tab": "Look",
+        "group": "DWINDLE",
+        "key": "dwindle.useActiveForSplits",
+        "label": "Split from active",
+        "desc": "Base a new split on the active window, not the one under the cursor",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "MASTER",
+        "key": "master.mfact",
+        "label": "Master size",
+        "desc": "Share of the screen the master window takes",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.1,
+        "hi": 0.9
+    },
+    {
+        "tab": "Look",
+        "group": "MASTER",
+        "key": "master.newStatus",
+        "label": "New window role",
+        "desc": "Whether a new window becomes master, a slave, or inherits",
+        "ctl": "seg",
+        "src": "hypr.json",
+        "opts": [
+            "master",
+            "slave",
+            "inherit"
+        ]
+    },
+    {
+        "tab": "Look",
+        "group": "MASTER",
+        "key": "master.newOnTop",
+        "label": "New on top",
+        "desc": "Put a new slave at the top of the stack instead of the bottom",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "MASTER",
+        "key": "master.orientation",
+        "label": "Master side",
+        "desc": "Which side the master column sits on",
+        "ctl": "seg",
+        "src": "hypr.json",
+        "opts": [
+            "left",
+            "right",
+            "top",
+            "bottom",
+            "center"
+        ]
+    },
+    {
+        "tab": "Look",
+        "group": "MASTER",
+        "key": "master.smartResizing",
+        "label": "Smart resizing",
+        "desc": "Resize toward the direction of the mouse rather than a fixed edge",
         "ctl": "sw",
         "src": "hypr.json"
     },
@@ -102,6 +239,18 @@ var rows = [
     },
     {
         "tab": "Look",
+        "group": "GAPS",
+        "key": "appearance.gapsWorkspaces",
+        "label": "Workspace gaps",
+        "desc": "Extra gap between workspaces while swiping between them",
+        "ctl": "step",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 80.0,
+        "unit": "px"
+    },
+    {
+        "tab": "Look",
         "group": "BEHAVIOUR",
         "key": "appearance.resizeOnBorder",
         "label": "Drag to resize at window edges",
@@ -117,6 +266,47 @@ var rows = [
         "desc": "Dragged floating windows stick to screen edges and other windows",
         "ctl": "sw",
         "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "BEHAVIOUR",
+        "key": "appearance.extendBorderGrab",
+        "label": "Border grab area",
+        "desc": "How many pixels past the border still grab it for resizing",
+        "ctl": "step",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 40.0,
+        "unit": "px"
+    },
+    {
+        "tab": "Look",
+        "group": "BEHAVIOUR",
+        "key": "appearance.hoverIconOnBorder",
+        "label": "Resize cursor on border",
+        "desc": "Show the resize cursor when hovering a window border",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "BEHAVIOUR",
+        "key": "appearance.noFocusFallback",
+        "label": "No focus fallback",
+        "desc": "When a window closes, do not fall focus back to the last window under the cursor",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "BEHAVIOUR",
+        "key": "appearance.resizeCorner",
+        "label": "Resize corner",
+        "desc": "Force resizing from one corner, 0 is off, 1 to 4 pick a corner",
+        "ctl": "step",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 4.0
     },
     {
         "tab": "Look",
@@ -219,6 +409,54 @@ var rows = [
     },
     {
         "tab": "Look",
+        "group": "OPACITY",
+        "key": "appearance.fullscreenOpacity",
+        "label": "Fullscreen opacity",
+        "desc": "Opacity of a window while it is fullscreen",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 1.0,
+        "unit": "%",
+        "pct": true
+    },
+    {
+        "tab": "Look",
+        "group": "OPACITY",
+        "key": "appearance.dimSpecial",
+        "label": "Dim special workspaces",
+        "desc": "How much the special (scratchpad) workspace dims the desktop behind it",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 1.0,
+        "unit": "%",
+        "pct": true
+    },
+    {
+        "tab": "Look",
+        "group": "OPACITY",
+        "key": "appearance.dimAround",
+        "label": "Dim around floating",
+        "desc": "How far a floating window with the dim-around rule darkens the rest",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 1.0,
+        "unit": "%",
+        "pct": true
+    },
+    {
+        "tab": "Look",
+        "group": "OPACITY",
+        "key": "appearance.dimModal",
+        "label": "Dim modal dialogs",
+        "desc": "Darken the parent while a modal dialog is open",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
         "group": "BLUR",
         "key": "appearance.blurEnabled",
         "label": "Enabled",
@@ -282,7 +520,76 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "DEPTH & MOTION",
+        "group": "BLUR",
+        "key": "appearance.blurContrast",
+        "label": "Blur contrast",
+        "desc": "Contrast of the blurred backdrop",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 2.0
+    },
+    {
+        "tab": "Look",
+        "group": "BLUR",
+        "key": "appearance.blurBrightness",
+        "label": "Blur brightness",
+        "desc": "Brightness of the blurred backdrop",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 2.0
+    },
+    {
+        "tab": "Look",
+        "group": "BLUR",
+        "key": "appearance.blurSpecial",
+        "label": "Blur special workspace",
+        "desc": "Also blur behind the special (scratchpad) workspace",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "BLUR",
+        "key": "appearance.blurPopups",
+        "label": "Blur popups",
+        "desc": "Blur behind popups and menus, not just windows",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "BLUR",
+        "key": "appearance.blurIgnoreOpacity",
+        "label": "Blur ignores opacity",
+        "desc": "Blur the backdrop even under fully transparent regions",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "BLUR",
+        "key": "appearance.blurNewOptimizations",
+        "label": "Blur optimizations",
+        "desc": "Cache blur for a large speedup, leave on unless you see artifacts",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "BLUR",
+        "key": "appearance.blurVibrancyDarkness",
+        "label": "Blur vibrancy darkness",
+        "desc": "How much vibrancy affects the dark parts of the blur",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 1.0
+    },
+    {
+        "tab": "Look",
+        "group": "SHADOWS",
         "key": "appearance.shadowEnabled",
         "label": "Window shadows",
         "desc": "A soft drop shadow under every window",
@@ -291,7 +598,7 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "DEPTH & MOTION",
+        "group": "SHADOWS",
         "key": "appearance.shadowRange",
         "label": "Shadow range",
         "desc": "How far the shadow spreads from the window",
@@ -303,7 +610,7 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "DEPTH & MOTION",
+        "group": "SHADOWS",
         "key": "appearance.shadowPower",
         "label": "Shadow sharpness",
         "desc": "Higher pulls the shadow in tight, lower leaves a wide haze",
@@ -314,7 +621,36 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "DEPTH & MOTION",
+        "group": "SHADOWS",
+        "key": "appearance.shadowSharp",
+        "label": "Sharp shadow",
+        "desc": "Draw the shadow with hard edges instead of a soft falloff",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "SHADOWS",
+        "key": "appearance.shadowScale",
+        "label": "Shadow scale",
+        "desc": "Scale of the drop shadow, 1 matches the window",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 1.0
+    },
+    {
+        "tab": "Look",
+        "group": "SHADOWS",
+        "key": "appearance.shadowColor",
+        "label": "Shadow color",
+        "desc": "Color of the drop shadow",
+        "ctl": "color",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Look",
+        "group": "MOTION",
         "key": "appearance.animations",
         "label": "Animations",
         "desc": "Motion for opening, closing, moving, workspaces; off snaps instantly",
@@ -323,7 +659,7 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "DEPTH & MOTION",
+        "group": "MOTION",
         "key": "appearance.wobblyWindows",
         "label": "Wobbly windows",
         "desc": "Dragged windows overshoot and spring back, needs animations on",
@@ -332,7 +668,7 @@ var rows = [
     },
     {
         "tab": "Look",
-        "group": "DEPTH & MOTION",
+        "group": "MOTION",
         "key": "appearance.windowStyle",
         "label": "Open / close",
         "desc": "Entrance and exit motion: scale from centre, slide, or GNOME style",
@@ -423,6 +759,39 @@ var rows = [
         "pct": true
     },
     {
+        "tab": "Look",
+        "group": "GLASS",
+        "key": "plugins.hyprglass.brightness",
+        "label": "Glass brightness",
+        "desc": "Brightness of the glass effect",
+        "ctl": "slid",
+        "src": "hypr.json",
+        "lo": 0.0,
+        "hi": 2.0
+    },
+    {
+        "tab": "Look",
+        "group": "GLASS",
+        "key": "plugins.hyprglass.theme",
+        "label": "Glass theme",
+        "desc": "Light or dark base for the glass tint",
+        "ctl": "seg",
+        "src": "hypr.json",
+        "opts": [
+            "dark",
+            "light"
+        ]
+    },
+    {
+        "tab": "Look",
+        "group": "GLASS",
+        "key": "plugins.hyprglass.tint",
+        "label": "Glass tint",
+        "desc": "Color washed over the glass",
+        "ctl": "color",
+        "src": "hypr.json"
+    },
+    {
         "tab": "Borders",
         "group": "FIXED COLOURS",
         "key": "appearance.activeBorder",
@@ -496,6 +865,33 @@ var rows = [
         "label": "Smooth scaling",
         "desc": "Filters the picture when scaled, off keeps hard pixel edges",
         "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Borders",
+        "group": "IMAGE BORDER",
+        "key": "plugins.imgborders.blur",
+        "label": "Blur border image",
+        "desc": "Blur what shows through a transparent border image",
+        "ctl": "sw",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Borders",
+        "group": "IMAGE BORDER",
+        "key": "plugins.imgborders.sizes",
+        "label": "Border sizes",
+        "desc": "Edge thicknesses as left,right,top,bottom in pixels",
+        "ctl": "text",
+        "src": "hypr.json"
+    },
+    {
+        "tab": "Borders",
+        "group": "IMAGE BORDER",
+        "key": "plugins.imgborders.insets",
+        "label": "Border insets",
+        "desc": "How far the image tucks under the window, left,right,top,bottom",
+        "ctl": "text",
         "src": "hypr.json"
     },
     {
@@ -574,6 +970,17 @@ var rows = [
         "desc": "Shaking the mouse briefly grows the pointer so you can find it",
         "ctl": "sw",
         "src": "hypr.json"
+    },
+    {
+        "tab": "Cursor",
+        "group": "MOTION",
+        "key": "plugins.dynamicCursors.magnify",
+        "label": "Magnify on shake",
+        "desc": "How much the cursor grows when you shake it to find it",
+        "ctl": "step",
+        "src": "hypr.json",
+        "lo": 1.0,
+        "hi": 10.0
     },
     {
         "tab": "Wallpaper",

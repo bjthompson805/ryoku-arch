@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -99,6 +101,7 @@ func TestLockSkinNameAndTags(t *testing.T) {
 
 func TestBuildLockCatalog(t *testing.T) {
 	t.Setenv("RYOKU_QYLOCK_RAW", "https://example.test")
+	t.Setenv("XDG_CACHE_HOME", t.TempDir()) // no warmed previews: expect upstream URLs
 	dir := t.TempDir()
 	mkSkin(t, dir, "clockwork/orbital", true) // installed, ships a local preview.gif
 	mkSkin(t, dir, "clockwork/tape", false)   // installed, no local preview.gif
@@ -142,5 +145,31 @@ func TestBuildLockCatalog(t *testing.T) {
 	}
 	if forest.SizeKB != 5120 {
 		t.Errorf("forest sizeKB = %d, want 5120", forest.SizeKB)
+	}
+}
+
+func TestBuildLockCatalogUsesCachedGif(t *testing.T) {
+	t.Setenv("RYOKU_QYLOCK_RAW", "https://example.test")
+	cache := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cache)
+	// a warmed preview for forest: buildLockCatalog serves it over the URL.
+	gifDir := filepath.Join(cache, "ryoku", "lock-previews")
+	if err := os.MkdirAll(gifDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gifDir, "forest.gif"), []byte("gif"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tree := qylockTree{
+		Themes: []string{"forest"},
+		Gifs:   map[string]bool{"forest": true},
+	}
+	resp := buildLockCatalog(tree, t.TempDir(), "")
+	if len(resp.Skins) != 1 {
+		t.Fatalf("got %d skins, want 1", len(resp.Skins))
+	}
+	want := "file://" + filepath.Join(gifDir, "forest.gif")
+	if resp.Skins[0].Preview != want {
+		t.Errorf("preview = %q, want cached %q", resp.Skins[0].Preview, want)
 	}
 }

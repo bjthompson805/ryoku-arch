@@ -1,3 +1,5 @@
 singleton Tokens Tokens.qml
 singleton Spans Spans.qml
 singleton Silhouette Silhouette.qml
+singleton DecorStore DecorStore.qml
+singleton Ryodecors Ryodecors.qml

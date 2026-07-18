@@ -18,3 +18,15 @@ Multi 1.0 Multi.qml
 PickBar 1.0 PickBar.qml
 Picker 1.0 Picker.qml
 Gallery 1.0 Gallery.qml
+Ticks 1.0 Ticks.qml
+Reg 1.0 Reg.qml
+Tabs 1.0 Tabs.qml
+Motif 1.0 Motif.qml
+Empty 1.0 Empty.qml
+Marginalia 1.0 Marginalia.qml
+Pixel 1.0 Pixel.qml
+Watermark 1.0 Watermark.qml
+KeyboardMap 1.0 KeyboardMap.qml
+DitherField 1.0 DitherField.qml
+Decor 1.0 Decor.qml
+Placard 1.0 Placard.qml

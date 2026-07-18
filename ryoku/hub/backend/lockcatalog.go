@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,8 +19,9 @@ import (
 // previews from the upstream Assets gif and downloads into
 // ~/.local/share/qylock/themes the first time it's picked.
 //
-//	ryoku-hub lock catalog        themes from upstream (installed-only if offline)
-//	ryoku-hub lock install <slug> pull a theme's files, then activate it
+//	ryoku-hub lock catalog [--refresh]  themes from upstream, cached (installed-only if offline)
+//	ryoku-hub lock install <slug>       pull a theme's files, then activate it
+//	ryoku-hub lock cache [--refresh]    warm the preview-gif cache under ~/.cache/ryoku
 //
 // theme = any folder under themes/ with a Main.qml. slug = that path (e.g.
 // "clockwork/orbital"). preview gifs live in Assets/ under names that don't
@@ -168,7 +170,11 @@ func buildLockCatalog(tree qylockTree, themesDir, active string) LockResponse {
 		if local := filepath.Join(themesDir, slug, "preview.gif"); s.Installed && fileExists(local) {
 			s.Preview = "file://" + local
 		} else if gif, ok := mapThemeGif(slug, tree.Gifs); ok {
-			s.Preview = qylockRawURL("Assets/" + gif + ".gif")
+			if cp := cachedGifPath(gif); fileExists(cp) {
+				s.Preview = "file://" + cp
+			} else {
+				s.Preview = qylockRawURL("Assets/" + gif + ".gif")
+			}
 		}
 		skins = append(skins, s)
 	}
@@ -184,10 +190,15 @@ func buildLockCatalog(tree qylockTree, themesDir, active string) LockResponse {
 	return LockResponse{Active: active, Online: true, Skins: skins}
 }
 
-// lockCatalog: pull the upstream tree, build the live catalogue. on any error
-// fall back to the installed-only listing so the section still works offline.
-func lockCatalog() LockResponse {
-	b, err := fetchQylockTree()
+// lockCatalog pulls the upstream tree (from the on-disk cache when fresh) and
+// builds the live catalogue. on any error it falls back to the installed-only
+// listing so the section still works offline.
+func lockCatalog() LockResponse { return lockCatalogRefresh(false) }
+
+// lockCatalogRefresh is lockCatalog with an explicit cache-bypass, so the Hub's
+// Refresh button pulls a fresh upstream tree (new/removed designs) on demand.
+func lockCatalogRefresh(refresh bool) LockResponse {
+	b, err := cachedQylockTree(refresh)
 	if err != nil {
 		return listLockSkins()
 	}
@@ -293,4 +304,118 @@ func downloadFile(url, dst string) error {
 	defer f.Close()
 	_, err = io.Copy(f, resp.Body)
 	return err
+}
+
+// --- preview + catalogue cache ----------------------------------------------
+// Previews and the upstream tree cache under XDG_CACHE_HOME so the section opens
+// instantly after the first visit and survives GitHub's unauthenticated rate
+// limit (60/h): the tree cache stops repeated opens each spending a request, and
+// a rate-limited fetch falls back to the last good tree instead of collapsing to
+// the two vendored skins. `lock cache` warms the gifs; the Hub runs it in the
+// background on open and behind the Refresh button.
+
+const (
+	lockTreeTTL    = 6 * time.Hour
+	lockGifTTL     = 7 * 24 * time.Hour
+	lockGifWorkers = 6
+)
+
+func lockCacheRoot() string {
+	return filepath.Join(xdgHome("XDG_CACHE_HOME", ".cache"), "ryoku")
+}
+
+func lockPreviewDir() string    { return filepath.Join(lockCacheRoot(), "lock-previews") }
+func lockTreeCachePath() string { return filepath.Join(lockCacheRoot(), "lock-catalog-tree.json") }
+
+// cachedGifPath: local cache file for an upstream Assets gif basename. Themes
+// that share a gif (both clockwork variants) share one cache file.
+func cachedGifPath(gif string) string { return filepath.Join(lockPreviewDir(), gif+".gif") }
+
+// freshFile: p exists and its mtime is younger than ttl.
+func freshFile(p string, ttl time.Duration) bool {
+	fi, err := os.Stat(p)
+	return err == nil && time.Since(fi.ModTime()) < ttl
+}
+
+// cachedQylockTree returns the upstream tree JSON, from a fresh on-disk cache
+// when possible. A live fetch refreshes the cache; a failed fetch falls back to
+// a stale cache so a rate limit never empties the catalogue. refresh forces the
+// live fetch (Refresh button).
+func cachedQylockTree(refresh bool) ([]byte, error) {
+	cache := lockTreeCachePath()
+	if !refresh && freshFile(cache, lockTreeTTL) {
+		if b, err := os.ReadFile(cache); err == nil && len(b) > 0 {
+			return b, nil
+		}
+	}
+	b, err := fetchQylockTree()
+	if err != nil {
+		if sb, rerr := os.ReadFile(cache); rerr == nil && len(sb) > 0 {
+			return sb, nil
+		}
+		return nil, err
+	}
+	if os.MkdirAll(filepath.Dir(cache), 0o755) == nil {
+		_ = os.WriteFile(cache, b, 0o644)
+	}
+	return b, nil
+}
+
+// LockCacheResult = the `ryoku-hub lock cache` summary; the Hub reads Fetched to
+// tell the user how many new previews the Refresh actually pulled.
+type LockCacheResult struct {
+	Total   int `json:"total"`
+	Fetched int `json:"fetched"`
+	Cached  int `json:"cached"`
+	Failed  int `json:"failed"`
+}
+
+// lockCache downloads every catalogue preview gif into the preview cache,
+// skipping any still fresh (unless refresh). Parallel and bounded, so warming
+// all ~37 gifs is a couple of seconds on first open and near-instant after.
+func lockCache(refresh bool) LockCacheResult {
+	var res LockCacheResult
+	b, err := cachedQylockTree(refresh)
+	if err != nil {
+		return res
+	}
+	tree, err := parseQylockTree(b)
+	if err != nil {
+		return res
+	}
+	want := map[string]bool{}
+	for _, slug := range tree.Themes {
+		if gif, ok := mapThemeGif(slug, tree.Gifs); ok {
+			want[gif] = true
+		}
+	}
+	res.Total = len(want)
+	var (
+		wg  sync.WaitGroup
+		mu  sync.Mutex
+		sem = make(chan struct{}, lockGifWorkers)
+	)
+	for gif := range want {
+		dst := cachedGifPath(gif)
+		if !refresh && freshFile(dst, lockGifTTL) {
+			res.Cached++
+			continue
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(gif, dst string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			err := downloadFile(qylockRawURL("Assets/"+gif+".gif"), dst)
+			mu.Lock()
+			if err != nil {
+				res.Failed++
+			} else {
+				res.Fetched++
+			}
+			mu.Unlock()
+		}(gif, dst)
+	}
+	wg.Wait()
+	return res
 }

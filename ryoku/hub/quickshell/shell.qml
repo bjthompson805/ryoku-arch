@@ -1,5 +1,7 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
+import Ryoku.Ui.Singletons
 
 // Ryoku Settings entry point. A normal floating window (not a layer-shell
 // surface); the Hyprland window rule floats and centres it. `qs -c hub` loads
@@ -8,7 +10,21 @@ ShellRoot {
     FloatingWindow {
         id: win
         title: "Ryoku Settings"
-        minimumSize: Qt.size(900, 600)
+        // The window rule floats this at 1360x880, which a 720p-class (or
+        // scaled low-res) screen cannot hold -- the bottom action bar and the
+        // right-hand controls land off screen. maximumSize is the
+        // counterweight: Hyprland clamps the rule's size into the client's
+        // hint and centres the result in the usable area, so the ideal size
+        // wins where it fits and a small screen gets a window that actually
+        // fits (margins leave room for the shell bar). minimumSize shrinks
+        // with it, else the compositor refuses to go down. Roomy screens keep
+        // an unbounded maximum, so manual resizing stays possible.
+        readonly property int fitW: win.screen ? Math.min(1360, win.screen.width - 24) : 1360
+        readonly property int fitH: win.screen ? Math.min(880, win.screen.height - 56) : 880
+        readonly property bool cramped: win.fitW < 1360 || win.fitH < 880
+        minimumSize: Qt.size(Math.min(1280, win.fitW), Math.min(820, win.fitH))
+        maximumSize: win.cramped ? Qt.size(win.fitW, win.fitH) : Qt.size(16777215, 16777215)
+        color: Tokens.paper
 
         // The launcher keybind (Super+,) guards against a second instance with
         // `flock` on /tmp/ryoku-hub.lock, held for the life of this process. The
@@ -19,7 +35,16 @@ ShellRoot {
         onClosed: Qt.quit()
 
         Hub {
+            id: hubItem
             anchors.fill: parent
         }
+    }
+
+    // drive navigation from the CLI (`qs -c hub ipc call nav open <key>`):
+    // the QA loop and scripts jump straight to a section without a relaunch.
+    IpcHandler {
+        target: "nav"
+        function open(section: string): void { hubItem.section = section; }
+        function section(): string { return hubItem.section; }
     }
 }

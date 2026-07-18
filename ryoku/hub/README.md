@@ -10,6 +10,12 @@ It is where you edit anything the Hyprland (Lua) config drives, plus the Ryoku
 shell, in one place: monitors, appearance, input, keybinds, window rules,
 autostart, environment, the shell's look, the lock screen, and the update channel.
 
+Every page is built to one design contract: the monochrome instrument sheet
+(palette, type, motion, the control taxonomy, the poster/ornament layer, the
+art pipeline) is specified in `.beta18/DESIGN.md`, and how the brand language
+applies across the whole desktop is in `docs/ui-ux.md`. Read those before
+changing a page's look.
+
 ## Layout
 
 - `backend/` One Go program, `ryoku-hub`, the data plane. The QML front end shells

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"ryoku-cli/internal/sys"
 	"strings"
@@ -1555,4 +1556,54 @@ func TestReconcileBrandLogo(t *testing.T) {
 			t.Fatalf("second run status=%s, want ok (idempotent)", r.status.label())
 		}
 	})
+}
+
+func TestReconcileRyodecors(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	repo := t.TempDir()
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git unavailable: %v %s", err, out)
+	}
+	src := filepath.Join(repo, "ryoku", "assets", "ryodecors")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"a.png", "b.gif"} {
+		if err := os.WriteFile(filepath.Join(src, n), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("RYOKU_REPO", repo)
+	dst := filepath.Join(home, "Pictures", "ryodecors")
+
+	// check-only reports the gap without copying.
+	if r := reconcileRyodecors(true); r.status != recWouldFix {
+		t.Fatalf("check-only: status=%s detail=%q, want would-fix", r.status.label(), r.detail)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "a.png")); !os.IsNotExist(err) {
+		t.Fatalf("check-only must not copy anything")
+	}
+
+	// fix seeds every shipped file.
+	if r := reconcileRyodecors(false); r.status != recFixed {
+		t.Fatalf("fix: status=%s detail=%q, want fixed", r.status.label(), r.detail)
+	}
+	for _, n := range []string{"a.png", "b.gif"} {
+		if _, err := os.Stat(filepath.Join(dst, n)); err != nil {
+			t.Fatalf("expected %s seeded: %v", n, err)
+		}
+	}
+
+	// a file the user added or swapped survives, and a settled folder is a no-op.
+	userFile := filepath.Join(dst, "mine.png")
+	if err := os.WriteFile(userFile, []byte("mine"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := reconcileRyodecors(false); r.status != recOK {
+		t.Fatalf("idempotent run: status=%s, want ok", r.status.label())
+	}
+	if b, _ := os.ReadFile(userFile); string(b) != "mine" {
+		t.Fatalf("a user's own decor file must survive the reconciler")
+	}
 }

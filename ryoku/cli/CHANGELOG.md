@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **`doctor` seeds the decor art into `~/Pictures/ryodecors`.** The `Decor` and
+  `Placard` components render their baked art from that folder (beside
+  `Wallpapers` and `livewalls`); the installer seeds a fresh box, and this
+  reconciler delivers the shipped set -- and anything a later release adds -- to a
+  box that updated before it shipped or lost a file. Missing-only, so a swapped or
+  added file is left alone and nothing is pruned (`internal/doctor/doctor.go`,
+  `TestReconcileRyodecors`).
 - **`doctor` heals the looping limine boot countdown.** On the
   limine-mkinitcpio-hook layout the OS entry is a directory and the kernel is a
   `//` sub-entry, but `default_entry` was a bare `2`, which Limine resolves as

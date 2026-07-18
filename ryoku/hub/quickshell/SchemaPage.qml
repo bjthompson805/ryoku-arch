@@ -42,17 +42,42 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top }
         spacing: Tokens.s2
 
-        Row {
-            spacing: Tokens.s2
-            Rectangle { width: 16; height: 1; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
-            Text {
-                text: "力"; color: Tokens.ink; font.family: Tokens.jp
-                font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter
+        Item {
+            width: parent.width
+            height: 14
+            Row {
+                id: ebrow
+                spacing: Tokens.s2
+                anchors.verticalCenter: parent.verticalCenter
+                Rectangle { width: 16; height: 1; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
+                Text {
+                    text: "力"; color: Tokens.ink; font.family: Tokens.jp
+                    font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: page.eyebrow; color: Tokens.inkMuted; font.family: Tokens.ui
+                    font.pixelSize: 9; font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+            // the band runs to the page edge and closes with the sheet's marks:
+            // a register cross and the /// cluster, per the reference poster.
+            Rectangle {
+                anchors { left: ebrow.right; right: crossMark.left; verticalCenter: parent.verticalCenter }
+                anchors.leftMargin: Tokens.s3; anchors.rightMargin: Tokens.s3
+                height: 1; color: Tokens.lineSoft
             }
             Text {
-                text: page.eyebrow; color: Tokens.inkMuted; font.family: Tokens.ui
-                font.pixelSize: 9; font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
-                anchors.verticalCenter: parent.verticalCenter
+                id: crossMark
+                anchors { right: slashMark.left; rightMargin: Tokens.s2; verticalCenter: parent.verticalCenter }
+                text: "+"; color: Tokens.inkFaint
+                font.family: Tokens.mono; font.pixelSize: 10
+            }
+            Text {
+                id: slashMark
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                text: "///"; color: Tokens.inkFaint
+                font.family: Tokens.mono; font.pixelSize: 10
             }
         }
         Text {
@@ -73,37 +98,11 @@ Item {
         Item { width: 1; height: Tokens.s1 }
 
         // a page with one tab does not need a tab bar
-        Item {
-            width: page.tabs.length * 118
-            height: page.tabs.length > 1 ? 34 : 0
+        Tabs {
             visible: page.tabs.length > 1
-            Rectangle {
-                width: 118; height: 34; radius: Tokens.radius; color: Tokens.bone
-                x: Math.max(0, page.tabs.indexOf(sheet.tab)) * 118
-                Behavior on x { NumberAnimation { duration: Tokens.move; easing.type: Tokens.ease } }
-            }
-            Row {
-                spacing: 0
-                Repeater {
-                    model: page.tabs
-                    Rectangle {
-                        required property string modelData
-                        width: 118; height: 34; radius: Tokens.radius
-                        color: "transparent"
-                        border.width: Tokens.border
-                        border.color: Tokens.line
-                        Text {
-                            anchors.centerIn: parent
-                            text: parent.modelData.toUpperCase()
-                            color: sheet.tab === parent.modelData ? Tokens.inkOnBone : Tokens.inkDim
-                            font.family: Tokens.ui; font.pixelSize: 11
-                            font.weight: Font.Medium; font.letterSpacing: Tokens.trackLabel
-                            Behavior on color { ColorAnimation { duration: Tokens.snap } }
-                        }
-                        TapHandler { onTapped: sheet.tab = parent.modelData }
-                    }
-                }
-            }
+            options: page.tabs
+            current: sheet.tab
+            onChose: (label) => sheet.tab = label
         }
     }
 

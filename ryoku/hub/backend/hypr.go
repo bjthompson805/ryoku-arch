@@ -26,37 +26,79 @@ import (
 
 // Appearance: general / decoration / animations keywords.
 type Appearance struct {
-	GapsIn           int     `json:"gapsIn"`
-	GapsOut          int     `json:"gapsOut"`
-	BorderSize       int     `json:"borderSize"`
-	Rounding         int     `json:"rounding"`
-	RoundingPower    float64 `json:"roundingPower"`
-	ActiveOpacity    float64 `json:"activeOpacity"`
-	InactiveOpacity  float64 `json:"inactiveOpacity"`
-	DimInactive      bool    `json:"dimInactive"`
-	DimStrength      float64 `json:"dimStrength"`
-	BlurEnabled      bool    `json:"blurEnabled"`
-	BlurSize         int     `json:"blurSize"`
-	BlurPasses       int     `json:"blurPasses"`
-	BlurXray         bool    `json:"blurXray"`
-	BlurVibrancy     float64 `json:"blurVibrancy"`
-	BlurNoise        float64 `json:"blurNoise"`
-	ShadowEnabled    bool    `json:"shadowEnabled"`
-	ShadowRange      int     `json:"shadowRange"`
-	ShadowPower      int     `json:"shadowPower"`
-	GlowEnabled      bool    `json:"glowEnabled"`
-	GlowRange        int     `json:"glowRange"`
-	GlowColor        string  `json:"glowColor"`
-	Animations       bool    `json:"animations"`
-	Layout           string  `json:"layout"`
-	ActiveBorder     string  `json:"activeBorder"`
-	InactiveBorder   string  `json:"inactiveBorder"`
-	ResizeOnBorder   bool    `json:"resizeOnBorder"`
-	SnapEnabled      bool    `json:"snapEnabled"`
-	WobblyWindows    bool    `json:"wobblyWindows"`
-	WindowStyle      string  `json:"windowStyle"`
-	AnimatedBorder   bool    `json:"animatedBorder"`
-	BorderAngleSpeed float64 `json:"borderAngleSpeed"`
+	GapsIn               int     `json:"gapsIn"`
+	GapsOut              int     `json:"gapsOut"`
+	BorderSize           int     `json:"borderSize"`
+	Rounding             int     `json:"rounding"`
+	RoundingPower        float64 `json:"roundingPower"`
+	ActiveOpacity        float64 `json:"activeOpacity"`
+	InactiveOpacity      float64 `json:"inactiveOpacity"`
+	DimInactive          bool    `json:"dimInactive"`
+	DimStrength          float64 `json:"dimStrength"`
+	BlurEnabled          bool    `json:"blurEnabled"`
+	BlurSize             int     `json:"blurSize"`
+	BlurPasses           int     `json:"blurPasses"`
+	BlurXray             bool    `json:"blurXray"`
+	BlurVibrancy         float64 `json:"blurVibrancy"`
+	BlurNoise            float64 `json:"blurNoise"`
+	ShadowEnabled        bool    `json:"shadowEnabled"`
+	ShadowRange          int     `json:"shadowRange"`
+	ShadowPower          int     `json:"shadowPower"`
+	GlowEnabled          bool    `json:"glowEnabled"`
+	GlowRange            int     `json:"glowRange"`
+	GlowColor            string  `json:"glowColor"`
+	Animations           bool    `json:"animations"`
+	Layout               string  `json:"layout"`
+	ActiveBorder         string  `json:"activeBorder"`
+	InactiveBorder       string  `json:"inactiveBorder"`
+	ResizeOnBorder       bool    `json:"resizeOnBorder"`
+	SnapEnabled          bool    `json:"snapEnabled"`
+	WobblyWindows        bool    `json:"wobblyWindows"`
+	WindowStyle          string  `json:"windowStyle"`
+	AnimatedBorder       bool    `json:"animatedBorder"`
+	BorderAngleSpeed     float64 `json:"borderAngleSpeed"`
+	FullscreenOpacity    float64 `json:"fullscreenOpacity"`
+	DimSpecial           float64 `json:"dimSpecial"`
+	DimAround            float64 `json:"dimAround"`
+	DimModal             bool    `json:"dimModal"`
+	BorderPartOfWindow   bool    `json:"borderPartOfWindow"`
+	BlurContrast         float64 `json:"blurContrast"`
+	BlurBrightness       float64 `json:"blurBrightness"`
+	BlurSpecial          bool    `json:"blurSpecial"`
+	BlurPopups           bool    `json:"blurPopups"`
+	BlurIgnoreOpacity    bool    `json:"blurIgnoreOpacity"`
+	BlurNewOptimizations bool    `json:"blurNewOptimizations"`
+	BlurVibrancyDarkness float64 `json:"blurVibrancyDarkness"`
+	ShadowSharp          bool    `json:"shadowSharp"`
+	ShadowScale          float64 `json:"shadowScale"`
+	ShadowColor          string  `json:"shadowColor"`
+	ExtendBorderGrab     int     `json:"extendBorderGrab"`
+	HoverIconOnBorder    bool    `json:"hoverIconOnBorder"`
+	NoFocusFallback      bool    `json:"noFocusFallback"`
+	ResizeCorner         int     `json:"resizeCorner"`
+	GapsWorkspaces       int     `json:"gapsWorkspaces"`
+}
+
+// Dwindle: the dwindle layout keywords the hub exposes on the Look tab while
+// that layout is selected. Emitted as a `dwindle = {}` block, diffed against the
+// defaults like the appearance leaves.
+type Dwindle struct {
+	PreserveSplit      bool    `json:"preserveSplit"`
+	SmartSplit         bool    `json:"smartSplit"`
+	SmartResizing      bool    `json:"smartResizing"`
+	DefaultSplitRatio  float64 `json:"defaultSplitRatio"`
+	ForceSplit         string  `json:"forceSplit"` // follow | left/top | right/bottom
+	UseActiveForSplits bool    `json:"useActiveForSplits"`
+}
+
+// Master: the master layout keywords the hub exposes on the Look tab while that
+// layout is selected. Emitted as a `master = {}` block.
+type Master struct {
+	Mfact         float64 `json:"mfact"`
+	NewStatus     string  `json:"newStatus"` // master | slave | inherit
+	NewOnTop      bool    `json:"newOnTop"`
+	Orientation   string  `json:"orientation"` // left | right | top | bottom | center
+	SmartResizing bool    `json:"smartResizing"`
 }
 
 // Input: the input keyword (keyboard, pointer, touchpad) + the pointer-adjacent
@@ -208,6 +250,7 @@ type Imgborders struct {
 	Insets  string  `json:"insets"` // "left,right,top,bottom" px
 	Scale   float64 `json:"scale"`
 	Smooth  bool    `json:"smooth"`
+	Blur    bool    `json:"blur"`
 }
 
 type Hyprglass struct {
@@ -216,6 +259,8 @@ type Hyprglass struct {
 	BlurStrength float64 `json:"blurStrength"`
 	Opacity      float64 `json:"opacity"`
 	Tint         string  `json:"tint"` // RRGGBBAA hex, no leading 0x
+	Brightness   float64 `json:"brightness"`
+	Theme        string  `json:"theme"` // dark | light
 }
 
 type Hyprfocus struct {
@@ -247,6 +292,8 @@ type Plugins struct {
 
 type Overrides struct {
 	Appearance   Appearance    `json:"appearance"`
+	Dwindle      Dwindle       `json:"dwindle"`
+	Master       Master        `json:"master"`
 	Input        Input         `json:"input"`
 	Cursor       Cursor        `json:"cursor"`
 	Env          []EnvVar      `json:"env"`
@@ -284,7 +331,16 @@ func defaultOverrides() Overrides {
 			ResizeOnBorder: true, SnapEnabled: false,
 			WobblyWindows: false, WindowStyle: "pop",
 			AnimatedBorder: false, BorderAngleSpeed: 3,
+			FullscreenOpacity: 1, DimSpecial: 0.2, DimAround: 0.4,
+			DimModal: true, BorderPartOfWindow: true,
+			BlurContrast: 0.8916, BlurBrightness: 1, BlurSpecial: false, BlurPopups: false,
+			BlurIgnoreOpacity: true, BlurNewOptimizations: true, BlurVibrancyDarkness: 0,
+			ShadowSharp: false, ShadowScale: 1, ShadowColor: "#000000",
+			ExtendBorderGrab: 15, HoverIconOnBorder: true, NoFocusFallback: false,
+			ResizeCorner: 0, GapsWorkspaces: 0,
 		},
+		Dwindle: Dwindle{PreserveSplit: false, SmartSplit: false, SmartResizing: true, DefaultSplitRatio: 1, ForceSplit: "follow", UseActiveForSplits: true},
+		Master:  Master{Mfact: 0.55, NewStatus: "slave", NewOnTop: false, Orientation: "left", SmartResizing: true},
 		Input: Input{
 			KbLayout: "us", KbVariant: "", KbOptions: "", NumlockByDefault: false,
 			FollowMouse: 2, Sensitivity: 0, AccelProfile: "",
@@ -308,8 +364,8 @@ func defaultOverrides() Overrides {
 		Plugins: Plugins{
 			DynamicCursors: DynamicCursors{Enabled: false, Mode: "tilt", Shake: true, Magnify: 4.0},
 			Hyprbars:       Hyprbars{Enabled: false, Height: 26, TextSize: 11, Blur: true, Buttons: true},
-			Imgborders:     Imgborders{Enabled: false, Image: "", Sizes: "8,8,8,8", Insets: "0,0,0,0", Scale: 1.0, Smooth: true},
-			Hyprglass:      Hyprglass{Enabled: false, Preset: "clear", BlurStrength: 2.0, Opacity: 1.0, Tint: "8899aa22"},
+			Imgborders:     Imgborders{Enabled: false, Image: "", Sizes: "8,8,8,8", Insets: "0,0,0,0", Scale: 1.0, Smooth: true, Blur: false},
+			Hyprglass:      Hyprglass{Enabled: false, Preset: "clear", BlurStrength: 2.0, Opacity: 1.0, Tint: "8899aa22", Brightness: 1.0, Theme: "dark"},
 			Hyprfocus:      Hyprfocus{Enabled: false, Mode: "flash", Opacity: 0.8, Bounce: 0.95, Slide: 20},
 			Hyprscrolling:  Hyprscrolling{ColumnWidth: 0.5, FollowFocus: true},
 		},
@@ -697,6 +753,7 @@ func genPlugins(o Overrides) string {
 			fmt.Sprintf("insets = %s", luaStr(ib.Insets)),
 			fmt.Sprintf("scale = %s", luaNum(ib.Scale)),
 			fmt.Sprintf("smooth = %t", ib.Smooth),
+			fmt.Sprintf("blur = %t", ib.Blur),
 		}
 		b.WriteString(genPluginBlock("imgborders", "imgborders", opts, ""))
 	}
@@ -708,6 +765,8 @@ func genPlugins(o Overrides) string {
 			fmt.Sprintf("blur_strength = %s", luaNum(hg.BlurStrength)),
 			fmt.Sprintf("glass_opacity = %s", luaNum(hg.Opacity)),
 			fmt.Sprintf("tint_color = 0x%s", luaHex8(hg.Tint)),
+			fmt.Sprintf("brightness = %s", luaNum(hg.Brightness)),
+			fmt.Sprintf("default_theme = %s", luaStr(hg.Theme)),
 		}
 		b.WriteString(genPluginBlock("hyprglass", "hyprglass", opts, ""))
 	}
@@ -782,7 +841,7 @@ func luaHex8(s string) string {
 // silently win over what the UI shows.
 func genConfig(o Overrides, follow bool) string {
 	d := defaultOverrides()
-	var general, deco, input, cursor, misc, gestures []string
+	var general, deco, input, cursor, misc, gestures, dwindle, master []string
 
 	a, da := o.Appearance, d.Appearance
 	if a.GapsIn != da.GapsIn {
@@ -813,6 +872,21 @@ func genConfig(o Overrides, follow bool) string {
 		general = append(general, fmt.Sprintf("[\"col.active_border\"] = %s", luaStr(luaRGB(a.ActiveBorder))))
 		general = append(general, fmt.Sprintf("[\"col.inactive_border\"] = %s", luaStr(luaRGB(a.InactiveBorder))))
 	}
+	if a.ExtendBorderGrab != da.ExtendBorderGrab {
+		general = append(general, fmt.Sprintf("extend_border_grab_area = %d", a.ExtendBorderGrab))
+	}
+	if a.HoverIconOnBorder != da.HoverIconOnBorder {
+		general = append(general, fmt.Sprintf("hover_icon_on_border = %t", a.HoverIconOnBorder))
+	}
+	if a.NoFocusFallback != da.NoFocusFallback {
+		general = append(general, fmt.Sprintf("no_focus_fallback = %t", a.NoFocusFallback))
+	}
+	if a.ResizeCorner != da.ResizeCorner {
+		general = append(general, fmt.Sprintf("resize_corner = %d", a.ResizeCorner))
+	}
+	if a.GapsWorkspaces != da.GapsWorkspaces {
+		general = append(general, fmt.Sprintf("gaps_workspaces = %d", a.GapsWorkspaces))
+	}
 
 	if a.Rounding != da.Rounding {
 		deco = append(deco, fmt.Sprintf("rounding = %d", a.Rounding))
@@ -831,6 +905,21 @@ func genConfig(o Overrides, follow bool) string {
 	}
 	if a.DimStrength != da.DimStrength {
 		deco = append(deco, fmt.Sprintf("dim_strength = %s", luaNum(a.DimStrength)))
+	}
+	if a.FullscreenOpacity != da.FullscreenOpacity {
+		deco = append(deco, fmt.Sprintf("fullscreen_opacity = %s", luaNum(a.FullscreenOpacity)))
+	}
+	if a.DimSpecial != da.DimSpecial {
+		deco = append(deco, fmt.Sprintf("dim_special = %s", luaNum(a.DimSpecial)))
+	}
+	if a.DimAround != da.DimAround {
+		deco = append(deco, fmt.Sprintf("dim_around = %s", luaNum(a.DimAround)))
+	}
+	if a.DimModal != da.DimModal {
+		deco = append(deco, fmt.Sprintf("dim_modal = %t", a.DimModal))
+	}
+	if a.BorderPartOfWindow != da.BorderPartOfWindow {
+		deco = append(deco, fmt.Sprintf("border_part_of_window = %t", a.BorderPartOfWindow))
 	}
 	var blur []string
 	if a.BlurEnabled != da.BlurEnabled {
@@ -851,6 +940,27 @@ func genConfig(o Overrides, follow bool) string {
 	if a.BlurNoise != da.BlurNoise {
 		blur = append(blur, fmt.Sprintf("noise = %s", luaNum(a.BlurNoise)))
 	}
+	if a.BlurContrast != da.BlurContrast {
+		blur = append(blur, fmt.Sprintf("contrast = %s", luaNum(a.BlurContrast)))
+	}
+	if a.BlurBrightness != da.BlurBrightness {
+		blur = append(blur, fmt.Sprintf("brightness = %s", luaNum(a.BlurBrightness)))
+	}
+	if a.BlurSpecial != da.BlurSpecial {
+		blur = append(blur, fmt.Sprintf("special = %t", a.BlurSpecial))
+	}
+	if a.BlurPopups != da.BlurPopups {
+		blur = append(blur, fmt.Sprintf("popups = %t", a.BlurPopups))
+	}
+	if a.BlurIgnoreOpacity != da.BlurIgnoreOpacity {
+		blur = append(blur, fmt.Sprintf("ignore_opacity = %t", a.BlurIgnoreOpacity))
+	}
+	if a.BlurNewOptimizations != da.BlurNewOptimizations {
+		blur = append(blur, fmt.Sprintf("new_optimizations = %t", a.BlurNewOptimizations))
+	}
+	if a.BlurVibrancyDarkness != da.BlurVibrancyDarkness {
+		blur = append(blur, fmt.Sprintf("vibrancy_darkness = %s", luaNum(a.BlurVibrancyDarkness)))
+	}
 	if len(blur) > 0 {
 		deco = append(deco, "blur = { "+strings.Join(blur, ", ")+" }")
 	}
@@ -863,6 +973,15 @@ func genConfig(o Overrides, follow bool) string {
 	}
 	if a.ShadowPower != da.ShadowPower {
 		shadow = append(shadow, fmt.Sprintf("render_power = %d", a.ShadowPower))
+	}
+	if a.ShadowSharp != da.ShadowSharp {
+		shadow = append(shadow, fmt.Sprintf("sharp = %t", a.ShadowSharp))
+	}
+	if a.ShadowScale != da.ShadowScale {
+		shadow = append(shadow, fmt.Sprintf("scale = %s", luaNum(a.ShadowScale)))
+	}
+	if a.ShadowColor != da.ShadowColor {
+		shadow = append(shadow, fmt.Sprintf("color = %s", luaStr(luaRGB(a.ShadowColor))))
 	}
 	if len(shadow) > 0 {
 		deco = append(deco, "shadow = { "+strings.Join(shadow, ", ")+" }")
@@ -879,6 +998,43 @@ func genConfig(o Overrides, follow bool) string {
 	}
 	if len(glow) > 0 {
 		deco = append(deco, "glow = { "+strings.Join(glow, ", ")+" }")
+	}
+
+	dw, ddw := o.Dwindle, d.Dwindle
+	if dw.PreserveSplit != ddw.PreserveSplit {
+		dwindle = append(dwindle, fmt.Sprintf("preserve_split = %t", dw.PreserveSplit))
+	}
+	if dw.SmartSplit != ddw.SmartSplit {
+		dwindle = append(dwindle, fmt.Sprintf("smart_split = %t", dw.SmartSplit))
+	}
+	if dw.SmartResizing != ddw.SmartResizing {
+		dwindle = append(dwindle, fmt.Sprintf("smart_resizing = %t", dw.SmartResizing))
+	}
+	if dw.DefaultSplitRatio != ddw.DefaultSplitRatio {
+		dwindle = append(dwindle, fmt.Sprintf("default_split_ratio = %s", luaNum(dw.DefaultSplitRatio)))
+	}
+	if dw.ForceSplit != ddw.ForceSplit {
+		dwindle = append(dwindle, fmt.Sprintf("force_split = %d", dwindleForceSplit(dw.ForceSplit)))
+	}
+	if dw.UseActiveForSplits != ddw.UseActiveForSplits {
+		dwindle = append(dwindle, fmt.Sprintf("use_active_for_splits = %t", dw.UseActiveForSplits))
+	}
+
+	ms, dms := o.Master, d.Master
+	if ms.Mfact != dms.Mfact {
+		master = append(master, fmt.Sprintf("mfact = %s", luaNum(ms.Mfact)))
+	}
+	if ms.NewStatus != dms.NewStatus {
+		master = append(master, fmt.Sprintf("new_status = %s", luaStr(ms.NewStatus)))
+	}
+	if ms.NewOnTop != dms.NewOnTop {
+		master = append(master, fmt.Sprintf("new_on_top = %t", ms.NewOnTop))
+	}
+	if ms.Orientation != dms.Orientation {
+		master = append(master, fmt.Sprintf("orientation = %s", luaStr(ms.Orientation)))
+	}
+	if ms.SmartResizing != dms.SmartResizing {
+		master = append(master, fmt.Sprintf("smart_resizing = %t", ms.SmartResizing))
 	}
 
 	in, di := o.Input, d.Input
@@ -977,6 +1133,12 @@ func genConfig(o Overrides, follow bool) string {
 	if len(general) > 0 {
 		sections = append(sections, "  general = { "+strings.Join(general, ", ")+" }")
 	}
+	if len(dwindle) > 0 {
+		sections = append(sections, "  dwindle = { "+strings.Join(dwindle, ", ")+" }")
+	}
+	if len(master) > 0 {
+		sections = append(sections, "  master = { "+strings.Join(master, ", ")+" }")
+	}
 	if len(deco) > 0 {
 		sections = append(sections, "  decoration = { "+strings.Join(deco, ", ")+" }")
 	}
@@ -999,6 +1161,20 @@ func genConfig(o Overrides, follow bool) string {
 		return ""
 	}
 	return "hl.config({\n" + strings.Join(sections, ",\n") + ",\n})\n\n"
+}
+
+// dwindleForceSplit maps the friendly force-split labels the UI stores onto
+// Hyprland's dwindle:force_split integer (0 follows the cursor, 1 forces
+// left/top, 2 forces right/bottom).
+func dwindleForceSplit(s string) int {
+	switch s {
+	case "left/top":
+		return 1
+	case "right/bottom":
+		return 2
+	default:
+		return 0
+	}
 }
 
 // windowRuleField maps the pretty boolean action keys the UI stores onto the
@@ -1207,6 +1383,7 @@ func genStartHook(o Overrides) string {
 // to reset any key, not only push it away from the baseline.
 func fullConfigLua(o Overrides, follow bool) string {
 	a, in, c := o.Appearance, o.Input, o.Cursor
+	dw, ms := o.Dwindle, o.Master
 	general := []string{
 		fmt.Sprintf("gaps_in = %d", a.GapsIn),
 		fmt.Sprintf("gaps_out = %d", a.GapsOut),
@@ -1214,6 +1391,11 @@ func fullConfigLua(o Overrides, follow bool) string {
 		fmt.Sprintf("layout = %s", luaStr(a.Layout)),
 		fmt.Sprintf("resize_on_border = %t", a.ResizeOnBorder),
 		fmt.Sprintf("snap = { enabled = %t }", a.SnapEnabled),
+		fmt.Sprintf("extend_border_grab_area = %d", a.ExtendBorderGrab),
+		fmt.Sprintf("hover_icon_on_border = %t", a.HoverIconOnBorder),
+		fmt.Sprintf("no_focus_fallback = %t", a.NoFocusFallback),
+		fmt.Sprintf("resize_corner = %d", a.ResizeCorner),
+		fmt.Sprintf("gaps_workspaces = %d", a.GapsWorkspaces),
 	}
 	if !follow {
 		general = append(general,
@@ -1225,12 +1407,19 @@ func fullConfigLua(o Overrides, follow bool) string {
 		fmt.Sprintf("rounding_power = %s", luaNum(a.RoundingPower)),
 		fmt.Sprintf("active_opacity = %s", luaNum(a.ActiveOpacity)),
 		fmt.Sprintf("inactive_opacity = %s", luaNum(a.InactiveOpacity)),
+		fmt.Sprintf("fullscreen_opacity = %s", luaNum(a.FullscreenOpacity)),
 		fmt.Sprintf("dim_inactive = %t", a.DimInactive),
 		fmt.Sprintf("dim_strength = %s", luaNum(a.DimStrength)),
-		fmt.Sprintf("blur = { enabled = %t, size = %d, passes = %d, xray = %t, vibrancy = %s, noise = %s }",
-			a.BlurEnabled, a.BlurSize, a.BlurPasses, a.BlurXray, luaNum(a.BlurVibrancy), luaNum(a.BlurNoise)),
-		fmt.Sprintf("shadow = { enabled = %t, range = %d, render_power = %d }",
-			a.ShadowEnabled, a.ShadowRange, a.ShadowPower),
+		fmt.Sprintf("dim_special = %s", luaNum(a.DimSpecial)),
+		fmt.Sprintf("dim_around = %s", luaNum(a.DimAround)),
+		fmt.Sprintf("dim_modal = %t", a.DimModal),
+		fmt.Sprintf("border_part_of_window = %t", a.BorderPartOfWindow),
+		fmt.Sprintf("blur = { enabled = %t, size = %d, passes = %d, xray = %t, vibrancy = %s, noise = %s, "+
+			"contrast = %s, brightness = %s, special = %t, popups = %t, ignore_opacity = %t, new_optimizations = %t, vibrancy_darkness = %s }",
+			a.BlurEnabled, a.BlurSize, a.BlurPasses, a.BlurXray, luaNum(a.BlurVibrancy), luaNum(a.BlurNoise),
+			luaNum(a.BlurContrast), luaNum(a.BlurBrightness), a.BlurSpecial, a.BlurPopups, a.BlurIgnoreOpacity, a.BlurNewOptimizations, luaNum(a.BlurVibrancyDarkness)),
+		fmt.Sprintf("shadow = { enabled = %t, range = %d, render_power = %d, sharp = %t, scale = %s }",
+			a.ShadowEnabled, a.ShadowRange, a.ShadowPower, a.ShadowSharp, luaNum(a.ShadowScale)),
 		fmt.Sprintf("glow = { enabled = %t, range = %d, color = %s }",
 			a.GlowEnabled, a.GlowRange, luaStr(luaRGB(a.GlowColor))),
 	}
@@ -1261,6 +1450,10 @@ func fullConfigLua(o Overrides, follow bool) string {
 		fmt.Sprintf("  gestures = { workspace_swipe_invert = %t, workspace_swipe_create_new = %t, workspace_swipe_distance = %d },\n",
 			in.SwipeInvert, in.SwipeCreateNew, in.SwipeDistance) +
 		fmt.Sprintf("  animations = { enabled = %t },\n", a.Animations) +
+		fmt.Sprintf("  dwindle = { preserve_split = %t, smart_split = %t, smart_resizing = %t, default_split_ratio = %s, force_split = %d, use_active_for_splits = %t },\n",
+			dw.PreserveSplit, dw.SmartSplit, dw.SmartResizing, luaNum(dw.DefaultSplitRatio), dwindleForceSplit(dw.ForceSplit), dw.UseActiveForSplits) +
+		fmt.Sprintf("  master = { mfact = %s, new_status = %s, new_on_top = %t, orientation = %s, smart_resizing = %t },\n",
+			luaNum(ms.Mfact), luaStr(ms.NewStatus), ms.NewOnTop, luaStr(ms.Orientation), ms.SmartResizing) +
 		"})\n"
 }
 

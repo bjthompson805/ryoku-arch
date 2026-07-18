@@ -31,11 +31,19 @@ Item {
         anchors.leftMargin: Tokens.s5
         spacing: Tokens.s3
 
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "///"
+            color: Tokens.inkFaint
+            font.family: Tokens.mono
+            font.pixelSize: 10
+        }
         Rectangle {
             width: 6; height: 6
             anchors.verticalCenter: parent.verticalCenter
+            // no colour in the chrome: the unsaved heartbeat is ink, and the
+            // /// cluster beside it carries the sheet's mark.
             color: Tokens.ink
-            // a heartbeat, not an alarm: 600ms each way
             SequentialAnimation on opacity {
                 running: bar.dirty > 0
                 loops: Animation.Infinite
@@ -54,6 +62,15 @@ Item {
             font.weight: Font.Medium
             font.letterSpacing: 1.6
         }
+    }
+
+    // marginalia in the bar's dead centre: a running register shared by every
+    // framed page, ink only so the accent stays on state.
+    Marginalia {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        kana: "設定"
+        chevrons: true
     }
 
     Row {

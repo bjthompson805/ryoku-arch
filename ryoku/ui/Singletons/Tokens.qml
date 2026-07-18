@@ -110,5 +110,7 @@ Singleton {
     readonly property int easeSnap: Easing.OutQuad
 
     // ── grain ────────────────────────────────────────────────────────────
-    readonly property real grainOpacity: 0.055
+    // The sandpaper. 0.055 read as pitch black from a metre away; 0.10 keeps
+    // the speckle visible, which is what makes #000 read matte instead of void.
+    readonly property real grainOpacity: 0.10
 }

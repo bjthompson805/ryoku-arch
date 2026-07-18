@@ -1,0 +1,999 @@
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import QtQuick.Controls
+import Quickshell.Io
+import Ryoku.Ui
+import Ryoku.Ui.Singletons
+
+// Input (DESIGN.md, SYSTEM). Keyboard layout and remaps, pointer and touchpad
+// behaviour, and key repeat for the Hyprland session. Rendered as cells off the
+// shared taxonomy, but three surfaces refuse a plain schema and are built by
+// hand:
+//
+//   * kb_layout / kb_variant are ONE positional comma string each ("fr,us" +
+//     "azerty,"): two catalogue picks edit the halves and keep the variant slot
+//     aligned to its layout by position.
+//   * kb_options is ONE comma string multiplexed across four controls plus a
+//     free-text escape hatch. Caps Lock, Swap Alt/Super, Compose and Switch
+//     layouts each own a family of xkb tokens; the family is replaced in place,
+//     everything unrecognised round-trips through Extra options so power users
+//     lose nothing. grpIds carries grp:caps_toggle deliberately (so it is
+//     stripped from Extra options) while the Switch seg never offers it: that
+//     asymmetry is load-bearing and reproduced here on purpose.
+//   * Apply system-wide is an out-of-band, privileged localectl write covering
+//     the login screen and TTY; it has no draft, no revert, no dirty state, and
+//     is gated on the keyboard keys already being saved.
+//
+// The layout/variant catalogues are scanned at runtime (xkb rules), so they are
+// filtered picks, not enums. Everything else reads hub.hyprVal / writes
+// hub.hyprEdit; the shell owns the rail, side panel, action bar, live preview
+// and restore. Nothing here writes a file except the localectl button.
+Item {
+    id: pg
+
+    property var hub
+
+    // gated so nothing paints stale before the first `hypr get` returns.
+    readonly property bool ready: pg.hub ? pg.hub.hyprLoaded === true : false
+
+    // ── hub access ──────────────────────────────────────────────────────────
+    function hv(path) { return pg.hub ? pg.hub.hyprVal(path) : undefined }
+    function cv(path) { return pg.hub ? pg.hub.hyprCommittedVal(path) : undefined }
+    function he(path, v) { if (pg.hub) pg.hub.hyprEdit(path, v) }
+
+    // ── keyboard layout: positional comma strings ───────────────────────────
+    // kb_layout may hold "fr,us" (primary + secondary). The variant applies to
+    // the primary, so a secondary keeps the variant's slot empty ("azerty,")
+    // because xkb aligns variants to layouts by position. `committed` reads disk
+    // for the struck default.
+    function kbLayoutStr(committed) {
+        return String((committed ? pg.cv("input.kbLayout") : pg.hv("input.kbLayout")) || "");
+    }
+    function kbVariantStr(committed) {
+        return String((committed ? pg.cv("input.kbVariant") : pg.hv("input.kbVariant")) || "");
+    }
+    function primaryLayout(committed) { return pg.kbLayoutStr(committed).split(",")[0]; }
+    function secondaryLayout(committed) {
+        var parts = pg.kbLayoutStr(committed).split(",");
+        return parts.length > 1 ? parts[1] : "";
+    }
+    function primaryVariant(committed) { return pg.kbVariantStr(committed).split(",")[0]; }
+
+    function setLayouts(primary, secondary) {
+        pg.he("input.kbLayout", secondary ? primary + "," + secondary : primary);
+        var v = pg.primaryVariant(false);
+        pg.he("input.kbVariant", secondary && v ? v + "," : v);
+    }
+    function setVariant(v) {
+        pg.he("input.kbVariant", pg.secondaryLayout(false) && v ? v + "," : v);
+    }
+
+    // ── curated remaps over kb_options ──────────────────────────────────────
+    // Each control owns one xkb option family; anything it does not recognise
+    // stays in Extra options. All state lives in the single kb_options string.
+    readonly property var capsIds: ["caps:escape", "ctrl:nocaps", "caps:swapescape", "caps:none"]
+    readonly property var composeIds: ["compose:ralt", "compose:menu"]
+    // grp:caps_toggle is a recognised family member (so it is stripped from
+    // Extra options) but is NOT offered by the Switch seg: the asymmetry is
+    // deliberate, so a caps_toggle set elsewhere is not leaked into free text.
+    readonly property var grpIds: ["grp:alt_shift_toggle", "grp:win_space_toggle", "grp:caps_toggle"]
+    readonly property string swapId: "altwin:swap_alt_win"
+
+    function kbOptionsStr(committed) {
+        return String((committed ? pg.cv("input.kbOptions") : pg.hv("input.kbOptions")) || "");
+    }
+    function optTokens(committed) {
+        var raw = pg.kbOptionsStr(committed).split(",");
+        var out = [];
+        for (var i = 0; i < raw.length; i++) {
+            var t = raw[i].trim();
+            if (t.length)
+                out.push(t);
+        }
+        return out;
+    }
+    // the first recognised token of a family wins, matching the old page.
+    function pickFrom(ids, committed) {
+        var toks = pg.optTokens(committed);
+        for (var i = 0; i < toks.length; i++)
+            if (ids.indexOf(toks[i]) !== -1)
+                return toks[i];
+        return "";
+    }
+    function knownIds() {
+        return pg.capsIds.concat(pg.composeIds).concat(pg.grpIds).concat([pg.swapId]);
+    }
+    function extraOptions(committed) {
+        var known = pg.knownIds();
+        var toks = pg.optTokens(committed);
+        var out = [];
+        for (var i = 0; i < toks.length; i++)
+            if (known.indexOf(toks[i]) === -1)
+                out.push(toks[i]);
+        return out.join(",");
+    }
+    // rebuild kb_options with one family replaced; "" drops the family.
+    function setOption(ids, value) {
+        var toks = pg.optTokens(false);
+        var out = [];
+        for (var j = 0; j < toks.length; j++)
+            if (ids.indexOf(toks[j]) === -1)
+                out.push(toks[j]);
+        if (value.length)
+            out.push(value);
+        pg.he("input.kbOptions", out.join(","));
+    }
+    function setExtra(text) {
+        var known = pg.knownIds();
+        var keep = [];
+        var toks = pg.optTokens(false);
+        for (var i = 0; i < toks.length; i++)
+            if (known.indexOf(toks[i]) !== -1)
+                keep.push(toks[i]);
+        var raw = String(text || "").split(",");
+        for (var j = 0; j < raw.length; j++) {
+            var t = raw[j].trim();
+            if (t.length)
+                keep.push(t);
+        }
+        pg.he("input.kbOptions", keep.join(","));
+    }
+
+    // family key <-> visible label, offered choices per family.
+    readonly property var capsMap: [
+        { "key": "", "label": "Default" },
+        { "key": "caps:escape", "label": "Escape" },
+        { "key": "ctrl:nocaps", "label": "Ctrl" },
+        { "key": "caps:swapescape", "label": "Swap Esc" },
+        { "key": "caps:none", "label": "Off" }
+    ]
+    readonly property var composeMap: [
+        { "key": "", "label": "Off" },
+        { "key": "compose:ralt", "label": "Right Alt" },
+        { "key": "compose:menu", "label": "Menu" }
+    ]
+    readonly property var grpMap: [
+        { "key": "", "label": "Off" },
+        { "key": "grp:alt_shift_toggle", "label": "Alt+Shift" },
+        { "key": "grp:win_space_toggle", "label": "Super+Space" }
+    ]
+    function mapLabel(m, k) {
+        for (var i = 0; i < m.length; i++)
+            if (String(m[i].key) === String(k === undefined ? "" : k))
+                return m[i].label;
+        return String(k === undefined ? "" : k);
+    }
+    function mapKey(m, lb) {
+        for (var i = 0; i < m.length; i++)
+            if (m[i].label === lb)
+                return m[i].key;
+        return lb;
+    }
+    function labels(m) {
+        var out = [];
+        for (var i = 0; i < m.length; i++)
+            out.push(m[i].label);
+        return out;
+    }
+
+    // ── dynamic xkb catalogues ──────────────────────────────────────────────
+    property var layoutOptions: []                                 // [{ code, name }]
+    property var variantOptions: [{ "code": "", "name": "Default" }]
+
+    Process {
+        id: layoutsProc
+        command: ["ryoku-hub", "hypr", "layouts"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { pg.layoutOptions = JSON.parse(this.text); } catch (e) {}
+            }
+        }
+    }
+
+    // xkb variant names repeat the language ("French (AZERTY)"); inside an
+    // already-chosen layout that prefix is noise, so keep only the qualifier.
+    function variantLabel(name) {
+        var m = String(name || "").match(/^[^(]+\((.+)\)$/);
+        if (!m)
+            return name;
+        var q = m[1].trim();
+        return q.charAt(0).toUpperCase() + q.slice(1);
+    }
+    Process {
+        id: variantsProc
+        property string forLayout: ""
+        command: ["ryoku-hub", "hypr", "variants", forLayout]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var out = [{ "code": "", "name": "Default" }];
+                try {
+                    var arr = JSON.parse(this.text);
+                    for (var i = 0; i < arr.length; i++)
+                        out.push({ "code": arr[i].code, "name": pg.variantLabel(arr[i].name) });
+                } catch (e) {}
+                pg.variantOptions = out;
+            }
+        }
+    }
+    // guarded so the same layout never refetches and an empty layout is skipped;
+    // driven by the primary-layout change below plus first paint.
+    function refreshVariants() {
+        var l = pg.primaryLayout(false);
+        if (l.length === 0 || variantsProc.forLayout === l)
+            return;
+        variantsProc.forLayout = l;
+        variantsProc.running = false;
+        variantsProc.running = true;
+    }
+    readonly property string curPrimary: pg.primaryLayout(false)
+    onCurPrimaryChanged: pg.refreshVariants()
+    Component.onCompleted: pg.refreshVariants()
+
+    function nameIn(list, code) {
+        for (var i = 0; i < list.length; i++)
+            if (list[i].code === code)
+                return list[i].name;
+        return code;
+    }
+
+    // ── localectl: login screen + TTY keymap (out of band, privileged) ──────
+    // localectl converts the X11 keymap to the nearest console keymap too, so a
+    // single call covers the SDDM greeter AND the TTY. It writes to /etc, not
+    // the draft, and prompts through polkit.
+    property string sysApplyState: ""
+    function applyLayoutArg() { return String(pg.hv("input.kbLayout") || "us"); }
+    function applyVariantArg() { return String(pg.hv("input.kbVariant") || ""); }
+    function applyOptionsArg() { return String(pg.hv("input.kbOptions") || ""); }
+    Process {
+        id: sysApplyProc
+        command: ["localectl", "set-x11-keymap",
+            pg.applyLayoutArg(), "", pg.applyVariantArg(), pg.applyOptionsArg()]
+        onExited: (code, status) => {
+            pg.sysApplyState = code === 0 ? "ok" : "err";
+            sysApplyClear.restart();
+        }
+    }
+    Timer {
+        id: sysApplyClear
+        interval: 6000
+        onTriggered: pg.sysApplyState = ""
+    }
+    // apply what is on disk: gated on the keyboard keys being saved first.
+    readonly property bool kbClean: {
+        if (!pg.hub)
+            return false;
+        return JSON.stringify(pg.hv("input.kbLayout")) === JSON.stringify(pg.cv("input.kbLayout"))
+            && JSON.stringify(pg.hv("input.kbVariant")) === JSON.stringify(pg.cv("input.kbVariant"))
+            && JSON.stringify(pg.hv("input.kbOptions")) === JSON.stringify(pg.cv("input.kbOptions"));
+    }
+
+    readonly property bool swipeOn: pg.hv("input.workspaceSwipe") === true
+
+    // ── the catalogue overlay (filtered pick over the runtime xkb lists) ─────
+    property var catList: null            // [{ code, name }] while open, else null
+    property string catTitle: ""
+    property string catCurrent: ""        // current code
+    property var catApply: null           // function(code)
+    function openCat(title, list, current, apply) {
+        pg.catTitle = title;
+        pg.catList = list;
+        pg.catCurrent = current;
+        pg.catApply = apply;
+        catPicker.open();
+    }
+    function closeCat() { pg.catList = null; pg.catApply = null; }
+    function chooseCat(name) {
+        var code = name;
+        if (pg.catList)
+            for (var i = 0; i < pg.catList.length; i++)
+                if (pg.catList[i].name === name) { code = pg.catList[i].code; break; }
+        if (pg.catApply)
+            pg.catApply(code);
+        pg.closeCat();
+    }
+    readonly property var catNames: {
+        var out = [];
+        if (pg.catList)
+            for (var i = 0; i < pg.catList.length; i++)
+                out.push(pg.catList[i].name);
+        return out;
+    }
+    readonly property string catCurrentName: {
+        if (pg.catList)
+            for (var i = 0; i < pg.catList.length; i++)
+                if (pg.catList[i].code === pg.catCurrent)
+                    return pg.catList[i].name;
+        return "";
+    }
+
+    // ── a scalar cell driven straight off a hypr path ───────────────────────
+    // sw / seg / slid / step. Fractional ratios ride an integer control scaled
+    // by `sc` (the module Slid/Step are integer), and the cell numeral shows the
+    // real value. Enums whose stored key is not its label carry an opts map, and
+    // int-backed enums (followMouse, swipeFingers) write back an int so the
+    // draft never diverges from disk as a string.
+    component Setting: Cell {
+        id: st
+        property string path: ""
+        property string ctl: "sw"
+        property var opts: []
+        property real lo: 0
+        property real hi: 1
+        property real sc: 1
+        property int dec: 0
+        property int stepBy: 1
+        property bool asInt: false
+        property bool gate: true
+
+        readonly property int optCount: st.opts.length
+        readonly property var rawV: (pg.hub && st.path) ? pg.hub.hyprVal(st.path) : undefined
+        readonly property var rawD: (pg.hub && st.path) ? pg.hub.hyprCommittedVal(st.path) : undefined
+        readonly property real numV: Number(st.rawV) || 0
+        readonly property real numD: Number(st.rawD) || 0
+
+        function keyLabel(k) {
+            for (var i = 0; i < st.opts.length; i++)
+                if (String(st.opts[i].key) === String(k === undefined ? "" : k))
+                    return st.opts[i].label;
+            return String(k === undefined ? "" : k);
+        }
+        function labelKey(lb) {
+            for (var i = 0; i < st.opts.length; i++)
+                if (st.opts[i].label === lb)
+                    return st.opts[i].key;
+            return lb;
+        }
+        function fmt(n) { return Number(n).toFixed(st.dec); }
+
+        readonly property real gutter: Tokens.s2
+        readonly property real colW: parent ? (parent.width - 11 * gutter) / 12 : 0
+        function spanW(n) { return n * st.colW + (n - 1) * st.gutter; }
+
+        visible: st.gate
+        width: st.spanW(Spans.of(st.ctl, st.optCount))
+        height: Spans.rows(st.ctl) * Tokens.cellH + (Spans.rows(st.ctl) - 1) * Tokens.s2
+        block: Spans.isBlock(st.ctl)
+        controlWidth: Spans.inlineWidth(st.ctl, st.optCount, width)
+        source: "hypr"
+
+        value: st.ctl === "sw" ? (st.rawV === true ? "ON" : "OFF")
+            : st.ctl === "seg" ? st.keyLabel(st.rawV)
+            : st.fmt(st.numV)
+        def: st.ctl === "sw" ? (st.rawD === true ? "ON" : "OFF")
+            : st.ctl === "seg" ? st.keyLabel(st.rawD)
+            : st.fmt(st.numD)
+        changed: (st.ctl === "sw" || st.ctl === "seg")
+            ? String(st.rawV) !== String(st.rawD)
+            : st.numV !== st.numD
+
+        Loader {
+            anchors.fill: parent
+            sourceComponent: st.ctl === "sw" ? swC
+                : st.ctl === "seg" ? segC
+                : st.ctl === "slid" ? slidC
+                : st.ctl === "step" ? stepC : null
+        }
+        Component {
+            id: swC
+            Sw {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                on: st.rawV === true
+                onToggled: (v) => pg.he(st.path, v)
+            }
+        }
+        Component {
+            id: segC
+            Seg {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                options: pg.labels(st.opts)
+                current: st.keyLabel(st.rawV)
+                onChose: (lb) => {
+                    var k = st.labelKey(lb);
+                    pg.he(st.path, st.asInt ? parseInt(k, 10) : k);
+                }
+            }
+        }
+        Component {
+            id: slidC
+            Slid {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width
+                from: Math.round(st.lo * st.sc)
+                to: Math.round(st.hi * st.sc)
+                value: Math.round(st.numV * st.sc)
+                onModified: (v) => pg.he(st.path,
+                    st.dec > 0 ? Number((v / st.sc).toFixed(st.dec)) : Math.round(v / st.sc))
+            }
+        }
+        Component {
+            id: stepC
+            Step {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                from: Math.round(st.lo)
+                to: Math.round(st.hi)
+                stepBy: st.stepBy
+                value: Math.round(st.numV)
+                onModified: (v) => pg.he(st.path, v)
+            }
+        }
+    }
+
+    // ── a kb_options family cell (seg / chips / sw over the shared string) ────
+    component OptCell: Cell {
+        id: oc
+        property string cellLabel: ""
+        property string cellDesc: ""
+        property var ids: []
+        property var map: []
+        property string kind: "seg"
+        property string onKey: ""        // the token written when a sw is on
+        property bool gate: true
+
+        readonly property real gutter: Tokens.s2
+        readonly property real colW: parent ? (parent.width - 11 * gutter) / 12 : 0
+        function spanW(n) { return n * oc.colW + (n - 1) * oc.gutter; }
+
+        readonly property int optCount: oc.map.length
+        readonly property string curKey: pg.pickFrom(oc.ids, false)
+        readonly property string defKey: pg.pickFrom(oc.ids, true)
+
+        visible: oc.gate
+        width: oc.spanW(Spans.of(oc.kind, oc.optCount))
+        height: oc.neededHeight   // hug the control: a lone chip row stays a row, no 2-row void
+        block: Spans.isBlock(oc.kind)
+        controlWidth: Spans.inlineWidth(oc.kind, oc.optCount, width)
+        source: "hypr"
+        label: oc.cellLabel
+        desc: oc.cellDesc
+        value: oc.kind === "sw" ? (oc.curKey === oc.onKey ? "ON" : "OFF")
+            : oc.kind === "chips" ? "" : pg.mapLabel(oc.map, oc.curKey)
+        def: oc.kind === "sw" ? (oc.defKey === oc.onKey ? "ON" : "OFF")
+            : oc.kind === "chips" ? "" : pg.mapLabel(oc.map, oc.defKey)
+        changed: oc.curKey !== oc.defKey
+
+        Loader {
+            anchors.fill: parent
+            sourceComponent: oc.kind === "sw" ? swCmp : oc.kind === "chips" ? chipsCmp : segCmp
+        }
+        Component {
+            id: swCmp
+            Sw {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                on: oc.curKey === oc.onKey
+                onToggled: (v) => pg.setOption(oc.ids, v ? oc.onKey : "")
+            }
+        }
+        Component {
+            id: segCmp
+            Seg {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                options: pg.labels(oc.map)
+                current: pg.mapLabel(oc.map, oc.curKey)
+                onChose: (lb) => pg.setOption(oc.ids, pg.mapKey(oc.map, lb))
+            }
+        }
+        Component {
+            id: chipsCmp
+            Chips {
+                anchors.fill: parent
+                options: pg.labels(oc.map)
+                current: pg.mapLabel(oc.map, oc.curKey)
+                onChose: (lb) => pg.setOption(oc.ids, pg.mapKey(oc.map, lb))
+            }
+        }
+    }
+
+    // ── a catalogue pick cell (layout / variant) ────────────────────────────
+    // The taxonomy's pick foot bar reserves no width in the shared Cell, so the
+    // catalogue rides an inline PickBar on the right; the current value is its
+    // own readout, and the 2px changed bar carries the dirty cue.
+    component PickCell: Cell {
+        id: pc
+        property string cellLabel: ""
+        property string cellDesc: ""
+        property string pickTitle: ""
+        property var list: []
+        property string currentCode: ""
+        property string committedCode: ""
+        property var applyFn: null
+
+        readonly property real gutter: Tokens.s2
+        readonly property real colW: parent ? (parent.width - 11 * gutter) / 12 : 0
+        function spanW(n) { return n * pc.colW + (n - 1) * pc.gutter; }
+
+        width: pc.spanW(Spans.of("pick", 0))
+        height: Tokens.cellH
+        block: false
+        controlWidth: 170
+        source: "hypr"
+        label: pc.cellLabel
+        desc: pc.cellDesc
+        value: ""
+        changed: pc.currentCode !== pc.committedCode
+
+        PickBar {
+            anchors.fill: parent
+            value: pg.nameIn(pc.list, pc.currentCode)
+            count: pc.list.length
+            onOpened: pg.openCat(pc.pickTitle, pc.list, pc.currentCode, pc.applyFn)
+        }
+    }
+
+    // background typography: the section kanji set huge and faint behind the
+    // whole page, bled off the lower-right and softened, so it dresses the dead
+    // margin without ever competing with a control. Texture, not text to read.
+    Watermark {
+        anchors.fill: parent
+        text: "入力"
+    }
+
+    // ── head: eyebrow, Fraunces title, blurb (matches every settings page) ──
+    Column {
+        id: head
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        spacing: Tokens.s2
+
+        Row {
+            spacing: Tokens.s2
+            Rectangle {
+                width: 16; height: 1; color: Tokens.ink
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                text: "力"; color: Tokens.ink; font.family: Tokens.jp
+                font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                text: "SYSTEM"; color: Tokens.inkMuted; font.family: Tokens.ui
+                font.pixelSize: 9; font.weight: Font.Medium; font.letterSpacing: Tokens.trackMark
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+        Text {
+            text: "Input"; color: Tokens.ink
+            font.family: Tokens.display; font.pixelSize: Tokens.fTitle
+        }
+        Text {
+            width: Math.min(parent.width, 720)
+            text: "Keyboard layout and remaps, pointer and touchpad behaviour, and key repeat for the Hyprland session. Edits preview live; nothing is written until you save."
+            color: Tokens.inkMuted; font.family: Tokens.ui
+            font.pixelSize: Tokens.fBody; wrapMode: Text.WordWrap
+        }
+    }
+
+    // marginalia in the head's right margin: the section register, ink only.
+    // Input draws its own head, so it carries its own strip (framed pages get
+    // the shared rail + bar registers automatically, but not a head one).
+    Marginalia {
+        anchors { right: parent.right; top: head.top }
+        anchors.rightMargin: Tokens.s6; anchors.topMargin: Tokens.s1
+        kana: "入力"
+        index: "02"; label: "SYSTEM"
+        glyph: "wave"; glyph2: "column"
+    }
+
+    // ── KEYBOARD MAP: pinned under the head so it stays in view while you edit,
+    // never scrolled to. A compact live diagram of the layout and the remaps,
+    // beside a decorative plate that fills the space the small keyboard leaves.
+    // The page's one red head -- a showcase surface, not a settings group.
+    Section {
+        id: kbmSect
+        anchors {
+            left: parent.left; right: parent.right; top: head.bottom
+            topMargin: Tokens.s5; rightMargin: Tokens.s3
+        }
+        title: "KEYBOARD MAP"
+        titleColor: Tokens.sunDeep
+
+        Row {
+            spacing: Tokens.s4
+            KeyboardMap {
+                id: pinnedMap
+                compact: true
+                keyMax: 40
+                width: Math.round(kbmSect.span(Spans.cols) * 0.46)
+                height: implicitHeight
+                layoutCode: pg.primaryLayout(false)
+                layoutName: pg.nameIn(pg.layoutOptions, pg.primaryLayout(false))
+                styleName: pg.nameIn(pg.variantOptions, pg.primaryVariant(false))
+                capsFn: pg.pickFrom(pg.capsIds, false)
+                swapAltSuper: pg.pickFrom([pg.swapId], false) === pg.swapId
+                composeKey: pg.pickFrom(pg.composeIds, false)
+                switchChord: pg.pickFrom(pg.grpIds, false)
+                numlock: pg.hv("input.numlockByDefault") === true
+            }
+            Decor {
+                width: kbmSect.span(Spans.cols) - pinnedMap.width - Tokens.s4
+                height: pinnedMap.height
+                title: "入力"; sub: "キーボード"
+                tate: "配列と再配置"
+                caption: "The layout, and the keys you taught new jobs. It answers live as you edit."
+                code: "INPUT-02"; seal: "力"; seed: 4; ditherFreq: 1.0; boxId: "input.map"
+            }
+        }
+    }
+
+    // ── the scrolling body ──────────────────────────────────────────────────
+    Flickable {
+        id: flick
+        anchors {
+            left: parent.left; right: parent.right
+            top: kbmSect.bottom; bottom: parent.bottom
+            topMargin: Tokens.s5
+        }
+        contentWidth: width
+        contentHeight: Math.max(body.height, height)
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollRail { policy: ScrollBar.AsNeeded }
+
+        Column {
+            id: body
+            width: flick.width - Tokens.s3   // reserve a lane for the scroll rail
+            spacing: Tokens.s5
+
+            Section {
+                id: kbSect
+                width: parent.width
+                title: "KEYBOARD"
+
+                PickCell {
+                    cellLabel: "Layout"
+                    cellDesc: "The main keyboard layout."
+                    pickTitle: "KEYBOARD LAYOUT"
+                    list: pg.layoutOptions
+                    currentCode: pg.primaryLayout(false)
+                    committedCode: pg.primaryLayout(true)
+                    applyFn: function (code) { pg.setLayouts(code, pg.secondaryLayout(false)); }
+                }
+                PickCell {
+                    cellLabel: "Style"
+                    cellDesc: "A variant of the main layout, like Dvorak or intl."
+                    pickTitle: "LAYOUT STYLE"
+                    list: pg.variantOptions
+                    currentCode: pg.primaryVariant(false)
+                    committedCode: pg.primaryVariant(true)
+                    applyFn: function (code) { pg.setVariant(code); }
+                }
+                PickCell {
+                    cellLabel: "Second layout"
+                    cellDesc: "A spare layout kept loaded; the chord below switches to it."
+                    pickTitle: "SECOND LAYOUT"
+                    list: [{ "code": "", "name": "None" }].concat(pg.layoutOptions)
+                    currentCode: pg.secondaryLayout(false)
+                    committedCode: pg.secondaryLayout(true)
+                    applyFn: function (code) { pg.setLayouts(pg.primaryLayout(false), code); }
+                }
+                OptCell {
+                    gate: pg.secondaryLayout(false).length > 0
+                    cellLabel: "Switch layouts"
+                    cellDesc: "The chord that toggles between the two loaded layouts."
+                    ids: pg.grpIds
+                    map: pg.grpMap
+                    kind: "seg"
+                }
+                Setting {
+                    path: "input.numlockByDefault"
+                    ctl: "sw"
+                    label: "Numlock on at login"
+                    desc: "Start each session with the keypad typing digits."
+                }
+                Decor {
+                    width: kbSect.span(12)
+                    height: Tokens.cellH
+                    title: "配列"; sub: "レイアウト"
+                    tate: "指の地図"
+                    caption: "The map under your fingers -- the layout loaded, and the spare kept a chord away."
+                    code: "LAYOUT"; seal: "列"; seed: 2; ditherFreq: 1.2; boxId: "input.keyboard"
+                }
+            }
+
+            Section {
+                id: krSect
+                width: parent.width
+                title: "KEY REMAPS"
+
+                OptCell {
+                    cellLabel: "Caps Lock"
+                    cellDesc: "Turn the Caps Lock key into something more useful."
+                    ids: pg.capsIds
+                    map: pg.capsMap
+                    kind: "chips"
+                }
+                OptCell {
+                    cellLabel: "Swap Alt and Super"
+                    cellDesc: "Exchange the Alt and Super modifier keys."
+                    ids: [pg.swapId]
+                    map: []
+                    kind: "sw"
+                    onKey: pg.swapId
+                }
+                OptCell {
+                    cellLabel: "Compose key"
+                    cellDesc: "A key that begins a compose sequence for accents and symbols."
+                    ids: pg.composeIds
+                    map: pg.composeMap
+                    kind: "seg"
+                }
+
+                // Extra options: the free-text escape hatch. Everything the
+                // family pickers do not recognise round-trips here. Commit on
+                // editing-finished (not per keystroke, which would fight the
+                // tokeniser mid-word) and re-bind to the draft on focus loss so
+                // Reset/Revert refresh the shown text after a manual edit.
+                Cell {
+                    id: extraCell
+                    width: krSect.span(12)
+                    height: Tokens.cellH
+                    block: true
+                    source: "hypr"
+                    label: "Extra options"
+                    desc: "Raw xkb options, comma separated. The pickers above manage their own."
+                    value: ""
+                    changed: pg.extraOptions(false) !== pg.extraOptions(true)
+
+                    Field {
+                        id: extraField
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        tabular: true
+                        placeholder: "raw xkb options, comma separated"
+                        text: pg.extraOptions(false)
+                        onCommitted: (v) => pg.setExtra(v)
+                        onFocusedChanged: if (!extraField.focused)
+                            extraField.text = Qt.binding(function () { return pg.extraOptions(false); })
+                    }
+                }
+
+                // Apply system-wide: privileged localectl write to /etc, gated on
+                // the keyboard keys already being saved so the console matches
+                // what the compositor shows.
+                Cell {
+                    width: krSect.span(Spans.of("sw", 0))
+                    height: Tokens.cellH
+                    controlWidth: 84
+                    source: "vconsole"
+                    label: "Apply system-wide"
+                    desc: "Also set the login screen and TTY keymap via localectl."
+                    value: ""
+                    changed: false
+
+                    Btn {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "APPLY"
+                        armed: pg.kbClean && !sysApplyProc.running
+                        onAct: sysApplyProc.running = true
+                    }
+                }
+                // paired readout: the last apply result, self-clearing after 6s.
+                // No colour; the word carries the state (DESIGN.md section 1).
+                Cell {
+                    width: krSect.span(Spans.of("seg", 3))
+                    height: Tokens.cellH
+                    controlWidth: 0
+                    source: "vconsole"
+                    label: "Login screen and TTY"
+                    value: pg.sysApplyState === "ok" ? "APPLIED"
+                        : pg.sysApplyState === "err" ? "FAILED" : "READY"
+                    desc: pg.sysApplyState === "ok" ? "Applied to the login screen and console."
+                        : pg.sysApplyState === "err" ? "Not applied. Cancelled or failed."
+                        : "They keep their own keymap until you apply."
+                    changed: false
+                }
+                Decor {
+                    width: krSect.span(12)
+                    height: Tokens.cellH
+                    title: "変換"; sub: "リマップ"
+                    tate: "鍵の再定義"
+                    caption: "Every key can be taught a new job -- Caps made useful, modifiers swapped, a compose key at hand."
+                    code: "REMAP"; seal: "変"; seed: 3; ditherFreq: 1.5; boxId: "input.remaps"
+                }
+            }
+
+            Section {
+                id: ptSect
+                width: parent.width
+                title: "POINTER"
+
+                Setting {
+                    path: "input.sensitivity"
+                    ctl: "slid"; lo: -1; hi: 1; sc: 100; dec: 2
+                    label: "Sensitivity"
+                    desc: "Pointer speed offset; 0 is the device default."
+                }
+                Setting {
+                    path: "input.mouseScrollFactor"
+                    ctl: "slid"; lo: 0.2; hi: 3; sc: 10; dec: 1; unit: "×"
+                    label: "Scroll speed"
+                    desc: "Multiplier on each wheel notch."
+                }
+                Setting {
+                    path: "input.followMouse"
+                    ctl: "seg"; asInt: true
+                    opts: [{ "key": 0, "label": "Off" }, { "key": 1, "label": "Normal" }, { "key": 2, "label": "Loose" }]
+                    label: "Follow mouse"
+                    desc: "How focus follows the pointer; Loose keeps typing put."
+                }
+                Setting {
+                    path: "input.leftHanded"
+                    ctl: "sw"
+                    label: "Left-handed buttons"
+                    desc: "Swap the left and right mouse buttons."
+                }
+                Setting {
+                    path: "input.accelProfile"
+                    ctl: "seg"
+                    opts: [{ "key": "", "label": "Default" }, { "key": "flat", "label": "Flat" }, { "key": "adaptive", "label": "Adaptive" }]
+                    label: "Acceleration"
+                    desc: "Flat ties travel to the hand; Adaptive speeds quick moves."
+                }
+                Setting {
+                    path: "input.mouseNaturalScroll"
+                    ctl: "sw"
+                    label: "Natural scroll"
+                    desc: "Roll the wheel up and the page moves up."
+                }
+                Setting {
+                    path: "input.middleClickPaste"
+                    ctl: "sw"
+                    label: "Middle-click pastes"
+                    desc: "Press the wheel to insert the last highlighted text."
+                }
+                Decor {
+                    width: ptSect.span(8)
+                    height: Tokens.cellH
+                    title: "操作"; sub: "ポインタ"
+                    tate: "手の記憶"
+                    caption: "The hand on the glass. Speed, acceleration, and the buttons under your fingers."
+                    code: "POINTER"; seal: "操"; seed: 21; ditherFreq: 1.4; boxId: "input.pointer"
+                }
+            }
+
+            Section {
+                id: tpSect
+                width: parent.width
+                title: "TOUCHPAD"
+
+                Setting {
+                    path: "input.naturalScroll"
+                    ctl: "sw"
+                    label: "Natural scroll"
+                    desc: "Two fingers drag the content like a touchscreen."
+                }
+                Setting {
+                    path: "input.tapToClick"
+                    ctl: "sw"
+                    label: "Tap to click"
+                    desc: "A tap counts as a click; two fingers right, three middle."
+                }
+                Setting {
+                    path: "input.tapAndDrag"
+                    ctl: "sw"
+                    label: "Tap and drag"
+                    desc: "Tap, then hold the finger down to drag what you tapped."
+                }
+                Setting {
+                    path: "input.disableWhileTyping"
+                    ctl: "sw"
+                    label: "Disable while typing"
+                    desc: "Ignore the touchpad while you type so a palm cannot nudge it."
+                }
+                Setting {
+                    path: "input.clickfinger"
+                    ctl: "sw"
+                    label: "Click by finger count"
+                    desc: "One finger clicks left, two right, three middle."
+                }
+                Setting {
+                    path: "input.middleEmulation"
+                    ctl: "sw"
+                    label: "Emulate middle click"
+                    desc: "Press left and right together for a middle click."
+                }
+                Setting {
+                    path: "input.touchScrollFactor"
+                    ctl: "slid"; lo: 0.2; hi: 3; sc: 10; dec: 1; unit: "×"
+                    label: "Scroll speed"
+                    desc: "Multiplier on two-finger scroll distance."
+                }
+                Setting {
+                    path: "input.workspaceSwipe"
+                    ctl: "sw"
+                    label: "Swipe between workspaces"
+                    desc: "A horizontal swipe slides to the next workspace."
+                }
+                Setting {
+                    path: "input.swipeFingers"
+                    ctl: "seg"; asInt: true; gate: pg.swipeOn
+                    opts: [{ "key": 3, "label": "3" }, { "key": 4, "label": "4" }]
+                    label: "Swipe fingers"
+                    desc: "How many fingers count as a workspace swipe."
+                }
+                Setting {
+                    path: "input.swipeInvert"
+                    ctl: "sw"; gate: pg.swipeOn
+                    label: "Natural swipe direction"
+                    desc: "The workspace row follows your fingers."
+                }
+                Setting {
+                    path: "input.swipeCreateNew"
+                    ctl: "sw"; gate: pg.swipeOn
+                    label: "Swipe past the last workspace"
+                    desc: "Swiping past the end opens a fresh workspace instead of stopping."
+                }
+                Setting {
+                    path: "input.swipeDistance"
+                    ctl: "slid"; lo: 100; hi: 600; sc: 1; dec: 0; unit: "px"; gate: pg.swipeOn
+                    label: "Swipe distance"
+                    desc: "Finger travel for a full switch; lower flips sooner."
+                }
+                Decor {
+                    width: tpSect.span(12)
+                    height: Tokens.cellH
+                    title: "触覚"; sub: "タッチパッド"
+                    tate: "指の対話"
+                    caption: "The glass that reads your fingers -- taps, drags, and the swipe between worlds."
+                    code: "TOUCHPAD"; seal: "触"; seed: 6; ditherFreq: 0.9; boxId: "input.touchpad"
+                }
+            }
+
+            Section {
+                id: rpSect
+                width: parent.width
+                title: "KEY REPEAT"
+
+                Setting {
+                    path: "input.repeatRate"
+                    ctl: "step"; lo: 1; hi: 100; stepBy: 1; unit: "/s"
+                    label: "Repeat rate"
+                    desc: "Characters per second while a key is held."
+                }
+                Setting {
+                    path: "input.repeatDelay"
+                    ctl: "step"; lo: 100; hi: 2000; stepBy: 50; unit: "ms"
+                    label: "Repeat delay"
+                    desc: "Pause before a held key starts repeating."
+                }
+                Decor {
+                    width: rpSect.span(4)
+                    height: Tokens.cellH
+                    title: "連打"; sub: "リピート"
+                    caption: "How fast a held key repeats, and the pause before it starts."
+                    code: "REPEAT"; seal: "連"; seed: 33; ditherFreq: 0.8; boxId: "input.repeat"
+                }
+            }
+        }
+    }
+
+    // ── the catalogue overlay: paperLift + lineStrong, one z-plane above ──────
+    Item {
+        anchors.fill: parent
+        visible: pg.catList !== null
+        z: 900
+
+        Rectangle {
+            anchors.fill: parent
+            color: Tokens.paper
+            opacity: 0.55
+            TapHandler { onTapped: pg.closeCat() }
+        }
+        Picker {
+            id: catPicker
+            anchors.centerIn: parent
+            title: pg.catTitle
+            options: pg.catNames
+            current: pg.catCurrentName
+            onChose: (name) => pg.chooseCat(name)
+            onDismissed: pg.closeCat()
+        }
+    }
+}

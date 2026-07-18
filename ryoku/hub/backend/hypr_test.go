@@ -647,7 +647,7 @@ func TestGenPluginsHyprglass(t *testing.T) {
 	o.Plugins.Hyprglass.Enabled = true
 	out := genLua(o, true)
 	for _, want := range []string{
-		`hl.config({ plugin = { hyprglass = { enabled = 1, default_preset = "clear", blur_strength = 2.0, glass_opacity = 1.0, tint_color = 0x8899aa22 } } })`,
+		`hl.config({ plugin = { hyprglass = { enabled = 1, default_preset = "clear", blur_strength = 2.0, glass_opacity = 1.0, tint_color = 0x8899aa22, brightness = 1.0, default_theme = "dark" } } })`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
@@ -661,7 +661,7 @@ func TestGenPluginsImgborders(t *testing.T) {
 	o.Plugins.Imgborders.Enabled = true
 	o.Plugins.Imgborders.Image = "/home/x/b.png"
 	out := genLua(o, true)
-	want := `hl.config({ plugin = { imgborders = { enabled = true, image = "/home/x/b.png", sizes = "8,8,8,8", insets = "0,0,0,0", scale = 1.0, smooth = true } } })`
+	want := `hl.config({ plugin = { imgborders = { enabled = true, image = "/home/x/b.png", sizes = "8,8,8,8", insets = "0,0,0,0", scale = 1.0, smooth = true, blur = false } } })`
 	if !strings.Contains(out, want) {
 		t.Errorf("missing %q:\n%s", want, out)
 	}
@@ -798,6 +798,165 @@ func TestGenLuaAppOverride(t *testing.T) {
 	for _, want := range []string{`class = "mpv"`, "no_blur = true", "opaque = true"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("app override not emitted through genLua (%q):\n%s", want, out)
+		}
+	}
+}
+
+// decoration extras (fullscreen / dim / blur / shadow) follow the same diff
+// rule: only a changed leaf lands, and the shadow colour uses the rgb() helper.
+func TestGenLuaDecorationExtras(t *testing.T) {
+	o := defaultOverrides()
+	o.Appearance.FullscreenOpacity = 0.9
+	o.Appearance.DimSpecial = 0.5
+	o.Appearance.DimAround = 0.6
+	o.Appearance.DimModal = false
+	o.Appearance.BorderPartOfWindow = false
+	o.Appearance.BlurContrast = 1.2
+	o.Appearance.BlurBrightness = 0.5
+	o.Appearance.BlurSpecial = true
+	o.Appearance.BlurPopups = true
+	o.Appearance.BlurIgnoreOpacity = false
+	o.Appearance.BlurNewOptimizations = false
+	o.Appearance.BlurVibrancyDarkness = 0.5
+	o.Appearance.ShadowSharp = true
+	o.Appearance.ShadowScale = 0.8
+	o.Appearance.ShadowColor = "#ffffff"
+	out := genLua(o, true)
+	for _, want := range []string{
+		"fullscreen_opacity = 0.9", "dim_special = 0.5", "dim_around = 0.6",
+		"dim_modal = false", "border_part_of_window = false",
+		"contrast = 1.2", "brightness = 0.5", "special = true", "popups = true",
+		"ignore_opacity = false", "new_optimizations = false", "vibrancy_darkness = 0.5",
+		"sharp = true", "scale = 0.8", `color = "rgb(ffffff)"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	// untouched leaves stay out of settings.lua.
+	for _, not := range []string{"dim_strength", "noise"} {
+		if strings.Contains(out, not) {
+			t.Errorf("unchanged %q was emitted:\n%s", not, out)
+		}
+	}
+}
+
+// general extras (border grab, resize corner, workspace gaps) diff-guard the
+// same way as the rest of the general block.
+func TestGenLuaGeneralExtras(t *testing.T) {
+	o := defaultOverrides()
+	o.Appearance.ExtendBorderGrab = 20
+	o.Appearance.HoverIconOnBorder = false
+	o.Appearance.NoFocusFallback = true
+	o.Appearance.ResizeCorner = 3
+	o.Appearance.GapsWorkspaces = 10
+	out := genLua(o, true)
+	for _, want := range []string{
+		"extend_border_grab_area = 20", "hover_icon_on_border = false",
+		"no_focus_fallback = true", "resize_corner = 3", "gaps_workspaces = 10",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "resize_on_border") {
+		t.Errorf("unchanged resize_on_border was emitted:\n%s", out)
+	}
+}
+
+// the dwindle layout knobs emit as their own diff-guarded `dwindle = {}` block,
+// with the friendly force-split label mapped to Hyprland's integer.
+func TestGenLuaDwindleSection(t *testing.T) {
+	o := defaultOverrides()
+	o.Dwindle.PreserveSplit = true
+	o.Dwindle.SmartSplit = true
+	o.Dwindle.SmartResizing = false
+	o.Dwindle.DefaultSplitRatio = 1.3
+	o.Dwindle.ForceSplit = "right/bottom"
+	o.Dwindle.UseActiveForSplits = false
+	out := genLua(o, true)
+	if !strings.Contains(out, "dwindle = {") {
+		t.Errorf("dwindle block missing:\n%s", out)
+	}
+	for _, want := range []string{
+		"preserve_split = true", "smart_split = true", "smart_resizing = false",
+		"default_split_ratio = 1.3", "force_split = 2", "use_active_for_splits = false",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	// master untouched -> no master block.
+	if strings.Contains(out, "master = {") {
+		t.Errorf("unchanged master block emitted:\n%s", out)
+	}
+	// force-split label maps by index.
+	o.Dwindle.ForceSplit = "left/top"
+	if !strings.Contains(genLua(o, true), "force_split = 1") {
+		t.Errorf("force_split left/top should map to 1")
+	}
+	// all-default dwindle emits nothing.
+	if strings.Contains(genLua(defaultOverrides(), true), "dwindle = {") {
+		t.Errorf("default dwindle knobs must emit no block")
+	}
+}
+
+// the master layout knobs emit as their own `master = {}` block; the enum knobs
+// are Lua strings.
+func TestGenLuaMasterSection(t *testing.T) {
+	o := defaultOverrides()
+	o.Master.Mfact = 0.6
+	o.Master.NewStatus = "master"
+	o.Master.NewOnTop = true
+	o.Master.Orientation = "right"
+	o.Master.SmartResizing = false
+	out := genLua(o, true)
+	if !strings.Contains(out, "master = {") {
+		t.Errorf("master block missing:\n%s", out)
+	}
+	for _, want := range []string{
+		"mfact = 0.6", `new_status = "master"`, "new_on_top = true",
+		`orientation = "right"`, "smart_resizing = false",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "dwindle = {") {
+		t.Errorf("unchanged dwindle block emitted:\n%s", out)
+	}
+}
+
+// the plugin option gaps (imgborders blur, hyprglass brightness / default_theme)
+// pass through whenever their plugin is enabled.
+func TestGenPluginsOptionExtras(t *testing.T) {
+	o := defaultOverrides()
+	o.Plugins.Hyprglass.Enabled = true
+	o.Plugins.Hyprglass.Brightness = 1.5
+	o.Plugins.Hyprglass.Theme = "light"
+	o.Plugins.Imgborders.Enabled = true
+	o.Plugins.Imgborders.Blur = true
+	out := genLua(o, true)
+	for _, want := range []string{
+		"brightness = 1.5", `default_theme = "light"`, "blur = true",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// a saved store carrying the new top-level dwindle/master sections round-trips
+// through parseOverrides into the emitted config (the hub's save path).
+func TestParseOverridesDwindleMaster(t *testing.T) {
+	o, err := parseOverrides(`{"dwindle":{"forceSplit":"left/top","smartResizing":false},"master":{"orientation":"center","mfact":0.7}}`)
+	if err != nil {
+		t.Fatalf("parseOverrides: %v", err)
+	}
+	out := genLua(o, true)
+	for _, want := range []string{"force_split = 1", "smart_resizing = false", `orientation = "center"`, "mfact = 0.7"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
 		}
 	}
 }

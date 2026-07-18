@@ -20,7 +20,16 @@ Item {
     property string source: ""
     property bool changed: value !== def
     property bool block: false      // control gets its own band under the text
+    property int footH: 0           // reserved bar band at the cell foot (pick)
     property int controlWidth: 0    // reserved when inline
+
+    // the height this cell actually needs: block cells hug their control (a
+    // gallery is as tall as its tiles, a lone chip row stays a row), inline
+    // cells keep the fixed cell height plus any reserved foot band. The sheet
+    // binds to this, so a control can never overflow into the next cell.
+    readonly property real neededHeight: cell.block
+        ? Tokens.s3 + txtCol.height + Tokens.s3 + slot.height + Tokens.s3
+        : Tokens.cellH + cell.footH
     default property alias control: slot.data
 
     readonly property bool hovered: hh.hovered
@@ -61,9 +70,10 @@ Item {
     }
 
     Column {
+        id: txtCol
         anchors { left: parent.left; top: parent.top; margins: Tokens.s3 }
         anchors.leftMargin: Tokens.s4
-        width: cell.width - Tokens.s4 - Tokens.s3 - (cell.block ? 0 : cell.controlWidth + Tokens.s4) - 46
+        width: Math.max(0, cell.width - Tokens.s4 - Tokens.s3 - ((cell.block || cell.footH > 0) ? 0 : cell.controlWidth + Tokens.s4) - 46)
         spacing: 0
 
         Text {
@@ -79,13 +89,22 @@ Item {
         Row {
             spacing: Tokens.s1
             Text {
+                id: vTxt
                 text: cell.value
                 color: Tokens.ink
                 font.family: Tokens.ui
                 font.pixelSize: cell.value.length > 8 ? 18 : Tokens.fValue
                 font.weight: Font.Light
+                // a long value (a file path) elides in the middle instead of
+                // running over the neighbouring cell.
+                width: Math.min(implicitWidth, txtCol.width
+                    - (uTxt.visible ? uTxt.implicitWidth + Tokens.s1 : 0)
+                    - (dTxt.visible ? dTxt.implicitWidth + Tokens.s1 : 0))
+                elide: Text.ElideMiddle
             }
             Text {
+                id: uTxt
+                visible: cell.unit !== ""
                 text: cell.unit
                 color: Tokens.inkMuted
                 font.family: Tokens.ui
@@ -94,6 +113,7 @@ Item {
                 anchors.bottomMargin: 5
             }
             Text {
+                id: dTxt
                 visible: cell.changed && cell.def !== ""
                 text: cell.def + (cell.unit ? " " + cell.unit : "")
                 color: Tokens.inkFaint
@@ -119,14 +139,21 @@ Item {
 
     Item {
         id: slot
+        readonly property bool banded: cell.block || cell.footH > 0
         anchors.right: parent.right
         anchors.rightMargin: Tokens.s4
-        anchors.verticalCenter: cell.block ? undefined : parent.verticalCenter
-        anchors.bottom: cell.block ? parent.bottom : undefined
+        anchors.verticalCenter: slot.banded ? undefined : parent.verticalCenter
+        anchors.bottom: slot.banded ? parent.bottom : undefined
         anchors.bottomMargin: Tokens.s3
-        anchors.left: cell.block ? parent.left : undefined
+        anchors.left: slot.banded ? parent.left : undefined
         anchors.leftMargin: Tokens.s4
-        height: cell.block ? Math.max(Tokens.ctlH, childrenRect.height) : Tokens.ctlH
-        width: cell.block ? undefined : cell.controlWidth
+        // a block control's band is its content's implicit height (a Flow
+        // reports it from its width), never a guessed row count; reading the
+        // loader's implicit size avoids the childrenRect feedback loop. A foot
+        // control (pick) gets a fixed full-width bar band instead.
+        height: cell.block
+            ? Math.max(Tokens.ctlH, slot.children.length > 0 ? slot.children[0].implicitHeight : 0)
+            : Tokens.ctlH
+        width: slot.banded ? undefined : cell.controlWidth
     }
 }

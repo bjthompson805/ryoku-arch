@@ -1,6 +1,6 @@
 .pragma library
 
-// ShellSettingsPage as data. 66 settings, 56 controls: the 13 hand-wired
+// ShellSettingsPage as data. 67 settings, 57 controls: the 13 hand-wired
 // member toggles are three sets, not thirteen switches.
 
 var rows = [
@@ -43,6 +43,28 @@ var rows = [
         "key": "osdOpacity",
         "label": "Opacity",
         "desc": "Toast surface opacity over the wallpaper",
+        "ctl": "slid",
+        "src": "shell",
+        "lo": 0.2,
+        "hi": 1.0,
+        "unit": "%",
+        "pct": true
+    },
+    {
+        "tab": "global",
+        "group": "SURFACE",
+        "key": "surfaceColor",
+        "label": "Colour",
+        "desc": "The one colour the frame, bar and island share",
+        "ctl": "color",
+        "src": "shell"
+    },
+    {
+        "tab": "global",
+        "group": "SURFACE",
+        "key": "frameOpacity",
+        "label": "Opacity",
+        "desc": "Frame surface opacity over the wallpaper",
         "ctl": "slid",
         "src": "shell",
         "lo": 0.2,
@@ -112,64 +134,6 @@ var rows = [
     },
     {
         "tab": "global",
-        "group": "BRAND",
-        "key": "name",
-        "label": "Name",
-        "desc": "The name the shell calls this desktop",
-        "ctl": "text",
-        "src": "brand"
-    },
-    {
-        "tab": "global",
-        "group": "BRAND",
-        "key": "markText",
-        "label": "Text mark",
-        "desc": "The glyph the shell uses as its mark",
-        "ctl": "text",
-        "src": "brand"
-    },
-    {
-        "tab": "global",
-        "group": "BRAND",
-        "key": "markImage",
-        "label": "(logo image path \u2014 no label; row of readout + Choose image + Clear)",
-        "desc": "Use an image as the mark instead of the glyph",
-        "ctl": "text",
-        "src": "brand"
-    },
-    {
-        "tab": "global",
-        "group": "BRAND",
-        "key": "markTint",
-        "label": "Tint image to accent",
-        "desc": "Tint the mark image to the accent",
-        "ctl": "sw",
-        "src": "brand"
-    },
-    {
-        "tab": "global",
-        "group": "SURFACE",
-        "key": "surfaceColor",
-        "label": "Colour",
-        "desc": "The one colour the frame, bar and island share",
-        "ctl": "color",
-        "src": "shell"
-    },
-    {
-        "tab": "global",
-        "group": "SURFACE",
-        "key": "frameOpacity",
-        "label": "Opacity",
-        "desc": "Frame surface opacity over the wallpaper",
-        "ctl": "slid",
-        "src": "shell",
-        "lo": 0.2,
-        "hi": 1.0,
-        "unit": "%",
-        "pct": true
-    },
-    {
-        "tab": "global",
         "group": "TEXT",
         "key": "fontFamily",
         "label": "Font",
@@ -219,7 +183,43 @@ var rows = [
         "pct": true
     },
     {
-        "tab": "global",
+        "tab": "desktop",
+        "group": "BRAND",
+        "key": "name",
+        "label": "Name",
+        "desc": "The name the shell calls this desktop",
+        "ctl": "text",
+        "src": "brand"
+    },
+    {
+        "tab": "desktop",
+        "group": "BRAND",
+        "key": "markText",
+        "label": "Text mark",
+        "desc": "The glyph the shell uses as its mark",
+        "ctl": "text",
+        "src": "brand"
+    },
+    {
+        "tab": "desktop",
+        "group": "BRAND",
+        "key": "markImage",
+        "label": "Logo image",
+        "desc": "Use an image as the mark instead of the glyph",
+        "ctl": "text",
+        "src": "brand"
+    },
+    {
+        "tab": "desktop",
+        "group": "BRAND",
+        "key": "markTint",
+        "label": "Tint image to accent",
+        "desc": "Tint the mark image to the accent",
+        "ctl": "sw",
+        "src": "brand"
+    },
+    {
+        "tab": "desktop",
         "group": "WEATHER",
         "key": "weatherLocation",
         "label": "Location",
@@ -228,7 +228,7 @@ var rows = [
         "src": "shell"
     },
     {
-        "tab": "global",
+        "tab": "desktop",
         "group": "WEATHER",
         "key": "weatherUnit",
         "label": "Units",
@@ -269,7 +269,7 @@ var rows = [
         "key": "barStyle",
         "label": "Style",
         "desc": "The bar's module vocabulary",
-        "ctl": "pick",
+        "ctl": "gallery",
         "src": "shell",
         "opts": [
             "noctalia",
@@ -363,8 +363,23 @@ var rows = [
         ]
     },
     {
+        "tab": "bar",
+        "group": "ISLAND",
+        "key": "islandEdge",
+        "label": "Dock edge",
+        "desc": "Which screen edge the island docks to",
+        "ctl": "seg",
+        "src": "shell",
+        "opts": [
+            "top",
+            "bottom",
+            "left",
+            "right"
+        ]
+    },
+    {
         "tab": "sidebar",
-        "group": "LEFT \u00b7 FEATURES",
+        "group": "LEFT SIDEBAR",
         "key": "sidebarLeftEnabled",
         "label": "Enable left sidebar",
         "desc": "Show the Features sidebar on the left edge",
@@ -373,7 +388,7 @@ var rows = [
     },
     {
         "tab": "sidebar",
-        "group": "LEFT \u00b7 FEATURES",
+        "group": "LEFT SIDEBAR",
         "key": "sidebarLeftPanes",
         "label": "Left sidebar panes",
         "desc": "Which panes the Features sidebar carries",
@@ -385,16 +400,7 @@ var rows = [
     },
     {
         "tab": "sidebar",
-        "group": "BEHAVIOUR",
-        "key": "sidebarClickless",
-        "label": "Open on hover",
-        "desc": "Open a sidebar on hover instead of a click",
-        "ctl": "sw",
-        "src": "shell"
-    },
-    {
-        "tab": "sidebar",
-        "group": "RIGHT \u00b7 SYSTEM",
+        "group": "RIGHT SIDEBAR",
         "key": "sidebarRightEnabled",
         "label": "Enable right sidebar",
         "desc": "Show the System sidebar on the right edge",
@@ -403,7 +409,7 @@ var rows = [
     },
     {
         "tab": "sidebar",
-        "group": "RIGHT \u00b7 SYSTEM",
+        "group": "RIGHT SIDEBAR",
         "key": "sidebarRightPanes",
         "label": "Right sidebar panes",
         "desc": "Which panes the System sidebar carries",
@@ -416,6 +422,15 @@ var rows = [
             "weather",
             "recording"
         ]
+    },
+    {
+        "tab": "sidebar",
+        "group": "BEHAVIOUR",
+        "key": "sidebarClickless",
+        "label": "Open on hover",
+        "desc": "Open a sidebar on hover instead of a click",
+        "ctl": "sw",
+        "src": "shell"
     },
     {
         "tab": "sidebar",
@@ -444,6 +459,15 @@ var rows = [
     {
         "tab": "visualizer",
         "group": "STYLE",
+        "key": "enabled",
+        "label": "Enabled",
+        "desc": "Paint the audio spectrum on the desktop",
+        "ctl": "sw",
+        "src": "viz"
+    },
+    {
+        "tab": "visualizer",
+        "group": "STYLE",
         "key": "style",
         "label": "Style",
         "desc": "How the spectrum is drawn",
@@ -461,7 +485,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "LAYOUT",
+        "group": "STYLE",
         "key": "position",
         "label": "Position",
         "desc": "Which screen edge the spectrum sits on",
@@ -475,7 +499,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "LAYOUT",
+        "group": "STYLE",
         "key": "shape",
         "label": "Shape",
         "desc": "The shape of a single bar",
@@ -488,19 +512,10 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "LAYOUT",
+        "group": "STYLE",
         "key": "mirror",
         "label": "Mirror",
         "desc": "Mirror the spectrum around its centre",
-        "ctl": "sw",
-        "src": "viz"
-    },
-    {
-        "tab": "visualizer",
-        "group": "SPECTRUM",
-        "key": "enabled",
-        "label": "Enabled",
-        "desc": "Paint the audio spectrum on the desktop",
         "ctl": "sw",
         "src": "viz"
     },
@@ -537,7 +552,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "SIZE",
+        "group": "SPECTRUM",
         "key": "height",
         "label": "Height",
         "desc": "How tall the spectrum stands",
@@ -550,7 +565,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "SIZE",
+        "group": "SPECTRUM",
         "key": "thickness",
         "label": "Bar width",
         "desc": "How wide each bar is against its gap",
@@ -563,7 +578,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "GLOW",
+        "group": "SPECTRUM",
         "key": "bloom",
         "label": "Bloom",
         "desc": "How much the spectrum glows",
@@ -576,7 +591,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "GLOW",
+        "group": "SPECTRUM",
         "key": "reflection",
         "label": "Reflection",
         "desc": "How much of the spectrum mirrors below it",
@@ -589,7 +604,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "FEEL",
+        "group": "MOTION",
         "key": "smoothing",
         "label": "Smoothing",
         "desc": "How much motion is smoothed between frames",
@@ -602,7 +617,7 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "FEEL",
+        "group": "MOTION",
         "key": "gain",
         "label": "Sensitivity",
         "desc": "Input sensitivity",
@@ -638,11 +653,12 @@ var rows = [
     },
     {
         "tab": "visualizer",
-        "group": "AT REST",
+        "group": "MOTION",
         "key": "idleWave",
         "label": "Idle wave",
         "desc": "Keep a slow wave moving when nothing is playing",
         "ctl": "sw",
         "src": "viz"
     }
+
 ];

@@ -61,9 +61,30 @@ Singleton {
     property bool busy
     property string status
     // the sticky fault surface: errors stay up until dismissed or the next
-    // verb succeeds — a fault that clears itself after 4.5s never happened.
+    // verb succeeds: a fault that clears itself after 4.5s never happened.
     property string fault: ""            // first line, for the fault row
     property string faultDetail: ""      // full engine stderr, un-truncated
+
+    // ---- the yard log (the flight recorder) ---------------------------------
+    // Every receipt and fault already funnels through info()/raiseFault(); the
+    // log is those two functions growing memory instead of evaporating after
+    // 4.5s. Session-scoped, capped at 200, tagged with the machine in focus so
+    // the detail sheet can show one machine's history.
+    property var events: []
+    function _log(kind, text, detail) {
+        var s = ("" + text).trim();
+        if (s.length === 0)
+            return;
+        var d = new Date();
+        function p(n) { return (n < 10 ? "0" : "") + n; }
+        var stamp = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+        var e = events.slice();
+        e.push({ time: stamp, vm: selectedName, kind: kind, text: s, detail: detail || "" });
+        if (e.length > 200)
+            e = e.slice(e.length - 200);
+        events = e;
+    }
+
     function raiseFault(text) {
         var t = ("" + text).trim();
         if (t.length === 0)
@@ -71,9 +92,10 @@ Singleton {
         fault = t.split("\n")[0];
         faultDetail = t;
         status = "";
+        _log("fault", fault, faultDetail);
     }
     function clearFault() { fault = ""; faultDetail = ""; }
-    function info(msg) { status = msg; }
+    function info(msg) { status = msg; _log("info", msg, ""); }
 
     // ---- in-app download (the fast Go fetcher, streamed live) ---------------
     property bool downloading
@@ -101,7 +123,7 @@ Singleton {
         pathsProc.running = true;
     }
 
-    // info lines clear themselves — but not while an operation runs, so a long
+    // info lines clear themselves, but not while an operation runs, so a long
     // seal/restore keeps "Sealing alpine" pinned instead of decaying to mystery.
     onStatusChanged: if (status.length > 0 && !busy) statusClear.restart()
     onBusyChanged: if (!busy && status.length > 0) statusClear.restart()
@@ -119,7 +141,7 @@ Singleton {
     // ---- library ------------------------------------------------------------
     function select(name) {
         // re-selecting the same machine (the 5s poll) keeps the stale detail
-        // on screen until the fresh one lands — nulling it blinked every
+        // on screen until the fresh one lands: nulling it blinked every
         // det-gated section once a poll.
         if (name !== selectedName || detail === null)
             detail = null;
@@ -511,7 +533,7 @@ Singleton {
         }
     }
     // shared lifecycle runner: any verb that mutates, then reloads the library.
-    // Commands issued while one runs are QUEUED — Process.exec mid-run is a
+    // Commands issued while one runs are QUEUED: Process.exec mid-run is a
     // silent no-op, which used to eat rapid stepper clicks and even a Launch.
     // Consecutive writes to the same config key coalesce to the final value.
     Process {
@@ -614,7 +636,7 @@ Singleton {
                 // sits in a pitch-black window with no sign of life (and a plain
                 // timeout would kill a session the user IS logged into). Narrate
                 // instead: say where and as whom, heartbeat while waiting for the
-                // real "SSH-" banner — however long the boot takes — then hand
+                // real "SSH-" banner, however long the boot takes, then hand
                 // over to a plain interactive ssh. Held open on failure so the
                 // fix is readable.
                 var pm = c.match(/-p (\d+)/);
@@ -625,19 +647,19 @@ Singleton {
                 var burn = c.indexOf("/dev/null") >= 0 ? "1" : "";
                 var script = [
                     "cmd=$1; port=$2; vm=$3; user=$4; burn=$5",
-                    "printf '  %s — ssh to localhost:%s as \\033[1m%s\\033[0m\\n' \"$vm\" \"$port\" \"$user\"",
+                    "printf '  %s, ssh to localhost:%s as \\033[1m%s\\033[0m\\n' \"$vm\" \"$port\" \"$user\"",
                     "printf '  wrong account? set it once:  ryovm config %s ryovm_ssh_user <guest user>\\n\\n' \"$vm\"",
                     "hinted=",
                     "until b=$(timeout 3 bash -c \"exec 3<>/dev/tcp/127.0.0.1/$port && head -c4 <&3\" 2>/dev/null); [ \"$b\" = \"SSH-\" ]; do",
-                    "  printf '\\r  waiting for the guest to answer — %ss (first boot can take a minute; Ctrl+C aborts) ' \"$SECONDS\"",
-                    "  if [ \"$SECONDS\" -ge 20 ] && [ -z \"$hinted\" ]; then hinted=1; printf '\\n  still booting — a fresh cloud image provisions itself on first boot (Arch and Fedora take about a minute). This is normal.\\n'; fi",
-                    "  if [ \"$SECONDS\" -ge 180 ]; then printf '\\n\\n  no answer after 3 minutes — the guest may have no SSH server (a live installer ISO never does), or it did not boot.\\n  press Enter to close\\n'; read _; exit 1; fi",
+                    "  printf '\\r  waiting for the guest to answer: %ss (first boot can take a minute; Ctrl+C aborts) ' \"$SECONDS\"",
+                    "  if [ \"$SECONDS\" -ge 20 ] && [ -z \"$hinted\" ]; then hinted=1; printf '\\n  still booting: a fresh cloud image provisions itself on first boot (Arch and Fedora take about a minute). This is normal.\\n'; fi",
+                    "  if [ \"$SECONDS\" -ge 180 ]; then printf '\\n\\n  no answer after 3 minutes: the guest may have no SSH server (a live installer ISO never does), or it did not boot.\\n  press Enter to close\\n'; read _; exit 1; fi",
                     "  sleep 1",
                     "done",
                     "printf '\\n  answered.\\n'",
                     // sshd answers 20-120s BEFORE the tools exist: an instant machine
                     // installs its toolset in cloud-init's FINAL stage. Handing over
-                    // the shell at the SSH banner gives a box with no git/go yet —
+                    // the shell at the SSH banner gives a box with no git/go yet:
                     // invisible on Alpine's ~2s apk, glaring on Arch's ~20s pacman
                     // and Fedora's ~2min dnf (the "it didn't deploy the tools" bug).
                     // For a burn machine, wait for cloud-init to finish before the
@@ -648,16 +670,16 @@ Singleton {
                     "    s=$($cmd cloud-init status 2>/dev/null)",
                     "    case \"$s\" in *done*|*error*|*disabled*) break;; esac",
                     "    [ \"$sec\" -ge 420 ] && break",
-                    "    printf '\\r  provisioning — installing your tools\\342\\200\\246 %ss (first boot only; Ctrl+C for the shell now)   ' \"$sec\"",
+                    "    printf '\\r  provisioning: installing your tools\\342\\200\\246 %ss (first boot only; Ctrl+C for the shell now)   ' \"$sec\"",
                     "    sec=$((sec+3)); sleep 3",
                     "  done",
                     "  trap - INT",
-                    "  if [ -n \"$skip\" ]; then printf '\\n  opening the shell — tools may still be finishing in the background.\\n'; else printf '\\r  tools ready.                                                              \\n'; fi",
+                    "  if [ -n \"$skip\" ]; then printf '\\n  opening the shell: tools may still be finishing in the background.\\n'; else printf '\\r  tools ready.                                                              \\n'; fi",
                     "fi",
                     "printf '\\n  connecting.\\n\\n'",
                     "$cmd",
                     "ec=$?",
-                    "if [ $ec -ne 0 ]; then echo; echo \"ssh exited $ec — a password you never set means the guest has no '$user' account: ryovm config $vm ryovm_ssh_user <guest user>\"; echo 'press Enter to close'; read _; fi"
+                    "if [ $ec -ne 0 ]; then echo; echo \"ssh exited $ec, a password you never set means the guest has no '$user' account: ryovm config $vm ryovm_ssh_user <guest user>\"; echo 'press Enter to close'; read _; fi"
                 ].join("\n");
                 Quickshell.execDetached(["sh", "-c",
                     "exec \"${TERMINAL:-kitty}\" --class ryovm-ssh -e bash -c \"$1\" ryovm-ssh \"$2\" \"$3\" \"$4\" \"$5\" \"$6\"",

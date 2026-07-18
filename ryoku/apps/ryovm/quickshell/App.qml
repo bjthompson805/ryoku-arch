@@ -1,31 +1,29 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import Ryoku.Ui
+import Ryoku.Ui.Singletons
 import "Singletons"
 
-// ryovm: your machines on the left (Library) or the OS catalogue to build from
-// (Catalog); the live machine stage or the create panel on the right. The hero
-// is always the right pane, mirroring ryowalls' shape.
+// ryovm, the monochrome yard. Two lanes: LIBRARY (the yard list left, the machine
+// stage right) and NEW (a CATALOG / INSTANT / ISO channel, its grid or explainer
+// left, its create sheet right). Paper and ink; the departure board keeps the
+// yard's headline; one red hanko on the stage is the only colour the chrome owns.
 Rectangle {
     id: app
 
     implicitWidth: 1180
     implicitHeight: 760
-
-    color: Theme.bgBot
-    gradient: Gradient {
-        GradientStop { position: 0.0; color: Theme.bgTop }
-        GradientStop { position: 1.0; color: Theme.bgBot }
-    }
+    color: Tokens.paper
 
     property bool settingsOpen: false
-    property bool importOpen: false
-    property string mode: "library"     // library | catalog
+    property string mode: "library"     // library | new
+    property string channel: "catalog"  // catalog | instant | iso  (NEW lane)
     property string query: ""
 
     // only a hard hardware fault gates the whole window; a missing engine is an
-    // annunciator banner instead, so the library (list/import need no engine)
-    // stays a working room rather than a locked door.
+    // annunciator banner, so the library (list needs no engine) stays a working
+    // room rather than a locked door.
     readonly property bool gated: Vm.capsLoaded && Vm.kvmOff
     readonly property bool engineMissing: Vm.capsLoaded && !Vm.kvmOff && !Vm.caps.quickemu
     readonly property int runningCount: {
@@ -35,26 +33,22 @@ Rectangle {
                 n++;
         return n;
     }
+    readonly property bool pending: Vm.downloading || Vm.busy
 
     focus: true
-    // keyboard grammar: Esc dismisses one layer and never quits (that muscle
-    // memory kills downloads); arrows walk the library, Enter launches/stops,
-    // / or Ctrl+F jumps to search, Ctrl+Q quits — with a handshake when a
-    // download would die with the window.
     Keys.onEscapePressed: {
-        if (app.importOpen) app.importOpen = false;
-        else if (app.settingsOpen) app.settingsOpen = false;
-        else if (input.activeFocus) { input.focus = false; app.forceActiveFocus(); }
+        if (app.settingsOpen) app.settingsOpen = false;
+        else if (search.focused) app.forceActiveFocus();
         else if (app.query.length > 0) app.query = "";
-        else if (app.mode === "catalog") app.mode = "library";
+        else if (app.mode === "new") app.mode = "library";
     }
     Keys.onUpPressed: app.moveSelection(-1)
     Keys.onDownPressed: app.moveSelection(1)
     Keys.onReturnPressed: app.launchSelected()
     Keys.onEnterPressed: app.launchSelected()
     Shortcut {
-        sequences: ["/", "Ctrl+F"]
-        onActivated: { if (!input.activeFocus) { input.forceActiveFocus(); input.selectAll(); } }
+        sequences: ["/", "Ctrl+K"]
+        onActivated: { search.focus(); }
     }
     Shortcut { sequence: "Ctrl+Q"; onActivated: app.requestQuit() }
 
@@ -77,7 +71,7 @@ Rectangle {
     }
     function requestQuit() {
         if (Vm.downloading && !quitArm.running) {
-            Vm.info("A download is running — Cancel it, or quit again to abandon it");
+            Vm.info("A download is running. Cancel it, or quit again to abandon it");
             quitArm.restart();
             return;
         }
@@ -85,10 +79,18 @@ Rectangle {
     }
     Timer { id: quitArm; interval: 3000 }
 
-    onModeChanged: if (mode === "catalog") Vm.loadCatalog(false)
-    // deep-link start mode (the .desktop Browse action, tooling, tests), and an
-    // optional OS to preselect once the catalogue lands.
-    Component.onCompleted: { var m = Quickshell.env("RYOVM_START_MODE"); if (m === "catalog" || m === "instant") mode = m; }
+    onModeChanged: if (mode === "new") app._loadChannel()
+    onChannelChanged: if (mode === "new") app._loadChannel()
+    function _loadChannel() {
+        if (channel === "catalog") Vm.loadCatalog(false);
+        else if (channel === "instant") Vm.loadCloud();
+    }
+
+    // deep-link start mode, and an optional OS to preselect once it lands.
+    Component.onCompleted: {
+        var m = Quickshell.env("RYOVM_START_MODE");
+        if (m === "catalog" || m === "instant") { app.mode = "new"; app.channel = m; }
+    }
     readonly property string startOs: Quickshell.env("RYOVM_START_OS") || ""
     Connections {
         target: Vm
@@ -101,157 +103,146 @@ Rectangle {
         }
     }
 
-    // ---- header -------------------------------------------------------------
+    // ---- head --------------------------------------------------------------
     Item {
         id: header
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 40
-        anchors.rightMargin: 22
-        anchors.topMargin: 18
-        height: 54
+        anchors.leftMargin: Tokens.s6
+        anchors.rightMargin: Tokens.s6
+        anchors.topMargin: Tokens.s5
+        height: 64
 
-        Row {
+        Column {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 11
-            Image {
-                anchors.verticalCenter: parent.verticalCenter
-                source: "logo.svg"
-                sourceSize: Qt.size(30, 30)
-                width: 30
-                height: 30
+            spacing: Tokens.s2
+            Row {
+                spacing: Tokens.s2
+                Rectangle { width: 16; height: 1; color: Tokens.ink; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: "\u529b"; color: Tokens.inkMuted; font.family: Tokens.jp; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                Text {
+                    text: "RYOKU VM"
+                    color: Tokens.inkMuted
+                    font.family: Tokens.ui
+                    font.pixelSize: 9
+                    font.weight: Font.Medium
+                    font.letterSpacing: Tokens.trackMark
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 3
-                Text { text: "ryovm"; color: Theme.bright; font.family: Theme.display; font.pixelSize: 27; font.weight: Font.DemiBold; font.letterSpacing: 0.3 }
-                Text { text: "Build, run and manage virtual machines."; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 }
+            Text {
+                text: "Build, run and manage virtual machines."
+                color: Tokens.inkMuted
+                font.family: Tokens.ui
+                font.pixelSize: 12
             }
         }
 
         Row {
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 14
+            anchors.top: parent.top
+            spacing: Tokens.s1
+            IconBtn { glyph: "\u2699"; onAct: app.settingsOpen = true }
+            IconBtn { glyph: "\u2715"; onAct: app.requestQuit() }
+        }
 
-            // the departure board: the yard's headline, always live.
-            FlapWord {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: !app.gated
-                text: String(Vm.vms.length).padStart(2, "0") + " MACHINES  "
-                    + String(app.runningCount).padStart(2, "0") + " RUNNING"
-                pad: 22
-                cellW: 14
-                cellH: 21
-                fontPx: 12
-            }
-
-            Row {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
-                IconBtn { name: "gear"; onClicked: app.settingsOpen = true }
-                IconBtn { name: "close"; danger: true; onClicked: app.requestQuit() }
-            }
+        // the departure board: the yard's headline, always live.
+        FlapWord {
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            visible: !app.gated
+            text: String(Vm.vms.length).padStart(2, "0") + " MACHINES  "
+                + String(app.runningCount).padStart(2, "0") + " RUNNING"
+            cellW: 14; cellH: 21; fontPx: 12
+            ink: Tokens.ink
         }
     }
 
-    // ---- toolbar ------------------------------------------------------------
+    // ---- toolbar -----------------------------------------------------------
     Item {
         id: toolbar
         anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 40
-        anchors.rightMargin: 24
-        anchors.topMargin: 10
+        anchors.leftMargin: Tokens.s6
+        anchors.rightMargin: Tokens.s6
+        anchors.topMargin: Tokens.s3
         height: 40
         visible: !app.gated
 
-        Segmented {
-            id: modeToggle
+        Seg {
+            id: laneSeg
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            segW: 84
-            model: [{ key: "library", label: "Library" }, { key: "catalog", label: "Catalog" }, { key: "instant", label: "Instant" }]
-            current: app.mode
-            onSelected: (k) => { app.mode = k; app.query = ""; }
+            options: ["LIBRARY", "NEW"]
+            current: app.mode.toUpperCase()
+            onChose: (k) => { app.mode = k.toLowerCase(); app.query = ""; }
         }
 
-        Rectangle {
-            id: searchBox
-            anchors.left: modeToggle.right
-            anchors.leftMargin: 14
+        Field {
+            id: search
+            anchors.left: laneSeg.right
+            anchors.leftMargin: Tokens.s3
             anchors.verticalCenter: parent.verticalCenter
             width: 280
-            height: 38
-            radius: Theme.radius
-            color: Theme.surfaceLo
-            border.width: 1
-            border.color: input.activeFocus ? Theme.ember : Theme.line
-            Behavior on border.color { ColorAnimation { duration: Theme.quick } }
-
-            Icon { id: si; anchors.left: parent.left; anchors.leftMargin: 11; anchors.verticalCenter: parent.verticalCenter; name: "search"; size: 15; tint: Theme.dim }
-            TextInput {
-                id: input
-                anchors.left: si.right
-                anchors.leftMargin: 9
-                anchors.right: parent.right
-                anchors.rightMargin: 11
-                anchors.verticalCenter: parent.verticalCenter
-                color: Theme.bright
-                font.family: Theme.font
-                font.pixelSize: 13
-                selectByMouse: true
-                selectionColor: Theme.frameBg
-                clip: true
-                text: app.query
-                onTextEdited: app.query = text
-                Text {
-                    anchors.fill: parent
-                    visible: input.text.length === 0
-                    verticalAlignment: Text.AlignVCenter
-                    text: app.mode === "library" ? "Filter your machines" : app.mode === "instant" ? "Search instant images" : "Search 90+ operating systems"
-                    color: Theme.faint
-                    font: input.font
-                }
-            }
+            toolbar: true
+            text: app.query
+            placeholder: app.mode === "library" ? "Filter your machines"
+                : app.channel === "instant" ? "Search instant images"
+                : app.channel === "iso" ? "Load ISO"
+                : "Search 90+ operating systems"
+            onEdited: (v) => app.query = v
         }
 
         Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 12
-            HubButton { anchors.verticalCenter: parent.verticalCenter; icon: "disk"; label: "Load ISO"; onClicked: app.importOpen = true }
-            IconBtn { anchors.verticalCenter: parent.verticalCenter; visible: app.mode === "catalog"; name: "refresh"; dim: Vm.catalogLoading; onClicked: Vm.loadCatalog(true) }
+            spacing: Tokens.s2
+            Seg {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: app.mode === "new"
+                options: ["CATALOG", "INSTANT", "ISO"]
+                current: app.channel.toUpperCase()
+                onChose: (k) => { app.channel = k.toLowerCase(); app.query = ""; }
+            }
+            IconBtn {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: app.mode === "new" && app.channel === "catalog"
+                glyph: "\u21bb"
+                armed: !Vm.catalogLoading
+                onAct: Vm.loadCatalog(true)
+            }
         }
     }
 
-    // ---- gate: virtualization off (the only whole-window fault) -------------
+    // ---- gate: virtualization off (the only whole-window fault) ------------
     Item {
         anchors.top: toolbar.bottom
-        anchors.topMargin: 12
+        anchors.topMargin: Tokens.s4
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: statusBar.top
-        anchors.leftMargin: 40
-        anchors.rightMargin: 24
+        anchors.bottom: bottomBar.top
+        anchors.leftMargin: Tokens.s6
+        anchors.rightMargin: Tokens.s6
         visible: app.gated
 
         Column {
             anchors.centerIn: parent
             width: Math.min(parent.width, 520)
-            spacing: 16
-
-            Icon { anchors.horizontalCenter: parent.horizontalCenter; name: "cpu"; size: 40; tint: Theme.bad }
+            spacing: Tokens.s4
+            Mark { anchors.horizontalCenter: parent.horizontalCenter; size: 96 }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 horizontalAlignment: Text.AlignHCenter
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: "Virtualization is off"
-                color: Theme.bright; font.family: Theme.font; font.pixelSize: 18; font.weight: Font.DemiBold
+                color: Tokens.ink
+                font.family: Tokens.ui
+                font.pixelSize: 18
+                font.weight: Font.DemiBold
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -259,7 +250,9 @@ Rectangle {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: "A virtual machine needs hardware virtualization. Turn on SVM / AMD-V (AMD) or VT-x (Intel) in your BIOS/firmware, then reboot."
-                color: Theme.subtle; font.family: Theme.font; font.pixelSize: 13
+                color: Tokens.inkMuted
+                font.family: Tokens.ui
+                font.pixelSize: 13
             }
         }
     }
@@ -268,169 +261,179 @@ Rectangle {
     Rectangle {
         id: engineBanner
         anchors.top: toolbar.bottom
-        anchors.topMargin: app.engineMissing ? 12 : 0
+        anchors.topMargin: app.engineMissing ? Tokens.s3 : 0
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 40
-        anchors.rightMargin: 24
+        anchors.leftMargin: Tokens.s6
+        anchors.rightMargin: Tokens.s6
         height: app.engineMissing ? 44 : 0
-        visible: app.engineMissing
-        color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08)
-        border.width: 1
-        border.color: Qt.alpha(Theme.ember, 0.45)
+        visible: app.engineMissing && !app.gated
+        color: "transparent"
+        radius: Tokens.radius
+        border.width: Tokens.border
+        border.color: Tokens.line
         antialiasing: false
 
         Row {
             anchors.left: parent.left
-            anchors.leftMargin: 14
+            anchors.leftMargin: Tokens.s3
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 10
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10; height: 10
-                color: Theme.ember
-                antialiasing: false
-                SequentialAnimation on visible {
-                    loops: Animation.Infinite
-                    PropertyAction { value: true }
-                    PauseAnimation { duration: 500 }
-                    PropertyAction { value: false }
-                    PauseAnimation { duration: 500 }
-                }
-            }
+            spacing: Tokens.s3
+            Annunciator { anchors.verticalCenter: parent.verticalCenter; label: "ENGINE"; lit: true; tileW: 60 }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "ENGINE OFFLINE"
-                color: Theme.ember
-                font.family: Theme.mono; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 2
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "quickemu is not installed — machines can be imported and configured, not launched."
-                color: Theme.subtle
-                font.family: Theme.font; font.pixelSize: 12
+                text: "quickemu is not installed: machines can be imported and configured, not launched."
+                color: Tokens.inkMuted
+                font.family: Tokens.ui
+                font.pixelSize: 12
             }
         }
-        HubButton {
+        Btn {
             anchors.right: parent.right
-            anchors.rightMargin: 8
+            anchors.rightMargin: Tokens.s2
             anchors.verticalCenter: parent.verticalCenter
-            label: "Install engine"
-            icon: "download"
+            text: "INSTALL ENGINE"
             primary: true
-            onClicked: settings.installEngine()
+            onAct: settings.installEngine()
         }
     }
 
-    // ---- main: grid (left) + hero (right) -----------------------------------
+    // ---- main: the split ---------------------------------------------------
     Item {
         id: main
         anchors.top: engineBanner.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: faultRow.top
-        anchors.leftMargin: 40
-        anchors.rightMargin: 24
-        anchors.topMargin: 12
-        anchors.bottomMargin: 6
+        anchors.bottom: faultStrip.top
+        anchors.leftMargin: Tokens.s6
+        anchors.rightMargin: Tokens.s6
+        anchors.topMargin: Tokens.s4
+        anchors.bottomMargin: Tokens.s2
         visible: !app.gated
 
-        VmGrid {
-            id: lib
+        // the grid: gutter s2, widened to s5 at the seam. Left span 5, right 7.
+        readonly property real gCol: (width - (Spans.cols - 1) * Tokens.s2) / Spans.cols
+        readonly property real leftW: 5 * gCol + 4 * Tokens.s2
+        readonly property int seamW: Tokens.s5
+
+        Item {
+            id: leftCol
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            width: parent.width * 0.44
-            filter: app.query
-            onBuildRequested: app.mode = "catalog"
-            opacity: app.mode === "library" ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
-        }
-        OsGrid {
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: parent.width * 0.44
-            filter: app.query
-            onInstallRequested: settings.installEngine()
-            opacity: app.mode === "catalog" ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
-        }
-        CloudGrid {
-            id: cloud
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: parent.width * 0.44
-            filter: app.query
-            selected: cloudPanel.os
-            onPicked: (e) => cloudPanel.os = e
-            opacity: app.mode === "instant" ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
+            width: main.leftW
+
+            VmGrid {
+                id: lib
+                anchors.fill: parent
+                filter: app.query
+                onBuildRequested: { app.mode = "new"; app.channel = "catalog"; }
+                opacity: app.mode === "library" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+            }
+            OsGrid {
+                anchors.fill: parent
+                filter: app.query
+                onInstallRequested: settings.installEngine()
+                opacity: app.mode === "new" && app.channel === "catalog" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+            }
+            CloudGrid {
+                anchors.fill: parent
+                filter: app.query
+                selected: cloudPanel.os
+                onPicked: (e) => cloudPanel.os = e
+                opacity: app.mode === "new" && app.channel === "instant" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+            }
+            // ISO left column: the mark and one explanatory sentence.
+            Column {
+                anchors.centerIn: parent
+                width: parent.width - 40
+                spacing: Tokens.s4
+                opacity: app.mode === "new" && app.channel === "iso" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+                Mark { anchors.horizontalCenter: parent.horizontalCenter; size: 96 }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: "Build a machine from any ISO on disk: off-catalogue, the full QEMU reach. Fill in the sheet on the right."
+                    color: Tokens.inkMuted
+                    font.family: Tokens.ui
+                    font.pixelSize: 12
+                }
+            }
         }
 
+        // the seam: a 1px hairline centred in the widened gutter.
         Rectangle {
-            id: gutter
-            anchors.left: lib.right
-            anchors.leftMargin: 20
+            anchors.left: leftCol.right
+            anchors.leftMargin: main.seamW / 2
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            anchors.topMargin: 8
-            anchors.bottomMargin: 8
+            anchors.topMargin: Tokens.s2
+            anchors.bottomMargin: Tokens.s2
             width: 1
-            color: Theme.line
+            color: Tokens.line
         }
 
-        VmDetail {
-            anchors.left: gutter.right
-            anchors.leftMargin: 24
+        Item {
+            id: rightCol
+            anchors.left: leftCol.right
+            anchors.leftMargin: main.seamW
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            opacity: app.mode === "library" ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
-        }
-        CreatePanel {
-            anchors.left: gutter.right
-            anchors.leftMargin: 24
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            opacity: app.mode === "catalog" ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
-        }
-        CloudPanel {
-            id: cloudPanel
-            anchors.left: gutter.right
-            anchors.leftMargin: 24
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            opacity: app.mode === "instant" ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
+
+            VmDetail {
+                anchors.fill: parent
+                opacity: app.mode === "library" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+            }
+            CreatePanel {
+                anchors.fill: parent
+                opacity: app.mode === "new" && app.channel === "catalog" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+            }
+            CloudPanel {
+                id: cloudPanel
+                anchors.fill: parent
+                opacity: app.mode === "new" && app.channel === "instant" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+            }
+            IsoPanel {
+                anchors.fill: parent
+                opacity: app.mode === "new" && app.channel === "iso" ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Tokens.swap } }
+            }
         }
     }
 
-    // ---- fault row: errors stay lit until dismissed or superseded -----------
+    // ---- fault strip: sticky until dismissed or superseded -----------------
     Rectangle {
-        id: faultRow
-        anchors.bottom: statusBar.top
+        id: faultStrip
+        anchors.bottom: bottomBar.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 40
-        anchors.rightMargin: 24
-        anchors.bottomMargin: Vm.fault.length > 0 ? 6 : 0
-        height: Vm.fault.length > 0 ? faultCol.implicitHeight + 20 : 0
+        anchors.leftMargin: Tokens.s6
+        anchors.rightMargin: Tokens.s6
+        anchors.bottomMargin: Vm.fault.length > 0 ? Tokens.s2 : 0
+        height: Vm.fault.length > 0 ? faultCol.implicitHeight + 2 * Tokens.s2 : 0
         visible: Vm.fault.length > 0
-        color: Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08)
-        border.width: 1
-        border.color: Qt.alpha(Theme.ember, 0.5)
+        color: "transparent"
+        radius: Tokens.radius
+        border.width: Tokens.border
+        border.color: Tokens.line
         antialiasing: false
         property bool expanded: false
 
@@ -439,8 +442,8 @@ Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 10
-            spacing: 8
+            anchors.margins: Tokens.s2
+            spacing: Tokens.s2
 
             Item {
                 width: parent.width
@@ -448,43 +451,48 @@ Rectangle {
                 Row {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
-                    Annunciator { anchors.verticalCenter: parent.verticalCenter; label: "FAULT"; lit: true; warn: true; litColor: Theme.ember; tileW: 52 }
+                    spacing: Tokens.s3
+                    Annunciator { anchors.verticalCenter: parent.verticalCenter; label: "FAULT"; lit: true; warn: true; tileW: 52 }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: faultRow.width - 220
+                        width: faultStrip.width - 240
                         elide: Text.ElideRight
                         text: Vm.fault
-                        color: Theme.bright
-                        font.family: Theme.font; font.pixelSize: 12
+                        color: Tokens.ink
+                        font.family: Tokens.ui
+                        font.pixelSize: 12
                     }
                 }
                 Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 12
+                    spacing: Tokens.s3
                     Text {
                         visible: Vm.faultDetail.indexOf("\n") >= 0
                         anchors.verticalCenter: parent.verticalCenter
-                        text: faultRow.expanded ? "LESS" : "DETAIL"
-                        color: fdh.hovered ? Theme.bright : Theme.subtle
-                        font.family: Theme.mono; font.pixelSize: 9; font.letterSpacing: 1.5; font.weight: Font.DemiBold
+                        text: faultStrip.expanded ? "LESS" : "DETAIL"
+                        color: fdh.hovered ? Tokens.ink : Tokens.inkMuted
+                        font.family: Tokens.mono
+                        font.pixelSize: 9
+                        font.letterSpacing: 1.5
                         HoverHandler { id: fdh; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: faultRow.expanded = !faultRow.expanded }
+                        TapHandler { onTapped: faultStrip.expanded = !faultStrip.expanded }
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "DISMISS"
-                        color: fxh.hovered ? Theme.ember : Theme.subtle
-                        font.family: Theme.mono; font.pixelSize: 9; font.letterSpacing: 1.5; font.weight: Font.DemiBold
+                        color: fxh.hovered ? Tokens.ink : Tokens.inkMuted
+                        font.family: Tokens.mono
+                        font.pixelSize: 9
+                        font.letterSpacing: 1.5
                         HoverHandler { id: fxh; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: { faultRow.expanded = false; Vm.clearFault(); } }
+                        TapHandler { onTapped: { faultStrip.expanded = false; Vm.clearFault(); } }
                     }
                 }
             }
 
             Flickable {
-                visible: faultRow.expanded
+                visible: faultStrip.expanded
                 width: parent.width
                 height: Math.min(faultDetailText.implicitHeight, 140)
                 contentHeight: faultDetailText.implicitHeight
@@ -495,43 +503,78 @@ Rectangle {
                     width: parent.width
                     wrapMode: Text.WrapAnywhere
                     text: Vm.faultDetail
-                    color: Theme.subtle
-                    font.family: Theme.mono; font.pixelSize: 11
+                    color: Tokens.inkMuted
+                    font.family: Tokens.mono
+                    font.pixelSize: 11
                 }
             }
         }
     }
 
-    // ---- status bar ---------------------------------------------------------
+    // ---- bottom bar --------------------------------------------------------
     Item {
-        id: statusBar
+        id: bottomBar
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 40
-        anchors.rightMargin: 24
-        height: 28
+        height: 60
 
-        Text {
+        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Tokens.line }
+
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: Vm.status.length > 0 ? Vm.status : (Vm.busy ? "Working…" : "")
-            color: Vm.status.length > 0 ? Theme.subtle : Theme.faint
-            font.family: Theme.mono
-            font.pixelSize: 11
-            font.letterSpacing: 0.5
-            Behavior on color { ColorAnimation { duration: Theme.quick } }
+            anchors.leftMargin: Tokens.s6
+            spacing: Tokens.s3
+            Rectangle {
+                width: 6; height: 6
+                anchors.verticalCenter: parent.verticalCenter
+                color: Tokens.ink
+                // a heartbeat, only while something is genuinely pending.
+                SequentialAnimation on opacity {
+                    running: app.pending
+                    loops: Animation.Infinite
+                    NumberAnimation { to: 0.3; duration: 600 }
+                    NumberAnimation { to: 1.0; duration: 600 }
+                }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Vm.downloading ? "BUILDING · " + Vm.dlName
+                    : Vm.busy ? "WORKING"
+                    : Vm.status.length > 0 ? Vm.status
+                    : (app.runningCount > 0 ? app.runningCount + " RUNNING" : "READY")
+                color: Vm.status.length > 0 || app.pending ? Tokens.ink : Tokens.inkDim
+                font.family: Tokens.ui
+                font.pixelSize: 11
+                font.weight: Font.Medium
+                font.letterSpacing: 1.4
+                font.capitalization: Font.AllUppercase
+            }
         }
-        Text {
-            anchors.right: parent.right
+
+        Row {
             anchors.verticalCenter: parent.verticalCenter
-            text: "quickemu"
-            color: Theme.faint
-            font.family: Theme.mono
-            font.pixelSize: 11
+            anchors.right: parent.right
+            anchors.rightMargin: Tokens.s6
+            spacing: Tokens.s4
+            Btn {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Vm.downloading
+                text: "CANCEL"
+                onAct: Vm.cancelCreate()
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Vm.caps.version ? "quickemu " + Vm.caps.version : "quickemu"
+                color: Tokens.inkFaint
+                font.family: Tokens.mono
+                font.pixelSize: 9
+            }
         }
     }
 
+    // ---- overlays ----------------------------------------------------------
     SettingsPanel {
         id: settings
         anchors.fill: parent
@@ -539,36 +582,6 @@ Rectangle {
         onClosed: app.settingsOpen = false
     }
 
-    ImportDialog {
-        anchors.fill: parent
-        open: app.importOpen
-        onClosed: app.importOpen = false
-    }
-
-    component IconBtn: Item {
-        id: ib
-        property string name: ""
-        property bool danger: false
-        property bool dim: false
-        signal clicked()
-        width: 30
-        height: 30
-        opacity: ib.dim ? 0.35 : 1
-        Rectangle {
-            anchors.fill: parent
-            radius: Theme.radius
-            color: ibHover.hovered && !ib.dim ? Theme.keyTop : "transparent"
-            Behavior on color { ColorAnimation { duration: Theme.quick } }
-        }
-        Icon {
-            anchors.centerIn: parent
-            name: ib.name
-            size: 16
-            tint: ib.danger ? (ibHover.hovered ? Theme.ember : Theme.faint)
-                : (ibHover.hovered && !ib.dim ? Theme.bright : Theme.cream)
-            Behavior on tint { ColorAnimation { duration: Theme.quick } }
-        }
-        HoverHandler { id: ibHover; enabled: !ib.dim; cursorShape: Qt.PointingHandCursor }
-        TapHandler { enabled: !ib.dim; onTapped: ib.clicked() }
-    }
+    // ---- the matte: one grain layer, topmost over everything ---------------
+    Grain { anchors.fill: parent }
 }

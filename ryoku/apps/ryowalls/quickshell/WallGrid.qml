@@ -1,13 +1,17 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import Ryoku.Ui
+import Ryoku.Ui.Singletons
 import "Singletons"
 
-// The browse grid: a scrollable wall of thumbnails bound to Wallhaven.results.
-// Picking a cell selects it for the preview; right-click opens it on the web.
+// The browse collection: a scrollable wall of thumbnails bound to
+// Wallhaven.results. Picking a cell selects it for the preview; the empty and
+// loading states carry the torii mark and one sentence, per the skeleton.
 Item {
     id: g
 
-    readonly property real gap: 10
+    readonly property int gap: Tokens.s2
     readonly property int cols: Math.max(2, Math.floor(width / 200))
 
     GridView {
@@ -21,9 +25,9 @@ Item {
         cacheBuffer: 1200
         boundsBehavior: Flickable.StopAtBounds
         opacity: Wallhaven.searching ? 0.45 : 1
-        Behavior on opacity { NumberAnimation { duration: Theme.quick } }
+        Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
 
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.vertical: ScrollRail {}
 
         delegate: Item {
             required property var modelData
@@ -44,25 +48,27 @@ Item {
         }
     }
 
-    // empty / busy state.
+    // empty / loading / error state: the mark at 96, then one sentence.
     Column {
         anchors.centerIn: parent
-        spacing: 12
+        spacing: Tokens.s4
         visible: Wallhaven.results.length === 0
-        Icon {
+        Torii {
             anchors.horizontalCenter: parent.horizontalCenter
-            name: Wallhaven.searching ? "refresh" : (Wallhaven.error.length > 0 ? "close" : "image")
-            size: 30
-            tint: Theme.faint
+            width: 96; height: 96
+            ink: Tokens.inkFaint
+            // the loading mark holds solid; no spin, per reduced-motion discipline.
+            opacity: Wallhaven.searching ? 0.5 : 1
+            Behavior on opacity { NumberAnimation { duration: Tokens.snap } }
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: Wallhaven.searching ? "Searching"
+            text: Wallhaven.searching ? "Loading wallpapers"
                 : (Wallhaven.error.length > 0 ? Wallhaven.error
                 : (Wallhaven.source === "live" ? "No live wallpapers yet" : "No wallpapers"))
-            color: Theme.dim
-            font.family: Theme.font
-            font.pixelSize: 13
+            color: Tokens.inkMuted
+            font.family: Tokens.ui
+            font.pixelSize: 12
         }
     }
 }

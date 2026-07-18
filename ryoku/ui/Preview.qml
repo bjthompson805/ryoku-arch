@@ -26,16 +26,26 @@ Item {
         border.width: Tokens.border
         border.color: Tokens.line
     }
+    Ticks { }
 
-    Text {
+    Row {
         id: lab
         anchors { left: parent.left; top: parent.top; margins: Tokens.s4 }
-        text: prev.label
-        color: Tokens.inkMuted
-        font.family: Tokens.ui
-        font.pixelSize: 10
-        font.weight: Font.Medium
-        font.letterSpacing: Tokens.trackLabel
+        spacing: Tokens.s2
+        Text {
+            text: "//"
+            color: Tokens.inkFaint
+            font.family: Tokens.mono
+            font.pixelSize: 10
+        }
+        Text {
+            text: prev.label
+            color: Tokens.inkMuted
+            font.family: Tokens.ui
+            font.pixelSize: 10
+            font.weight: Font.Medium
+            font.letterSpacing: Tokens.trackLabel
+        }
     }
     Text {
         anchors { right: parent.right; top: parent.top; margins: Tokens.s4 }

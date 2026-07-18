@@ -180,6 +180,17 @@ fi
 say "installing Ryoku.Ui module"
 "$here/../ui/install.sh" "$qmldir"
 
+# Seed the decor art the Decor/Placard components render into ~/Pictures/ryodecors
+# (beside Wallpapers and livewalls): the dev-loop equivalent of the installer seed
+# and `ryoku doctor`. Missing-only, so a swapped or added file survives a redeploy.
+decordir="$HOME/Pictures/ryodecors"
+mkdir -p "$decordir"
+for f in "$here/../assets/ryodecors"/*; do
+  [[ -e $f ]] || continue
+  [[ -e "$decordir/${f##*/}" ]] || cp -a "$f" "$decordir/"
+done
+say "seeded decor art -> $decordir"
+
 # Install the Ryoku.PluginKit QML module (the signature kit a plugin imports for
 # its content) onto the same import path. Pure QML, so a plain copy, no toolchain.
 say "installing Ryoku.PluginKit module"
