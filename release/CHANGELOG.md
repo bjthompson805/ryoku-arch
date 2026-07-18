@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **`ryoku-desktop` ships the decor art set to `/usr/share/ryoku/ryodecors`.** The
+  `Decor` and `Placard` components render from `~/Pictures/ryodecors`; the package
+  carries the shipped set so `ryoku doctor` can lay it there on update (the
+  installer seeds a fresh box straight from the repo). Moved out of the `Ryoku.Ui`
+  QML module, which no longer bakes the art (`ryoku/assets/ryodecors`).
 - **`awww` now ships from the `[ryoku]` repo** as a hard `ryoku-desktop`
   dependency, not the AUR. awww (swww renamed upstream) is the animated wallpaper
   daemon the shell drives: `ryoku/shell/ipc/wallpaper.go` runs `awww img` on every
