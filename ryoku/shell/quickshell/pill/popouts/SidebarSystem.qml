@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import ".."
 import "../Singletons"
 import "../lib/weather.js" as Wx
@@ -71,6 +72,37 @@ Item {
     }
 
     SystemClock { id: sys; precision: SystemClock.Minutes; enabled: root.open }
+
+    // laptop panel backlight, via brightnessctl -- same tool the Hub's Comfort
+    // tab drives. re-read on open since hypridle can change it (dim-on-timeout,
+    // restore-on-resume) while the sidebar is closed.
+    property int backlight: -1
+    property real pendingBacklight: -1
+    onOpenChanged: if (root.open) backlightGetProc.running = true
+    Component.onCompleted: backlightGetProc.running = true
+
+    Process {
+        id: backlightGetProc
+        command: ["brightnessctl", "-m"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var first = this.text.trim().split("\n")[0];
+                var pct = parseInt((first.split(",")[3] || "").replace("%", ""), 10);
+                if (!isNaN(pct))
+                    root.backlight = pct;
+            }
+        }
+    }
+    Process { id: backlightSetProc }
+    Timer {
+        id: backlightCommit
+        interval: 160
+        onTriggered: if (root.pendingBacklight >= 0) {
+            backlightSetProc.command = ["brightnessctl", "set", Math.round(root.pendingBacklight) + "%"];
+            backlightSetProc.running = true;
+            root.pendingBacklight = -1;
+        }
+    }
 
     component Divider: Rectangle {
         width: parent ? parent.width : 0
@@ -226,6 +258,22 @@ Item {
             valueLabel: !Audio.sink ? "" : (Audio.sink.audio.muted ? "off" : Math.round(Audio.sink.audio.volume * 100) + "%")
             onMoved: (v) => { if (Audio.sink) Audio.sink.audio.volume = v; }
             onIconTapped: { if (Audio.sink) Audio.sink.audio.muted = !Audio.sink.audio.muted; }
+        }
+
+        // backlight, via brightnessctl. moves update the readout live; the
+        // actual write debounces so a drag never floods the sysfs write.
+        HFader {
+            width: parent.width
+            s: root.s
+            icon: "sun"
+            lit: root.open
+            value: root.backlight < 0 ? 0 : root.backlight / 100
+            valueLabel: root.backlight < 0 ? "" : root.backlight + "%"
+            onMoved: (v) => { root.backlight = Math.max(5, Math.min(100, Math.round(v * 100))); }
+            onCommitted: (v) => {
+                root.pendingBacklight = Math.max(5, Math.min(100, Math.round(v * 100)));
+                backlightCommit.restart();
+            }
         }
     }
 
