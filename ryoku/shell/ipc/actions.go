@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -222,6 +223,44 @@ func startCliphist() {
 
 func pgrepRunning(pattern string) bool {
 	return exec.Command("pgrep", "-f", pattern).Run() == nil
+}
+
+// backlightProbe reads the laptop panel's current brightness %, parsing the
+// same comma field the sidebar's own `brightnessctl -m` probe reads.
+func backlightProbe() (int, error) {
+	out, err := exec.Command("brightnessctl", "-m").Output()
+	if err != nil {
+		return 0, err
+	}
+	first := strings.SplitN(string(out), "\n", 2)[0]
+	fields := strings.Split(strings.TrimSpace(first), ",")
+	if len(fields) < 4 {
+		return 0, fmt.Errorf("unexpected brightnessctl -m output: %q", first)
+	}
+	return strconv.Atoi(strings.TrimSuffix(fields[3], "%"))
+}
+
+// backlightAdjust steps the panel brightness by 5% (dir "up"/"down"), floored
+// at 5 so a key repeat never blacks out the screen, and returns the new %.
+func backlightAdjust(dir string) (string, error) {
+	cur, err := backlightProbe()
+	if err != nil {
+		return "", err
+	}
+	next := cur + 5
+	if dir == "down" {
+		next = cur - 5
+	}
+	if next < 5 {
+		next = 5
+	}
+	if next > 100 {
+		next = 100
+	}
+	if err := exec.Command("brightnessctl", "set", fmt.Sprintf("%d%%", next)).Run(); err != nil {
+		return "", err
+	}
+	return strconv.Itoa(next), nil
 }
 
 func stateDir() string {

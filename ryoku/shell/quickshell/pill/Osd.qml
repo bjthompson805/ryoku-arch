@@ -96,6 +96,11 @@ Item {
         function onMutedChanged() { root.flash("volume"); }
     }
 
+    Connections {
+        target: Devices
+        function onPanelBrightnessUserChanged() { root.flash("brightness"); }
+    }
+
     onPlayerChanged: {
         Qt.callLater(function() {
             if (stickyPlayer !== player)
@@ -161,6 +166,60 @@ Item {
                 color: root.muted ? Theme.vermDim : Theme.vermLit
                 Behavior on width { NumberAnimation { duration: Motion.fast } }
                 Behavior on color { ColorAnimation { duration: Motion.fast } }
+            }
+        }
+    }
+
+    Item {
+        id: backlightRow
+        anchors.fill: parent
+        opacity: root.kind === "brightness" ? 1 : 0
+        visible: opacity > 0.01
+        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+        GlyphIcon {
+            id: backlightGlyph
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 17 * root.s
+            height: 17 * root.s
+            name: "sun"
+            color: Theme.iconDim
+            stroke: 1.7
+        }
+
+        Text {
+            id: backlightPct
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 32 * root.s
+            horizontalAlignment: Text.AlignRight
+            text: Math.max(0, Devices.panelBrightness) + "%"
+            color: Theme.cream
+            font.family: Theme.font
+            font.pixelSize: 11 * root.s
+            font.weight: Font.DemiBold
+            font.features: { "tnum": 1 }
+        }
+
+        Rectangle {
+            anchors.left: backlightGlyph.right
+            anchors.leftMargin: 12 * root.s
+            anchors.right: backlightPct.left
+            anchors.rightMargin: 12 * root.s
+            anchors.verticalCenter: parent.verticalCenter
+            height: 4 * root.s
+            radius: Theme.radius
+            color: Theme.threadBg
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: parent.width * Math.max(0, Devices.panelBrightness) / 100
+                radius: parent.radius
+                color: Theme.vermLit
+                Behavior on width { NumberAnimation { duration: Motion.fast } }
             }
         }
     }

@@ -12,6 +12,8 @@ binds=(
 	"SUPER,L,exec,$bin lock"
 	"SUPER,B,exec,$bin wallpaper"
 	"SUPER,C,exec,$bin wallpaper-switcher"
+	",XF86MonBrightnessUp,exec,$bin backlight up"
+	",XF86MonBrightnessDown,exec,$bin backlight down"
 )
 
 case "${1:-on}" in
