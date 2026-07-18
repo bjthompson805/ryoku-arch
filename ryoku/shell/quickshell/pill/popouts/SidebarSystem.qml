@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import ".."
 import "../Singletons"
 import "../lib/weather.js" as Wx
@@ -73,33 +72,19 @@ Item {
 
     SystemClock { id: sys; precision: SystemClock.Minutes; enabled: root.open }
 
-    // laptop panel backlight, via brightnessctl -- same tool the Hub's Comfort
-    // tab drives. re-read on open since hypridle can change it (dim-on-timeout,
-    // restore-on-resume) while the sidebar is closed.
-    property int backlight: -1
+    // laptop panel backlight, via Devices.qml (brightnessctl) -- same tool the
+    // Hub's Comfort tab drives. re-read on open since hypridle can change it
+    // (dim-on-timeout, restore-on-resume) while the sidebar is closed; that
+    // resync is silent (no OSD flash), only an actual fader commit flashes it.
     property real pendingBacklight: -1
-    onOpenChanged: if (root.open) backlightGetProc.running = true
-    Component.onCompleted: backlightGetProc.running = true
+    onOpenChanged: if (root.open) Devices.probePanelBrightness()
+    Component.onCompleted: Devices.probePanelBrightness()
 
-    Process {
-        id: backlightGetProc
-        command: ["brightnessctl", "-m"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var first = this.text.trim().split("\n")[0];
-                var pct = parseInt((first.split(",")[3] || "").replace("%", ""), 10);
-                if (!isNaN(pct))
-                    root.backlight = pct;
-            }
-        }
-    }
-    Process { id: backlightSetProc }
     Timer {
         id: backlightCommit
         interval: 160
         onTriggered: if (root.pendingBacklight >= 0) {
-            backlightSetProc.command = ["brightnessctl", "set", Math.round(root.pendingBacklight) + "%"];
-            backlightSetProc.running = true;
+            Devices.setPanelBrightness(root.pendingBacklight);
             root.pendingBacklight = -1;
         }
     }
@@ -267,9 +252,9 @@ Item {
             s: root.s
             icon: "sun"
             lit: root.open
-            value: root.backlight < 0 ? 0 : root.backlight / 100
-            valueLabel: root.backlight < 0 ? "" : root.backlight + "%"
-            onMoved: (v) => { root.backlight = Math.max(5, Math.min(100, Math.round(v * 100))); }
+            value: Devices.panelBrightness < 0 ? 0 : Devices.panelBrightness / 100
+            valueLabel: Devices.panelBrightness < 0 ? "" : Devices.panelBrightness + "%"
+            onMoved: (v) => { Devices.panelBrightness = Math.max(5, Math.min(100, Math.round(v * 100))); }
             onCommitted: (v) => {
                 root.pendingBacklight = Math.max(5, Math.min(100, Math.round(v * 100)));
                 backlightCommit.restart();

@@ -551,6 +551,19 @@ func (d *daemon) dispatch(line string) string {
 		}
 		d.ensure("pill")
 		return pillIpc("pluginPopout", d.activeMonitor(), args[0])
+	case "backlight":
+		// backlight <up|down> -> step the panel brightness (hardware keys). The
+		// daemon applies it (no live Pipewire-style service to react to) then
+		// tells the pill the new % so its OSD flashes, like volume's does.
+		if len(args) < 1 || (args[0] != "up" && args[0] != "down") {
+			return "err backlight: need <up|down>"
+		}
+		pct, err := backlightAdjust(args[0])
+		if err != nil {
+			return "err backlight: " + err.Error()
+		}
+		d.ensure("pill")
+		return pillIpc("backlight", pct)
 	case "plugins":
 		// plugins reload -> the per-monitor PluginPopouts watch plugins.json and
 		// re-discover on change, so a Settings save retunes live; this is a no-op

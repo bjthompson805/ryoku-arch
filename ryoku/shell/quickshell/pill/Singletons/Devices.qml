@@ -64,6 +64,47 @@ Singleton {
         return m ? parseInt(m[1], 10) : -1;
     }
 
+    // --- laptop panel backlight (brightnessctl) -----------------------------
+    // panelBrightness is the last known %, kept fresh for display. hypridle
+    // dims/restores it independently of the shell (idle timeout, resume), so a
+    // plain propertyChanged signal can't tell "the user just changed this" from
+    // "we silently resynced to a value that moved while we weren't looking" --
+    // panelBrightnessUserChanged exists so only the former flashes the OSD.
+    property int panelBrightness: -1
+    signal panelBrightnessUserChanged(int pct)
+
+    function probePanelBrightness() {
+        panelProbe.running = true;
+    }
+
+    // user-driven change (sidebar fader commit): apply to hardware, then flash.
+    function setPanelBrightness(pct) {
+        var clamped = Math.max(5, Math.min(100, Math.round(pct)));
+        root.panelBrightness = clamped;
+        Quickshell.execDetached(["brightnessctl", "set", clamped + "%"]);
+        root.panelBrightnessUserChanged(clamped);
+    }
+
+    // user-driven change already applied elsewhere (a hardware key, via the
+    // ryoku-shell daemon): just record it and flash, no hardware call.
+    function reportPanelBrightness(pct) {
+        root.panelBrightness = pct;
+        root.panelBrightnessUserChanged(pct);
+    }
+
+    Process {
+        id: panelProbe
+        command: ["brightnessctl", "-m"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var first = this.text.trim().split("\n")[0];
+                var pct = parseInt((first.split(",")[3] || "").replace("%", ""), 10);
+                if (!isNaN(pct))
+                    root.panelBrightness = pct;
+            }
+        }
+    }
+
     Process {
         id: ddcDetect
         command: ["ddcutil", "detect", "--brief"]

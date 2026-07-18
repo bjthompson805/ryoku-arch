@@ -84,6 +84,7 @@ ShellRoot {
     Component.onCompleted: {
         refresh();
         Devices.restore();
+        Devices.probePanelBrightness();
         // re-arm the durable idle inhibitor for the persisted flag. on a
         // shell reload the external inhibitor is usually still up (lives
         // outside this process), so "start" = idempotent confirm; "stop"
@@ -336,6 +337,7 @@ ShellRoot {
         function hide(): void { root.popout = ""; }
         // toggle an enabled plugin's frame popout by id (leader menu / keybind).
         function pluginPopout(mon: string, id: string): void { root.togglePopout(mon, "plugin:" + id); }
+        function backlight(pct: string): void { Devices.reportPanelBrightness(parseInt(pct, 10)); }
     }
 
     // The daemon writes surface commands to this socket to toggle pill surfaces
@@ -365,6 +367,8 @@ ShellRoot {
         case "pluginPopout":
             root.togglePopout(mon, "plugin:" + (parts.length > 2 ? parts[2] : ""));
             return true;
+        case "backlight":
+            Devices.reportPanelBrightness(parseInt(mon, 10)); return true;
         case "voiceShow":
             root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
         case "voiceOff":
