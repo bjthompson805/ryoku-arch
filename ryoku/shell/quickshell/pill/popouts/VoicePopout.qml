@@ -23,7 +23,7 @@ Item {
         anchors.fill: parent
         s: root.s
         off: root.off
-        open: true
+        open: root.open
         shown: true
         openProgress: 1
         openW: root.implicitWidth
