@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+- `seed`: the decor art the desktop's Decor/Placard components render is laid into
+  `~/Pictures/ryodecors` (beside `Wallpapers`), from `ryoku/assets/ryodecors`, so a
+  fresh install has the set; `ryoku doctor` keeps it current after.
+
 ### Fixed
 - `bootloader`: the post-AUR limine finalize points `default_entry` at the
   kernel's entry path (`<dir>/<kernel>`) and sets `remember_last_entry: yes`,
