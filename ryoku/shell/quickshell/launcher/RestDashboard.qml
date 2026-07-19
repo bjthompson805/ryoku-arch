@@ -29,8 +29,18 @@ Item {
     implicitHeight: 106 * s
 
     readonly property var now: clock.date
-    readonly property string hh: Qt.formatTime(now, "HH")
+    readonly property string hh: Config.clock24h ? Qt.formatTime(now, "HH") : hh12(now)
     readonly property string mm: Qt.formatTime(now, "mm")
+    readonly property string ampm: now.getHours() < 12 ? "AM" : "PM"
+
+    // 12h hour: Qt's "h" token only reads as 12-hour when an AP/A token sits
+    // in the same format call, so the split digit needs the value computed
+    // rather than formatted. Zero-padded to match the always-two-digit minute.
+    function hh12(d) {
+        var h = d.getHours() % 12;
+        if (h === 0) h = 12;
+        return (h < 10 ? "0" : "") + h;
+    }
     readonly property string date: Qt.locale("en_US").toString(now, "dddd, MMM d")
     readonly property string greeting: {
         var h = now.getHours();
@@ -269,6 +279,20 @@ Item {
                     font.pixelSize: 34 * root.s
                     font.weight: Font.Medium
                     font.features: { "tnum": 1 }
+                }
+                Text {
+                    // Row positions children itself (no per-child anchors), so the
+                    // bottom-align that reads right beside the 34px digits comes
+                    // from topPadding pushing the glyph down inside its own bounds.
+                    visible: !Config.clock24h
+                    text: root.ampm
+                    color: Theme.dim
+                    font.family: Theme.mono
+                    font.pixelSize: 12 * root.s
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1
+                    leftPadding: 5 * root.s
+                    topPadding: 22 * root.s
                 }
             }
         }

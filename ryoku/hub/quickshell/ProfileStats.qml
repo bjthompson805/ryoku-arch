@@ -22,7 +22,7 @@ Item {
         triggeredOnStart: true
         onTriggered: panel.now = new Date()
     }
-    readonly property string clockTime: Qt.formatDateTime(panel.now, "HH:mm")
+    readonly property string clockTime: Config.clock24h ? Qt.formatDateTime(panel.now, "HH:mm") : Qt.formatDateTime(panel.now, "h:mm AP")
     readonly property string clockDate: Qt.formatDate(panel.now, "ddd · dd MMM yyyy").toUpperCase()
     readonly property var palette: SysInfo.sysPalette.length > 0 ? SysInfo.sysPalette.split(",") : []
 

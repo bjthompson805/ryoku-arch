@@ -172,7 +172,7 @@ Item {
                 spacing: 3 * root.s
                 Eyebrow { label: "System"; s: root.s }
                 Text {
-                    text: Qt.formatTime(sys.date, "HH:mm")
+                    text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
                     color: Theme.bright
                     font.family: Theme.display
                     font.pixelSize: 36 * root.s
