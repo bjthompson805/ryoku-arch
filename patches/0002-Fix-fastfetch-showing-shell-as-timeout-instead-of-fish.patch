@@ -1,0 +1,54 @@
+From 343d5c46943616a3d1bd91caef0c23ab67ed2a40 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Fri, 17 Jul 2026 22:09:08 -0700
+Subject: Patch: Fix fastfetch showing shell as timeout instead of fish.
+
+timeout(1) stays alive as fastfetch's parent to enforce the 8s bound, and
+fastfetch's Shell module walks the process tree for the invoking shell but
+doesn't know to skip past "timeout" -- it reported the wrapper's own name
+instead of fish. A background watchdog + exec gives the same hang
+protection without leaving a foreign process in fastfetch's parent chain.
+
+diff --git a/ryoku/apps/fastfetch/ryoku-fastfetch b/ryoku/apps/fastfetch/ryoku-fastfetch
+index 7b159839..e0381939 100755
+--- a/ryoku/apps/fastfetch/ryoku-fastfetch
++++ b/ryoku/apps/fastfetch/ryoku-fastfetch
+@@ -5,21 +5,27 @@
+ # logos and falls back to ASCII -- so in kitty we force `--pipe false` to keep
+ # the image. Outside kitty: chafa if present, else fastfetch's default.
+ #
+-# Bounded with `timeout` so a slow probe can never freeze the shell greeting:
+-# a stuck process makes /proc enumeration block, and WM/DE detection scans it.
++# Bounded to 8s so a slow probe can never freeze the shell greeting: a stuck
++# process makes /proc enumeration block, and WM/DE detection scans it. This
++# used to be `timeout 8 fastfetch ...`, but `timeout` stays alive as
++# fastfetch's parent to enforce the deadline, and fastfetch's Shell module
++# walks the process tree looking for the invoking shell -- it doesn't
++# recognize "timeout" as a wrapper to skip past, so it reported "timeout"
++# instead of "fish". A background watchdog + `exec` gives the same bound
++# without leaving a foreign process in fastfetch's parent chain.
+ set -uo pipefail
+ 
++( sleep 8; kill -9 $$ 2>/dev/null ) & disown
++
+ config="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/config.jsonc"
+ if [ ! -f "$config" ]; then
+-  timeout 8 fastfetch "$@"
+-  exit 0
++  exec fastfetch "$@"
+ fi
+ 
+ if [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM:-}" = "xterm-kitty" ]; then
+-  timeout 8 fastfetch --config "$config" --pipe false "$@"
++  exec fastfetch --config "$config" --pipe false "$@"
+ elif command -v chafa >/dev/null 2>&1; then
+-  timeout 8 fastfetch --config "$config" --logo-type chafa "$@"
++  exec fastfetch --config "$config" --logo-type chafa "$@"
+ else
+-  timeout 8 fastfetch --config "$config" --logo-type none "$@"
++  exec fastfetch --config "$config" --logo-type none "$@"
+ fi
+-exit 0
+-- 
+2.55.0
+
