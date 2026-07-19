@@ -30,6 +30,7 @@ Rectangle {
         { "key": "dictation",   "name": "Dictation",       "icon": "mic",      "group": "System" },
         { "key": "updates",     "name": "Updates",         "icon": "download", "pinned": "bottom" },
         { "key": "credits",     "name": "Credits",         "icon": "heart",    "pinned": "bottom" },
+        { "key": "general",     "name": "General",         "icon": "clock",    "group": "Desktop" },
         { "key": "appearance",  "name": "Appearance",      "icon": "palette",  "group": "Desktop" },
         { "key": "shell",       "name": "Shell",           "icon": "gear",     "group": "Desktop" },
         { "key": "launcher",    "name": "App Launcher",    "icon": "search",   "group": "Desktop" },
@@ -50,6 +51,7 @@ Rectangle {
 
     readonly property var pageMeta: ({
         "profile":     { "title": "Profile", "subtitle": "Your machine as a collector's specimen, built to share alongside your rice." },
+        "general":     { "title": "General", "subtitle": "Desktop-wide preferences that aren't tied to one surface." },
         "displays":    { "title": "Displays", "subtitle": "Detect and arrange your monitors: resolution, scale, rotation, mirroring, and saved layout profiles." },
         "appearance":  { "title": "Appearance", "subtitle": "Window look: gaps, rounding, borders, opacity, blur, shadows, animations, and the cursor theme." },
         "lockscreen":  { "title": "Lockscreen", "subtitle": "Choose the skin your lock screen wears. Ryoku ships the clockwork theme; picking one only swaps the look, never your login." },
@@ -184,6 +186,7 @@ Rectangle {
         case "environment": return luaSec([mod + "env.lua"]);
         case "displays":    return { "edit": [hypr + "/monitors_user.lua"], "view": [hypr + "/monitors.lua"], "editLabel": "Edit overrides", "editTip": "Hand-written display tweaks (forced modes, a pinned layout), loaded after the auto-detected layout so they win. Survives updates; see monitors_user.lua.example.", "viewTip": "Read-only. The display layout Ryoku detected and wrote; regenerated when your monitors change." };
         case "gpu":         return { "edit": [], "view": [hypr + "/gpu.lua"], "viewTip": "Read-only. GPU config written by ryoku-gpu; regenerated on GPU or driver changes." };
+        case "general":     return { "edit": [ryoku + "/general.json"], "editLabel": "Edit config", "editTip": "Opens this section's config file, where the Hub saves your changes. Yours; survives updates." };
         case "shell":       return { "edit": [ryoku + "/shell.json", ryoku + "/visualizer.json"], "editLabel": "Edit config", "editTip": "Opens this section's config files, where the Hub saves your changes. Yours; survives updates." };
         case "widgets":     return { "edit": [ryoku + "/widgets.json"], "editLabel": "Edit config", "editTip": "Opens this section's config file, where the Hub saves your changes. Yours; survives updates." };
         case "launcher":    return { "edit": [ryoku + "/launcher.json"], "editLabel": "Edit config", "editTip": "Opens this section's config file, where the Hub saves your changes. Yours; survives updates." };
@@ -275,6 +278,7 @@ Rectangle {
     function pageFor(s) {
         switch (s) {
         case "profile": return profileComp;
+        case "general": return generalComp;
         case "displays": return displaysComp;
         case "appearance": return appearanceComp;
         case "lockscreen": return lockscreenComp;
@@ -305,6 +309,7 @@ Rectangle {
 
     Component { id: searchComp; SearchResults { categories: hub.keybindsModel; sections: hub.sectionDefs; query: navRail.query; onNavigate: (s) => hub.go(s) } }
     Component { id: profileComp; ProfilePage {} }
+    Component { id: generalComp; GeneralPage {} }
     Component { id: displaysComp; DisplaysPage {} }
     Component { id: appearanceComp; AppearancePage {} }
     Component { id: lockscreenComp; LockscreenPage {} }

@@ -77,6 +77,12 @@ Singleton {
     property alias markTint:  brandAdapter.markTint
     property alias brandName: brandAdapter.name
 
+    // clock24h: 12h vs 24h time display. canonical store is general.json
+    // (Ryoku Settings -> Desktop -> General); read only here so the
+    // launcher's clock follows the same desktop-wide toggle instead of
+    // carrying its own.
+    property alias clock24h: clockAdapter.clock24h
+
     FileView {
         id: file
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
@@ -138,6 +144,17 @@ Singleton {
             property bool markTint: true
             property string name: "Ryoku"
         }
+    }
+
+    // general.json owns clock24h (Desktop -> General settings write it); read only.
+    FileView {
+        id: clockFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        JsonAdapter { id: clockAdapter; property bool clock24h: true }
     }
 
     // seed only on a genuine first run (nothing to load), so a slow or failed

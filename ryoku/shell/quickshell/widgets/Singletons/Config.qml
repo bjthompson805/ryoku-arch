@@ -19,7 +19,6 @@ Singleton {
     // -- clock ---------------------------------------------------------------
     property alias clockEnabled: adapter.clockEnabled
     property alias clockDesign:  adapter.clockDesign   // digital | minimal | analog | flip | rings
-    property alias clock24h:     adapter.clock24h
     property alias clockSeconds: adapter.clockSeconds
     property alias clockAccent:  adapter.clockAccent   // wallust | brand | mono
     property alias clockScale:   adapter.clockScale
@@ -73,6 +72,11 @@ Singleton {
     property alias markTint:  brandAdapter.markTint
     property alias brandName: brandAdapter.name
 
+    // clock24h: 12h vs 24h time display, a desktop-wide preference (Ryoku
+    // Settings -> Desktop -> General) shared by every clock in the shell, not
+    // just this widget. canonical store is general.json; read only here.
+    property alias clock24h: generalAdapter.clock24h
+
     // write helpers used by desktop drag + right-click menu. write the same file
     // Settings does; the watch reloads it (no-op for the value just written) so
     // running widgets and the next Settings open agree.
@@ -114,7 +118,6 @@ Singleton {
             id: adapter
             property bool clockEnabled: true
             property string clockDesign: "digital"
-            property bool clock24h: true
             property bool clockSeconds: false
             property string clockAccent: "wallust"
             property real clockScale: 1.0
@@ -175,6 +178,18 @@ Singleton {
             property bool markTint: true
             property string name: "Ryoku"
         }
+    }
+
+    // general.json owns clock24h (Ryoku Settings -> Desktop -> General writes
+    // it); read only here, seeded on the Hub side.
+    FileView {
+        id: generalFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        JsonAdapter { id: generalAdapter; property bool clock24h: true }
     }
 
     Component.onCompleted: if (!file.text()) file.writeAdapter();

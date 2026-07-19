@@ -23,6 +23,15 @@ Item {
     required property var group
     property real s: 1
     property bool active: true
+
+    // 12h hour for the vertical clock module: Qt's "h" token only reads as
+    // 12-hour when an AP/A token sits in the same format call, so the split
+    // digit needs the value computed rather than formatted.
+    function hh12(d) {
+        var h = d.getHours() % 12;
+        if (h === 0) h = 12;
+        return (h < 10 ? "0" : "") + h;
+    }
     property real radius: Config.islandRadius * s
     property real smoothing: 30
     // delos never pre-thickens an edge (the island is the bar), so every lip is
@@ -279,8 +288,9 @@ Item {
             }
             Text {
                 text: hud.layoutVertical
-                    ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH") + "\n" + clock.date.toLocaleTimeString(Qt.locale("en_US"), "mm")
-                    : clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH:mm")
+                    ? (Config.clock24h ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH") : hud.hh12(clock.date))
+                        + "\n" + clock.date.toLocaleTimeString(Qt.locale("en_US"), "mm")
+                    : (Config.clock24h ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH:mm") : clock.date.toLocaleTimeString(Qt.locale("en_US"), "h:mm AP"))
                 horizontalAlignment: Text.AlignHCenter
                 lineHeight: 0.88
                 color: Theme.bright

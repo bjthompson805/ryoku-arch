@@ -18,6 +18,16 @@ Item {
     readonly property bool stele: style === "stele"
     readonly property var loc: Qt.locale("en_US")
 
+    // 12h hour for the split hour/minute layouts: Qt's "h" token only reads as
+    // 12-hour when an AP/A token sits in the same format call, so a bare split
+    // digit needs the value computed rather than formatted. Zero-padded to
+    // match the always-two-digit minute beside it.
+    function hh12(d) {
+        var h = d.getHours() % 12;
+        if (h === 0) h = 12;
+        return (h < 10 ? "0" : "") + h;
+    }
+
     implicitWidth: caelestia ? (vertical ? cvcol.implicitWidth : chrow.implicitWidth)
         : aegis ? aerow.implicitWidth
         : stele ? strow.implicitWidth
@@ -46,7 +56,7 @@ Item {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatTime(sys.date, "HH:mm")
+            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
             color: Theme.cream
             font.family: Theme.font
             font.pixelSize: 12 * clock.s
@@ -68,7 +78,7 @@ Item {
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatTime(sys.date, "HH")
+            text: Config.clock24h ? Qt.formatTime(sys.date, "HH") : clock.hh12(sys.date)
             color: Theme.cream
             font.family: Theme.font
             font.pixelSize: 11 * clock.s
@@ -100,7 +110,7 @@ Item {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatTime(sys.date, "HH:mm")
+            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
             color: Theme.bright
             font.family: Theme.mono
             font.pixelSize: 12 * clock.s
@@ -126,7 +136,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatTime(sys.date, "HH:mm")
+            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
             color: Theme.cream
             font.family: Theme.mono
             font.pixelSize: 12 * clock.s
@@ -168,7 +178,7 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Qt.formatTime(sys.date, "HH:mm")
+                text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
                 color: Theme.cream
                 font.family: Theme.font
                 font.pixelSize: 11.5 * clock.s
@@ -188,7 +198,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !clock.vertical && clock.stacked
-            text: Qt.formatTime(sys.date, "HH:mm")
+            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
             color: Theme.cream
             font.family: Theme.font
             font.pixelSize: 12 * clock.s
@@ -208,7 +218,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: clock.vertical
-            text: Qt.formatTime(sys.date, "HH")
+            text: Config.clock24h ? Qt.formatTime(sys.date, "HH") : clock.hh12(sys.date)
             color: Theme.cream
             font.family: Theme.font
             font.pixelSize: 11 * clock.s

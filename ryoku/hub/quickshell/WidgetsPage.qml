@@ -16,7 +16,7 @@ Item {
     id: page
 
     readonly property var keys: [
-        "clockEnabled", "clockDesign", "clock24h", "clockSeconds", "clockAccent",
+        "clockEnabled", "clockDesign", "clockSeconds", "clockAccent",
         "clockScale", "clockAnchor", "clockX", "clockY", "clockLocked", "clockOpacity",
         "clockBg", "clockRadius", "dateShow", "dateDesign",
         "weatherEnabled", "weatherDesign", "weatherUnit", "weatherScope", "weatherAnimate",
@@ -29,7 +29,7 @@ Item {
     // mirror of the widgets' canonical defaults (widgets Singletons/Config.qml),
     // for "Reset to defaults" only.
     readonly property var defaults: ({
-        "clockEnabled": true, "clockDesign": "digital", "clock24h": true, "clockSeconds": false,
+        "clockEnabled": true, "clockDesign": "digital", "clockSeconds": false,
         "clockAccent": "wallust", "clockScale": 1.0, "clockAnchor": "top-left",
         "clockX": 72, "clockY": 64, "clockLocked": false, "clockOpacity": 1.0, "clockBg": "none",
         "clockRadius": 26, "dateShow": true, "dateDesign": "inline",
@@ -57,7 +57,6 @@ Item {
         id: draft
         property bool clockEnabled: true
         property string clockDesign: "digital"
-        property bool clock24h: true
         property bool clockSeconds: false
         property string clockAccent: "wallust"
         property real clockScale: 1.0
@@ -216,7 +215,6 @@ Item {
             id: adapter
             property bool clockEnabled: true
             property string clockDesign: "digital"
-            property bool clock24h: true
             property bool clockSeconds: false
             property string clockAccent: "wallust"
             property real clockScale: 1.0
@@ -352,7 +350,7 @@ Item {
                     anchors.margins: 1
                     opacity: draft.clockEnabled ? 1 : 0.32
                     design: draft.clockDesign
-                    is24: draft.clock24h
+                    is24: Config.clock24h
                     seconds: draft.clockSeconds
                     accentChoice: draft.clockAccent
                     dateShow: draft.dateShow
@@ -411,7 +409,6 @@ Item {
                     SettingSection {
                         width: parent.width
                         title: "FORMAT"
-                        ToggleRow { width: parent.width; label: "24-hour clock"; checked: draft.clock24h; onToggled: (v) => page.edit("clock24h", v) }
                         ToggleRow { width: parent.width; label: "Show seconds"; checked: draft.clockSeconds; onToggled: (v) => page.edit("clockSeconds", v) }
                     }
 
