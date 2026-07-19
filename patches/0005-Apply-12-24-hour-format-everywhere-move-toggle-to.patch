@@ -1,0 +1,547 @@
+From a5cd26eb671f3c182cad465b169fa3d6116f0459 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Sat, 18 Jul 2026 17:08:37 -0700
+Subject: Patch: Apply 12/24-hour format everywhere, move toggle to Desktop > General.
+
+The 12-hour setting only ever drove the desktop clock widget. The bar
+clock, sidebar system popout, Delos island clock, launcher home card,
+and the Hub's own clock readouts each hardcoded 24-hour formatting
+independently, so turning the widget setting on left most of the
+shell still showing 24-hour time.
+
+Every clock now reads one shared preference, moved out of the widgets
+config into its own general.json (Settings > Desktop > General) since
+it was never a widget-only setting.
+
+diff --git a/ryoku/hub/quickshell/GeneralPage.qml b/ryoku/hub/quickshell/GeneralPage.qml
+new file mode 100644
+index 00000000..e19bfe48
+--- /dev/null
++++ b/ryoku/hub/quickshell/GeneralPage.qml
+@@ -0,0 +1,63 @@
++pragma ComponentBehavior: Bound
++import QtQuick
++import QtQuick.Controls
++import Quickshell
++import Quickshell.Io
++import "Singletons"
++
++// General: desktop-wide preferences that aren't owned by any one surface.
++// Starts with the clock format (12h/24h) -- it used to live on Desktop
++// Widgets, but it drives every clock in the shell (bar, sidebar, launcher,
++// Hub, and the desktop widget), not just the widget, so it belongs here
++// instead. Writes ~/.config/ryoku/general.json, watched live by every
++// surface's Config singleton.
++Item {
++    id: page
++
++    FileView {
++        id: cfg
++        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
++        blockLoading: true
++        watchChanges: true
++        printErrors: false
++        atomicWrites: true
++        onFileChanged: reload()
++
++        JsonAdapter {
++            id: adapter
++            property bool clock24h: true
++        }
++
++        Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
++    }
++
++    Flickable {
++        anchors.fill: parent
++        anchors.margins: 4
++        contentHeight: col.implicitHeight
++        clip: true
++        boundsBehavior: Flickable.StopAtBounds
++        ScrollBar.vertical: ScrollBar {}
++
++        Column {
++            id: col
++            width: parent.width
++            spacing: 26
++
++            SettingSection {
++                width: col.width
++                title: "TIME"
++
++                ToggleRow {
++                    width: parent.width
++                    label: "24-hour clock (applies everywhere: the bar, sidebar, launcher, Hub, and the desktop clock widget)"
++                    checked: adapter.clock24h
++                    onToggled: c => {
++                        adapter.clock24h = c;
++                        cfg.writeAdapter();
++                    }
++                }
++            }
++        }
++    }
++}
+diff --git a/ryoku/hub/quickshell/Hub.qml b/ryoku/hub/quickshell/Hub.qml
+index 9be5cec2..3bc1ca63 100644
+--- a/ryoku/hub/quickshell/Hub.qml
++++ b/ryoku/hub/quickshell/Hub.qml
+@@ -30,6 +30,7 @@ Rectangle {
+         { "key": "dictation",   "name": "Dictation",       "icon": "mic",      "group": "System" },
+         { "key": "updates",     "name": "Updates",         "icon": "download", "pinned": "bottom" },
+         { "key": "credits",     "name": "Credits",         "icon": "heart",    "pinned": "bottom" },
++        { "key": "general",     "name": "General",         "icon": "clock",    "group": "Desktop" },
+         { "key": "appearance",  "name": "Appearance",      "icon": "palette",  "group": "Desktop" },
+         { "key": "shell",       "name": "Shell",           "icon": "gear",     "group": "Desktop" },
+         { "key": "launcher",    "name": "App Launcher",    "icon": "search",   "group": "Desktop" },
+@@ -50,6 +51,7 @@ Rectangle {
+ 
+     readonly property var pageMeta: ({
+         "profile":     { "title": "Profile", "subtitle": "Your machine as a collector's specimen, built to share alongside your rice." },
++        "general":     { "title": "General", "subtitle": "Desktop-wide preferences that aren't tied to one surface." },
+         "displays":    { "title": "Displays", "subtitle": "Detect and arrange your monitors: resolution, scale, rotation, mirroring, and saved layout profiles." },
+         "appearance":  { "title": "Appearance", "subtitle": "Window look: gaps, rounding, borders, opacity, blur, shadows, animations, and the cursor theme." },
+         "lockscreen":  { "title": "Lockscreen", "subtitle": "Choose the skin your lock screen wears. Ryoku ships the clockwork theme; picking one only swaps the look, never your login." },
+@@ -184,6 +186,7 @@ Rectangle {
+         case "environment": return luaSec([mod + "env.lua"]);
+         case "displays":    return { "edit": [hypr + "/monitors_user.lua"], "view": [hypr + "/monitors.lua"], "editLabel": "Edit overrides", "editTip": "Hand-written display tweaks (forced modes, a pinned layout), loaded after the auto-detected layout so they win. Survives updates; see monitors_user.lua.example.", "viewTip": "Read-only. The display layout Ryoku detected and wrote; regenerated when your monitors change." };
+         case "gpu":         return { "edit": [], "view": [hypr + "/gpu.lua"], "viewTip": "Read-only. GPU config written by ryoku-gpu; regenerated on GPU or driver changes." };
++        case "general":     return { "edit": [ryoku + "/general.json"], "editLabel": "Edit config", "editTip": "Opens this section's config file, where the Hub saves your changes. Yours; survives updates." };
+         case "shell":       return { "edit": [ryoku + "/shell.json", ryoku + "/visualizer.json"], "editLabel": "Edit config", "editTip": "Opens this section's config files, where the Hub saves your changes. Yours; survives updates." };
+         case "widgets":     return { "edit": [ryoku + "/widgets.json"], "editLabel": "Edit config", "editTip": "Opens this section's config file, where the Hub saves your changes. Yours; survives updates." };
+         case "launcher":    return { "edit": [ryoku + "/launcher.json"], "editLabel": "Edit config", "editTip": "Opens this section's config file, where the Hub saves your changes. Yours; survives updates." };
+@@ -275,6 +278,7 @@ Rectangle {
+     function pageFor(s) {
+         switch (s) {
+         case "profile": return profileComp;
++        case "general": return generalComp;
+         case "displays": return displaysComp;
+         case "appearance": return appearanceComp;
+         case "lockscreen": return lockscreenComp;
+@@ -305,6 +309,7 @@ Rectangle {
+ 
+     Component { id: searchComp; SearchResults { categories: hub.keybindsModel; sections: hub.sectionDefs; query: navRail.query; onNavigate: (s) => hub.go(s) } }
+     Component { id: profileComp; ProfilePage {} }
++    Component { id: generalComp; GeneralPage {} }
+     Component { id: displaysComp; DisplaysPage {} }
+     Component { id: appearanceComp; AppearancePage {} }
+     Component { id: lockscreenComp; LockscreenPage {} }
+diff --git a/ryoku/hub/quickshell/Icon.qml b/ryoku/hub/quickshell/Icon.qml
+index 344fffda..58a3f43b 100644
+--- a/ryoku/hub/quickshell/Icon.qml
++++ b/ryoku/hub/quickshell/Icon.qml
+@@ -53,7 +53,8 @@ Item {
+         "chip": "M7 7h10v10H7z M9 3v4 M12 3v4 M15 3v4 M9 17v4 M12 17v4 M15 17v4 M3 9h4 M3 12h4 M3 15h4 M17 9h4 M17 12h4 M17 15h4",
+         "folder": "M3 6a1 1 0 0 1 1 -1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1H4a1 1 0 0 1 -1 -1z",
+         "compass": "M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0 -20z M14.8 9.2l-2 5.6l-5.6 2l2 -5.6z",
+-        "heart": "M20.8 5.6a5.4 5.4 0 0 0 -7.7 0L12 6.7l-1.1 -1.1a5.4 5.4 0 0 0 -7.7 7.7l1.1 1.1L12 21.2l7.7 -7.8 1.1 -1.1a5.4 5.4 0 0 0 0 -7.7z"
++        "heart": "M20.8 5.6a5.4 5.4 0 0 0 -7.7 0L12 6.7l-1.1 -1.1a5.4 5.4 0 0 0 -7.7 7.7l1.1 1.1L12 21.2l7.7 -7.8 1.1 -1.1a5.4 5.4 0 0 0 0 -7.7z",
++        "clock": "M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0 -17z M12 7.5V12.3l3.3 2"
+     })
+ 
+     readonly property string d: defs[name] !== undefined ? defs[name] : ""
+diff --git a/ryoku/hub/quickshell/ProfileStats.qml b/ryoku/hub/quickshell/ProfileStats.qml
+index 4eaade63..49182fd1 100644
+--- a/ryoku/hub/quickshell/ProfileStats.qml
++++ b/ryoku/hub/quickshell/ProfileStats.qml
+@@ -22,7 +22,7 @@ Item {
+         triggeredOnStart: true
+         onTriggered: panel.now = new Date()
+     }
+-    readonly property string clockTime: Qt.formatDateTime(panel.now, "HH:mm")
++    readonly property string clockTime: Config.clock24h ? Qt.formatDateTime(panel.now, "HH:mm") : Qt.formatDateTime(panel.now, "h:mm AP")
+     readonly property string clockDate: Qt.formatDate(panel.now, "ddd · dd MMM yyyy").toUpperCase()
+     readonly property var palette: SysInfo.sysPalette.length > 0 ? SysInfo.sysPalette.split(",") : []
+ 
+diff --git a/ryoku/hub/quickshell/Singletons/Config.qml b/ryoku/hub/quickshell/Singletons/Config.qml
+new file mode 100644
+index 00000000..9ce85e94
+--- /dev/null
++++ b/ryoku/hub/quickshell/Singletons/Config.qml
+@@ -0,0 +1,25 @@
++pragma Singleton
++import QtQuick
++import Quickshell
++import Quickshell.Io
++
++/**
++ * clock24h: 12h vs 24h time display, read from general.json (the file
++ * Desktop -> General's "24-hour clock" toggle writes). Read only here: the
++ * Hub's own live previews (WidgetsPage, ProfileStats) follow the same
++ * desktop-wide toggle as every other clock in the shell.
++ */
++Singleton {
++    id: root
++
++    property alias clock24h: adapter.clock24h
++
++    FileView {
++        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
++        blockLoading: true
++        watchChanges: true
++        printErrors: false
++        onFileChanged: reload()
++        JsonAdapter { id: adapter; property bool clock24h: true }
++    }
++}
+diff --git a/ryoku/hub/quickshell/Singletons/qmldir b/ryoku/hub/quickshell/Singletons/qmldir
+index bbbe283c..4032da1c 100644
+--- a/ryoku/hub/quickshell/Singletons/qmldir
++++ b/ryoku/hub/quickshell/Singletons/qmldir
+@@ -2,3 +2,4 @@ singleton Theme Theme.qml
+ singleton Updates Updates.qml
+ singleton SysInfo SysInfo.qml
+ singleton Wallust Wallust.qml
++singleton Config Config.qml
+diff --git a/ryoku/hub/quickshell/WidgetsPage.qml b/ryoku/hub/quickshell/WidgetsPage.qml
+index 5319a1c4..1a991bcf 100644
+--- a/ryoku/hub/quickshell/WidgetsPage.qml
++++ b/ryoku/hub/quickshell/WidgetsPage.qml
+@@ -16,7 +16,7 @@ Item {
+     id: page
+ 
+     readonly property var keys: [
+-        "clockEnabled", "clockDesign", "clock24h", "clockSeconds", "clockAccent",
++        "clockEnabled", "clockDesign", "clockSeconds", "clockAccent",
+         "clockScale", "clockAnchor", "clockX", "clockY", "clockLocked", "clockOpacity",
+         "clockBg", "clockRadius", "dateShow", "dateDesign",
+         "weatherEnabled", "weatherDesign", "weatherUnit", "weatherScope", "weatherAnimate",
+@@ -29,7 +29,7 @@ Item {
+     // mirror of the widgets' canonical defaults (widgets Singletons/Config.qml),
+     // for "Reset to defaults" only.
+     readonly property var defaults: ({
+-        "clockEnabled": true, "clockDesign": "digital", "clock24h": true, "clockSeconds": false,
++        "clockEnabled": true, "clockDesign": "digital", "clockSeconds": false,
+         "clockAccent": "wallust", "clockScale": 1.0, "clockAnchor": "top-left",
+         "clockX": 72, "clockY": 64, "clockLocked": false, "clockOpacity": 1.0, "clockBg": "none",
+         "clockRadius": 26, "dateShow": true, "dateDesign": "inline",
+@@ -57,7 +57,6 @@ Item {
+         id: draft
+         property bool clockEnabled: true
+         property string clockDesign: "digital"
+-        property bool clock24h: true
+         property bool clockSeconds: false
+         property string clockAccent: "wallust"
+         property real clockScale: 1.0
+@@ -216,7 +215,6 @@ Item {
+             id: adapter
+             property bool clockEnabled: true
+             property string clockDesign: "digital"
+-            property bool clock24h: true
+             property bool clockSeconds: false
+             property string clockAccent: "wallust"
+             property real clockScale: 1.0
+@@ -352,7 +350,7 @@ Item {
+                     anchors.margins: 1
+                     opacity: draft.clockEnabled ? 1 : 0.32
+                     design: draft.clockDesign
+-                    is24: draft.clock24h
++                    is24: Config.clock24h
+                     seconds: draft.clockSeconds
+                     accentChoice: draft.clockAccent
+                     dateShow: draft.dateShow
+@@ -411,7 +409,6 @@ Item {
+                     SettingSection {
+                         width: parent.width
+                         title: "FORMAT"
+-                        ToggleRow { width: parent.width; label: "24-hour clock"; checked: draft.clock24h; onToggled: (v) => page.edit("clock24h", v) }
+                         ToggleRow { width: parent.width; label: "Show seconds"; checked: draft.clockSeconds; onToggled: (v) => page.edit("clockSeconds", v) }
+                     }
+ 
+diff --git a/ryoku/shell/quickshell/launcher/RestDashboard.qml b/ryoku/shell/quickshell/launcher/RestDashboard.qml
+index c0f57bb8..3273ad45 100644
+--- a/ryoku/shell/quickshell/launcher/RestDashboard.qml
++++ b/ryoku/shell/quickshell/launcher/RestDashboard.qml
+@@ -29,8 +29,18 @@ Item {
+     implicitHeight: 106 * s
+ 
+     readonly property var now: clock.date
+-    readonly property string hh: Qt.formatTime(now, "HH")
++    readonly property string hh: Config.clock24h ? Qt.formatTime(now, "HH") : hh12(now)
+     readonly property string mm: Qt.formatTime(now, "mm")
++    readonly property string ampm: now.getHours() < 12 ? "AM" : "PM"
++
++    // 12h hour: Qt's "h" token only reads as 12-hour when an AP/A token sits
++    // in the same format call, so the split digit needs the value computed
++    // rather than formatted. Zero-padded to match the always-two-digit minute.
++    function hh12(d) {
++        var h = d.getHours() % 12;
++        if (h === 0) h = 12;
++        return (h < 10 ? "0" : "") + h;
++    }
+     readonly property string date: Qt.locale("en_US").toString(now, "dddd, MMM d")
+     readonly property string greeting: {
+         var h = now.getHours();
+@@ -270,6 +280,20 @@ Item {
+                     font.weight: Font.Medium
+                     font.features: { "tnum": 1 }
+                 }
++                Text {
++                    // Row positions children itself (no per-child anchors), so the
++                    // bottom-align that reads right beside the 34px digits comes
++                    // from topPadding pushing the glyph down inside its own bounds.
++                    visible: !Config.clock24h
++                    text: root.ampm
++                    color: Theme.dim
++                    font.family: Theme.mono
++                    font.pixelSize: 12 * root.s
++                    font.weight: Font.DemiBold
++                    font.letterSpacing: 1
++                    leftPadding: 5 * root.s
++                    topPadding: 22 * root.s
++                }
+             }
+         }
+ 
+diff --git a/ryoku/shell/quickshell/launcher/Singletons/Config.qml b/ryoku/shell/quickshell/launcher/Singletons/Config.qml
+index 97b80df4..d38ac563 100644
+--- a/ryoku/shell/quickshell/launcher/Singletons/Config.qml
++++ b/ryoku/shell/quickshell/launcher/Singletons/Config.qml
+@@ -77,6 +77,12 @@ Singleton {
+     property alias markTint:  brandAdapter.markTint
+     property alias brandName: brandAdapter.name
+ 
++    // clock24h: 12h vs 24h time display. canonical store is general.json
++    // (Ryoku Settings -> Desktop -> General); read only here so the
++    // launcher's clock follows the same desktop-wide toggle instead of
++    // carrying its own.
++    property alias clock24h: clockAdapter.clock24h
++
+     FileView {
+         id: file
+         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+@@ -140,6 +146,17 @@ Singleton {
+         }
+     }
+ 
++    // general.json owns clock24h (Desktop -> General settings write it); read only.
++    FileView {
++        id: clockFile
++        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
++        blockLoading: true
++        watchChanges: true
++        printErrors: false
++        onFileChanged: reload()
++        JsonAdapter { id: clockAdapter; property bool clock24h: true }
++    }
++
+     // seed only on a genuine first run (nothing to load), so a slow or failed
+     // load can't overwrite a present file with defaults.
+     Component.onCompleted: if (!file.text()) file.writeAdapter();
+diff --git a/ryoku/shell/quickshell/pill/BarClock.qml b/ryoku/shell/quickshell/pill/BarClock.qml
+index b8cc062b..335ef114 100644
+--- a/ryoku/shell/quickshell/pill/BarClock.qml
++++ b/ryoku/shell/quickshell/pill/BarClock.qml
+@@ -18,6 +18,16 @@ Item {
+     readonly property bool stele: style === "stele"
+     readonly property var loc: Qt.locale("en_US")
+ 
++    // 12h hour for the split hour/minute layouts: Qt's "h" token only reads as
++    // 12-hour when an AP/A token sits in the same format call, so a bare split
++    // digit needs the value computed rather than formatted. Zero-padded to
++    // match the always-two-digit minute beside it.
++    function hh12(d) {
++        var h = d.getHours() % 12;
++        if (h === 0) h = 12;
++        return (h < 10 ? "0" : "") + h;
++    }
++
+     implicitWidth: caelestia ? (vertical ? cvcol.implicitWidth : chrow.implicitWidth)
+         : aegis ? aerow.implicitWidth
+         : stele ? strow.implicitWidth
+@@ -46,7 +56,7 @@ Item {
+         }
+         Text {
+             anchors.verticalCenter: parent.verticalCenter
+-            text: Qt.formatTime(sys.date, "HH:mm")
++            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+             color: Theme.cream
+             font.family: Theme.font
+             font.pixelSize: 12 * clock.s
+@@ -68,7 +78,7 @@ Item {
+         }
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+-            text: Qt.formatTime(sys.date, "HH")
++            text: Config.clock24h ? Qt.formatTime(sys.date, "HH") : clock.hh12(sys.date)
+             color: Theme.cream
+             font.family: Theme.font
+             font.pixelSize: 11 * clock.s
+@@ -100,7 +110,7 @@ Item {
+         }
+         Text {
+             anchors.verticalCenter: parent.verticalCenter
+-            text: Qt.formatTime(sys.date, "HH:mm")
++            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+             color: Theme.bright
+             font.family: Theme.mono
+             font.pixelSize: 12 * clock.s
+@@ -126,7 +136,7 @@ Item {
+ 
+         Text {
+             anchors.verticalCenter: parent.verticalCenter
+-            text: Qt.formatTime(sys.date, "HH:mm")
++            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+             color: Theme.cream
+             font.family: Theme.mono
+             font.pixelSize: 12 * clock.s
+@@ -168,7 +178,7 @@ Item {
+ 
+             Text {
+                 anchors.verticalCenter: parent.verticalCenter
+-                text: Qt.formatTime(sys.date, "HH:mm")
++                text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+                 color: Theme.cream
+                 font.family: Theme.font
+                 font.pixelSize: 11.5 * clock.s
+@@ -188,7 +198,7 @@ Item {
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+             visible: !clock.vertical && clock.stacked
+-            text: Qt.formatTime(sys.date, "HH:mm")
++            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+             color: Theme.cream
+             font.family: Theme.font
+             font.pixelSize: 12 * clock.s
+@@ -208,7 +218,7 @@ Item {
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+             visible: clock.vertical
+-            text: Qt.formatTime(sys.date, "HH")
++            text: Config.clock24h ? Qt.formatTime(sys.date, "HH") : clock.hh12(sys.date)
+             color: Theme.cream
+             font.family: Theme.font
+             font.pixelSize: 11 * clock.s
+diff --git a/ryoku/shell/quickshell/pill/DelosIsland.qml b/ryoku/shell/quickshell/pill/DelosIsland.qml
+index 8f13734b..dc2b8911 100644
+--- a/ryoku/shell/quickshell/pill/DelosIsland.qml
++++ b/ryoku/shell/quickshell/pill/DelosIsland.qml
+@@ -23,6 +23,15 @@ Item {
+     required property var group
+     property real s: 1
+     property bool active: true
++
++    // 12h hour for the vertical clock module: Qt's "h" token only reads as
++    // 12-hour when an AP/A token sits in the same format call, so the split
++    // digit needs the value computed rather than formatted.
++    function hh12(d) {
++        var h = d.getHours() % 12;
++        if (h === 0) h = 12;
++        return (h < 10 ? "0" : "") + h;
++    }
+     property real radius: Config.islandRadius * s
+     property real smoothing: 30
+     // delos never pre-thickens an edge (the island is the bar), so every lip is
+@@ -279,8 +288,9 @@ Item {
+             }
+             Text {
+                 text: hud.layoutVertical
+-                    ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH") + "\n" + clock.date.toLocaleTimeString(Qt.locale("en_US"), "mm")
+-                    : clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH:mm")
++                    ? (Config.clock24h ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH") : hud.hh12(clock.date))
++                        + "\n" + clock.date.toLocaleTimeString(Qt.locale("en_US"), "mm")
++                    : (Config.clock24h ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH:mm") : clock.date.toLocaleTimeString(Qt.locale("en_US"), "h:mm AP"))
+                 horizontalAlignment: Text.AlignHCenter
+                 lineHeight: 0.88
+                 color: Theme.bright
+diff --git a/ryoku/shell/quickshell/pill/Singletons/Config.qml b/ryoku/shell/quickshell/pill/Singletons/Config.qml
+index 6dc47942..c705d747 100644
+--- a/ryoku/shell/quickshell/pill/Singletons/Config.qml
++++ b/ryoku/shell/quickshell/pill/Singletons/Config.qml
+@@ -114,6 +114,12 @@ Singleton {
+     property alias markTint:  brandAdapter.markTint
+     property alias brandName: brandAdapter.name
+ 
++    // clock24h: 12h vs 24h time display. canonical store is general.json
++    // (Ryoku Settings -> Desktop -> General); read only here so the
++    // bar/sidebar/island clocks follow the same desktop-wide toggle instead
++    // of carrying their own.
++    property alias clock24h: clockAdapter.clock24h
++
+     FileView {
+         id: file
+         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+@@ -194,6 +200,17 @@ Singleton {
+         }
+     }
+ 
++    // general.json owns clock24h (Desktop -> General settings write it); read only.
++    FileView {
++        id: clockFile
++        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
++        blockLoading: true
++        watchChanges: true
++        printErrors: false
++        onFileChanged: reload()
++        JsonAdapter { id: clockAdapter; property bool clock24h: true }
++    }
++
+     // write the live adapter back to shell.json. the delos island calls this
+     // when it settles on a new edge so the dock survives a restart.
+     function persist() { file.writeAdapter(); }
+diff --git a/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml b/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml
+index 26c3c4fa..a1df6410 100644
+--- a/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml
++++ b/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml
+@@ -172,7 +172,7 @@ Item {
+                 spacing: 3 * root.s
+                 Eyebrow { label: "System"; s: root.s }
+                 Text {
+-                    text: Qt.formatTime(sys.date, "HH:mm")
++                    text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+                     color: Theme.bright
+                     font.family: Theme.display
+                     font.pixelSize: 36 * root.s
+diff --git a/ryoku/shell/quickshell/widgets/Singletons/Config.qml b/ryoku/shell/quickshell/widgets/Singletons/Config.qml
+index bf229d88..699da7a5 100644
+--- a/ryoku/shell/quickshell/widgets/Singletons/Config.qml
++++ b/ryoku/shell/quickshell/widgets/Singletons/Config.qml
+@@ -19,7 +19,6 @@ Singleton {
+     // -- clock ---------------------------------------------------------------
+     property alias clockEnabled: adapter.clockEnabled
+     property alias clockDesign:  adapter.clockDesign   // digital | minimal | analog | flip | rings
+-    property alias clock24h:     adapter.clock24h
+     property alias clockSeconds: adapter.clockSeconds
+     property alias clockAccent:  adapter.clockAccent   // wallust | brand | mono
+     property alias clockScale:   adapter.clockScale
+@@ -73,6 +72,11 @@ Singleton {
+     property alias markTint:  brandAdapter.markTint
+     property alias brandName: brandAdapter.name
+ 
++    // clock24h: 12h vs 24h time display, a desktop-wide preference (Ryoku
++    // Settings -> Desktop -> General) shared by every clock in the shell, not
++    // just this widget. canonical store is general.json; read only here.
++    property alias clock24h: generalAdapter.clock24h
++
+     // write helpers used by desktop drag + right-click menu. write the same file
+     // Settings does; the watch reloads it (no-op for the value just written) so
+     // running widgets and the next Settings open agree.
+@@ -114,7 +118,6 @@ Singleton {
+             id: adapter
+             property bool clockEnabled: true
+             property string clockDesign: "digital"
+-            property bool clock24h: true
+             property bool clockSeconds: false
+             property string clockAccent: "wallust"
+             property real clockScale: 1.0
+@@ -177,5 +180,17 @@ Singleton {
+         }
+     }
+ 
++    // general.json owns clock24h (Ryoku Settings -> Desktop -> General writes
++    // it); read only here, seeded on the Hub side.
++    FileView {
++        id: generalFile
++        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
++        blockLoading: true
++        watchChanges: true
++        printErrors: false
++        onFileChanged: reload()
++        JsonAdapter { id: generalAdapter; property bool clock24h: true }
++    }
++
+     Component.onCompleted: if (!file.text()) file.writeAdapter();
+ }
+-- 
+2.55.0
+

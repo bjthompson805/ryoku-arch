@@ -1,0 +1,364 @@
+From 990511cbec29a0334b59148e057e13bd4a27024f Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Sat, 18 Jul 2026 15:47:54 -0700
+Subject: Patch: Add OSD on brightness change from keyboard and sidebar.
+
+Volume already flashes a bottom-of-screen OSD on any change because it binds
+directly to a live Pipewire property. Backlight had no equivalent: no
+hardware keybinds, and the sidebar polled brightnessctl ad hoc with no
+shared state. Devices.qml now owns the laptop panel percent (alongside its
+existing ddcutil external-monitor brightness) with a dedicated
+panelBrightnessUserChanged signal, so the OSD flashes for a keypress or a
+sidebar-fader commit but not for hypridle's silent dim/restore or a bare
+sidebar open. New XF86MonBrightnessUp/Down binds call a new
+`ryoku-shell backlight <up|down>` daemon verb that adjusts the panel and
+notifies the pill over its existing IPC/socket path.
+
+Tested live: hardware keys, sidebar fader, and confirmed no spurious flash
+from an external brightnessctl change or from opening the sidebar alone.
+
+diff --git a/ryoku/hyprland/modules/binds.lua b/ryoku/hyprland/modules/binds.lua
+index 3ae58f4f..136ae007 100644
+--- a/ryoku/hyprland/modules/binds.lua
++++ b/ryoku/hyprland/modules/binds.lua
+@@ -78,3 +78,7 @@ hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_S
+ hl.bind("XF86AudioPlay",        hl.dsp.exec_cmd("playerctl play-pause"),                           { locked = true })
+ hl.bind("XF86AudioNext",        hl.dsp.exec_cmd("playerctl next"),                                 { locked = true })
+ hl.bind("XF86AudioPrev",        hl.dsp.exec_cmd("playerctl previous"),                             { locked = true })
++
++-- Brightness keys
++hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("ryoku-shell backlight up"),   { locked = true, repeating = true })
++hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("ryoku-shell backlight down"), { locked = true, repeating = true })
+diff --git a/ryoku/shell/dev-binds.sh b/ryoku/shell/dev-binds.sh
+index 1ad92e59..83c3fd60 100755
+--- a/ryoku/shell/dev-binds.sh
++++ b/ryoku/shell/dev-binds.sh
+@@ -12,6 +12,8 @@ binds=(
+ 	"SUPER,L,exec,$bin lock"
+ 	"SUPER,B,exec,$bin wallpaper"
+ 	"SUPER,C,exec,$bin wallpaper-switcher"
++	",XF86MonBrightnessUp,exec,$bin backlight up"
++	",XF86MonBrightnessDown,exec,$bin backlight down"
+ )
+ 
+ case "${1:-on}" in
+diff --git a/ryoku/shell/ipc/actions.go b/ryoku/shell/ipc/actions.go
+index 1e24e471..cc4c3511 100644
+--- a/ryoku/shell/ipc/actions.go
++++ b/ryoku/shell/ipc/actions.go
+@@ -7,6 +7,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"strconv"
+ 	"strings"
+ 	"time"
+ )
+@@ -224,6 +225,44 @@ func pgrepRunning(pattern string) bool {
+ 	return exec.Command("pgrep", "-f", pattern).Run() == nil
+ }
+ 
++// backlightProbe reads the laptop panel's current brightness %, parsing the
++// same comma field the sidebar's own `brightnessctl -m` probe reads.
++func backlightProbe() (int, error) {
++	out, err := exec.Command("brightnessctl", "-m").Output()
++	if err != nil {
++		return 0, err
++	}
++	first := strings.SplitN(string(out), "\n", 2)[0]
++	fields := strings.Split(strings.TrimSpace(first), ",")
++	if len(fields) < 4 {
++		return 0, fmt.Errorf("unexpected brightnessctl -m output: %q", first)
++	}
++	return strconv.Atoi(strings.TrimSuffix(fields[3], "%"))
++}
++
++// backlightAdjust steps the panel brightness by 5% (dir "up"/"down"), floored
++// at 5 so a key repeat never blacks out the screen, and returns the new %.
++func backlightAdjust(dir string) (string, error) {
++	cur, err := backlightProbe()
++	if err != nil {
++		return "", err
++	}
++	next := cur + 5
++	if dir == "down" {
++		next = cur - 5
++	}
++	if next < 5 {
++		next = 5
++	}
++	if next > 100 {
++		next = 100
++	}
++	if err := exec.Command("brightnessctl", "set", fmt.Sprintf("%d%%", next)).Run(); err != nil {
++		return "", err
++	}
++	return strconv.Itoa(next), nil
++}
++
+ func stateDir() string {
+ 	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
+ 		return d
+diff --git a/ryoku/shell/ipc/daemon.go b/ryoku/shell/ipc/daemon.go
+index 35319f1a..315fc82c 100644
+--- a/ryoku/shell/ipc/daemon.go
++++ b/ryoku/shell/ipc/daemon.go
+@@ -551,6 +551,19 @@ func (d *daemon) dispatch(line string) string {
+ 		}
+ 		d.ensure("pill")
+ 		return pillIpc("pluginPopout", d.activeMonitor(), args[0])
++	case "backlight":
++		// backlight <up|down> -> step the panel brightness (hardware keys). The
++		// daemon applies it (no live Pipewire-style service to react to) then
++		// tells the pill the new % so its OSD flashes, like volume's does.
++		if len(args) < 1 || (args[0] != "up" && args[0] != "down") {
++			return "err backlight: need <up|down>"
++		}
++		pct, err := backlightAdjust(args[0])
++		if err != nil {
++			return "err backlight: " + err.Error()
++		}
++		d.ensure("pill")
++		return pillIpc("backlight", pct)
+ 	case "plugins":
+ 		// plugins reload -> the per-monitor PluginPopouts watch plugins.json and
+ 		// re-discover on change, so a Settings save retunes live; this is a no-op
+diff --git a/ryoku/shell/ipc/main.go b/ryoku/shell/ipc/main.go
+index bec52f38..69cd22ab 100644
+--- a/ryoku/shell/ipc/main.go
++++ b/ryoku/shell/ipc/main.go
+@@ -75,5 +75,6 @@ func usage() {
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell lock")
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell wallpaper [next|init|set <path>]")
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell voice")
++	fmt.Fprintln(os.Stderr, "  ryoku-shell backlight <up|down>")
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell <reload|status|ping|quit>")
+ }
+diff --git a/ryoku/shell/quickshell/pill/Osd.qml b/ryoku/shell/quickshell/pill/Osd.qml
+index ae902588..54876628 100644
+--- a/ryoku/shell/quickshell/pill/Osd.qml
++++ b/ryoku/shell/quickshell/pill/Osd.qml
+@@ -96,6 +96,11 @@ Item {
+         function onMutedChanged() { root.flash("volume"); }
+     }
+ 
++    Connections {
++        target: Devices
++        function onPanelBrightnessUserChanged() { root.flash("brightness"); }
++    }
++
+     onPlayerChanged: {
+         Qt.callLater(function() {
+             if (stickyPlayer !== player)
+@@ -165,6 +170,60 @@ Item {
+         }
+     }
+ 
++    Item {
++        id: backlightRow
++        anchors.fill: parent
++        opacity: root.kind === "brightness" ? 1 : 0
++        visible: opacity > 0.01
++        Behavior on opacity { NumberAnimation { duration: 150 } }
++
++        GlyphIcon {
++            id: backlightGlyph
++            anchors.left: parent.left
++            anchors.verticalCenter: parent.verticalCenter
++            width: 17 * root.s
++            height: 17 * root.s
++            name: "sun"
++            color: Theme.iconDim
++            stroke: 1.7
++        }
++
++        Text {
++            id: backlightPct
++            anchors.right: parent.right
++            anchors.verticalCenter: parent.verticalCenter
++            width: 32 * root.s
++            horizontalAlignment: Text.AlignRight
++            text: Math.max(0, Devices.panelBrightness) + "%"
++            color: Theme.cream
++            font.family: Theme.font
++            font.pixelSize: 11 * root.s
++            font.weight: Font.DemiBold
++            font.features: { "tnum": 1 }
++        }
++
++        Rectangle {
++            anchors.left: backlightGlyph.right
++            anchors.leftMargin: 12 * root.s
++            anchors.right: backlightPct.left
++            anchors.rightMargin: 12 * root.s
++            anchors.verticalCenter: parent.verticalCenter
++            height: 4 * root.s
++            radius: Theme.radius
++            color: Theme.threadBg
++
++            Rectangle {
++                anchors.left: parent.left
++                anchors.top: parent.top
++                anchors.bottom: parent.bottom
++                width: parent.width * Math.max(0, Devices.panelBrightness) / 100
++                radius: parent.radius
++                color: Theme.vermLit
++                Behavior on width { NumberAnimation { duration: Motion.fast } }
++            }
++        }
++    }
++
+     Item {
+         id: trackRow
+         anchors.fill: parent
+diff --git a/ryoku/shell/quickshell/pill/Singletons/Devices.qml b/ryoku/shell/quickshell/pill/Singletons/Devices.qml
+index 83ae1615..ea8c9721 100644
+--- a/ryoku/shell/quickshell/pill/Singletons/Devices.qml
++++ b/ryoku/shell/quickshell/pill/Singletons/Devices.qml
+@@ -64,6 +64,47 @@ Singleton {
+         return m ? parseInt(m[1], 10) : -1;
+     }
+ 
++    // --- laptop panel backlight (brightnessctl) -----------------------------
++    // panelBrightness is the last known %, kept fresh for display. hypridle
++    // dims/restores it independently of the shell (idle timeout, resume), so a
++    // plain propertyChanged signal can't tell "the user just changed this" from
++    // "we silently resynced to a value that moved while we weren't looking" --
++    // panelBrightnessUserChanged exists so only the former flashes the OSD.
++    property int panelBrightness: -1
++    signal panelBrightnessUserChanged(int pct)
++
++    function probePanelBrightness() {
++        panelProbe.running = true;
++    }
++
++    // user-driven change (sidebar fader commit): apply to hardware, then flash.
++    function setPanelBrightness(pct) {
++        var clamped = Math.max(5, Math.min(100, Math.round(pct)));
++        root.panelBrightness = clamped;
++        Quickshell.execDetached(["brightnessctl", "set", clamped + "%"]);
++        root.panelBrightnessUserChanged(clamped);
++    }
++
++    // user-driven change already applied elsewhere (a hardware key, via the
++    // ryoku-shell daemon): just record it and flash, no hardware call.
++    function reportPanelBrightness(pct) {
++        root.panelBrightness = pct;
++        root.panelBrightnessUserChanged(pct);
++    }
++
++    Process {
++        id: panelProbe
++        command: ["brightnessctl", "-m"]
++        stdout: StdioCollector {
++            onStreamFinished: {
++                var first = this.text.trim().split("\n")[0];
++                var pct = parseInt((first.split(",")[3] || "").replace("%", ""), 10);
++                if (!isNaN(pct))
++                    root.panelBrightness = pct;
++            }
++        }
++    }
++
+     Process {
+         id: ddcDetect
+         command: ["ddcutil", "detect", "--brief"]
+diff --git a/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml b/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml
+index d0e73acc..26c3c4fa 100644
+--- a/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml
++++ b/ryoku/shell/quickshell/pill/popouts/SidebarSystem.qml
+@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
+ 
+ import QtQuick
+ import Quickshell
+-import Quickshell.Io
+ import ".."
+ import "../Singletons"
+ import "../lib/weather.js" as Wx
+@@ -73,33 +72,19 @@ Item {
+ 
+     SystemClock { id: sys; precision: SystemClock.Minutes; enabled: root.open }
+ 
+-    // laptop panel backlight, via brightnessctl -- same tool the Hub's Comfort
+-    // tab drives. re-read on open since hypridle can change it (dim-on-timeout,
+-    // restore-on-resume) while the sidebar is closed.
+-    property int backlight: -1
++    // laptop panel backlight, via Devices.qml (brightnessctl) -- same tool the
++    // Hub's Comfort tab drives. re-read on open since hypridle can change it
++    // (dim-on-timeout, restore-on-resume) while the sidebar is closed; that
++    // resync is silent (no OSD flash), only an actual fader commit flashes it.
+     property real pendingBacklight: -1
+-    onOpenChanged: if (root.open) backlightGetProc.running = true
+-    Component.onCompleted: backlightGetProc.running = true
+-
+-    Process {
+-        id: backlightGetProc
+-        command: ["brightnessctl", "-m"]
+-        stdout: StdioCollector {
+-            onStreamFinished: {
+-                var first = this.text.trim().split("\n")[0];
+-                var pct = parseInt((first.split(",")[3] || "").replace("%", ""), 10);
+-                if (!isNaN(pct))
+-                    root.backlight = pct;
+-            }
+-        }
+-    }
+-    Process { id: backlightSetProc }
++    onOpenChanged: if (root.open) Devices.probePanelBrightness()
++    Component.onCompleted: Devices.probePanelBrightness()
++
+     Timer {
+         id: backlightCommit
+         interval: 160
+         onTriggered: if (root.pendingBacklight >= 0) {
+-            backlightSetProc.command = ["brightnessctl", "set", Math.round(root.pendingBacklight) + "%"];
+-            backlightSetProc.running = true;
++            Devices.setPanelBrightness(root.pendingBacklight);
+             root.pendingBacklight = -1;
+         }
+     }
+@@ -267,9 +252,9 @@ Item {
+             s: root.s
+             icon: "sun"
+             lit: root.open
+-            value: root.backlight < 0 ? 0 : root.backlight / 100
+-            valueLabel: root.backlight < 0 ? "" : root.backlight + "%"
+-            onMoved: (v) => { root.backlight = Math.max(5, Math.min(100, Math.round(v * 100))); }
++            value: Devices.panelBrightness < 0 ? 0 : Devices.panelBrightness / 100
++            valueLabel: Devices.panelBrightness < 0 ? "" : Devices.panelBrightness + "%"
++            onMoved: (v) => { Devices.panelBrightness = Math.max(5, Math.min(100, Math.round(v * 100))); }
+             onCommitted: (v) => {
+                 root.pendingBacklight = Math.max(5, Math.min(100, Math.round(v * 100)));
+                 backlightCommit.restart();
+diff --git a/ryoku/shell/quickshell/pill/shell.qml b/ryoku/shell/quickshell/pill/shell.qml
+index d49d0dff..e4ae52c2 100644
+--- a/ryoku/shell/quickshell/pill/shell.qml
++++ b/ryoku/shell/quickshell/pill/shell.qml
+@@ -84,6 +84,7 @@ ShellRoot {
+     Component.onCompleted: {
+         refresh();
+         Devices.restore();
++        Devices.probePanelBrightness();
+         // re-arm the durable idle inhibitor for the persisted flag. on a
+         // shell reload the external inhibitor is usually still up (lives
+         // outside this process), so "start" = idempotent confirm; "stop"
+@@ -336,6 +337,7 @@ ShellRoot {
+         function hide(): void { root.popout = ""; }
+         // toggle an enabled plugin's frame popout by id (leader menu / keybind).
+         function pluginPopout(mon: string, id: string): void { root.togglePopout(mon, "plugin:" + id); }
++        function backlight(pct: string): void { Devices.reportPanelBrightness(parseInt(pct, 10)); }
+     }
+ 
+     // The daemon writes surface commands to this socket to toggle pill surfaces
+@@ -365,6 +367,8 @@ ShellRoot {
+         case "pluginPopout":
+             root.togglePopout(mon, "plugin:" + (parts.length > 2 ? parts[2] : ""));
+             return true;
++        case "backlight":
++            Devices.reportPanelBrightness(parseInt(mon, 10)); return true;
+         case "voiceShow":
+             root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
+         case "voiceOff":
+-- 
+2.55.0
+
