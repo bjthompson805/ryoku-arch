@@ -1,0 +1,591 @@
+From e9189302fa3133a9ba570ab488cec486ce187716 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Sun, 19 Jul 2026 23:00:29 -0700
+Subject: [PATCH] Patch: Add CPU/RAM/temp and network speed widgets to the
+ Noctalia bar.
+
+The system-stats readout (BarStats) only ever showed on Nacre and the flat
+iNiR skins (inir/aurora/angel); Noctalia had no equivalent. Wire it into
+Noctalia's right island too, ahead of status.
+
+Add a companion network-throughput widget (BarNetSpeed / the NetSpeed
+singleton): a stacked download/upload readout off /proc/net/dev deltas on
+the default-route interface, alongside BarStats on Noctalia, Nacre and the
+flat skins, download left of stats on Noctalia. The value column is pinned
+to its widest possible reading so a B/s -> KB/s -> MB/s scale change never
+reflows neighboring bar modules. Clicking either row opens a new traffic
+popout (NetSpeedPopout) with rate sparklines (scaled to their own recent
+peak) and the cumulative session download/upload total.
+
+diff --git a/docs/bar.md b/docs/bar.md
+index 2d0cfefe..f99e4049 100644
+--- a/docs/bar.md
++++ b/docs/bar.md
+@@ -15,7 +15,9 @@ Ryoku Settings drives the bar through `Config`:
+ - `barStyle` the skin. `noctalia` and `caelestia` are carried from the credited
+   reference shells; `aegis`, `stele`, `triptych`, `delos` and `nacre` are Ryoku's own, and `inir` / `aurora` / `angel` are flat frame-off skins ported from snowarch's iNiR:
+   - **`noctalia`** fully rounded capsule modules in a row; dot workspaces whose
+-    active dot widens into an accent lozenge with its number; the stacked clock.
++    active dot widens into an accent lozenge with its number; the stacked clock;
++    a stacked download/upload speed readout then a CPU/RAM/temperature readout
++    right, ahead of status.
+   - **`caelestia`** the numbered workspace cell strip inside one container pill
+     with a sliding indicator; Material Symbols Rounded iconography.
+   - **`nacre`** grows the frame lobes like triptych, so the bar dips between three
+@@ -60,10 +62,19 @@ A left group and a right group flank the centred clock:
+   each opens its own popout.
+ - **tray** (`BarTray`) the system tray.
+ - **power** a session glyph; clicking opens the power popout.
+-- **system stats** (`BarStats`, on nacre and the flat iNiR skins) a CPU / RAM / temperature readout off
++- **system stats** (`BarStats`, on noctalia, nacre and the flat iNiR skins) a CPU / RAM / temperature readout off
+   the `SysStats` singleton (native `/proc` + `/sys` polling); clicking opens the
+   resources popout (`ResourcesPopout`) with usage sparklines and the top
+   processes by CPU.
++- **net speed** (`BarNetSpeed`, alongside `BarStats` on noctalia, nacre and the
++  flat iNiR skins) a stacked download-over-upload readout off the `NetSpeed`
++  singleton: the default-route interface (resolved via `ip route`, re-checked
++  every 30s) polled from `/proc/net/dev` byte deltas every 1.5s. The value
++  column is pinned to its widest possible reading so a B/s -> KB/s -> MB/s
++  scale change never reflows the module. Clicking either row opens the traffic
++  popout (`NetSpeedPopout`) with rate sparklines (scaled to their own recent
++  peak, not a fixed ceiling) and the cumulative session download/upload total
++  since the daemon started.
+
+ ## BarModule: the shared capsule
+
+diff --git a/ryoku/shell/quickshell/pill/Bar.qml b/ryoku/shell/quickshell/pill/Bar.qml
+index 74586101..9b208646 100644
+--- a/ryoku/shell/quickshell/pill/Bar.qml
++++ b/ryoku/shell/quickshell/pill/Bar.qml
+@@ -30,6 +30,7 @@ Item {
+
+     readonly property real moduleSpan: Math.round(bar.band * 0.76)
+     readonly property bool triptych: Config.barStyle === "triptych"
++    readonly property bool noctalia: Config.barStyle === "noctalia"
+     readonly property bool nacre: Config.barStyle === "nacre"
+     readonly property bool inir: Config.barStyle === "inir"
+     readonly property bool aurora: Config.barStyle === "aurora"
+@@ -232,6 +233,31 @@ Item {
+                     }
+                 }
+
++                BarModule {
++                    anchors.verticalCenter: parent.verticalCenter
++                    s: bar.s
++                    height: bar.moduleSpan
++                    padX: 6 * bar.s
++                    visible: bar.noctalia
++                    interactive: false
++
++                    BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
++                }
++
++                BarModule {
++                    anchors.verticalCenter: parent.verticalCenter
++                    s: bar.s
++                    height: bar.moduleSpan
++                    padX: 6 * bar.s
++                    visible: bar.noctalia
++                    interactive: false
++
++                    BarStats {
++                        s: bar.s
++                        onRequestPopout: (name, center) => bar.popoutRequested(name, center)
++                    }
++                }
++
+                 BarModule {
+                     anchors.verticalCenter: parent.verticalCenter
+                     s: bar.s
+@@ -406,6 +432,14 @@ Item {
+                         interactive: false
+                         BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                     }
++                    BarModule {
++                        anchors.verticalCenter: parent.verticalCenter
++                        s: bar.s
++                        height: bar.moduleSpan
++                        padX: 6 * bar.s
++                        interactive: false
++                        BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
++                    }
+                 }
+             }
+
+@@ -550,6 +584,15 @@ Item {
+                     interactive: false
+                     BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                 }
++                Sep { visible: bar.inir }
++                BarModule {
++                    anchors.verticalCenter: parent.verticalCenter
++                    s: bar.s
++                    height: bar.moduleSpan
++                    padX: 8 * bar.s
++                    interactive: false
++                    BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
++                }
+                 Sep { visible: bar.inir && Config.barShowMedia && Media.present }
+                 BarReveal {
+                     anchors.verticalCenter: parent.verticalCenter
+diff --git a/ryoku/shell/quickshell/pill/BarNetSpeed.qml b/ryoku/shell/quickshell/pill/BarNetSpeed.qml
+new file mode 100644
+index 00000000..a4ec5c6e
+--- /dev/null
++++ b/ryoku/shell/quickshell/pill/BarNetSpeed.qml
+@@ -0,0 +1,79 @@
++pragma ComponentBehavior: Bound
++import QtQuick
++import "Singletons"
++
++// network throughput readout for the bar: download over upload, off the
++// NetSpeed singleton (default-route interface, /proc/net/dev deltas). stacked
++// two-line like a waybar custom/network_traffic module. keeps the poller
++// awake while shown. the value column is pinned to the widest reading
++// (NetSpeed._fmt never exceeds "1023.9 KB/s"-length text), so a scale change
++// -- B/s to KB/s to MB/s -- never reflows the module width and shifts
++// whatever rides beside it. click either row to open the traffic popout.
++Column {
++    id: netSpeed
++
++    property real s: 1
++
++    signal requestPopout(string name, real center)
++
++    spacing: 1 * s
++
++    readonly property real valueWidth: valueMetrics.implicitWidth
++    Text {
++        id: valueMetrics
++        visible: false
++        text: "1023.9 KB/s"
++        font.family: Theme.font
++        font.pixelSize: 8.5 * netSpeed.s
++        font.weight: Font.Medium
++        font.features: ({ "tnum": 1 })
++    }
++
++    Component.onCompleted: NetSpeed.active = true
++    Component.onDestruction: NetSpeed.active = false
++
++    function open(item) {
++        const p = item.mapToItem(null, item.width / 2, item.height / 2);
++        netSpeed.requestPopout("netspeed", p.x);
++    }
++
++    component SpeedRow: Item {
++        id: it
++        property string glyph: ""
++        property string value: ""
++        implicitWidth: itRow.implicitWidth
++        implicitHeight: itRow.implicitHeight
++
++        Row {
++            id: itRow
++            anchors.verticalCenter: parent.verticalCenter
++            spacing: 3 * netSpeed.s
++
++            MaterialIcon {
++                anchors.verticalCenter: parent.verticalCenter
++                text: it.glyph
++                fill: 1
++                color: Theme.subtle
++                font.pixelSize: 10 * netSpeed.s
++            }
++            Text {
++                anchors.verticalCenter: parent.verticalCenter
++                width: netSpeed.valueWidth
++                text: it.value
++                color: Theme.subtle
++                font.family: Theme.font
++                font.pixelSize: 8.5 * netSpeed.s
++                font.weight: Font.Medium
++                font.features: ({ "tnum": 1 })
++            }
++        }
++        MouseArea {
++            anchors.fill: parent
++            cursorShape: Qt.PointingHandCursor
++            onClicked: netSpeed.open(it)
++        }
++    }
++
++    SpeedRow { glyph: "arrow_downward"; value: NetSpeed.rxLabel }
++    SpeedRow { glyph: "arrow_upward"; value: NetSpeed.txLabel }
++}
+diff --git a/ryoku/shell/quickshell/pill/Singletons/NetSpeed.qml b/ryoku/shell/quickshell/pill/Singletons/NetSpeed.qml
+new file mode 100644
+index 00000000..3fe0d4b7
+--- /dev/null
++++ b/ryoku/shell/quickshell/pill/Singletons/NetSpeed.qml
+@@ -0,0 +1,141 @@
++pragma Singleton
++import QtQuick
++import Quickshell
++import Quickshell.Io
++
++// live network throughput for the bar's net-speed module: rx/tx byte-rate off
++// the default-route interface, sampled from /proc/net/dev deltas. the
++// interface is resolved via `ip route` and re-resolved occasionally (it can
++// change, e.g. wifi to ethernet), so there is no per-tick subprocess. the
++// poller runs only while `active` (a visible BarNetSpeed sets it). keeps a
++// short rate history for the popout sparklines and a running byte total for
++// as long as the daemon has been up, for the session-usage readout.
++Singleton {
++    id: root
++
++    property bool active: false
++    property real rxRate: 0 // bytes/sec
++    property real txRate: 0 // bytes/sec
++    property string rxLabel: "0 B/s"
++    property string txLabel: "0 B/s"
++
++    readonly property int histLen: 60
++    property var rxHistory: []
++    property var txHistory: []
++
++    property real rxTotal: 0 // bytes, cumulative since the poller first ran
++    property real txTotal: 0
++    property string rxTotalLabel: "0 B"
++    property string txTotalLabel: "0 B"
++
++    property string _iface: ""
++    property real _prevRx: -1
++    property real _prevTx: -1
++    property real _prevTime: 0
++
++    function _push(arr, v) {
++        var a = arr.slice();
++        a.push(v);
++        if (a.length > root.histLen)
++            a.shift();
++        return a;
++    }
++
++    function _fmt(bps) {
++        if (bps < 1024)
++            return Math.round(bps) + " B/s";
++        if (bps < 1024 * 1024)
++            return (bps / 1024).toFixed(1) + " KB/s";
++        if (bps < 1024 * 1024 * 1024)
++            return (bps / (1024 * 1024)).toFixed(1) + " MB/s";
++        return (bps / (1024 * 1024 * 1024)).toFixed(1) + " GB/s";
++    }
++
++    function _fmtBytes(bytes) {
++        if (bytes < 1024)
++            return Math.round(bytes) + " B";
++        if (bytes < 1024 * 1024)
++            return (bytes / 1024).toFixed(1) + " KB";
++        if (bytes < 1024 * 1024 * 1024)
++            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
++        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
++    }
++
++    Process {
++        id: ifaceProc
++        command: ["sh", "-c", "ip route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i==\"dev\") print $(i+1)}' | head -1"]
++        stdout: StdioCollector {
++            onStreamFinished: {
++                var p = (this.text || "").trim();
++                if (p.length > 0 && p !== root._iface) {
++                    root._iface = p;
++                    root._prevRx = -1;
++                    root._prevTx = -1;
++                }
++            }
++        }
++    }
++
++    Timer {
++        interval: 30000
++        repeat: true
++        running: root.active
++        triggeredOnStart: true
++        onTriggered: ifaceProc.running = true
++    }
++
++    Timer {
++        interval: 1500
++        repeat: true
++        running: root.active && root._iface.length > 0
++        triggeredOnStart: true
++        onTriggered: devFile.reload()
++    }
++
++    FileView {
++        id: devFile
++        path: "/proc/net/dev"
++        blockLoading: true
++        printErrors: false
++        onLoaded: {
++            if (root._iface.length === 0)
++                return;
++            var lines = devFile.text().split("\n");
++            for (var i = 0; i < lines.length; i++) {
++                var ln = lines[i].trim();
++                var idx = ln.indexOf(":");
++                if (idx < 0)
++                    continue;
++                if (ln.slice(0, idx).trim() !== root._iface)
++                    continue;
++                var f = ln.slice(idx + 1).trim().split(/\s+/);
++                if (f.length < 9)
++                    return;
++                var rx = Number(f[0]);
++                var tx = Number(f[8]);
++                var now = Date.now() / 1000;
++                if (root._prevRx >= 0 && root._prevTime > 0) {
++                    var dt = now - root._prevTime;
++                    if (dt > 0) {
++                        var drx = Math.max(0, rx - root._prevRx);
++                        var dtx = Math.max(0, tx - root._prevTx);
++                        root.rxRate = drx / dt;
++                        root.txRate = dtx / dt;
++                        root.rxLabel = root._fmt(root.rxRate);
++                        root.txLabel = root._fmt(root.txRate);
++                        root.rxHistory = root._push(root.rxHistory, root.rxRate);
++                        root.txHistory = root._push(root.txHistory, root.txRate);
++                        root.rxTotal += drx;
++                        root.txTotal += dtx;
++                        root.rxTotalLabel = root._fmtBytes(root.rxTotal);
++                        root.txTotalLabel = root._fmtBytes(root.txTotal);
++                    }
++                }
++                root._prevRx = rx;
++                root._prevTx = tx;
++                root._prevTime = now;
++                return;
++            }
++        }
++    }
++}
+diff --git a/ryoku/shell/quickshell/pill/Singletons/qmldir b/ryoku/shell/quickshell/pill/Singletons/qmldir
+index 4dfd5838..5c4a1d63 100644
+--- a/ryoku/shell/quickshell/pill/Singletons/qmldir
++++ b/ryoku/shell/quickshell/pill/Singletons/qmldir
+@@ -24,4 +24,5 @@ singleton Network Network.qml
+ singleton Media Media.qml
+ singleton IslandDock IslandDock.qml
+ singleton SysStats SysStats.qml
++singleton NetSpeed NetSpeed.qml
+ singleton Fullscreen Fullscreen.qml
+diff --git a/ryoku/shell/quickshell/pill/popouts/NetSpeedPopout.qml b/ryoku/shell/quickshell/pill/popouts/NetSpeedPopout.qml
+new file mode 100644
+index 00000000..eb68c67c
+--- /dev/null
++++ b/ryoku/shell/quickshell/pill/popouts/NetSpeedPopout.qml
+@@ -0,0 +1,176 @@
++pragma ComponentBehavior: Bound
++
++import QtQuick
++import ".."
++import "../Singletons"
++
++// traffic popout content: the download / upload rate readout behind the bar's
++// net-speed module, grown from the bar edge. each direction is an eyebrow +
++// hero value with a bar sparkline off the NetSpeed rate history, scaled to
++// its own recent peak (a byte rate has no natural ceiling like a percentage
++// does), then the cumulative session usage. a bare transparent Item -- the
++// Popout blob behind it IS the surface; this panel only reports its implicit
++// size.
++Item {
++    id: root
++
++    property real s: 1
++    property bool open: false
++
++    anchors.fill: parent
++
++    implicitWidth: 240 * s
++    implicitHeight: body.implicitHeight + 27 * s
++
++    component Divider: Rectangle {
++        width: parent ? parent.width : 0
++        height: 1
++        color: Theme.hair
++    }
++
++    // one direction: eyebrow label + hero value on its baseline, then a bar
++    // sparkline of the recent rate history scaled to its own peak (floored so
++    // idle traffic doesn't read as a wall of full-height noise).
++    component Metric: Column {
++        id: metric
++        property string label: ""
++        property string value: ""
++        property var series: []
++        readonly property real peak: Math.max.apply(null, [64 * 1024].concat(metric.series))
++
++        width: parent ? parent.width : 0
++        spacing: 6 * root.s
++
++        Item {
++            width: parent.width
++            height: mLabel.implicitHeight
++            Text {
++                id: mLabel
++                anchors.left: parent.left
++                anchors.verticalCenter: parent.verticalCenter
++                text: metric.label
++                color: Theme.subtle
++                font.family: Theme.mono
++                font.pixelSize: 9 * root.s
++                font.weight: Font.DemiBold
++                font.capitalization: Font.AllUppercase
++                font.letterSpacing: 1.2 * root.s
++            }
++            Text {
++                anchors.right: parent.right
++                anchors.baseline: mLabel.baseline
++                text: metric.value
++                color: Theme.cream
++                font.family: Theme.font
++                font.pixelSize: 14 * root.s
++                font.weight: Font.DemiBold
++                font.features: ({ "tnum": 1 })
++            }
++        }
++
++        Row {
++            id: spark
++            width: parent.width
++            height: 18 * root.s
++            spacing: 1.5 * root.s
++
++            readonly property int shown: Math.min(metric.series.length, 44)
++            readonly property real barW: shown > 0 ? (width - (shown - 1) * spacing) / shown : 0
++
++            Repeater {
++                model: spark.shown
++                delegate: Rectangle {
++                    required property int index
++                    readonly property real v: metric.series[metric.series.length - spark.shown + index]
++                    width: spark.barW
++                    height: Math.max(1, spark.height * Math.min(1, v / metric.peak))
++                    y: spark.height - height
++                    radius: width / 2
++                    color: Theme.verm
++                    opacity: 0.35 + 0.65 * (index / Math.max(1, spark.shown - 1))
++                }
++            }
++        }
++    }
++
++    // one session-usage row: eyebrow label left, total right.
++    component TotalRow: Item {
++        id: totalRow
++        property string label: ""
++        property string value: ""
++        width: parent ? parent.width : 0
++        height: tLabel.implicitHeight
++
++        Text {
++            id: tLabel
++            anchors.left: parent.left
++            anchors.verticalCenter: parent.verticalCenter
++            text: totalRow.label
++            color: Theme.subtle
++            font.family: Theme.font
++            font.pixelSize: 10.5 * root.s
++            font.weight: Font.Medium
++        }
++        Text {
++            anchors.right: parent.right
++            anchors.verticalCenter: parent.verticalCenter
++            text: totalRow.value
++            color: Theme.cream
++            font.family: Theme.font
++            font.pixelSize: 10.5 * root.s
++            font.weight: Font.DemiBold
++            font.features: ({ "tnum": 1 })
++        }
++    }
++
++    Column {
++        id: body
++        anchors.top: parent.top
++        anchors.left: parent.left
++        anchors.right: parent.right
++        anchors.topMargin: 13 * root.s
++        anchors.leftMargin: 16 * root.s
++        anchors.rightMargin: 16 * root.s
++        spacing: 11 * root.s
++
++        // header: brand glyph + eyebrow, the popout idiom.
++        Row {
++            spacing: 8 * root.s
++            MaterialIcon {
++                anchors.verticalCenter: parent.verticalCenter
++                text: "swap_vert"
++                fill: 1
++                color: Theme.brand
++                font.pixelSize: 16 * root.s
++            }
++            Text {
++                anchors.verticalCenter: parent.verticalCenter
++                text: "NETWORK"
++                color: Theme.subtle
++                font.family: Theme.font
++                font.pixelSize: 10 * root.s
++                font.weight: Font.DemiBold
++                font.capitalization: Font.AllUppercase
++                font.letterSpacing: 1.6 * root.s
++            }
++        }
++
++        Metric { label: "Download"; value: NetSpeed.rxLabel; series: NetSpeed.rxHistory }
++        Metric { label: "Upload"; value: NetSpeed.txLabel; series: NetSpeed.txHistory }
++
++        Divider {}
++
++        Text {
++            text: "SESSION USAGE"
++            color: Theme.subtle
++            font.family: Theme.font
++            font.pixelSize: 9 * root.s
++            font.weight: Font.DemiBold
++            font.capitalization: Font.AllUppercase
++            font.letterSpacing: 1.4 * root.s
++        }
++
++        TotalRow { label: "Downloaded"; value: NetSpeed.rxTotalLabel }
++        TotalRow { label: "Uploaded"; value: NetSpeed.txTotalLabel }
++    }
++}
+diff --git a/ryoku/shell/quickshell/pill/shell.qml b/ryoku/shell/quickshell/pill/shell.qml
+index d49d0dff..bc10085e 100644
+--- a/ryoku/shell/quickshell/pill/shell.qml
++++ b/ryoku/shell/quickshell/pill/shell.qml
+@@ -873,6 +873,30 @@ ShellRoot {
+                     }
+                 }
+
++                // net-speed popout: opened from the bar's net-speed module, the
++                // download / upload readout grows from the bar edge at the module.
++                Popout {
++                    id: netSpeedPop
++                    group: blobGroup
++                    frameThickness: overlay.barVisibleH
++                    radius: Config.frameRadius
++                    smoothing: Config.frameSmoothing
++                    edge: overlay.barPos
++                    hoverOpen: false
++                    alongCenter: root.popoutCenter
++                    s: overlay.s
++                    active: !overlay.monFullscreen
++                    pinned: root.popout === "netspeed" && root.popoutMon === overlay.modelData.name
++                    openW: netSpeedContent.implicitWidth
++                    openH: netSpeedContent.implicitHeight
++
++                    NetSpeedPopout {
++                        id: netSpeedContent
++                        s: overlay.s
++                        open: netSpeedPop.prog > 0.5
++                    }
++                }
++
+                 Popout {
+                     id: bluetoothPop
+                     group: blobGroup
+--
+2.55.0
