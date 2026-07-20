@@ -1,0 +1,32 @@
+From fb35752c905b0f273bcd6c48b4a3fb4e5874b1d9 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Mon, 20 Jul 2026 12:39:22 -0700
+Subject: Patch: scroll over the sound status icon to adjust volume.
+
+The status cluster's volume glyph only opened the mixer on click; a
+wheel anywhere else on the bare bar band already nudges the sink
+volume (Bar.qml's nudgeVolume), but the icon's own MouseArea absorbed
+wheel events without forwarding them. Give it the same onWheel handling
+BarModule already uses for the media pill, so scrolling right over the
+glyph works too.
+
+diff --git a/ryoku/shell/quickshell/pill/BarStatus.qml b/ryoku/shell/quickshell/pill/BarStatus.qml
+index 62a52b8f..1e36773f 100644
+--- a/ryoku/shell/quickshell/pill/BarStatus.qml
++++ b/ryoku/shell/quickshell/pill/BarStatus.qml
+@@ -68,6 +68,12 @@ Grid {
+             anchors.fill: parent
+             cursorShape: Qt.PointingHandCursor
+             onClicked: status.open("mixer", volIcon)
++            onWheel: (w) => {
++                if (!volIcon.sink || !volIcon.sink.audio)
++                    return;
++                volIcon.sink.audio.muted = false;
++                volIcon.sink.audio.volume = Math.max(0, Math.min(1, volIcon.vol + (w.angleDelta.y > 0 ? 1 : -1) * 0.03));
++            }
+         }
+     }
+ 
+-- 
+2.55.0
+
