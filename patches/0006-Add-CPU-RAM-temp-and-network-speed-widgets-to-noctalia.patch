@@ -1,4 +1,4 @@
-From e217fa4f73a2dfd91a20f6d6ed78db117293f9ca Mon Sep 17 00:00:00 2001
+From 1a9278bc884c6740f193f027afb92f6c208c6437 Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Sun, 19 Jul 2026 23:00:29 -0700
 Subject: Patch: Add CPU/RAM/temp and network speed widgets to the Noctalia
@@ -17,8 +17,19 @@ reflows neighboring bar modules. Clicking either row opens a new traffic
 popout (NetSpeedPopout) with rate sparklines (scaled to their own recent
 peak) and the cumulative session download/upload total.
 
+On Noctalia the extra width from stats + net speed can crowd Now Playing
+into the centred clock, so BarMedia drops to the art thumb alone (the
+existing nacre idiom) once the right island's other modules would leave it
+no room, decided from module widths rather than a fixed screen size.
+
+Add Settings > Desktop > Shell > Bar toggles for both new widgets:
+"System stats" (barShowStats) only shows while Noctalia is the selected
+skin, since it's native and unconditional on nacre/inir/aurora/angel;
+"Network speed" (barShowNetSpeed) shows for whichever of those skins is
+selected, since net speed is new to all of them.
+
 diff --git a/docs/bar.md b/docs/bar.md
-index 2d0cfefe..f99e4049 100644
+index 2d0cfefe..8a4d3cb2 100644
 --- a/docs/bar.md
 +++ b/docs/bar.md
 @@ -15,7 +15,9 @@ Ryoku Settings drives the bar through `Config`:
@@ -32,7 +43,27 @@ index 2d0cfefe..f99e4049 100644
    - **`caelestia`** the numbered workspace cell strip inside one container pill
      with a sliding indicator; Material Symbols Rounded iconography.
    - **`nacre`** grows the frame lobes like triptych, so the bar dips between three
-@@ -60,10 +62,19 @@ A left group and a right group flank the centred clock:
+@@ -40,6 +42,12 @@ Ryoku Settings drives the bar through `Config`:
+   by is `barBand = barHeight x s`; modules size against `moduleSpan =
+   round(barBand x 0.76)`.
+ - `barShowMedia` / `barShowStatus` toggle the now-playing and status modules.
++- `barShowStats` toggles the CPU/RAM/temperature readout on noctalia, where it's
++  an add-on; the toggle only shows in Ryoku Settings when noctalia is the
++  selected skin (it's native and unconditional on nacre and the flat iNiR
++  skins). `barShowNetSpeed` toggles the network readout everywhere it appears
++  (noctalia, nacre, inir/aurora/angel); its Settings toggle shows for whichever
++  of those skins is selected.
+ 
+ The bar's edge gets `frameBorder + barBand` on the frame's `BlobInvertedRect`, so
+ the border swells into a band the bar rides; the other three edges stay a
+@@ -56,14 +64,26 @@ A left group and a right group flank the centred clock:
+ - **clock** (`BarClock`, centred) the time; clicking opens the calendar popout.
+ - **now-playing** (`BarMedia`) the track's art + title; clicking toggles play, the
+   wheel nudges volume, and hovering opens the transport popout (`MediaPopout`).
++  On noctalia it drops to the art thumb alone (the nacre idiom) once the net
++  speed + stats readout ahead of it would otherwise crowd the centred clock;
++  the threshold is computed from module widths, not a fixed screen size.
+ - **status** (`BarStatus`) the volume / network / bluetooth / battery glyphs;
    each opens its own popout.
  - **tray** (`BarTray`) the system tray.
  - **power** a session glyph; clicking opens the power popout.
@@ -53,8 +84,67 @@ index 2d0cfefe..f99e4049 100644
  
  ## BarModule: the shared capsule
  
+diff --git a/ryoku/hub/quickshell/ShellSettingsPage.qml b/ryoku/hub/quickshell/ShellSettingsPage.qml
+index 922a0622..d6dd3623 100644
+--- a/ryoku/hub/quickshell/ShellSettingsPage.qml
++++ b/ryoku/hub/quickshell/ShellSettingsPage.qml
+@@ -21,7 +21,7 @@ Item {
+         "shadowStrength", "shadowSize", "surfaceColor",
+         "osdRadius", "osdOpacity",
+         "barEnabled", "barPosition", "barStyle", "barHeight",
+-        "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
++        "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barOccupiedWorkspaces",
+         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
+         "fontFamily", "fontScale",
+         "weatherLocation", "weatherUnit",
+@@ -95,7 +95,7 @@ Item {
+         "shadowStrength": 0.63, "shadowSize": 12, "surfaceColor": "#0f1115",
+         "osdRadius": 28, "osdOpacity": 1,
+         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
+-        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barOccupiedWorkspaces": true,
++        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barOccupiedWorkspaces": true,
+         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
+         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
+         "weatherLocation": "", "weatherUnit": "auto",
+@@ -137,6 +137,8 @@ Item {
+         property bool barShowTitle: true
+         property bool barShowMedia: true
+         property bool barShowStatus: true
++        property bool barShowStats: true
++        property bool barShowNetSpeed: true
+         property bool barOccupiedWorkspaces: true
+         property string islandEdge: "top"
+         property real islandAlong: -1
+@@ -358,6 +360,8 @@ Item {
+             property bool barShowTitle: true
+             property bool barShowMedia: true
+             property bool barShowStatus: true
++            property bool barShowStats: true
++            property bool barShowNetSpeed: true
+             property bool barOccupiedWorkspaces: true
+             property string islandEdge: "top"
+             property real islandAlong: -1
+@@ -856,6 +860,18 @@ Item {
+                         checked: draft.barShowMedia
+                         onToggled: (v) => page.edit("barShowMedia", v)
+                     }
++                    ToggleRow {
++                        width: parent.width; label: "Network speed"
++                        visible: ["noctalia", "nacre", "inir", "aurora", "angel"].indexOf(draft.barStyle) >= 0
++                        checked: draft.barShowNetSpeed
++                        onToggled: (v) => page.edit("barShowNetSpeed", v)
++                    }
++                    ToggleRow {
++                        width: parent.width; label: "System stats (CPU/RAM/temp)"
++                        visible: draft.barStyle === "noctalia"
++                        checked: draft.barShowStats
++                        onToggled: (v) => page.edit("barShowStats", v)
++                    }
+                     ToggleRow {
+                         width: parent.width; label: "Status glyphs (network, battery, inbox)"
+                         checked: draft.barShowStatus
 diff --git a/ryoku/shell/quickshell/pill/Bar.qml b/ryoku/shell/quickshell/pill/Bar.qml
-index 74586101..0b889c6f 100644
+index 74586101..2a82edef 100644
 --- a/ryoku/shell/quickshell/pill/Bar.qml
 +++ b/ryoku/shell/quickshell/pill/Bar.qml
 @@ -30,6 +30,7 @@ Item {
@@ -65,7 +155,48 @@ index 74586101..0b889c6f 100644
      readonly property bool nacre: Config.barStyle === "nacre"
      readonly property bool inir: Config.barStyle === "inir"
      readonly property bool aurora: Config.barStyle === "aurora"
-@@ -232,6 +233,22 @@ Item {
+@@ -50,6 +51,35 @@ Item {
+     readonly property real centreW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.centreW : 0) : centreIsland.width
+     readonly property real rightX: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightX : 0) : rightIsland.x
+     readonly property real rightW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightW : 0) : rightIsland.width
++
++    // noctalia's right island grew a net-speed and stats readout ahead of
++    // status; on narrower screens the full row (those two plus a horizontal
++    // now-playing) can outgrow the gap beside the centred clock. decide from
++    // quantities that never depend on the outcome -- BarMedia.naturalWidth is
++    // its width as if horizontal regardless of its actual `vertical` state,
++    // and every other module here is sized independently of it -- so setting
++    // `vertical` from this can't feed back into its own condition.
++    readonly property real rightAvailable: Math.max(0, (bar.width - bar.centreW) / 2 - bar.edgeMargin - 16 * bar.s)
++    // how many of the row's other modules actually lay out (Row skips
++    // invisible/inactive children entirely, so the gap count has to match).
++    readonly property int rightOtherCount: (bar.noctalia && Config.barShowNetSpeed ? 1 : 0)
++        + (bar.noctalia && Config.barShowStats ? 1 : 0)
++        + (Config.barShowStatus ? 1 : 0)
++        + (hTray.count > 0 ? 1 : 0)
++        + 1 // power, always shown
++    readonly property real rightFixedWidth: (bar.noctalia && Config.barShowNetSpeed ? netSpeedLoader.width : 0)
++        + (bar.noctalia && Config.barShowStats ? statsLoader.width : 0)
++        + (Config.barShowStatus ? statusMod.width : 0)
++        + (hTray.count > 0 ? trayMod.width : 0)
++        + hPowerMod.width
++        + rightRow.spacing * Math.max(0, bar.rightOtherCount - 1)
++    // hMedia.naturalWidth is just its own Row content; the BarModule chrome
++    // around it (mediaMod's padding) costs width whichever way it lays out,
++    // and it costs one more row-spacing gap against whatever follows it.
++    readonly property real mediaFullWidth: hMedia.naturalWidth + 2 * mediaMod.padX
++    readonly property bool mediaShown: Config.barShowMedia && Media.present
++    readonly property bool mediaCramped: bar.noctalia && bar.mediaShown
++        && (bar.rightFixedWidth + bar.mediaFullWidth + (bar.rightOtherCount > 0 ? rightRow.spacing : 0) > bar.rightAvailable)
+     // the bell's along-axis centre (from the status cluster), so the toast
+     // popout can grow from the bell like the inbox does. -1 when the status
+     // cluster is hidden (no bell), so the toast falls back to the bar end.
+@@ -228,11 +258,36 @@ Item {
+                         BarMedia {
+                             id: hMedia
+                             s: bar.s
++                            vertical: bar.mediaCramped
+                         }
                      }
                  }
  
@@ -74,21 +205,38 @@ index 74586101..0b889c6f 100644
 +                // plain visible:false still instantiates the module underneath,
 +                // leaving SysStats/NetSpeed polling forever for nothing.
 +                Loader {
++                    id: netSpeedLoader
 +                    anchors.verticalCenter: parent.verticalCenter
-+                    active: bar.noctalia
++                    // Loader keeps its last-loaded width after unloading (item
++                    // going null doesn't reset it), so without this the Row
++                    // still reserves its stale width once toggled off.
++                    visible: active
++                    active: bar.noctalia && Config.barShowNetSpeed
 +                    sourceComponent: netSpeedModuleComp
 +                }
 +
 +                Loader {
++                    id: statsLoader
 +                    anchors.verticalCenter: parent.verticalCenter
-+                    active: bar.noctalia
++                    visible: active
++                    active: bar.noctalia && Config.barShowStats
 +                    sourceComponent: statsModuleComp
 +                }
 +
                  BarModule {
++                    id: statusMod
                      anchors.verticalCenter: parent.verticalCenter
                      s: bar.s
-@@ -280,6 +297,37 @@ Item {
+                     height: bar.moduleSpan
+@@ -247,6 +302,7 @@ Item {
+                 }
+ 
+                 BarModule {
++                    id: trayMod
+                     anchors.verticalCenter: parent.verticalCenter
+                     s: bar.s
+                     height: bar.moduleSpan
+@@ -280,6 +336,37 @@ Item {
          }
      }
  
@@ -126,7 +274,7 @@ index 74586101..0b889c6f 100644
      // ---- nacre: three frosted capsules riding a flat, straight band. loaded
      // only when the skin is active, so the five other skins pay nothing for it.
      Loader {
-@@ -406,6 +454,14 @@ Item {
+@@ -406,6 +493,15 @@ Item {
                          interactive: false
                          BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                      }
@@ -135,28 +283,56 @@ index 74586101..0b889c6f 100644
 +                        s: bar.s
 +                        height: bar.moduleSpan
 +                        padX: 6 * bar.s
++                        visible: Config.barShowNetSpeed
 +                        interactive: false
 +                        BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
 +                    }
                  }
              }
  
-@@ -550,6 +606,15 @@ Item {
+@@ -550,6 +646,16 @@ Item {
                      interactive: false
                      BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                  }
-+                Sep { visible: bar.inir }
++                Sep { visible: bar.inir && Config.barShowNetSpeed }
 +                BarModule {
 +                    anchors.verticalCenter: parent.verticalCenter
 +                    s: bar.s
 +                    height: bar.moduleSpan
 +                    padX: 8 * bar.s
++                    visible: Config.barShowNetSpeed
 +                    interactive: false
 +                    BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
 +                }
                  Sep { visible: bar.inir && Config.barShowMedia && Media.present }
                  BarReveal {
                      anchors.verticalCenter: parent.verticalCenter
+diff --git a/ryoku/shell/quickshell/pill/BarMedia.qml b/ryoku/shell/quickshell/pill/BarMedia.qml
+index bdbffc6b..d90fd1ad 100644
+--- a/ryoku/shell/quickshell/pill/BarMedia.qml
++++ b/ryoku/shell/quickshell/pill/BarMedia.qml
+@@ -19,6 +19,13 @@ Row {
+     readonly property bool present: Media.present
+     readonly property string line: Media.line
+ 
++    // the width this module would take laid out horizontally, regardless of
++    // the current `vertical` state: lets a host bar decide whether to switch
++    // to icon-only *before* committing to the switch, without the decision
++    // depending on its own outcome (title/glyph widths never vary with
++    // `vertical`, only their visibility does).
++    readonly property real naturalWidth: 14 * media.s + media.spacing + title.width + media.spacing + stateGlyph.implicitWidth
++
+     function toggle() {
+         Media.toggle();
+     }
+@@ -77,6 +84,7 @@ Row {
+ 
+     // state glyph: filled play while sounding, pause otherwise.
+     MaterialIcon {
++        id: stateGlyph
+         visible: !media.vertical
+         anchors.verticalCenter: parent.verticalCenter
+         text: media.playing ? "play_arrow" : "pause"
 diff --git a/ryoku/shell/quickshell/pill/BarNetSpeed.qml b/ryoku/shell/quickshell/pill/BarNetSpeed.qml
 new file mode 100644
 index 00000000..a4ec5c6e
@@ -242,6 +418,40 @@ index 00000000..a4ec5c6e
 +    SpeedRow { glyph: "arrow_downward"; value: NetSpeed.rxLabel }
 +    SpeedRow { glyph: "arrow_upward"; value: NetSpeed.txLabel }
 +}
+diff --git a/ryoku/shell/quickshell/pill/Singletons/Config.qml b/ryoku/shell/quickshell/pill/Singletons/Config.qml
+index c705d747..7229ed51 100644
+--- a/ryoku/shell/quickshell/pill/Singletons/Config.qml
++++ b/ryoku/shell/quickshell/pill/Singletons/Config.qml
+@@ -45,7 +45,10 @@ Singleton {
+     // monitor). barShowTitle / barShowMedia / barShowStatus gate the focused
+     // window title, the now-playing module, and the status cluster.
+     // barOccupiedWorkspaces shows only workspaces with windows (plus the
+-    // active one), hiding empty numbers.
++    // active one), hiding empty numbers. barShowStats gates the CPU/RAM/temp
++    // readout on noctalia only (native and unconditional on nacre and the flat
++    // skins); barShowNetSpeed gates the network readout everywhere it appears
++    // (noctalia, nacre, inir/aurora/angel).
+     property alias barEnabled:            adapter.barEnabled
+     property alias barPosition:           adapter.barPosition
+     property alias barStyle:              adapter.barStyle
+@@ -53,6 +56,8 @@ Singleton {
+     property alias barShowTitle:          adapter.barShowTitle
+     property alias barShowMedia:          adapter.barShowMedia
+     property alias barShowStatus:         adapter.barShowStatus
++    property alias barShowStats:          adapter.barShowStats
++    property alias barShowNetSpeed:       adapter.barShowNetSpeed
+     property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
+     // delos = the single floating-island bar. islandModules names the modules
+     // it carries, in display order, and the user picks them (power is not one:
+@@ -148,6 +153,8 @@ Singleton {
+             property bool barShowTitle: true
+             property bool barShowMedia: true
+             property bool barShowStatus: true
++            property bool barShowStats: true
++            property bool barShowNetSpeed: true
+             property bool barOccupiedWorkspaces: true
+             property string islandEdge: "top"
+             property real islandAlong: -1
 diff --git a/ryoku/shell/quickshell/pill/Singletons/NetSpeed.qml b/ryoku/shell/quickshell/pill/Singletons/NetSpeed.qml
 new file mode 100644
 index 00000000..3fe0d4b7
