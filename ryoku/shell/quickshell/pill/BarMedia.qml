@@ -19,6 +19,13 @@ Row {
     readonly property bool present: Media.present
     readonly property string line: Media.line
 
+    // the width this module would take laid out horizontally, regardless of
+    // the current `vertical` state: lets a host bar decide whether to switch
+    // to icon-only *before* committing to the switch, without the decision
+    // depending on its own outcome (title/glyph widths never vary with
+    // `vertical`, only their visibility does).
+    readonly property real naturalWidth: 14 * media.s + media.spacing + title.width + media.spacing + stateGlyph.implicitWidth
+
     function toggle() {
         Media.toggle();
     }
@@ -77,6 +84,7 @@ Row {
 
     // state glyph: filled play while sounding, pause otherwise.
     MaterialIcon {
+        id: stateGlyph
         visible: !media.vertical
         anchors.verticalCenter: parent.verticalCenter
         text: media.playing ? "play_arrow" : "pause"

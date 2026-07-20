@@ -45,7 +45,10 @@ Singleton {
     // monitor). barShowTitle / barShowMedia / barShowStatus gate the focused
     // window title, the now-playing module, and the status cluster.
     // barOccupiedWorkspaces shows only workspaces with windows (plus the
-    // active one), hiding empty numbers.
+    // active one), hiding empty numbers. barShowStats gates the CPU/RAM/temp
+    // readout on noctalia only (native and unconditional on nacre and the flat
+    // skins); barShowNetSpeed gates the network readout everywhere it appears
+    // (noctalia, nacre, inir/aurora/angel).
     property alias barEnabled:            adapter.barEnabled
     property alias barPosition:           adapter.barPosition
     property alias barStyle:              adapter.barStyle
@@ -53,6 +56,8 @@ Singleton {
     property alias barShowTitle:          adapter.barShowTitle
     property alias barShowMedia:          adapter.barShowMedia
     property alias barShowStatus:         adapter.barShowStatus
+    property alias barShowStats:          adapter.barShowStats
+    property alias barShowNetSpeed:       adapter.barShowNetSpeed
     property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
     // delos = the single floating-island bar. islandModules names the modules
     // it carries, in display order, and the user picks them (power is not one:
@@ -148,6 +153,8 @@ Singleton {
             property bool barShowTitle: true
             property bool barShowMedia: true
             property bool barShowStatus: true
+            property bool barShowStats: true
+            property bool barShowNetSpeed: true
             property bool barOccupiedWorkspaces: true
             property string islandEdge: "top"
             property real islandAlong: -1
