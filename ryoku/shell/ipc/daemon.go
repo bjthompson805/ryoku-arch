@@ -272,10 +272,19 @@ const jemallocConf = "narenas:2,background_thread:true,dirty_decay_ms:5000,muzzy
 // qsEnv is the environment for a supervised quickshell process: the daemon's own
 // env (which carries the QML import path setupQmlImportPath exports) plus the
 // jemalloc tuning, unless the user already pinned MALLOC_CONF.
-func qsEnv() []string {
+//
+// pill/shell.qml pragmas QSG_RENDER_LOOP=threaded (a real env var wins over a
+// pragma's DefaultEnv), trading idle GPU cost for vsync-locked animation. The
+// pillBasicRenderLoop opt-in forces the lighter `basic` loop instead, for
+// weaker GPUs or anyone who'd rather not pay it; only pill sets the pragma, so
+// this is a no-op for every other component.
+func qsEnv(name string) []string {
 	env := os.Environ()
 	if os.Getenv("MALLOC_CONF") == "" {
 		env = append(env, "MALLOC_CONF="+jemallocConf)
+	}
+	if name == "pill" && perfFlag("pillBasicRenderLoop") {
+		env = append(env, "QSG_RENDER_LOOP=basic")
 	}
 	return env
 }
@@ -301,7 +310,7 @@ func (d *daemon) supervise(name string) {
 			}
 		}
 		cmd := exec.Command("qs", qsSelect(name)...)
-		cmd.Env = qsEnv()
+		cmd.Env = qsEnv(name)
 		if err := cmd.Start(); err != nil {
 			time.Sleep(backoff)
 			backoff = capDur(backoff*2, 30*time.Second)
