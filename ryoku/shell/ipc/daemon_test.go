@@ -19,7 +19,7 @@ func TestQsEnvAddsMallocConf(t *testing.T) {
 	})
 	want := "MALLOC_CONF=" + jemallocConf
 	n := 0
-	for _, e := range qsEnv() {
+	for _, e := range qsEnv("pill") {
 		if e == want {
 			n++
 		}
@@ -31,10 +31,46 @@ func TestQsEnvAddsMallocConf(t *testing.T) {
 
 func TestQsEnvRespectsExistingMallocConf(t *testing.T) {
 	t.Setenv("MALLOC_CONF", "narenas:8")
-	for _, e := range qsEnv() {
+	for _, e := range qsEnv("pill") {
 		if e == "MALLOC_CONF="+jemallocConf {
 			t.Errorf("qsEnv() overrode a user-pinned MALLOC_CONF")
 		}
+	}
+}
+
+func hasEnv(env []string, kv string) bool {
+	for _, e := range env {
+		if e == kv {
+			return true
+		}
+	}
+	return false
+}
+
+func TestQsEnvBasicRenderLoopOptIn(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	if err := os.MkdirAll(filepath.Join(dir, "ryoku"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ryoku", "performance.json"), []byte(`{"pillBasicRenderLoop": true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if !hasEnv(qsEnv("pill"), "QSG_RENDER_LOOP=basic") {
+		t.Error(`qsEnv("pill") missing QSG_RENDER_LOOP=basic with the opt-in on`)
+	}
+	if hasEnv(qsEnv("launcher"), "QSG_RENDER_LOOP=basic") {
+		t.Error(`qsEnv("launcher") set QSG_RENDER_LOOP=basic; the pragma only exists in pill`)
+	}
+}
+
+func TestQsEnvBasicRenderLoopOffByDefault(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	if hasEnv(qsEnv("pill"), "QSG_RENDER_LOOP=basic") {
+		t.Error(`qsEnv("pill") set QSG_RENDER_LOOP=basic with no performance.json present`)
 	}
 }
 
