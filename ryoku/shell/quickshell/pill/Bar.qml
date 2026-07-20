@@ -30,6 +30,7 @@ Item {
 
     readonly property real moduleSpan: Math.round(bar.band * 0.76)
     readonly property bool triptych: Config.barStyle === "triptych"
+    readonly property bool noctalia: Config.barStyle === "noctalia"
     readonly property bool nacre: Config.barStyle === "nacre"
     readonly property bool inir: Config.barStyle === "inir"
     readonly property bool aurora: Config.barStyle === "aurora"
@@ -50,6 +51,35 @@ Item {
     readonly property real centreW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.centreW : 0) : centreIsland.width
     readonly property real rightX: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightX : 0) : rightIsland.x
     readonly property real rightW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightW : 0) : rightIsland.width
+
+    // noctalia's right island grew a net-speed and stats readout ahead of
+    // status; on narrower screens the full row (those two plus a horizontal
+    // now-playing) can outgrow the gap beside the centred clock. decide from
+    // quantities that never depend on the outcome -- BarMedia.naturalWidth is
+    // its width as if horizontal regardless of its actual `vertical` state,
+    // and every other module here is sized independently of it -- so setting
+    // `vertical` from this can't feed back into its own condition.
+    readonly property real rightAvailable: Math.max(0, (bar.width - bar.centreW) / 2 - bar.edgeMargin - 16 * bar.s)
+    // how many of the row's other modules actually lay out (Row skips
+    // invisible/inactive children entirely, so the gap count has to match).
+    readonly property int rightOtherCount: (bar.noctalia && Config.barShowNetSpeed ? 1 : 0)
+        + (bar.noctalia && Config.barShowStats ? 1 : 0)
+        + (Config.barShowStatus ? 1 : 0)
+        + (hTray.count > 0 ? 1 : 0)
+        + 1 // power, always shown
+    readonly property real rightFixedWidth: (bar.noctalia && Config.barShowNetSpeed ? netSpeedLoader.width : 0)
+        + (bar.noctalia && Config.barShowStats ? statsLoader.width : 0)
+        + (Config.barShowStatus ? statusMod.width : 0)
+        + (hTray.count > 0 ? trayMod.width : 0)
+        + hPowerMod.width
+        + rightRow.spacing * Math.max(0, bar.rightOtherCount - 1)
+    // hMedia.naturalWidth is just its own Row content; the BarModule chrome
+    // around it (mediaMod's padding) costs width whichever way it lays out,
+    // and it costs one more row-spacing gap against whatever follows it.
+    readonly property real mediaFullWidth: hMedia.naturalWidth + 2 * mediaMod.padX
+    readonly property bool mediaShown: Config.barShowMedia && Media.present
+    readonly property bool mediaCramped: bar.noctalia && bar.mediaShown
+        && (bar.rightFixedWidth + bar.mediaFullWidth + (bar.rightOtherCount > 0 ? rightRow.spacing : 0) > bar.rightAvailable)
     // the bell's along-axis centre (from the status cluster), so the toast
     // popout can grow from the bell like the inbox does. -1 when the status
     // cluster is hidden (no bell), so the toast falls back to the bar end.
@@ -228,11 +258,36 @@ Item {
                         BarMedia {
                             id: hMedia
                             s: bar.s
+                            vertical: bar.mediaCramped
                         }
                     }
                 }
 
+                // Loader, not a plain visible: toggle: triptych/caelestia/aegis/stele
+                // reuse this same shared branch and never show these modules, but a
+                // plain visible:false still instantiates the module underneath,
+                // leaving SysStats/NetSpeed polling forever for nothing.
+                Loader {
+                    id: netSpeedLoader
+                    anchors.verticalCenter: parent.verticalCenter
+                    // Loader keeps its last-loaded width after unloading (item
+                    // going null doesn't reset it), so without this the Row
+                    // still reserves its stale width once toggled off.
+                    visible: active
+                    active: bar.noctalia && Config.barShowNetSpeed
+                    sourceComponent: netSpeedModuleComp
+                }
+
+                Loader {
+                    id: statsLoader
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: active
+                    active: bar.noctalia && Config.barShowStats
+                    sourceComponent: statsModuleComp
+                }
+
                 BarModule {
+                    id: statusMod
                     anchors.verticalCenter: parent.verticalCenter
                     s: bar.s
                     height: bar.moduleSpan
@@ -247,6 +302,7 @@ Item {
                 }
 
                 BarModule {
+                    id: trayMod
                     anchors.verticalCenter: parent.verticalCenter
                     s: bar.s
                     height: bar.moduleSpan
@@ -276,6 +332,37 @@ Item {
                         font.pixelSize: 14 * bar.s
                     }
                 }
+            }
+        }
+    }
+
+    // Stats/net-speed modules for the shared right island (nacre and the flat
+    // skins already load their own copies lazily further down): kept as
+    // Components so triptych/caelestia/aegis/stele, which reuse this same
+    // branch but never show these modules, don't instantiate SysStats/NetSpeed
+    // either.
+    Component {
+        id: netSpeedModuleComp
+        BarModule {
+            s: bar.s
+            height: bar.moduleSpan
+            padX: 6 * bar.s
+            interactive: false
+
+            BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+        }
+    }
+    Component {
+        id: statsModuleComp
+        BarModule {
+            s: bar.s
+            height: bar.moduleSpan
+            padX: 6 * bar.s
+            interactive: false
+
+            BarStats {
+                s: bar.s
+                onRequestPopout: (name, center) => bar.popoutRequested(name, center)
             }
         }
     }
@@ -405,6 +492,15 @@ Item {
                         padX: 6 * bar.s
                         interactive: false
                         BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                    }
+                    BarModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                        s: bar.s
+                        height: bar.moduleSpan
+                        padX: 6 * bar.s
+                        visible: Config.barShowNetSpeed
+                        interactive: false
+                        BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                     }
                 }
             }
@@ -549,6 +645,16 @@ Item {
                     padX: 8 * bar.s
                     interactive: false
                     BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                }
+                Sep { visible: bar.inir && Config.barShowNetSpeed }
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    padX: 8 * bar.s
+                    visible: Config.barShowNetSpeed
+                    interactive: false
+                    BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                 }
                 Sep { visible: bar.inir && Config.barShowMedia && Media.present }
                 BarReveal {

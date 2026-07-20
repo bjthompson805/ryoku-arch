@@ -877,6 +877,30 @@ ShellRoot {
                     }
                 }
 
+                // net-speed popout: opened from the bar's net-speed module, the
+                // download / upload readout grows from the bar edge at the module.
+                Popout {
+                    id: netSpeedPop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.popoutCenter
+                    s: overlay.s
+                    active: !overlay.monFullscreen
+                    pinned: root.popout === "netspeed" && root.popoutMon === overlay.modelData.name
+                    openW: netSpeedContent.implicitWidth
+                    openH: netSpeedContent.implicitHeight
+
+                    NetSpeedPopout {
+                        id: netSpeedContent
+                        s: overlay.s
+                        open: netSpeedPop.prog > 0.5
+                    }
+                }
+
                 Popout {
                     id: bluetoothPop
                     group: blobGroup

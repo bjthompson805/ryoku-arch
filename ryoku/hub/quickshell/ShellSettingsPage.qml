@@ -21,7 +21,7 @@ Item {
         "shadowStrength", "shadowSize", "surfaceColor",
         "osdRadius", "osdOpacity",
         "barEnabled", "barPosition", "barStyle", "barHeight",
-        "barShowTitle", "barShowMedia", "barShowStatus", "barOccupiedWorkspaces",
+        "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barOccupiedWorkspaces",
         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
         "fontFamily", "fontScale",
         "weatherLocation", "weatherUnit",
@@ -95,7 +95,7 @@ Item {
         "shadowStrength": 0.63, "shadowSize": 12, "surfaceColor": "#0f1115",
         "osdRadius": 28, "osdOpacity": 1,
         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
-        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barOccupiedWorkspaces": true,
+        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barOccupiedWorkspaces": true,
         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
         "weatherLocation": "", "weatherUnit": "auto",
@@ -137,6 +137,8 @@ Item {
         property bool barShowTitle: true
         property bool barShowMedia: true
         property bool barShowStatus: true
+        property bool barShowStats: true
+        property bool barShowNetSpeed: true
         property bool barOccupiedWorkspaces: true
         property string islandEdge: "top"
         property real islandAlong: -1
@@ -358,6 +360,8 @@ Item {
             property bool barShowTitle: true
             property bool barShowMedia: true
             property bool barShowStatus: true
+            property bool barShowStats: true
+            property bool barShowNetSpeed: true
             property bool barOccupiedWorkspaces: true
             property string islandEdge: "top"
             property real islandAlong: -1
@@ -855,6 +859,18 @@ Item {
                         width: parent.width; label: "Now playing"
                         checked: draft.barShowMedia
                         onToggled: (v) => page.edit("barShowMedia", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Network speed"
+                        visible: ["noctalia", "nacre", "inir", "aurora", "angel"].indexOf(draft.barStyle) >= 0
+                        checked: draft.barShowNetSpeed
+                        onToggled: (v) => page.edit("barShowNetSpeed", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "System stats (CPU/RAM/temp)"
+                        visible: draft.barStyle === "noctalia"
+                        checked: draft.barShowStats
+                        onToggled: (v) => page.edit("barShowStats", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Status glyphs (network, battery, inbox)"

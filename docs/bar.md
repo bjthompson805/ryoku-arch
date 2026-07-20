@@ -15,7 +15,9 @@ Ryoku Settings drives the bar through `Config`:
 - `barStyle` the skin. `noctalia` and `caelestia` are carried from the credited
   reference shells; `aegis`, `stele`, `triptych`, `delos` and `nacre` are Ryoku's own, and `inir` / `aurora` / `angel` are flat frame-off skins ported from snowarch's iNiR:
   - **`noctalia`** fully rounded capsule modules in a row; dot workspaces whose
-    active dot widens into an accent lozenge with its number; the stacked clock.
+    active dot widens into an accent lozenge with its number; the stacked clock;
+    a stacked download/upload speed readout then a CPU/RAM/temperature readout
+    right, ahead of status.
   - **`caelestia`** the numbered workspace cell strip inside one container pill
     with a sliding indicator; Material Symbols Rounded iconography.
   - **`nacre`** grows the frame lobes like triptych, so the bar dips between three
@@ -40,6 +42,12 @@ Ryoku Settings drives the bar through `Config`:
   by is `barBand = barHeight x s`; modules size against `moduleSpan =
   round(barBand x 0.76)`.
 - `barShowMedia` / `barShowStatus` toggle the now-playing and status modules.
+- `barShowStats` toggles the CPU/RAM/temperature readout on noctalia, where it's
+  an add-on; the toggle only shows in Ryoku Settings when noctalia is the
+  selected skin (it's native and unconditional on nacre and the flat iNiR
+  skins). `barShowNetSpeed` toggles the network readout everywhere it appears
+  (noctalia, nacre, inir/aurora/angel); its Settings toggle shows for whichever
+  of those skins is selected.
 
 The bar's edge gets `frameBorder + barBand` on the frame's `BlobInvertedRect`, so
 the border swells into a band the bar rides; the other three edges stay a
@@ -56,14 +64,26 @@ A left group and a right group flank the centred clock:
 - **clock** (`BarClock`, centred) the time; clicking opens the calendar popout.
 - **now-playing** (`BarMedia`) the track's art + title; clicking toggles play, the
   wheel nudges volume, and hovering opens the transport popout (`MediaPopout`).
+  On noctalia it drops to the art thumb alone (the nacre idiom) once the net
+  speed + stats readout ahead of it would otherwise crowd the centred clock;
+  the threshold is computed from module widths, not a fixed screen size.
 - **status** (`BarStatus`) the volume / network / bluetooth / battery glyphs;
   each opens its own popout.
 - **tray** (`BarTray`) the system tray.
 - **power** a session glyph; clicking opens the power popout.
-- **system stats** (`BarStats`, on nacre and the flat iNiR skins) a CPU / RAM / temperature readout off
+- **system stats** (`BarStats`, on noctalia, nacre and the flat iNiR skins) a CPU / RAM / temperature readout off
   the `SysStats` singleton (native `/proc` + `/sys` polling); clicking opens the
   resources popout (`ResourcesPopout`) with usage sparklines and the top
   processes by CPU.
+- **net speed** (`BarNetSpeed`, alongside `BarStats` on noctalia, nacre and the
+  flat iNiR skins) a stacked download-over-upload readout off the `NetSpeed`
+  singleton: the default-route interface (resolved via `ip route`, re-checked
+  every 30s) polled from `/proc/net/dev` byte deltas every 1.5s. The value
+  column is pinned to its widest possible reading so a B/s -> KB/s -> MB/s
+  scale change never reflows the module. Clicking either row opens the traffic
+  popout (`NetSpeedPopout`) with rate sparklines (scaled to their own recent
+  peak, not a fixed ceiling) and the cumulative session download/upload total
+  since the daemon started.
 
 ## BarModule: the shared capsule
 

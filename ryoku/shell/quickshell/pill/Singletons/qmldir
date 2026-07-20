@@ -24,4 +24,5 @@ singleton Network Network.qml
 singleton Media Media.qml
 singleton IslandDock IslandDock.qml
 singleton SysStats SysStats.qml
+singleton NetSpeed NetSpeed.qml
 singleton Fullscreen Fullscreen.qml
