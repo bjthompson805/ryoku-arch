@@ -1,4 +1,4 @@
-From 990511cbec29a0334b59148e057e13bd4a27024f Mon Sep 17 00:00:00 2001
+From 2f52bc59103c9d9cdea2bb47d0293472241cebcc Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Sat, 18 Jul 2026 15:47:54 -0700
 Subject: Patch: Add OSD on brightness change from keyboard and sidebar.

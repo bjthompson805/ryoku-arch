@@ -1,7 +1,8 @@
-From a5cd26eb671f3c182cad465b169fa3d6116f0459 Mon Sep 17 00:00:00 2001
+From 35be72aea193fdee3482b2d82dd5cb2b5ecaea1d Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Sat, 18 Jul 2026 17:08:37 -0700
-Subject: Patch: Apply 12/24-hour format everywhere, move toggle to Desktop > General.
+Subject: Patch: Apply 12/24-hour format everywhere, move toggle to Desktop >
+ General.
 
 The 12-hour setting only ever drove the desktop clock widget. The bar
 clock, sidebar system popout, Delos island clock, launcher home card,

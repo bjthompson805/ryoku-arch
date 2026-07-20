@@ -1,8 +1,8 @@
-From e9189302fa3133a9ba570ab488cec486ce187716 Mon Sep 17 00:00:00 2001
+From e217fa4f73a2dfd91a20f6d6ed78db117293f9ca Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Sun, 19 Jul 2026 23:00:29 -0700
-Subject: [PATCH] Patch: Add CPU/RAM/temp and network speed widgets to the
- Noctalia bar.
+Subject: Patch: Add CPU/RAM/temp and network speed widgets to the Noctalia
+ bar.
 
 The system-stats readout (BarStats) only ever showed on Nacre and the flat
 iNiR skins (inir/aurora/angel); Noctalia had no equivalent. Wire it into
@@ -50,54 +50,83 @@ index 2d0cfefe..f99e4049 100644
 +  popout (`NetSpeedPopout`) with rate sparklines (scaled to their own recent
 +  peak, not a fixed ceiling) and the cumulative session download/upload total
 +  since the daemon started.
-
+ 
  ## BarModule: the shared capsule
-
+ 
 diff --git a/ryoku/shell/quickshell/pill/Bar.qml b/ryoku/shell/quickshell/pill/Bar.qml
-index 74586101..9b208646 100644
+index 74586101..0b889c6f 100644
 --- a/ryoku/shell/quickshell/pill/Bar.qml
 +++ b/ryoku/shell/quickshell/pill/Bar.qml
 @@ -30,6 +30,7 @@ Item {
-
+ 
      readonly property real moduleSpan: Math.round(bar.band * 0.76)
      readonly property bool triptych: Config.barStyle === "triptych"
 +    readonly property bool noctalia: Config.barStyle === "noctalia"
      readonly property bool nacre: Config.barStyle === "nacre"
      readonly property bool inir: Config.barStyle === "inir"
      readonly property bool aurora: Config.barStyle === "aurora"
-@@ -232,6 +233,31 @@ Item {
+@@ -232,6 +233,22 @@ Item {
                      }
                  }
-
-+                BarModule {
+ 
++                // Loader, not a plain visible: toggle: triptych/caelestia/aegis/stele
++                // reuse this same shared branch and never show these modules, but a
++                // plain visible:false still instantiates the module underneath,
++                // leaving SysStats/NetSpeed polling forever for nothing.
++                Loader {
 +                    anchors.verticalCenter: parent.verticalCenter
-+                    s: bar.s
-+                    height: bar.moduleSpan
-+                    padX: 6 * bar.s
-+                    visible: bar.noctalia
-+                    interactive: false
-+
-+                    BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
++                    active: bar.noctalia
++                    sourceComponent: netSpeedModuleComp
 +                }
 +
-+                BarModule {
++                Loader {
 +                    anchors.verticalCenter: parent.verticalCenter
-+                    s: bar.s
-+                    height: bar.moduleSpan
-+                    padX: 6 * bar.s
-+                    visible: bar.noctalia
-+                    interactive: false
-+
-+                    BarStats {
-+                        s: bar.s
-+                        onRequestPopout: (name, center) => bar.popoutRequested(name, center)
-+                    }
++                    active: bar.noctalia
++                    sourceComponent: statsModuleComp
 +                }
 +
                  BarModule {
                      anchors.verticalCenter: parent.verticalCenter
                      s: bar.s
-@@ -406,6 +432,14 @@ Item {
+@@ -280,6 +297,37 @@ Item {
+         }
+     }
+ 
++    // Stats/net-speed modules for the shared right island (nacre and the flat
++    // skins already load their own copies lazily further down): kept as
++    // Components so triptych/caelestia/aegis/stele, which reuse this same
++    // branch but never show these modules, don't instantiate SysStats/NetSpeed
++    // either.
++    Component {
++        id: netSpeedModuleComp
++        BarModule {
++            s: bar.s
++            height: bar.moduleSpan
++            padX: 6 * bar.s
++            interactive: false
++
++            BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
++        }
++    }
++    Component {
++        id: statsModuleComp
++        BarModule {
++            s: bar.s
++            height: bar.moduleSpan
++            padX: 6 * bar.s
++            interactive: false
++
++            BarStats {
++                s: bar.s
++                onRequestPopout: (name, center) => bar.popoutRequested(name, center)
++            }
++        }
++    }
++
+     // ---- nacre: three frosted capsules riding a flat, straight band. loaded
+     // only when the skin is active, so the five other skins pay nothing for it.
+     Loader {
+@@ -406,6 +454,14 @@ Item {
                          interactive: false
                          BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                      }
@@ -111,8 +140,8 @@ index 74586101..9b208646 100644
 +                    }
                  }
              }
-
-@@ -550,6 +584,15 @@ Item {
+ 
+@@ -550,6 +606,15 @@ Item {
                      interactive: false
                      BarStats { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                  }
@@ -553,13 +582,13 @@ index 00000000..eb68c67c
 +    }
 +}
 diff --git a/ryoku/shell/quickshell/pill/shell.qml b/ryoku/shell/quickshell/pill/shell.qml
-index d49d0dff..bc10085e 100644
+index e4ae52c2..6e0460b0 100644
 --- a/ryoku/shell/quickshell/pill/shell.qml
 +++ b/ryoku/shell/quickshell/pill/shell.qml
-@@ -873,6 +873,30 @@ ShellRoot {
+@@ -877,6 +877,30 @@ ShellRoot {
                      }
                  }
-
+ 
 +                // net-speed popout: opened from the bar's net-speed module, the
 +                // download / upload readout grows from the bar edge at the module.
 +                Popout {
@@ -587,5 +616,6 @@ index d49d0dff..bc10085e 100644
                  Popout {
                      id: bluetoothPop
                      group: blobGroup
---
+-- 
 2.55.0
+

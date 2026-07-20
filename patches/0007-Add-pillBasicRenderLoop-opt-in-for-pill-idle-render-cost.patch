@@ -1,0 +1,120 @@
+From 6f2aba82ee6f5f2ec519c111d134c94e4404a7f6 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Mon, 20 Jul 2026 10:05:03 -0700
+Subject: Patch: Add pillBasicRenderLoop opt-in to trade pill's animation
+ smoothness for idle GPU cost.
+
+pill/shell.qml pragmas QSG_RENDER_LOOP=threaded for a vsync-locked,
+stutter-free blob melt. That loop keeps the GUI/render thread pair
+synchronizing every vsync even at rest, which costs measurably more idle
+wakeups than the basic loop (confirmed live: ~20-30% fewer wakeups on the
+pill process with basic).
+
+Add pillBasicRenderLoop to performance.json (off by default, matching every
+other opt-in in that file): when on, the daemon sets QSG_RENDER_LOOP=basic
+in the environment it spawns pill with, which wins over the QML pragma's
+DefaultEnv. Scoped to pill specifically since it's the only component that
+sets the pragma.
+
+diff --git a/ryoku/shell/ipc/daemon.go b/ryoku/shell/ipc/daemon.go
+index 315fc82c..56a5b256 100644
+--- a/ryoku/shell/ipc/daemon.go
++++ b/ryoku/shell/ipc/daemon.go
+@@ -272,11 +272,20 @@ const jemallocConf = "narenas:2,background_thread:true,dirty_decay_ms:5000,muzzy
+ // qsEnv is the environment for a supervised quickshell process: the daemon's own
+ // env (which carries the QML import path setupQmlImportPath exports) plus the
+ // jemalloc tuning, unless the user already pinned MALLOC_CONF.
+-func qsEnv() []string {
++//
++// pill/shell.qml pragmas QSG_RENDER_LOOP=threaded (a real env var wins over a
++// pragma's DefaultEnv), trading idle GPU cost for vsync-locked animation. The
++// pillBasicRenderLoop opt-in forces the lighter `basic` loop instead, for
++// weaker GPUs or anyone who'd rather not pay it; only pill sets the pragma, so
++// this is a no-op for every other component.
++func qsEnv(name string) []string {
+ 	env := os.Environ()
+ 	if os.Getenv("MALLOC_CONF") == "" {
+ 		env = append(env, "MALLOC_CONF="+jemallocConf)
+ 	}
++	if name == "pill" && perfFlag("pillBasicRenderLoop") {
++		env = append(env, "QSG_RENDER_LOOP=basic")
++	}
+ 	return env
+ }
+ 
+@@ -301,7 +310,7 @@ func (d *daemon) supervise(name string) {
+ 			}
+ 		}
+ 		cmd := exec.Command("qs", qsSelect(name)...)
+-		cmd.Env = qsEnv()
++		cmd.Env = qsEnv(name)
+ 		if err := cmd.Start(); err != nil {
+ 			time.Sleep(backoff)
+ 			backoff = capDur(backoff*2, 30*time.Second)
+diff --git a/ryoku/shell/ipc/daemon_test.go b/ryoku/shell/ipc/daemon_test.go
+index d90199cc..8c7204c1 100644
+--- a/ryoku/shell/ipc/daemon_test.go
++++ b/ryoku/shell/ipc/daemon_test.go
+@@ -19,7 +19,7 @@ func TestQsEnvAddsMallocConf(t *testing.T) {
+ 	})
+ 	want := "MALLOC_CONF=" + jemallocConf
+ 	n := 0
+-	for _, e := range qsEnv() {
++	for _, e := range qsEnv("pill") {
+ 		if e == want {
+ 			n++
+ 		}
+@@ -31,13 +31,49 @@ func TestQsEnvAddsMallocConf(t *testing.T) {
+ 
+ func TestQsEnvRespectsExistingMallocConf(t *testing.T) {
+ 	t.Setenv("MALLOC_CONF", "narenas:8")
+-	for _, e := range qsEnv() {
++	for _, e := range qsEnv("pill") {
+ 		if e == "MALLOC_CONF="+jemallocConf {
+ 			t.Errorf("qsEnv() overrode a user-pinned MALLOC_CONF")
+ 		}
+ 	}
+ }
+ 
++func hasEnv(env []string, kv string) bool {
++	for _, e := range env {
++		if e == kv {
++			return true
++		}
++	}
++	return false
++}
++
++func TestQsEnvBasicRenderLoopOptIn(t *testing.T) {
++	dir := t.TempDir()
++	t.Setenv("XDG_CONFIG_HOME", dir)
++	if err := os.MkdirAll(filepath.Join(dir, "ryoku"), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(dir, "ryoku", "performance.json"), []byte(`{"pillBasicRenderLoop": true}`), 0o644); err != nil {
++		t.Fatal(err)
++	}
++
++	if !hasEnv(qsEnv("pill"), "QSG_RENDER_LOOP=basic") {
++		t.Error(`qsEnv("pill") missing QSG_RENDER_LOOP=basic with the opt-in on`)
++	}
++	if hasEnv(qsEnv("launcher"), "QSG_RENDER_LOOP=basic") {
++		t.Error(`qsEnv("launcher") set QSG_RENDER_LOOP=basic; the pragma only exists in pill`)
++	}
++}
++
++func TestQsEnvBasicRenderLoopOffByDefault(t *testing.T) {
++	dir := t.TempDir()
++	t.Setenv("XDG_CONFIG_HOME", dir)
++
++	if hasEnv(qsEnv("pill"), "QSG_RENDER_LOOP=basic") {
++		t.Error(`qsEnv("pill") set QSG_RENDER_LOOP=basic with no performance.json present`)
++	}
++}
++
+ func TestParseDisabledComponents(t *testing.T) {
+ 	cases := []struct {
+ 		name string
+-- 
+2.55.0
+
