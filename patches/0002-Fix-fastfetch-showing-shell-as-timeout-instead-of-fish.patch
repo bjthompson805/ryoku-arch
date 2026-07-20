@@ -1,4 +1,4 @@
-From 343d5c46943616a3d1bd91caef0c23ab67ed2a40 Mon Sep 17 00:00:00 2001
+From ad5728fb17a8e0ac4dc0298e67baf7d944ad2c1e Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Fri, 17 Jul 2026 22:09:08 -0700
 Subject: Patch: Fix fastfetch showing shell as timeout instead of fish.
