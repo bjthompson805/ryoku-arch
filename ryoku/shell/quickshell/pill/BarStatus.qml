@@ -68,6 +68,12 @@ Grid {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: status.open("mixer", volIcon)
+            onWheel: (w) => {
+                if (!volIcon.sink || !volIcon.sink.audio)
+                    return;
+                volIcon.sink.audio.muted = false;
+                volIcon.sink.audio.volume = Math.max(0, Math.min(1, volIcon.vol + (w.angleDelta.y > 0 ? 1 : -1) * 0.03));
+            }
         }
     }
 
