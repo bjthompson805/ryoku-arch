@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Services.UPower
 import ".."
 import "../Singletons"
 
@@ -34,10 +35,78 @@ Item {
     readonly property color chargeTint: Battery.low ? Theme.vermLit
         : (Battery.charging ? Theme.flameGlow : Theme.cream)
 
+    // power-profiles-daemon tabs: Saver + Balanced always offered, Performance
+    // only when the daemon actually exposes one (absent on some hardware, or
+    // degraded by a lap/thermal hold) -- mirrors hasDetails' "don't draw a
+    // control for a feature that isn't there" rule.
+    readonly property var profileOptions: {
+        var opts = [
+            { value: PowerProfile.PowerSaver, icon: "battery_saver", label: "Saver" },
+            { value: PowerProfile.Balanced, icon: "balance", label: "Balanced" }
+        ];
+        if (PowerProfiles.hasPerformanceProfile)
+            opts.push({ value: PowerProfile.Performance, icon: "speed", label: "Perf" });
+        return opts;
+    }
+
     component Divider: Rectangle {
         width: parent ? parent.width : 0
         height: 1
         color: Theme.hair
+    }
+
+    // one profile tab: filled vermilion outline + tinted glyph/label when it's
+    // the active daemon profile, a plain hover wash otherwise. tapping writes
+    // straight through to PowerProfiles -- no local staging state, the daemon
+    // is the source of truth and profileChanged flips `current` back if the
+    // write is rejected.
+    component ProfileTab: Rectangle {
+        id: tab
+
+        required property var modelData
+        property real s: 1
+
+        readonly property bool current: PowerProfiles.profile === modelData.value
+
+        height: 26 * tab.s
+        radius: Theme.radius
+        color: tab.current ? Theme.frameBg : (tabHover.hovered ? Theme.tileBg : "transparent")
+        border.width: 1
+        border.color: tab.current ? Theme.vermLit : Theme.border
+        Behavior on color { ColorAnimation { duration: Motion.fast } }
+        Behavior on border.color { ColorAnimation { duration: Motion.fast } }
+
+        HoverHandler { id: tabHover }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: PowerProfiles.profile = tab.modelData.value
+        }
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 5 * tab.s
+
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                text: tab.modelData.icon
+                fill: tab.current ? 1 : 0
+                color: tab.current ? Theme.vermLit : Theme.iconDim
+                font.pixelSize: 13 * tab.s
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                // capped so a longer label (or a larger `s`) elides instead of
+                // spilling past the tab's rounded edge, as "Performance" did.
+                width: Math.min(implicitWidth, Math.max(0, tab.width - 26 * tab.s))
+                text: tab.modelData.label
+                color: tab.current ? Theme.cream : Theme.subtle
+                font.family: Theme.font
+                font.pixelSize: 9.5 * tab.s
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+        }
     }
 
     // one figure row: a mono eyebrow label on the left, a tabular value on the
@@ -155,6 +224,31 @@ Item {
 
                 Behavior on width { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
                 Behavior on color { ColorAnimation { duration: Motion.effects } }
+            }
+        }
+
+        Divider {}
+
+        // profile tabs: Saver / Balanced / Performance, wired to
+        // power-profiles-daemon via PowerProfiles.
+        Column {
+            width: parent.width
+            spacing: 7 * root.s
+
+            MicroLabel { label: "Profile"; s: root.s }
+
+            Row {
+                id: profileTrack
+                width: parent.width
+                spacing: 3 * root.s
+
+                Repeater {
+                    model: root.profileOptions
+                    delegate: ProfileTab {
+                        s: root.s
+                        width: (profileTrack.width - profileTrack.spacing * (root.profileOptions.length - 1)) / root.profileOptions.length
+                    }
+                }
             }
         }
 
