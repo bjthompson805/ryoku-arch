@@ -1,0 +1,46 @@
+From cdf3ec29aa43495258d2a94f1b502d2cc6ebc12d Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Tue, 21 Jul 2026 15:08:18 -0700
+Subject: [PATCH] Patch: Fix hyprpolkitagent never starting due to a
+ systemd env-import race
+
+ConditionEnvironment=WAYLAND_DISPLAY is checked once at unit start and
+never re-evaluated, so if Hyprland's env import into the systemd --user
+manager loses the race with autostart's start call, the unit is silently
+skipped and no polkit agent ever runs -- every pkexec call then hangs
+forever. Import the env explicitly before starting it.
+
+The user manager also persists across logins, so a crashed instance from
+the previous session can still be mid crash-loop (its Wayland connection
+just broke) when the new session tries to start it, hitting
+start-limit-hit and blocking the new session's own start call. Clear that
+with reset-failed first.
+
+diff --git a/ryoku/hyprland/modules/autostart.lua b/ryoku/hyprland/modules/autostart.lua
+index 83aed750..1bda4f43 100644
+--- a/ryoku/hyprland/modules/autostart.lua
++++ b/ryoku/hyprland/modules/autostart.lua
+@@ -2,6 +2,20 @@ hl.on("hyprland.start", function()
+     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Ice 24")
+     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme prefer-dark")
+     hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark")
++    -- hyprpolkitagent.service gates on ConditionEnvironment=WAYLAND_DISPLAY, which
++    -- is checked once at start time and never re-evaluated. Hyprland's own env
++    -- import into the systemd --user manager can lose the race with the start
++    -- calls below, so the condition fails, the unit is silently "skipped" (not
++    -- "failed", so nothing surfaces), and no polkit agent ever runs for the
++    -- session -- every pkexec call then hangs forever waiting for one.
++    hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")
++    -- The user manager is one persistent process across logins, so a previous
++    -- session's agent can still be mid crash-loop when this one starts: its old
++    -- Wayland connection just broke (compositor gone), it aborts instantly with
++    -- no display to attach to, and repeats fast enough to hit start-limit-hit --
++    -- which then also blocks the very "start" call below for the new session.
++    -- reset-failed clears that stale lock before asking systemd to start it.
++    hl.exec_cmd("systemctl --user reset-failed hyprpolkitagent")
+     hl.exec_cmd("systemctl --user start hyprland-session.target")
+     hl.exec_cmd("systemctl --user start hyprpolkitagent")
+     hl.exec_cmd("command -v ryoku-monitor >/dev/null 2>&1 && ryoku-monitor autoscale")
+-- 
+2.55.0
+
