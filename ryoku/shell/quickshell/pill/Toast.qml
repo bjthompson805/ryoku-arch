@@ -19,7 +19,10 @@ Item {
     signal openCenter()
 
     readonly property bool critical: notif.urgency === NotificationUrgency.Critical
-    readonly property var acts: notif.actions.filter(function(a) { return a.text.length > 0; })
+    // "default" is the implicit click-to-activate action, not a real button --
+    // senders like kitty's dbus backend pad its label with a single space
+    // since dbus disallows an empty string, so text.length alone won't catch it.
+    readonly property var acts: notif.actions.filter(function(a) { return a.identifier !== "default" && a.text.trim().length > 0; })
 
     implicitHeight: Math.max(iconTile.height, col.implicitHeight)
 
