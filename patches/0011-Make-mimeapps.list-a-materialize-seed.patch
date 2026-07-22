@@ -1,0 +1,58 @@
+From f43843d27dffb605f115f96a38f18e0034f19874 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Tue, 21 Jul 2026 18:11:11 -0700
+Subject: [PATCH] Patch: Make mimeapps.list a materialize seed so default-app
+ changes survive an update.
+
+---
+ ryoku/cli/internal/updater/materialize.go | 5 ++++-
+ ryoku/shell/deploy.sh                     | 9 ++++++---
+ 2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/ryoku/cli/internal/updater/materialize.go b/ryoku/cli/internal/updater/materialize.go
+index 0e3fb971..da782132 100644
+--- a/ryoku/cli/internal/updater/materialize.go
++++ b/ryoku/cli/internal/updater/materialize.go
+@@ -16,7 +16,9 @@ import (
+ // and user-owned config the package only seeds a starting point for
+ // (keyboard.lua; hypr/user.lua, seeded with a header so a hand-edit sticks;
+ // fastfetch/config.jsonc, which has no include mechanism, so direct edits
+-// are the only way to customize the readout).
++// are the only way to customize the readout; mimeapps.list, which has no
++// include mechanism either, so a user's default-app choices — via xdg-mime,
++// GNOME Settings, or a file manager's "Open With" — must survive an update).
+ // Slash-separated paths, relative to the config base.
+ var generatedSeed = map[string]bool{
+ 	"hypr/monitors.lua":        true,
+@@ -25,6 +27,7 @@ var generatedSeed = map[string]bool{
+ 	"hypr/user.lua":            true,
+ 	"fastfetch/config.jsonc":   true,
+ 	"kitty/current-theme.conf": true,
++	"mimeapps.list":            true,
+ }
+ 
+ // Materialize lays the Ryoku-owned base configs into the user's ~/.config,
+diff --git a/ryoku/shell/deploy.sh b/ryoku/shell/deploy.sh
+index 720a0a1f..4358d55d 100755
+--- a/ryoku/shell/deploy.sh
++++ b/ryoku/shell/deploy.sh
+@@ -276,10 +276,13 @@ mkdir -p "$cfg/fish/conf.d"; cp -a "$here/../apps/fish/conf.d/." "$cfg/fish/conf
+ mkdir -p "$cfg/qt6ct"; cp -a "$here/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
+ mkdir -p "$cfg/pipewire"; cp -a "$here/../apps/pipewire/." "$cfg/pipewire/"
+ mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
+-# pip (PEP 668 --user) + the default-app map: Ryoku-owned, so a dev box tracks
+-# them the way the package materializes them for an installed one.
++# pip (PEP 668 --user): Ryoku-owned, so a dev box tracks it the way the
++# package materializes it for an installed one.
+ mkdir -p "$cfg/pip"; cp -a "$here/../apps/pip/pip.conf" "$cfg/pip/pip.conf"
+-cp -a "$here/../apps/mimeapps.list" "$cfg/mimeapps.list"
++# The default-app map is a materialize seed (generatedSeed in materialize.go):
++# seeded once, then left alone, so a user's own default-app choices (xdg-mime,
++# GNOME Settings, a file manager's "Open With") survive a redeploy/update.
++[[ -e "$cfg/mimeapps.list" ]] || cp -a "$here/../apps/mimeapps.list" "$cfg/mimeapps.list"
+ # Refresh the icon cache only when the theme has an index.theme; the user-overlay
+ # hicolor dir usually has none, and gtk-update-icon-cache -f on an index-less dir
+ # writes an EMPTY cache that Qt then trusts, hiding every icon in it. With no
+-- 
+2.55.0
+
