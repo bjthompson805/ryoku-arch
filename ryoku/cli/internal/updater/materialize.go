@@ -16,7 +16,9 @@ import (
 // and user-owned config the package only seeds a starting point for
 // (keyboard.lua; hypr/user.lua, seeded with a header so a hand-edit sticks;
 // fastfetch/config.jsonc, which has no include mechanism, so direct edits
-// are the only way to customize the readout).
+// are the only way to customize the readout; mimeapps.list, which has no
+// include mechanism either, so a user's default-app choices — via xdg-mime,
+// GNOME Settings, or a file manager's "Open With" — must survive an update).
 // Slash-separated paths, relative to the config base.
 var generatedSeed = map[string]bool{
 	"hypr/monitors.lua":        true,
@@ -25,6 +27,7 @@ var generatedSeed = map[string]bool{
 	"hypr/user.lua":            true,
 	"fastfetch/config.jsonc":   true,
 	"kitty/current-theme.conf": true,
+	"mimeapps.list":            true,
 }
 
 // Materialize lays the Ryoku-owned base configs into the user's ~/.config,
