@@ -47,12 +47,13 @@ Provider {
             icon: "",
             type: "Package",
             score: 0,
+            launchedCount: Spawn.countFor("pkg:" + pkg.source + ":" + pkg.name),
             actions: [{
                 name: verb,
                 icon: "",
                 execute: function () {
                     var gpkOp = op === "remove" ? "remove" : "install";
-                    Quickshell.execDetached([packages.terminal, "-e", "gpk", gpkOp, pkg.name]);
+                    Spawn.spawn([packages.terminal, "-e", "gpk", gpkOp, pkg.name], { id: "pkg:" + pkg.source + ":" + pkg.name });
                     // the install/remove will change what a re-search should
                     // show; drop the cached rows so the next query refetches.
                     packages.cachedQuery = "";

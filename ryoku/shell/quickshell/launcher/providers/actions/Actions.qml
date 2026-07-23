@@ -38,10 +38,11 @@ Provider {
             type: entry.category,
             score: 0,
             category: entry.category,
+            launchedCount: Spawn.countFor("action:" + entry.id),
             actions: [{
                 name: "Run",
                 icon: "",
-                execute: function () { Quickshell.execDetached(actions.resolveExec(entry.exec)); }
+                execute: function () { Spawn.spawn(actions.resolveExec(entry.exec), { id: "action:" + entry.id }); }
             }]
         };
     }

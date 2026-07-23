@@ -79,7 +79,7 @@ Item {
     // the real enable builds the AUR Looking Glass stack (needs a TTY for the
     // build + sudo) then escalates for the system setup, so it runs in a terminal.
     function enableInTerminal() {
-        Quickshell.execDetached(["kitty", "--class", "ryoku-gpu", "-e", "sh", "-c",
+        Spawn.spawn(["kitty", "--class", "ryoku-gpu", "-e", "sh", "-c",
             "ryoku-hub gpu apply enable; echo; read -n1 -rsp 'Done. Press any key to close…'; echo"]);
         page.planning = false;
         page.planText = "";

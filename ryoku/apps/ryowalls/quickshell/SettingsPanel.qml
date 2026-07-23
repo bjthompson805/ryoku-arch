@@ -130,7 +130,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     icon: "folder"
                     label: "Open"
-                    onClicked: Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/Pictures/Wallpapers"])
+                    onClicked: Spawn.spawn(["xdg-open", Quickshell.env("HOME") + "/Pictures/Wallpapers"])
                 }
             }
         }

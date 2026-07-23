@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pam
+import "../Singletons"
 
 Item {
     id: shim
@@ -175,9 +176,9 @@ Item {
             pam.start();
         }
 
-        function reboot() { Quickshell.execDetached(["bash", "-c", "if [ -d /run/systemd/system ]; then systemctl reboot; else loginctl reboot; fi"]); }
-        function powerOff() { Quickshell.execDetached(["bash", "-c", "if [ -d /run/systemd/system ]; then systemctl poweroff; else loginctl poweroff; fi"]); }
-        function suspend() { Quickshell.execDetached(["bash", "-c", "if [ -d /run/systemd/system ]; then systemctl suspend; else loginctl suspend; fi"]); }
+        function reboot() { Spawn.spawn(["bash", "-c", "if [ -d /run/systemd/system ]; then systemctl reboot; else loginctl reboot; fi"]); }
+        function powerOff() { Spawn.spawn(["bash", "-c", "if [ -d /run/systemd/system ]; then systemctl poweroff; else loginctl poweroff; fi"]); }
+        function suspend() { Spawn.spawn(["bash", "-c", "if [ -d /run/systemd/system ]; then systemctl suspend; else loginctl suspend; fi"]); }
     }
 
     // SDDM exposes a writable `keyboard` carrying the lock-key state; skins set
@@ -215,7 +216,7 @@ Item {
         onCompleted: (result) => {
             if (result === PamResult.Success) {
                 shim.sddm.loginSucceeded();
-                Quickshell.execDetached(["loginctl", "unlock-session"]);
+                Spawn.spawn(["loginctl", "unlock-session"]);
                 // Notify success handlers
             } else {
                 shim.sddm.loginFailed();

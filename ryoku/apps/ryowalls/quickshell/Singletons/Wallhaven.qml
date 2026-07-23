@@ -62,7 +62,7 @@ Singleton {
     // frame, video, so Install pulls just that. gpk needs a tty for its confirm and
     // sudo prompts (--manager pins the official build); --hold keeps errors readable.
     function installUpscaler() {
-        Quickshell.execDetached(["kitty", "--hold", "-e", "gpk", "install", "waifu2x-ncnn-vulkan", "--manager", "pacman"]);
+        Spawn.spawn(["kitty", "--hold", "-e", "gpk", "install", "waifu2x-ncnn-vulkan", "--manager", "pacman"]);
     }
 
     function cmd(args) {

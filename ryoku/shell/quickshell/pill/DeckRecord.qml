@@ -280,19 +280,19 @@ Item {
                         glyph: "play"
                         box: 24
                         tint: Theme.cream
-                        onClicked: { Quickshell.execDetached(["xdg-open", recItem.path]); root.requestClose(); }
+                        onClicked: { Spawn.spawn(["xdg-open", recItem.path]); root.requestClose(); }
                     }
                     IconBtn {
                         glyph: "folder"
                         box: 24
-                        onClicked: { Quickshell.execDetached(["xdg-open", root.recDir]); root.requestClose(); }
+                        onClicked: { Spawn.spawn(["xdg-open", root.recDir]); root.requestClose(); }
                     }
                     IconBtn {
                         glyph: "trash"
                         box: 24
                         tint: Theme.vermLit
                         onClicked: {
-                            Quickshell.execDetached(["sh", "-c", "gio trash \"$1\" 2>/dev/null || rm -f \"$1\"", "_", recItem.path]);
+                            Spawn.spawn(["sh", "-c", "gio trash \"$1\" 2>/dev/null || rm -f \"$1\"", "_", recItem.path]);
                             recRefresh.restart();
                         }
                     }

@@ -145,7 +145,7 @@ Item {
                     height: bar.moduleSpan
                     width: bar.moduleSpan
                     filled: false
-                    onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
+                    onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
 
                     BrandMark {
                         size: 11 * bar.s
@@ -425,7 +425,7 @@ Item {
                         height: bar.moduleSpan
                         width: bar.moduleSpan
                         filled: false
-                        onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
+                        onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
                         BrandMark { size: 11 * bar.s }
                     }
                     BarModule {
@@ -626,7 +626,7 @@ Item {
                     height: bar.moduleSpan
                     width: bar.moduleSpan
                     filled: false
-                    onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
+                    onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
                     BrandMark { size: 11 * bar.s }
                 }
                 BarModule {

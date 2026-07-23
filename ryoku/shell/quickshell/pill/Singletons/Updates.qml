@@ -63,7 +63,7 @@ Singleton {
 
     // Reload the shell so a finished update's changes take effect, then clear.
     function refresh() {
-        Quickshell.execDetached(["ryoku-shell", "reload"]);
+        Spawn.spawn(["ryoku-shell", "reload"]);
         root.clearRun();
     }
 

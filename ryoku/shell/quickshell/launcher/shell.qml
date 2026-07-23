@@ -23,7 +23,7 @@ ShellRoot {
     // being hidden and respawn it on the next open. A no-op when the flag is off;
     // the daemon just records the state.
     onOpenChanged: {
-        Quickshell.execDetached(["ryoku-shell", "state", "launcher", open ? "1" : "0"]);
+        Spawn.spawn(["ryoku-shell", "state", "launcher", open ? "1" : "0"]);
         if (open)
             root.applyBackdropBlur();
         else
@@ -43,7 +43,7 @@ ShellRoot {
     property int  savedBlurSize: 5
 
     function evalBlur(enabled, size) {
-        Quickshell.execDetached(["hyprctl", "eval",
+        Spawn.spawn(["hyprctl", "eval",
             "hl.config({ decoration = { blur = { enabled = " + (enabled ? "true" : "false")
                 + ", size = " + Math.max(1, size) + " } } })"]);
     }

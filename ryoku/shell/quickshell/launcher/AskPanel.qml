@@ -155,7 +155,7 @@ Item {
 
     function cancel() {
         askProc.running = false;
-        Quickshell.execDetached(["ryoku-rashin", "ask", "--cancel"]);
+        Spawn.spawn(["ryoku-rashin", "ask", "--cancel"]);
     }
 
     function fire(chip) {
@@ -163,7 +163,7 @@ Item {
         case "copy":
         case "cmd":
         case "color":
-            Quickshell.execDetached(["sh", "-c", "printf '%s' \"$1\" | wl-copy", "_", String(chip.value)]);
+            Spawn.spawn(["sh", "-c", "printf '%s' \"$1\" | wl-copy", "_", String(chip.value)]);
             root.flash = chip.kind + "\u0000" + chip.value;
             flashTimer.restart();
             return;
@@ -172,15 +172,15 @@ Item {
             root.finished();
             return;
         case "file":
-            Quickshell.execDetached(["kitty", "-e", "nvim", String(chip.value)]);
+            Spawn.spawn(["kitty", "-e", "nvim", String(chip.value)]);
             break;
         case "dir":
         case "url":
-            Quickshell.execDetached(["xdg-open", String(chip.value)]);
+            Spawn.spawn(["xdg-open", String(chip.value)]);
             break;
         case "dash":
             // Leave the turn running on the daemon; just go watch it.
-            Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600/#/chat"]);
+            Spawn.spawn(["xdg-open", "http://127.0.0.1:3600/#/chat"]);
             break;
         }
         root.finished();
@@ -415,7 +415,7 @@ Item {
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler {
                         onTapped: {
-                            Quickshell.execDetached(["xdg-open", thumb.modelData]);
+                            Spawn.spawn(["xdg-open", thumb.modelData]);
                             root.finished();
                         }
                     }

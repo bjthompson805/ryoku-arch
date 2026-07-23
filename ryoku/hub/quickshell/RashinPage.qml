@@ -115,11 +115,11 @@ Item {
     }
 
     function runSetup() {
-        Quickshell.execDetached(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
+        Spawn.spawn(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
     }
 
     function openDashboard() {
-        Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600"]);
+        Spawn.spawn(["xdg-open", "http://127.0.0.1:3600"]);
     }
 
     // dossier row: label on the left, a mono value in a hairline pill on the

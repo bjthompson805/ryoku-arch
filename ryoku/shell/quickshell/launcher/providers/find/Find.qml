@@ -86,9 +86,10 @@ Provider {
             icon: "",
             type: kind || "File",
             score: 0,
+            launchedCount: Spawn.countFor("find:" + path),
             actions: [
-                { name: "Open", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path]); } },
-                { name: "Reveal", icon: "", execute: function () { Quickshell.execDetached(["xdg-open", path.replace(/\/[^/]*$/, "")]); } }
+                { name: "Open", icon: "", execute: function () { Spawn.spawn(["xdg-open", path], { id: "find:" + path }); } },
+                { name: "Reveal", icon: "", execute: function () { Spawn.spawn(["xdg-open", path.replace(/\/[^/]*$/, "")]); } }
             ]
         };
     }

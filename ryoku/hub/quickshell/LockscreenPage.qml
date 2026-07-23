@@ -48,7 +48,7 @@ Item {
         actProc.running = true;
     }
     function preview(slug) {
-        Quickshell.execDetached([page.lockSh, slug]);
+        Spawn.spawn([page.lockSh, slug]);
     }
 
     // greedy masonry like the Extras grid: each tile into the shortest column,

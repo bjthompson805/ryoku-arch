@@ -53,7 +53,7 @@ Item {
         stdout: StdioCollector { onStreamFinished: root.wifiOn = this.text.trim() === "enabled" }
     }
     function toggleWifi() {
-        Quickshell.execDetached(["nmcli", "radio", "wifi", root.wifiOn ? "off" : "on"]);
+        Spawn.spawn(["nmcli", "radio", "wifi", root.wifiOn ? "off" : "on"]);
         root.wifiOn = !root.wifiOn;
         wifiPoll.restart();
     }
@@ -66,7 +66,7 @@ Item {
         stdout: StdioCollector { onStreamFinished: root.micMuted = this.text.indexOf("MUTED") >= 0 }
     }
     function toggleMic() {
-        Quickshell.execDetached(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]);
+        Spawn.spawn(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]);
         root.micMuted = !root.micMuted;
         micPoll.restart();
     }
@@ -86,7 +86,7 @@ Item {
         stdout: StdioCollector { onStreamFinished: root.nightOn = this.text.trim() === "on" }
     }
     function toggleNight() {
-        Quickshell.execDetached([root.scripts + "ryoku-cmd-nightlight"]);
+        Spawn.spawn([root.scripts + "ryoku-cmd-nightlight"]);
         root.nightOn = !root.nightOn;
         nightPoll.restart();
     }

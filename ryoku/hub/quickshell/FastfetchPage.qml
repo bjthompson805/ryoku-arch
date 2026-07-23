@@ -220,9 +220,9 @@ Item {
         var s = page.model.logo.source;
         if (!s || s.length === 0)
             return;
-        Quickshell.execDetached(["kitty", "-e", "nvim", s]);
+        Spawn.spawn(["kitty", "-e", "nvim", s]);
     }
-    function previewInTerminal() { Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
+    function previewInTerminal() { Spawn.spawn(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
 
     FileDialog {
         id: imageDlg

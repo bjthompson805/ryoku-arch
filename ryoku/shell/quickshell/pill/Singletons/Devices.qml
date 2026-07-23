@@ -40,11 +40,11 @@ Singleton {
 
     function applyVibrance(pct) {
         var raw = Math.round(Math.max(0, Math.min(100, pct)) * 1023 / 100);
-        Quickshell.execDetached(["nvibrant", String(raw), "0", String(raw)]);
+        Spawn.spawn(["nvibrant", String(raw), "0", String(raw)]);
     }
 
     function saveVibrance(pct) {
-        Quickshell.execDetached(["sh", "-c",
+        Spawn.spawn(["sh", "-c",
             'mkdir -p "$(dirname "$1")" && printf "%s\n" "$2" > "$1"',
             "_", root.stateFile, String(Math.round(pct))]);
     }
@@ -54,7 +54,7 @@ Singleton {
     }
 
     function setBrightness(bus, pct) {
-        Quickshell.execDetached(["timeout", "3", "ddcutil", "setvcp", "10",
+        Spawn.spawn(["timeout", "3", "ddcutil", "setvcp", "10",
             String(pct), "--bus", bus, "--noverify"]);
     }
 
@@ -81,7 +81,7 @@ Singleton {
     function setPanelBrightness(pct) {
         var clamped = Math.max(5, Math.min(100, Math.round(pct)));
         root.panelBrightness = clamped;
-        Quickshell.execDetached(["brightnessctl", "set", clamped + "%"]);
+        Spawn.spawn(["brightnessctl", "set", clamped + "%"]);
         root.panelBrightnessUserChanged(clamped);
     }
 

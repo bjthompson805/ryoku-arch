@@ -597,7 +597,7 @@ Singleton {
             onStreamFinished: {
                 var p = this.text.trim();
                 if (p.length > 0)
-                    Quickshell.execDetached(["xdg-open", p]);
+                    Spawn.spawn(["xdg-open", p]);
             }
         }
     }
@@ -659,7 +659,7 @@ Singleton {
                     "ec=$?",
                     "if [ $ec -ne 0 ]; then echo; echo \"ssh exited $ec — a password you never set means the guest has no '$user' account: ryovm config $vm ryovm_ssh_user <guest user>\"; echo 'press Enter to close'; read _; fi"
                 ].join("\n");
-                Quickshell.execDetached(["sh", "-c",
+                Spawn.spawn(["sh", "-c",
                     "exec \"${TERMINAL:-kitty}\" --class ryovm-ssh -e bash -c \"$1\" ryovm-ssh \"$2\" \"$3\" \"$4\" \"$5\" \"$6\"",
                     "--", script, c, pm ? pm[1] : "", sshProc.vmName, um ? um[1] : "", burn]);
             }

@@ -97,20 +97,20 @@ Singleton {
     property int activeJob: -1            // index of the running queue entry, -1 idle
 
     function openFile(path) {
-        Quickshell.execDetached(["xdg-open", path]);
+        Spawn.spawn(["xdg-open", path]);
     }
 
     function removeFile(path) {
-        Quickshell.execDetached(["rm", "-f", path]);
+        Spawn.spawn(["rm", "-f", path]);
     }
 
     function clearAll() {
-        Quickshell.execDetached(["sh", "-c", "rm -f \"$1\"/*", "--", root.dir]);
+        Spawn.spawn(["sh", "-c", "rm -f \"$1\"/*", "--", root.dir]);
     }
 
     function addUrl(url) {
         var p = ("" + url).replace(/^file:\/\//, "");
-        Quickshell.execDetached(["cp", "-n", p, root.dir]);
+        Spawn.spawn(["cp", "-n", p, root.dir]);
     }
 
     // ── Send ────────────────────────────────────────────────────────────
@@ -457,5 +457,5 @@ Singleton {
         }
     }
 
-    Component.onCompleted: Quickshell.execDetached(["mkdir", "-p", root.dir])
+    Component.onCompleted: Spawn.spawn(["mkdir", "-p", root.dir])
 }

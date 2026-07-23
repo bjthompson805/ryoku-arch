@@ -74,17 +74,20 @@ append_file() {
 }
 
 # deploy_dir: copy a source tree into a destination (dir-as-dir contents).
-# missing sources -> skipped with a note in real mode; under dry-run the
-# intended copy is always printed.
+# -L dereferences symlinks into real files (e.g. the shared Spawn.qml/
+# SpawnCore.qml under ryoku/shared/quickshell/, symlinked into every root's
+# Singletons/ dir) since a relative symlink target computed from the repo's
+# layout would not resolve once deployed. missing sources -> skipped with a
+# note in real mode; under dry-run the intended copy is always printed.
 deploy_dir() {
   local src=$1 dst=$2
   if [[ -n ${RYOKU_DRYRUN:-} ]]; then
-    printf 'DRYRUN: mkdir -p %s && cp -rT %s %s\n' "$dst" "$src" "$dst"
+    printf 'DRYRUN: mkdir -p %s && cp -rLT %s %s\n' "$dst" "$src" "$dst"
     return 0
   fi
   [[ -d $src ]] || { log "skip: $src not present"; return 0; }
   mkdir -p "$dst"
-  cp -rT "$src" "$dst"
+  cp -rLT "$src" "$dst"
 }
 
 # part_dev: Nth partition device for a disk. handles the nvme/mmc 'p' separator

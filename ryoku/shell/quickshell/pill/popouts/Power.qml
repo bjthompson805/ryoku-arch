@@ -45,7 +45,7 @@ Item {
         if (a.dispatch && a.dispatch.length)
             Hyprland.dispatch(a.dispatch);
         else
-            Quickshell.execDetached(a.argv);
+            Spawn.spawn(a.argv);
         root.closed();
     }
     Column {

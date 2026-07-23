@@ -178,15 +178,18 @@ say "installing Ryoku.PluginKit module"
 say "installed Ryoku.PluginKit -> $qmldir/Ryoku/PluginKit"
 
 # Quickshell components: a deployed daemon runs `qs -c <name>`, reading
-# ~/.config/quickshell/<name>.
+# ~/.config/quickshell/<name>. -L dereferences symlinks (e.g. the shared
+# Spawn.qml/SpawnCore.qml under ryoku/shared/quickshell/, symlinked into every
+# root's Singletons/ dir) into real files, since a relative symlink target
+# computed from the repo's layout would not resolve once deployed here.
 say "installing quickshell components -> $cfg/quickshell"
 rm -rf "$cfg/quickshell"
 mkdir -p "$cfg/quickshell"
-cp -a "$here/quickshell/." "$cfg/quickshell/"
+cp -aL "$here/quickshell/." "$cfg/quickshell/"
 
 # Ryoku Hub's quickshell config (qs -c hub), kept beside the shell's components.
 mkdir -p "$cfg/quickshell/hub"
-cp -a "$here/../hub/quickshell/." "$cfg/quickshell/hub/"
+cp -aL "$here/../hub/quickshell/." "$cfg/quickshell/hub/"
 
 # First-party GUI apps: each ryoku/apps/<name>/quickshell ships as qs -c <name>,
 # launched from a keybind and a .desktop entry. Drop in a new app dir and it ships.
@@ -195,7 +198,7 @@ for appdir in "$here"/../apps/*/; do
   [[ -d "${appdir}quickshell" ]] || continue
   appname="$(basename "$appdir")"
   mkdir -p "$cfg/quickshell/$appname"
-  cp -a "${appdir}quickshell/." "$cfg/quickshell/$appname/"
+  cp -aL "${appdir}quickshell/." "$cfg/quickshell/$appname/"
   for b in "${appdir}bin/"*; do [[ -f "$b" ]] && install -m755 "$b" "$bindir/$(basename "$b")"; done
   # an app may carry Go helper(s): a subdir with a go.mod builds to a bin named
   # for the module (ryovm/fetch -> ryovm-fetch). keeps "drop in an app dir" true.

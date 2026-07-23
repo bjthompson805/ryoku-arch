@@ -46,7 +46,7 @@ Item {
         interval: 400
         onTriggered: {
             if (tools.pendingArgv) {
-                Quickshell.execDetached(tools.pendingArgv);
+                Spawn.spawn(tools.pendingArgv);
                 tools.pendingArgv = null;
             }
         }
