@@ -1,0 +1,34 @@
+From 731d2656eb0e3947f9503b6fe4cfa2607e1b7382 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Wed, 22 Jul 2026 09:48:49 -0700
+Subject: [PATCH] Patch: Fix notification toast showing an empty action pill
+ for kitty's default action.
+
+kitty's dbus notification backend always registers a 'default' action
+padded with a single space (dbus disallows an empty string), meant only
+as the implicit click-to-activate action. Toast.qml's action-pill filter
+only checked text.length, so this rendered as a visible, empty,
+red-bordered pill. Exclude the 'default' identifier explicitly.
+---
+ ryoku/shell/quickshell/pill/Toast.qml | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/ryoku/shell/quickshell/pill/Toast.qml b/ryoku/shell/quickshell/pill/Toast.qml
+index 8fe1638f..6f5cd7e4 100644
+--- a/ryoku/shell/quickshell/pill/Toast.qml
++++ b/ryoku/shell/quickshell/pill/Toast.qml
+@@ -19,7 +19,10 @@ Item {
+     signal openCenter()
+ 
+     readonly property bool critical: notif.urgency === NotificationUrgency.Critical
+-    readonly property var acts: notif.actions.filter(function(a) { return a.text.length > 0; })
++    // "default" is the implicit click-to-activate action, not a real button --
++    // senders like kitty's dbus backend pad its label with a single space
++    // since dbus disallows an empty string, so text.length alone won't catch it.
++    readonly property var acts: notif.actions.filter(function(a) { return a.identifier !== "default" && a.text.trim().length > 0; })
+ 
+     implicitHeight: Math.max(iconTile.height, col.implicitHeight)
+ 
+-- 
+2.55.0
+
