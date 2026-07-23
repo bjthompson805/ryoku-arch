@@ -152,7 +152,7 @@ ShellRoot {
     readonly property string caffeineScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-caffeine"
 
     function syncCaffeine(action) {
-        Quickshell.execDetached([root.caffeineScript, action]);
+        Spawn.spawn([root.caffeineScript, action]);
     }
 
     Connections {
@@ -170,7 +170,7 @@ ShellRoot {
     readonly property string gameModeScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-game-mode"
 
     function syncGameMode(action) {
-        Quickshell.execDetached([root.gameModeScript, action]);
+        Spawn.spawn([root.gameModeScript, action]);
     }
 
     Connections {
@@ -279,7 +279,7 @@ ShellRoot {
     // launcher, so we mirror its flock guard to avoid spawning a second
     // Hub instance.
     function openUpdates() {
-        Quickshell.execDetached(["sh", "-c",
+        Spawn.spawn(["sh", "-c",
             "ryoku-hub config set section updates; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
     }
 

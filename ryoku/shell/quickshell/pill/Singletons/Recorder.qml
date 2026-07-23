@@ -47,7 +47,7 @@ Singleton {
     readonly property string regionFilePath: (Quickshell.env("RYOKU_STATE_PATH") || (Quickshell.env("HOME") + "/.local/state/ryoku")) + "/region-pick"
     function pickRegion() {
         root.regionPicking = true;
-        Quickshell.execDetached(["sh", "-c",
+        Spawn.spawn(["sh", "-c",
             "mkdir -p \"$(dirname '" + root.regionFilePath + "')\"; "
             + "g=$(slurp -f '%wx%h+%x+%y' 2>/dev/null); "
             + "printf '%s' \"$g\" > '" + root.regionFilePath + ".tmp'; "
@@ -71,7 +71,7 @@ Singleton {
     }
 
     function start(extraArgs) {
-        Quickshell.execDetached([root.script, ...(extraArgs || [])]);
+        Spawn.spawn([root.script, ...(extraArgs || [])]);
         root.paused = false;
         root.active = true;
         root.startedAt = Math.floor(Date.now() / 1000);
@@ -80,7 +80,7 @@ Singleton {
     }
 
     function stop() {
-        Quickshell.execDetached([root.script, "--stop"]);
+        Spawn.spawn([root.script, "--stop"]);
         root.active = false;
         root.paused = false;
     }
@@ -88,7 +88,7 @@ Singleton {
     function togglePause() {
         if (!root.canPause)
             return;
-        Quickshell.execDetached([root.script, "--pause"]);
+        Spawn.spawn([root.script, "--pause"]);
         root.paused = !root.paused;
     }
     // studio: record with gpu-screen-recorder + a cursor track, then open the clip
@@ -112,7 +112,7 @@ Singleton {
         // SIGTERM the wrapper (not gsr): it stops the capture, writes the cursor
         // sidecar, and opens the editor, so it needs to run its own shutdown.
         if (studioProc.running && studioProc.processId > 0)
-            Quickshell.execDetached(["kill", "-TERM", String(studioProc.processId)]);
+            Spawn.spawn(["kill", "-TERM", String(studioProc.processId)]);
         root.studioActive = false;
         root.paused = false;
         root.backend = "";

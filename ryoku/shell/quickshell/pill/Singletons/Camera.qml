@@ -50,7 +50,7 @@ Singleton {
             px: root.px,
             py: root.py
         });
-        Quickshell.execDetached(["sh", "-c",
+        Spawn.spawn(["sh", "-c",
             "mkdir -p \"$(dirname '" + root.cfgPath + "')\"; "
             + "printf '%s' '" + j + "' > '" + root.cfgPath + ".tmp'; "
             + "mv '" + root.cfgPath + ".tmp' '" + root.cfgPath + "'"]);

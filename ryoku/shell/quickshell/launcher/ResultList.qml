@@ -151,7 +151,7 @@ ListView {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: icon.right
                 anchors.leftMargin: row.hasIcon ? 11 * list.s : 0
-                anchors.right: verb.left
+                anchors.right: launchBadge.visible ? launchBadge.left : verb.left
                 anchors.rightMargin: 10 * list.s
                 spacing: 1 * list.s
 
@@ -174,6 +174,18 @@ ListView {
                     font.pixelSize: Metrics.fontSubtitle * list.s
                     elide: Text.ElideRight
                 }
+            }
+
+            Text {
+                id: launchBadge
+                visible: row.entry && row.entry.launchedCount > 0
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: verb.left
+                anchors.rightMargin: 6 * list.s
+                text: row.entry ? "(" + row.entry.launchedCount + " launched)" : ""
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: Metrics.fontEyebrow * list.s
             }
 
             Text {

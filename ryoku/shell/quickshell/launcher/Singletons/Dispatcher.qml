@@ -54,6 +54,7 @@ Singleton {
     // `revision` so async caches re-pull on resolve.
     function results(text, limit) {
         void root.revision;
+        void Spawn.revision;
         var r = Dispatch.routePrefix(text, root.prefixes);
         var rows = [];
         if (r.provider) {
@@ -80,6 +81,37 @@ Singleton {
             });
         }
         var cap = limit && limit > 0 ? limit : rows.length;
-        return rows.length > cap ? rows.slice(0, cap) : rows;
+        rows = rows.length > cap ? rows.slice(0, cap) : rows;
+
+        // Append a "View log" action per tracked spawn-log for this row, so a
+        // launch that hung or errored is always one Ctrl+K away from its
+        // output — appended, never unshifted, so it can't hijack Enter or the
+        // row's displayed verb (both read actions[0]).
+        for (var m = 0; m < rows.length; m++) {
+            var logs = Spawn.logsFor(rows[m].id);
+            if (logs.length > 0)
+                rows[m].actions = rows[m].actions.concat(root._logActions(logs));
+        }
+        return rows;
+    }
+
+    function _logActions(logs) {
+        var out = [];
+        for (var i = 0; i < logs.length && i < 3; i++) {
+            var l = logs[i];
+            // A clean (exit-0) run is pruned from the registry the moment it
+            // exits (Spawn._forget), so anything left with an exitCode set is
+            // by construction a failure, not just "finished" — worth saying
+            // so, not just showing when it ran.
+            var running = l.exitCode === null || l.exitCode === undefined;
+            var time = Qt.formatTime(new Date(l.startedAt), "hh:mm");
+            var label = "View log (" + time + ", " + (running ? "running" : "failed") + ")";
+            out.push({
+                name: label,
+                icon: "",
+                execute: (function (path) { return function () { Qt.openUrlExternally("file://" + path); }; })(l.path)
+            });
+        }
+        return out;
     }
 }

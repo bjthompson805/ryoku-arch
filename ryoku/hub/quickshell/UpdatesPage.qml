@@ -128,7 +128,7 @@ Item {
     // is polling (positional args, so a quote in the label can't break out),
     // then optimistically resume the running view so the buttons clear.
     function answer(choice) {
-        Quickshell.execDetached(["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "sh", choice, page.answerPath]);
+        Spawn.spawn(["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "sh", choice, page.answerPath]);
         page.phase = "running";
     }
 
@@ -138,20 +138,20 @@ Item {
     function rollback() {
         if (page.snapshot === "")
             return;
-        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", page.snapshot]);
+        Spawn.spawn(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", page.snapshot]);
         page.dismiss();
     }
 
     // dismiss a finished/failed run: clear the run-state file so the page and
     // island return to idle.
     function dismiss() {
-        Quickshell.execDetached(["sh", "-c", "printf '%s' '{\"phase\":\"idle\"}' > \"$1\"", "sh", page.statePath]);
+        Spawn.spawn(["sh", "-c", "printf '%s' '{\"phase\":\"idle\"}' > \"$1\"", "sh", page.statePath]);
         page.phase = "idle";
         Updates.check();
     }
 
     function startUpdate() {
-        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
+        Spawn.spawn(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
     }
 
     // idle list: incoming commits when behind, else the recent history the

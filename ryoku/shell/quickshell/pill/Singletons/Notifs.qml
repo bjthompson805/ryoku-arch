@@ -56,13 +56,18 @@ Singleton {
             var entries = [];
             for (var k = 0; k < items.length; k++)
                 coalesce(items[k].n.urgency === NotificationUrgency.Critical ? criticals : entries, items[k]);
+            // Preview only ever stands in for a notification the group head
+            // doesn't already show elsewhere: a critical has its own row, so
+            // falling back to it here would just repeat the same content
+            // (the only case this fires is an app whose notifications are
+            // all critical — nothing else to preview).
             var preview = items.find(function(it) { return it.n.urgency !== NotificationUrgency.Critical; });
             return {
                 app: app,
                 count: items.length,
                 t: items[0].t,
                 newest: items[0].n,
-                preview: preview ? preview.n : items[0].n,
+                preview: preview ? preview.n : null,
                 criticals: criticals,
                 entries: entries
             };
@@ -138,8 +143,12 @@ Singleton {
         }
         var token = String(n.desktopEntry && n.desktopEntry.length ? n.desktopEntry : (n.appName || "")).toLowerCase();
         if (token.length > 0)
-            Quickshell.execDetached(["sh", "-c",
-                "addr=$(hyprctl clients -j | jq -r --arg q \"$1\" '[.[] | select(((.class // \"\") | ascii_downcase | contains($q)) or ((.initialClass // \"\") | ascii_downcase | contains($q)))][0].address // empty'); [ -n \"$addr\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:$addr\\\" })\"",
+            // No matching window is a normal, expected outcome (most senders,
+            // e.g. this shell's own alerts, have none) — not a failure, so the
+            // trailing `; true` keeps that from tripping Spawn's non-zero-exit
+            // notification on every such click.
+            Spawn.spawn(["sh", "-c",
+                "addr=$(hyprctl clients -j | jq -r --arg q \"$1\" '[.[] | select(((.class // \"\") | ascii_downcase | contains($q)) or ((.initialClass // \"\") | ascii_downcase | contains($q)))][0].address // empty'); [ -n \"$addr\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:$addr\\\" })\"; true",
                 "sh", token]);
         dismissEntry(e);
     }
@@ -212,6 +221,7 @@ Singleton {
 
     function ageLabel(n) {
         void root.tick;
+        if (!n) return "";
         var t = arrivalMs[n.id] || n.ts;
         if (!t) return "";
         var m = Math.floor((Date.now() - t) / 60000);

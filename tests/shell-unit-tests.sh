@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # run the shell's pure-JS unit tests. the *.test.mjs files that exercise the
 # logic helpers behind the Quickshell surfaces (launcher fuzzy ranker,
-# ryoshot coordinate/keymap/annotation libs). no Quickshell or display dep,
-# so they run anywhere node is around, and unlike the advisory qmllint job
-# this one is a real gate. nothing to maintain: the runner finds every
-# ryoku/shell/**/*.test.mjs, so a new file is picked up the moment it lands
-# next to what it covers.
+# ryoshot coordinate/keymap/annotation libs, the spawn-wrapper lint checks).
+# no Quickshell or display dep, so they run anywhere node is around, and
+# unlike the advisory qmllint job this one is a real gate. nothing to
+# maintain: the runner finds every ryoku/{shell,apps,hub,lockscreen,shared}/**/*.test.mjs,
+# so a new file is picked up the moment it lands next to what it covers.
 set -euo pipefail
 
 ROOT=${RYOKU_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
@@ -15,10 +15,10 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-mapfile -d '' tests < <(find "$ROOT/ryoku/shell" -name '*.test.mjs' -type f -print0 | sort -z)
+mapfile -d '' tests < <(find "$ROOT/ryoku/shell" "$ROOT/ryoku/apps" "$ROOT/ryoku/hub" "$ROOT/ryoku/lockscreen" "$ROOT/ryoku/shared" -name '*.test.mjs' -type f -print0 | sort -z)
 
 if (( ${#tests[@]} == 0 )); then
-  echo "::error::no shell unit tests found under ryoku/shell" >&2
+  echo "::error::no shell unit tests found under ryoku/{shell,apps,hub,lockscreen,shared}" >&2
   exit 1
 fi
 

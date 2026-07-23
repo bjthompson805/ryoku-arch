@@ -61,11 +61,11 @@ Item {
         Config.set("calAccent", a[(a.indexOf(Config.calAccent) + 1) % a.length]);
     }
     function openSettings() {
-        Quickshell.execDetached(["sh", "-c", "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
+        Spawn.spawn(["sh", "-c", "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
         menu.close();
     }
     function refreshShell() {
-        Quickshell.execDetached(["ryoku-shell", "reload"]);
+        Spawn.spawn(["ryoku-shell", "reload"]);
         menu.close();
     }
 

@@ -11,3 +11,5 @@ singleton Spectrum Spectrum.qml
 singleton Players Players.qml
 singleton Radio Radio.qml
 singleton Performance Performance.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml

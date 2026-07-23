@@ -94,7 +94,7 @@ Item {
     }
 
     function runTerminal(args) {
-        Quickshell.execDetached(["kitty", "--class", "ryoku-extras", "-e"].concat(args));
+        Spawn.spawn(["kitty", "--class", "ryoku-extras", "-e"].concat(args));
     }
 
     function open(id) { page.selectedId = id; }

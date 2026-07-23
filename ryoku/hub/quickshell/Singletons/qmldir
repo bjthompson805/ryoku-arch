@@ -3,3 +3,5 @@ singleton Updates Updates.qml
 singleton SysInfo SysInfo.qml
 singleton Wallust Wallust.qml
 singleton Config Config.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml

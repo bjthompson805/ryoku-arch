@@ -6,3 +6,5 @@ singleton WeatherData WeatherData.qml
 singleton Events Events.qml
 singleton Registry Registry.qml
 singleton Performance Performance.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml

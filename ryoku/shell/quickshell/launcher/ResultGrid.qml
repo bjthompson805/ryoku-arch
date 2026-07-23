@@ -185,6 +185,16 @@ Flickable {
                                 width: parent.width - 8 * grid.s
                                 spacing: 4 * grid.s
 
+                                Text {
+                                    visible: tile.entry && tile.entry.launchedCount > 0
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: tile.entry ? tile.entry.launchedCount + " launched" : ""
+                                    color: Theme.faint
+                                    font.family: Theme.font
+                                    font.pixelSize: Metrics.fontEyebrow * grid.s
+                                    maximumLineCount: 1
+                                    elide: Text.ElideRight
+                                }
                                 Image {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     width: 40 * grid.s

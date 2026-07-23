@@ -420,9 +420,11 @@ PillSurface {
                                     anchors.right: headX.left
                                     anchors.rightMargin: 8 * root.s
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: group.modelData.preview.body.length > 0
-                                        ? group.modelData.preview.body
-                                        : group.modelData.preview.summary
+                                    text: group.modelData.preview
+                                        ? (group.modelData.preview.body.length > 0
+                                            ? group.modelData.preview.body
+                                            : group.modelData.preview.summary)
+                                        : ""
                                     color: Theme.dim
                                     font.family: Theme.font
                                     font.pixelSize: 10 * root.s

@@ -39,7 +39,7 @@ Singleton {
     function copy(entry) {
         if (!/^\d+$/.test(String(entry.id)))
             return;
-        Quickshell.execDetached(["sh", "-c", "printf '%s' \"$1\" | cliphist decode | wl-copy", "_", String(entry.id)]);
+        Spawn.spawn(["sh", "-c", "printf '%s' \"$1\" | cliphist decode | wl-copy", "_", String(entry.id)]);
     }
 
     function wipe() {

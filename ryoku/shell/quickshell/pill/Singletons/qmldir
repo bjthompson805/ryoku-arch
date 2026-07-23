@@ -26,3 +26,5 @@ singleton IslandDock IslandDock.qml
 singleton SysStats SysStats.qml
 singleton NetSpeed NetSpeed.qml
 singleton Fullscreen Fullscreen.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml

@@ -30,14 +30,14 @@ Item {
     function openEdit() {
         if (!header.editPaths || header.editPaths.length === 0)
             return;
-        Quickshell.execDetached(["kitty", "-e", "nvim", "-O"].concat(header.editPaths));
+        Spawn.spawn(["kitty", "-e", "nvim", "-O"].concat(header.editPaths));
     }
     function openView() {
         if (!header.viewPaths || header.viewPaths.length === 0)
             return;
         // -R opens read-only: these are Ryoku defaults or generated files an
         // update overwrites, so edits here would be lost. Look, do not touch.
-        Quickshell.execDetached(["kitty", "-e", "nvim", "-R", "-O"].concat(header.viewPaths));
+        Spawn.spawn(["kitty", "-e", "nvim", "-R", "-O"].concat(header.viewPaths));
     }
 
     Column {

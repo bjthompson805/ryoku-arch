@@ -48,12 +48,21 @@ Provider {
             icon: entry.icon ? Quickshell.iconPath(entry.icon, "application-x-executable") : Quickshell.iconPath("application-x-executable", true),
             type: "App",
             score: 0,
+            launchedCount: Spawn.countFor(entry.id),
             actions: [{
                 name: "Launch",
                 icon: "",
                 execute: function () {
                     Frecency.bump(entry.id);
-                    entry.execute();
+                    // Terminal apps keep the built-in launch path unchanged — a
+                    // failure there is at least visible in the terminal window
+                    // itself, unlike a GUI-only app (the actual VS-Code-hang
+                    // case this whole thing exists for).
+                    if (entry.runInTerminal) {
+                        entry.execute();
+                        return;
+                    }
+                    Spawn.spawn(entry.command, { id: entry.id, cwd: entry.workingDirectory });
                 }
             }]
         };

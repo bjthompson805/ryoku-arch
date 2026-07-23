@@ -19,7 +19,7 @@ Item {
     // parse. Re-read it now so a toggle applies without a relogin. Shell-side
     // consumers (Motion, Performance singletons) watch the file and need no reload.
     function reloadCompositor() {
-        Quickshell.execDetached(["hyprctl", "reload"]);
+        Spawn.spawn(["hyprctl", "reload"]);
     }
 
     FileView {

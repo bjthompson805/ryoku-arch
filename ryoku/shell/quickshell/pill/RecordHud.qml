@@ -105,7 +105,7 @@ Item {
     // the app is installed.
     function launchRyomotion() {
         Recorder.chooserOpen = false;
-        Quickshell.execDetached(["sh", "-c",
+        Spawn.spawn(["sh", "-c",
             "command -v ryomotion >/dev/null 2>&1 && exec ryomotion --edit || notify-send 'Ryomotion' 'Not installed yet'"]);
     }
     // studio: our island is the toolbar, so ryomotion records headless (its HUD

@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtMultimedia
 import "./shim"
+import "Singletons"
 
 
 ShellRoot {
@@ -33,9 +34,9 @@ ShellRoot {
 
             // Hyprland session lock fix
             if (Quickshell.env("XDG_CURRENT_DESKTOP") === "Hyprland" || Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") !== "") {
-                Quickshell.execDetached(["hyprctl", "keyword", "misc:allow_session_lock_restore", "1"]);
+                Spawn.spawn(["hyprctl", "keyword", "misc:allow_session_lock_restore", "1"]);
             }
-            Quickshell.execDetached(["loginctl", "unlock-session"]);
+            Spawn.spawn(["loginctl", "unlock-session"]);
 
             // Dynamic exit delay
             let delay = 100;
@@ -87,9 +88,9 @@ ShellRoot {
                 // later lock never reads stale state.
                 onSecureChanged: {
                     if (lock.secure) {
-                        Quickshell.execDetached(["sh", "-c", "umask 077; : > \"${XDG_RUNTIME_DIR:-/tmp}/qylock.locked\""])
+                        Spawn.spawn(["sh", "-c", "umask 077; : > \"${XDG_RUNTIME_DIR:-/tmp}/qylock.locked\""])
                     } else {
-                        Quickshell.execDetached(["sh", "-c", "rm -f \"${XDG_RUNTIME_DIR:-/tmp}/qylock.locked\""])
+                        Spawn.spawn(["sh", "-c", "rm -f \"${XDG_RUNTIME_DIR:-/tmp}/qylock.locked\""])
                     }
                 }
                 surface: Component {
