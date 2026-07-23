@@ -1,0 +1,38 @@
+From bf67e3fbceffa5d1637fa9e83b25d937e5d2cc6e Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Thu, 23 Jul 2026 08:21:02 -0700
+Subject: Patch: Fix hyprpolkitagent never starting due to a systemd env-import
+ race
+
+Adapted for beta-18: the WAYLAND_DISPLAY env-import race this patch
+originally fixed is already covered here by an existing
+dbus-update-activation-environment call ahead of hyprland-session.target
+(broader than the patch's systemctl --user import-environment, since it
+also seeds D-Bus activation). Only the patch's second half is missing:
+clearing a stale crash-looped agent from a previous session via
+reset-failed before the start call, which this adds.
+---
+ ryoku/hyprland/modules/autostart.lua | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/ryoku/hyprland/modules/autostart.lua b/ryoku/hyprland/modules/autostart.lua
+index caed06f9..342b86f2 100644
+--- a/ryoku/hyprland/modules/autostart.lua
++++ b/ryoku/hyprland/modules/autostart.lua
+@@ -18,6 +18,13 @@ hl.on("hyprland.start", function()
+     -- never satisfied the condition and the polkit agent came up failed (the
+     -- doctor "hyprpolkitagent.service failed" out of the box).
+     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_SESSION_TYPE")
++    -- The user manager is one persistent process across logins, so a previous
++    -- session's agent can still be mid crash-loop when this one starts: its old
++    -- Wayland connection just broke (compositor gone), it aborts instantly with
++    -- no display to attach to, and repeats fast enough to hit start-limit-hit --
++    -- which then also blocks the very "start" call below for the new session.
++    -- reset-failed clears that stale lock before asking systemd to start it.
++    hl.exec_cmd("systemctl --user reset-failed hyprpolkitagent")
+     hl.exec_cmd("systemctl --user start hyprland-session.target")
+     hl.exec_cmd("systemctl --user start hyprpolkitagent")
+     hl.exec_cmd("command -v ryoku-monitor >/dev/null 2>&1 && ryoku-monitor autoscale")
+-- 
+2.55.0
+

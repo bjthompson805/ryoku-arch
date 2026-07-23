@@ -1,4 +1,4 @@
-From 6f2aba82ee6f5f2ec519c111d134c94e4404a7f6 Mon Sep 17 00:00:00 2001
+From 884b320cb6fa6943d52c3aaca577e43ca8963dd9 Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Mon, 20 Jul 2026 10:05:03 -0700
 Subject: Patch: Add pillBasicRenderLoop opt-in to trade pill's animation
@@ -15,12 +15,16 @@ other opt-in in that file): when on, the daemon sets QSG_RENDER_LOOP=basic
 in the environment it spawns pill with, which wins over the QML pragma's
 DefaultEnv. Scoped to pill specifically since it's the only component that
 sets the pragma.
+---
+ ryoku/shell/ipc/daemon.go      | 13 +++++++++--
+ ryoku/shell/ipc/daemon_test.go | 40 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 49 insertions(+), 4 deletions(-)
 
 diff --git a/ryoku/shell/ipc/daemon.go b/ryoku/shell/ipc/daemon.go
-index 315fc82c..56a5b256 100644
+index 42443a6d..ed4cc607 100644
 --- a/ryoku/shell/ipc/daemon.go
 +++ b/ryoku/shell/ipc/daemon.go
-@@ -272,11 +272,20 @@ const jemallocConf = "narenas:2,background_thread:true,dirty_decay_ms:5000,muzzy
+@@ -357,11 +357,20 @@ const jemallocConf = "narenas:2,background_thread:true,dirty_decay_ms:5000,muzzy
  // qsEnv is the environment for a supervised quickshell process: the daemon's own
  // env (which carries the QML import path setupQmlImportPath exports) plus the
  // jemalloc tuning, unless the user already pinned MALLOC_CONF.
@@ -42,7 +46,7 @@ index 315fc82c..56a5b256 100644
  	return env
  }
  
-@@ -301,7 +310,7 @@ func (d *daemon) supervise(name string) {
+@@ -386,7 +395,7 @@ func (d *daemon) supervise(name string) {
  			}
  		}
  		cmd := exec.Command("qs", qsSelect(name)...)
@@ -52,7 +56,7 @@ index 315fc82c..56a5b256 100644
  			time.Sleep(backoff)
  			backoff = capDur(backoff*2, 30*time.Second)
 diff --git a/ryoku/shell/ipc/daemon_test.go b/ryoku/shell/ipc/daemon_test.go
-index d90199cc..8c7204c1 100644
+index f935f321..219359b3 100644
 --- a/ryoku/shell/ipc/daemon_test.go
 +++ b/ryoku/shell/ipc/daemon_test.go
 @@ -19,7 +19,7 @@ func TestQsEnvAddsMallocConf(t *testing.T) {

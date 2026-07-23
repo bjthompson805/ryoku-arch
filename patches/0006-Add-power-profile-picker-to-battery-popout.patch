@@ -1,7 +1,7 @@
-From 8dec5bf3ad265484ca6cd303df416817cb4c5f92 Mon Sep 17 00:00:00 2001
+From bf2a39f64d0a3519624c323e308b05414b72afe8 Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Mon, 20 Jul 2026 17:20:19 -0700
-Subject: [PATCH] Patch: Add a power-profile picker to the battery popout.
+Subject: Patch: Add a power-profile picker to the battery popout.
 
 The battery popout showed the charge and its numbers but had no way to
 switch power-profiles-daemon's active profile without leaving the
@@ -11,6 +11,9 @@ writes PowerProfiles.profile directly, no local staging state. The
 Performance tab only appears when PowerProfiles.hasPerformanceProfile
 is true, mirroring the popout's existing hasDetails-style "don't draw
 a control for a feature that isn't there" rule.
+---
+ .../quickshell/pill/popouts/BatteryPopout.qml | 94 +++++++++++++++++++
+ 1 file changed, 94 insertions(+)
 
 diff --git a/ryoku/shell/quickshell/pill/popouts/BatteryPopout.qml b/ryoku/shell/quickshell/pill/popouts/BatteryPopout.qml
 index 5951e9a3..1084791d 100644

@@ -1,4 +1,4 @@
-From d6d1d1c11e1f25b747ef039d2baadd38ef2c20ea Mon Sep 17 00:00:00 2001
+From 4316ab1a12583c0ea8a3d80ef05e94175b5063e8 Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Fri, 17 Jul 2026 21:14:18 -0700
 Subject: Patch: Fix VoicePopout burning 20% cpu constantly.
@@ -8,6 +8,9 @@ tracking root.open, so the mic-capture wave (and its cava subprocess)
 starts the moment the component is created at shell boot -- regardless
 of whether the dictation popout is ever actually shown. Silently
 captures the mic and burns ~20%+ CPU every session.
+---
+ ryoku/shell/quickshell/pill/popouts/VoicePopout.qml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/ryoku/shell/quickshell/pill/popouts/VoicePopout.qml b/ryoku/shell/quickshell/pill/popouts/VoicePopout.qml
 index c09cc6bc..fa8b5d9b 100644

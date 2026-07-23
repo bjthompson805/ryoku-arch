@@ -1,8 +1,8 @@
-From 731d2656eb0e3947f9503b6fe4cfa2607e1b7382 Mon Sep 17 00:00:00 2001
+From d5a2cefa722a2a6adbd271503f67764a732e342d Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
 Date: Wed, 22 Jul 2026 09:48:49 -0700
-Subject: [PATCH] Patch: Fix notification toast showing an empty action pill
- for kitty's default action.
+Subject: Patch: Fix notification toast showing an empty action pill for
+ kitty's default action.
 
 kitty's dbus notification backend always registers a 'default' action
 padded with a single space (dbus disallows an empty string), meant only

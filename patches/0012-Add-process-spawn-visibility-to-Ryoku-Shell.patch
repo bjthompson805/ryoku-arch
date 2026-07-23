@@ -1,25 +1,56 @@
-From 59be8dbc81a8fdfcdc9b881e97f54e43dc0277b6 Mon Sep 17 00:00:00 2001
+From 9bcab47e46493f057c139c56fa2ce1a7acaf8211 Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
-Date: Wed, 22 Jul 2026 18:38:39 -0700
-Subject: [PATCH] Patch: Add process-spawn visibility to Ryoku Shell.
+Date: Thu, 23 Jul 2026 10:34:34 -0700
+Subject: Patch: Add process-spawn visibility to Ryoku Shell.
 
-Centralizes every process spawn across the shell, ryowalls, hub, ryovm, and
-the lockscreen behind a shared Spawn wrapper (ryoku/shared/quickshell/) that
-captures stdout/stderr to a log file, deletes it on a clean exit, and fires a
-desktop notification with a "View log" action on failure. The launcher's own
-copy additionally tracks a live registry so search results can show
-"(N launched)" next to the app name and "View log(s)" appears in the Ctrl+K
-action panel for anything still running or that failed.
+Centralizes every process spawn across the shell, ryolayer, ryowalls,
+hub, ryovm, and the lockscreen behind a shared Spawn wrapper
+(ryoku/shared/quickshell/) that captures stdout/stderr to a log file,
+deletes it on a clean exit, and fires a desktop notification with a
+"View log" action on failure. The launcher's own copy additionally
+tracks a live registry so search results show "(N launched)" next to
+the app name and "View log(s)" appears in the Ctrl+K action panel for
+anything still running or that failed.
 
-Fixes two related pre-existing bugs surfaced by wiring notification-center
-clicks through the new wrapper: activateEntry()'s window-focus script
-returned a spurious failure exit code whenever the clicked notification's
-sender had no matching window (a normal, common case), and the Inbox's group
-header could re-display a critical notification's own content a second time
-when it had nothing else to preview.
+Adapted for beta-18, which grew substantially past what this patch
+was written against:
+- A whole new ryolayer widget system (shell.qml, Eq.qml, MicWidget.qml,
+  NotesWidget.qml) got wired into the shared Spawn wrapper too, plus
+  its own Singletons/qmldir symlinks -- none of this existed when the
+  original patch was authored.
+- Several more hub pages needed the same treatment (KeybindsPage,
+  StorePage, SettingsSheet) beyond the original's DictationPage/
+  FastfetchPage/GpuPage/LockscreenPage/PerformancePage/RashinPage/
+  UpdatesPage/PageHeader -- hub pages also moved under quickshell/pages/
+  in beta-18's schema-driven redesign, so every page needed a fresh
+  `import "../Singletons"` rather than reusing the original diff's
+  context.
+- Pill grew Toggles.qml (DeckControls' wifi/mic/night-light toggles,
+  refactored into a shared singleton), AtollBar/DyadBar/BarModularFace
+  and their popouts (AtollBatteryPopout, AtollMusicPopout, PowerAction),
+  none of which existed in the original patch's target tree.
+- ryovm grew Remotes.qml (SSH host management), not in the original.
+- Devices.qml's backlight functions were ported through their beta-18
+  names (setBacklight/reportBacklightChange from this branch's own
+  0004 redesign) rather than main's panelBrightness-era names, which
+  don't exist here.
+- Apps.qml's terminal-vs-GUI launch split uses entry.command/
+  workingDirectory/runInTerminal -- verified these exist on Quickshell's
+  DesktopEntry type (checked the installed qmltypes) since this
+  provider had no existing Quickshell.execDetached call for the diff to
+  anchor on.
+
+Also carries the two pre-existing bug fixes the original wiring
+surfaced: activateEntry()'s window-focus script returning a spurious
+failure whenever the clicked notification's sender has no matching
+window (now `; true`), and the Inbox group header re-showing a
+critical notification's own content a second time when it had nothing
+else to preview (preview now null instead of falling back to it, with
+matching null-guards in Notifs.ageLabel and Inbox.qml's text binding).
 ---
  installation/backend/lib/common.sh            |  11 +-
  ryoku/apps/ryovm/quickshell/SettingsPanel.qml |   2 +-
+ .../ryovm/quickshell/Singletons/Remotes.qml   |   8 +-
  .../ryovm/quickshell/Singletons/Spawn.qml     |   1 +
  .../ryovm/quickshell/Singletons/SpawnCore.qml |   1 +
  ryoku/apps/ryovm/quickshell/Singletons/Vm.qml |   4 +-
@@ -31,19 +62,21 @@ when it had nothing else to preview.
  .../quickshell/Singletons/Wallhaven.qml       |   2 +-
  .../ryowalls/quickshell/Singletons/qmldir     |   2 +
  .../quickshell/lib/no-raw-spawn.test.mjs      |  77 +++++++
- ryoku/hub/quickshell/DictationPage.qml        |   4 +-
- ryoku/hub/quickshell/ExtrasPage.qml           |   2 +-
- ryoku/hub/quickshell/FastfetchPage.qml        |   4 +-
- ryoku/hub/quickshell/GpuPage.qml              |   2 +-
- ryoku/hub/quickshell/LockscreenPage.qml       |   2 +-
- ryoku/hub/quickshell/PageHeader.qml           |   4 +-
- ryoku/hub/quickshell/PerformancePage.qml      |   2 +-
- ryoku/hub/quickshell/RashinPage.qml           |   4 +-
+ ryoku/hub/quickshell/Hub.qml                  |   3 +-
+ ryoku/hub/quickshell/SettingsSheet.qml        |   3 +-
  ryoku/hub/quickshell/Singletons/Spawn.qml     |   1 +
  ryoku/hub/quickshell/Singletons/SpawnCore.qml |   1 +
  ryoku/hub/quickshell/Singletons/qmldir        |   2 +
- ryoku/hub/quickshell/UpdatesPage.qml          |   8 +-
  .../hub/quickshell/lib/no-raw-spawn.test.mjs  |  77 +++++++
+ ryoku/hub/quickshell/pages/DictationPage.qml  |   5 +-
+ ryoku/hub/quickshell/pages/FastfetchPage.qml  |   7 +-
+ ryoku/hub/quickshell/pages/GpuPage.qml        |   3 +-
+ ryoku/hub/quickshell/pages/KeybindsPage.qml   |   5 +-
+ ryoku/hub/quickshell/pages/LockscreenPage.qml |   3 +-
+ .../hub/quickshell/pages/PerformancePage.qml  |   3 +-
+ ryoku/hub/quickshell/pages/RashinPage.qml     |   5 +-
+ ryoku/hub/quickshell/pages/StorePage.qml      |   3 +-
+ ryoku/hub/quickshell/pages/UpdatesPage.qml    |   8 +-
  .../Singletons/Spawn.qml                      |   1 +
  .../Singletons/SpawnCore.qml                  |   1 +
  .../quickshell-lockscreen/Singletons/qmldir   |   2 +
@@ -65,39 +98,53 @@ when it had nothing else to preview.
  .../launcher/providers/apps/Apps.qml          |  11 +-
  .../launcher/providers/find/Find.qml          |   5 +-
  .../launcher/providers/packages/Packages.qml  |   3 +-
- ryoku/shell/quickshell/launcher/shell.qml     |   4 +-
+ ryoku/shell/quickshell/launcher/shell.qml     |   2 +-
  .../quickshell/lib/no-raw-spawn.test.mjs      |  80 +++++++
  .../quickshell/overview/Singletons/Spawn.qml  |   1 +
  .../overview/Singletons/SpawnCore.qml         |   1 +
  .../quickshell/overview/Singletons/qmldir     |   2 +
  ryoku/shell/quickshell/overview/shell.qml     |   2 +-
+ ryoku/shell/quickshell/pill/AtollBar.qml      |   4 +-
  ryoku/shell/quickshell/pill/Bar.qml           |   6 +-
- ryoku/shell/quickshell/pill/DeckControls.qml  |   6 +-
+ .../shell/quickshell/pill/BarModularFace.qml  |   2 +-
  ryoku/shell/quickshell/pill/DeckRecord.qml    |   6 +-
  ryoku/shell/quickshell/pill/DeckTools.qml     |   2 +-
+ ryoku/shell/quickshell/pill/DyadBar.qml       |   4 +-
  ryoku/shell/quickshell/pill/Inbox.qml         |   8 +-
  ryoku/shell/quickshell/pill/RecordHud.qml     |   2 +-
  .../quickshell/pill/Singletons/Camera.qml     |   2 +-
  .../quickshell/pill/Singletons/Cliphist.qml   |   2 +-
  .../quickshell/pill/Singletons/Devices.qml    |   8 +-
  .../quickshell/pill/Singletons/Notifs.qml     |  16 +-
- .../quickshell/pill/Singletons/Recorder.qml   |  10 +-
+ .../quickshell/pill/Singletons/Recorder.qml   |  14 +-
  .../quickshell/pill/Singletons/Spawn.qml      |   1 +
  .../quickshell/pill/Singletons/SpawnCore.qml  |   1 +
  .../quickshell/pill/Singletons/Stash.qml      |  10 +-
+ .../quickshell/pill/Singletons/Toggles.qml    |   6 +-
  .../quickshell/pill/Singletons/Updates.qml    |   2 +-
  ryoku/shell/quickshell/pill/Singletons/qmldir |   2 +
+ .../pill/popouts/AtollBatteryPopout.qml       |   6 +-
+ .../pill/popouts/AtollMusicPopout.qml         |   6 +-
  ryoku/shell/quickshell/pill/popouts/Power.qml |   2 +-
+ .../quickshell/pill/popouts/PowerAction.qml   |   3 +-
  ryoku/shell/quickshell/pill/shell.qml         |   6 +-
+ .../quickshell/ryolayer/Singletons/Eq.qml     |   6 +-
+ .../quickshell/ryolayer/Singletons/Spawn.qml  |   1 +
+ .../ryolayer/Singletons/SpawnCore.qml         |   1 +
+ .../quickshell/ryolayer/Singletons/qmldir     |   2 +
+ ryoku/shell/quickshell/ryolayer/shell.qml     |   4 +-
+ .../ryolayer/widgets/mic/MicWidget.qml        |   2 +-
+ .../ryolayer/widgets/notes/NotesWidget.qml    |   2 +-
  .../quickshell/wallpaper/Singletons/Spawn.qml |   1 +
  .../wallpaper/Singletons/SpawnCore.qml        |   1 +
  .../quickshell/wallpaper/Singletons/qmldir    |   2 +
+ ryoku/shell/quickshell/widgets/README.md      |   4 +-
  .../quickshell/widgets/Singletons/Spawn.qml   |   1 +
  .../widgets/Singletons/SpawnCore.qml          |   1 +
  .../quickshell/widgets/Singletons/qmldir      |   2 +
  ryoku/shell/quickshell/widgets/WidgetMenu.qml |   4 +-
- tests/shell-unit-tests.sh                     |  14 +-
- 79 files changed, 927 insertions(+), 100 deletions(-)
+ tests/shell-unit-tests.sh                     |  13 +-
+ 96 files changed, 971 insertions(+), 128 deletions(-)
  create mode 120000 ryoku/apps/ryovm/quickshell/Singletons/Spawn.qml
  create mode 120000 ryoku/apps/ryovm/quickshell/Singletons/SpawnCore.qml
  create mode 100644 ryoku/apps/ryovm/quickshell/lib/no-raw-spawn.test.mjs
@@ -121,6 +168,8 @@ when it had nothing else to preview.
  create mode 120000 ryoku/shell/quickshell/overview/Singletons/SpawnCore.qml
  create mode 120000 ryoku/shell/quickshell/pill/Singletons/Spawn.qml
  create mode 120000 ryoku/shell/quickshell/pill/Singletons/SpawnCore.qml
+ create mode 120000 ryoku/shell/quickshell/ryolayer/Singletons/Spawn.qml
+ create mode 120000 ryoku/shell/quickshell/ryolayer/Singletons/SpawnCore.qml
  create mode 120000 ryoku/shell/quickshell/wallpaper/Singletons/Spawn.qml
  create mode 120000 ryoku/shell/quickshell/wallpaper/Singletons/SpawnCore.qml
  create mode 120000 ryoku/shell/quickshell/widgets/Singletons/Spawn.qml
@@ -156,11 +205,11 @@ index 0d3140b2..e9a4b2f6 100755
  
  # part_dev: Nth partition device for a disk. handles the nvme/mmc 'p' separator
 diff --git a/ryoku/apps/ryovm/quickshell/SettingsPanel.qml b/ryoku/apps/ryovm/quickshell/SettingsPanel.qml
-index 3961cbcf..c928c374 100644
+index c7479293..d533b1b9 100644
 --- a/ryoku/apps/ryovm/quickshell/SettingsPanel.qml
 +++ b/ryoku/apps/ryovm/quickshell/SettingsPanel.qml
-@@ -160,7 +160,7 @@ Item {
-         }
+@@ -183,7 +183,7 @@ Item {
+     }
  
      function installEngine() {
 -        Quickshell.execDetached(["sh", "-c",
@@ -168,6 +217,40 @@ index 3961cbcf..c928c374 100644
              "exec \"${TERMINAL:-kitty}\" --class ryovm -e sh -c \"ryovm setup; echo; read -n1 -rsp 'Press any key to close…'; echo\""]);
      }
  }
+diff --git a/ryoku/apps/ryovm/quickshell/Singletons/Remotes.qml b/ryoku/apps/ryovm/quickshell/Singletons/Remotes.qml
+index b13671d8..1fbefaf0 100644
+--- a/ryoku/apps/ryovm/quickshell/Singletons/Remotes.qml
++++ b/ryoku/apps/ryovm/quickshell/Singletons/Remotes.qml
+@@ -168,14 +168,14 @@ Singleton {
+     // real terminal; hold on the result so the key-added line or an auth error
+     // stays readable instead of vanishing when the window closes.
+     function copyId(a) {
+-        Quickshell.execDetached(["sh", "-c",
++        Spawn.spawn(["sh", "-c",
+             "exec \"${TERMINAL:-kitty}\" --class ryoport-ssh -e sh -c 'ryossh copyid \"$1\"; printf \"\\n── press enter to close ──\\n\"; read _' _ \"$1\"", "--", a]);
+     }
+     // run one command on the host in a TTY, then hold on its output with a local
+     // read so a fast command like df stays readable instead of being buried under
+     // a fresh shell; the remote command stays unwrapped so non-POSIX shells can't mangle it.
+     function runOn(alias, cmd) {
+-        Quickshell.execDetached(["sh", "-c",
++        Spawn.spawn(["sh", "-c",
+             "exec \"${TERMINAL:-kitty}\" --class ryoport-ssh -e sh -c 'ssh -t \"$1\" \"$2\"; printf \"\\n── press enter to close ──\\n\"; read _' _ \"$1\" \"$2\"", "--", alias, cmd]);
+         logEvent("run", alias, cmd.split(" ")[0] + " on " + alias);
+     }
+@@ -187,10 +187,10 @@ Singleton {
+         var u = host.user && host.user.length > 0 ? host.user + "@" : "";
+         var h = host.hostName && host.hostName.length > 0 ? host.hostName : host.alias;
+         var p = host.port && host.port !== 22 ? ":" + host.port : "";
+-        Quickshell.execDetached(["nautilus", "sftp://" + u + h + p + "/"]);
++        Spawn.spawn(["nautilus", "sftp://" + u + h + p + "/"]);
+     }
+     // open a host's web app in the default browser.
+-    function openApp(url) { if (url && url.length > 0) Quickshell.execDetached(["xdg-open", url]); }
++    function openApp(url) { if (url && url.length > 0) Spawn.spawn(["xdg-open", url]); }
+     function addHost(obj, pw, clearPw) {
+         addProc.alias = obj.alias;
+         addProc.pw = pw || "";
 diff --git a/ryoku/apps/ryovm/quickshell/Singletons/Spawn.qml b/ryoku/apps/ryovm/quickshell/Singletons/Spawn.qml
 new file mode 120000
 index 00000000..e5014804
@@ -185,10 +268,10 @@ index 00000000..6e29da51
 +../../../../shared/quickshell/SpawnCore.qml
 \ No newline at end of file
 diff --git a/ryoku/apps/ryovm/quickshell/Singletons/Vm.qml b/ryoku/apps/ryovm/quickshell/Singletons/Vm.qml
-index e328893a..c4aae6ef 100644
+index 3c47ec57..c39c2259 100644
 --- a/ryoku/apps/ryovm/quickshell/Singletons/Vm.qml
 +++ b/ryoku/apps/ryovm/quickshell/Singletons/Vm.qml
-@@ -597,7 +597,7 @@ Singleton {
+@@ -714,7 +714,7 @@ Singleton {
              onStreamFinished: {
                  var p = this.text.trim();
                  if (p.length > 0)
@@ -197,9 +280,9 @@ index e328893a..c4aae6ef 100644
              }
          }
      }
-@@ -659,7 +659,7 @@ Singleton {
+@@ -776,7 +776,7 @@ Singleton {
                      "ec=$?",
-                     "if [ $ec -ne 0 ]; then echo; echo \"ssh exited $ec — a password you never set means the guest has no '$user' account: ryovm config $vm ryovm_ssh_user <guest user>\"; echo 'press Enter to close'; read _; fi"
+                     "if [ $ec -ne 0 ]; then echo; echo \"ssh exited $ec, a password you never set means the guest has no '$user' account: ryovm config $vm ryovm_ssh_user <guest user>\"; echo 'press Enter to close'; read _; fi"
                  ].join("\n");
 -                Quickshell.execDetached(["sh", "-c",
 +                Spawn.spawn(["sh", "-c",
@@ -207,12 +290,12 @@ index e328893a..c4aae6ef 100644
                      "--", script, c, pm ? pm[1] : "", sshProc.vmName, um ? um[1] : "", burn]);
              }
 diff --git a/ryoku/apps/ryovm/quickshell/Singletons/qmldir b/ryoku/apps/ryovm/quickshell/Singletons/qmldir
-index 11ea01c0..105646ca 100644
+index 9a425cdb..01db828e 100644
 --- a/ryoku/apps/ryovm/quickshell/Singletons/qmldir
 +++ b/ryoku/apps/ryovm/quickshell/Singletons/qmldir
 @@ -1,2 +1,4 @@
- singleton Theme Theme.qml
  singleton Vm Vm.qml
+ singleton Remotes Remotes.qml
 +singleton Spawn Spawn.qml
 +SpawnCore SpawnCore.qml
 diff --git a/ryoku/apps/ryovm/quickshell/lib/no-raw-spawn.test.mjs b/ryoku/apps/ryovm/quickshell/lib/no-raw-spawn.test.mjs
@@ -299,15 +382,15 @@ index 00000000..05ece942
 +if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 +console.log("\nAll tests PASSED");
 diff --git a/ryoku/apps/ryowalls/quickshell/SettingsPanel.qml b/ryoku/apps/ryowalls/quickshell/SettingsPanel.qml
-index 74fea093..1502a6a8 100644
+index 6e80e15b..54cda68a 100644
 --- a/ryoku/apps/ryowalls/quickshell/SettingsPanel.qml
 +++ b/ryoku/apps/ryowalls/quickshell/SettingsPanel.qml
-@@ -130,7 +130,7 @@ Item {
+@@ -120,7 +120,7 @@ Item {
+                     anchors.right: parent.right
                      anchors.verticalCenter: parent.verticalCenter
-                     icon: "folder"
-                     label: "Open"
--                    onClicked: Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/Pictures/Wallpapers"])
-+                    onClicked: Spawn.spawn(["xdg-open", Quickshell.env("HOME") + "/Pictures/Wallpapers"])
+                     text: "OPEN"
+-                    onAct: Quickshell.execDetached(["xdg-open", Quickshell.env("HOME") + "/Pictures/Wallpapers"])
++                    onAct: Spawn.spawn(["xdg-open", Quickshell.env("HOME") + "/Pictures/Wallpapers"])
                  }
              }
          }
@@ -341,11 +424,10 @@ index 0e026830..e5baa123 100644
  
      function cmd(args) {
 diff --git a/ryoku/apps/ryowalls/quickshell/Singletons/qmldir b/ryoku/apps/ryowalls/quickshell/Singletons/qmldir
-index a59a16a9..de4e55fd 100644
+index 9b2d834a..11d69b27 100644
 --- a/ryoku/apps/ryowalls/quickshell/Singletons/qmldir
 +++ b/ryoku/apps/ryowalls/quickshell/Singletons/qmldir
-@@ -1,2 +1,4 @@
- singleton Theme Theme.qml
+@@ -1 +1,3 @@
  singleton Wallhaven Wallhaven.qml
 +singleton Spawn Spawn.qml
 +SpawnCore SpawnCore.qml
@@ -432,134 +514,48 @@ index 00000000..05ece942
 +
 +if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 +console.log("\nAll tests PASSED");
-diff --git a/ryoku/hub/quickshell/DictationPage.qml b/ryoku/hub/quickshell/DictationPage.qml
-index 540ab305..8c5435fd 100644
---- a/ryoku/hub/quickshell/DictationPage.qml
-+++ b/ryoku/hub/quickshell/DictationPage.qml
-@@ -89,14 +89,14 @@ Item {
-     // gpk (GlazePKG, the RyokuArch package manager) needs a tty for its AUR
-     // build and sudo prompts; --hold keeps any error on screen after it exits.
-     function installVoxtype() {
--        Quickshell.execDetached(["kitty", "--hold", "-e", "gpk", "install", "voxtype-bin", "--manager", "aur"]);
-+        Spawn.spawn(["kitty", "--hold", "-e", "gpk", "install", "voxtype-bin", "--manager", "aur"]);
-     }
+diff --git a/ryoku/hub/quickshell/Hub.qml b/ryoku/hub/quickshell/Hub.qml
+index 70d1270a..91655499 100644
+--- a/ryoku/hub/quickshell/Hub.qml
++++ b/ryoku/hub/quickshell/Hub.qml
+@@ -5,6 +5,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "Singletons"
+ import "schema/GeneralPage.js" as GeneralSchema
+ import "schema/ShellSettingsPage.js" as ShellSchema
+ import "schema/AppearancePage.js" as AppearanceSchema
+@@ -50,7 +51,7 @@ Rectangle {
+     property string section: "shell"
+     // remember the last section so a reopen lands where you left, not on Shell.
+     // Read once at startup by `sectionGet` below; written here on every change.
+-    onSectionChanged: Quickshell.execDetached(["ryoku-hub", "config", "set", "section", hub.section])
++    onSectionChanged: Spawn.spawn(["ryoku-hub", "config", "set", "section", hub.section])
+     property string query: ""
  
-     // remove: gpk drops the package (tty for sudo), then we disable and delete
-     // the user service so no dead unit lingers; config and models stay for a
-     // reinstall.
-     function removeVoxtype() {
--        Quickshell.execDetached(["kitty", "--hold", "-e", "sh", "-c",
-+        Spawn.spawn(["kitty", "--hold", "-e", "sh", "-c",
-             "gpk remove voxtype-bin && { systemctl --user disable --now voxtype.service 2>/dev/null; rm -f ~/.config/systemd/user/voxtype.service; systemctl --user daemon-reload 2>/dev/null; }"]);
-     }
+     // The full catalogue. `wired` marks the pages whose content and
+diff --git a/ryoku/hub/quickshell/SettingsSheet.qml b/ryoku/hub/quickshell/SettingsSheet.qml
+index 1fd143da..180f4490 100644
+--- a/ryoku/hub/quickshell/SettingsSheet.qml
++++ b/ryoku/hub/quickshell/SettingsSheet.qml
+@@ -4,6 +4,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "Singletons"
  
-diff --git a/ryoku/hub/quickshell/ExtrasPage.qml b/ryoku/hub/quickshell/ExtrasPage.qml
-index 40fbb15f..d4a62f41 100644
---- a/ryoku/hub/quickshell/ExtrasPage.qml
-+++ b/ryoku/hub/quickshell/ExtrasPage.qml
-@@ -94,7 +94,7 @@ Item {
-     }
- 
-     function runTerminal(args) {
--        Quickshell.execDetached(["kitty", "--class", "ryoku-extras", "-e"].concat(args));
-+        Spawn.spawn(["kitty", "--class", "ryoku-extras", "-e"].concat(args));
-     }
- 
-     function open(id) { page.selectedId = id; }
-diff --git a/ryoku/hub/quickshell/FastfetchPage.qml b/ryoku/hub/quickshell/FastfetchPage.qml
-index 085c9074..5dbcb857 100644
---- a/ryoku/hub/quickshell/FastfetchPage.qml
-+++ b/ryoku/hub/quickshell/FastfetchPage.qml
-@@ -220,9 +220,9 @@ Item {
-         var s = page.model.logo.source;
-         if (!s || s.length === 0)
-             return;
--        Quickshell.execDetached(["kitty", "-e", "nvim", s]);
-+        Spawn.spawn(["kitty", "-e", "nvim", s]);
-     }
--    function previewInTerminal() { Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
-+    function previewInTerminal() { Spawn.spawn(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
- 
-     FileDialog {
-         id: imageDlg
-diff --git a/ryoku/hub/quickshell/GpuPage.qml b/ryoku/hub/quickshell/GpuPage.qml
-index 6f58522c..95d51f52 100644
---- a/ryoku/hub/quickshell/GpuPage.qml
-+++ b/ryoku/hub/quickshell/GpuPage.qml
-@@ -79,7 +79,7 @@ Item {
-     // the real enable builds the AUR Looking Glass stack (needs a TTY for the
-     // build + sudo) then escalates for the system setup, so it runs in a terminal.
-     function enableInTerminal() {
--        Quickshell.execDetached(["kitty", "--class", "ryoku-gpu", "-e", "sh", "-c",
-+        Spawn.spawn(["kitty", "--class", "ryoku-gpu", "-e", "sh", "-c",
-             "ryoku-hub gpu apply enable; echo; read -n1 -rsp 'Done. Press any key to close…'; echo"]);
-         page.planning = false;
-         page.planText = "";
-diff --git a/ryoku/hub/quickshell/LockscreenPage.qml b/ryoku/hub/quickshell/LockscreenPage.qml
-index dfb41e0c..ec31be94 100644
---- a/ryoku/hub/quickshell/LockscreenPage.qml
-+++ b/ryoku/hub/quickshell/LockscreenPage.qml
-@@ -48,7 +48,7 @@ Item {
-         actProc.running = true;
-     }
-     function preview(slug) {
--        Quickshell.execDetached([page.lockSh, slug]);
-+        Spawn.spawn([page.lockSh, slug]);
-     }
- 
-     // greedy masonry like the Extras grid: each tile into the shortest column,
-diff --git a/ryoku/hub/quickshell/PageHeader.qml b/ryoku/hub/quickshell/PageHeader.qml
-index ebb60fdd..0853c725 100644
---- a/ryoku/hub/quickshell/PageHeader.qml
-+++ b/ryoku/hub/quickshell/PageHeader.qml
-@@ -30,14 +30,14 @@ Item {
-     function openEdit() {
-         if (!header.editPaths || header.editPaths.length === 0)
-             return;
--        Quickshell.execDetached(["kitty", "-e", "nvim", "-O"].concat(header.editPaths));
-+        Spawn.spawn(["kitty", "-e", "nvim", "-O"].concat(header.editPaths));
-     }
-     function openView() {
-         if (!header.viewPaths || header.viewPaths.length === 0)
-             return;
-         // -R opens read-only: these are Ryoku defaults or generated files an
-         // update overwrites, so edits here would be lost. Look, do not touch.
--        Quickshell.execDetached(["kitty", "-e", "nvim", "-R", "-O"].concat(header.viewPaths));
-+        Spawn.spawn(["kitty", "-e", "nvim", "-R", "-O"].concat(header.viewPaths));
-     }
- 
-     Column {
-diff --git a/ryoku/hub/quickshell/PerformancePage.qml b/ryoku/hub/quickshell/PerformancePage.qml
-index 41fdb677..039a96de 100644
---- a/ryoku/hub/quickshell/PerformancePage.qml
-+++ b/ryoku/hub/quickshell/PerformancePage.qml
-@@ -19,7 +19,7 @@ Item {
-     // parse. Re-read it now so a toggle applies without a relogin. Shell-side
-     // consumers (Motion, Performance singletons) watch the file and need no reload.
-     function reloadCompositor() {
--        Quickshell.execDetached(["hyprctl", "reload"]);
-+        Spawn.spawn(["hyprctl", "reload"]);
-     }
- 
-     FileView {
-diff --git a/ryoku/hub/quickshell/RashinPage.qml b/ryoku/hub/quickshell/RashinPage.qml
-index d441dcec..a75b7fed 100644
---- a/ryoku/hub/quickshell/RashinPage.qml
-+++ b/ryoku/hub/quickshell/RashinPage.qml
-@@ -115,11 +115,11 @@ Item {
-     }
- 
-     function runSetup() {
--        Quickshell.execDetached(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
-+        Spawn.spawn(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
-     }
- 
-     function openDashboard() {
--        Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600"]);
-+        Spawn.spawn(["xdg-open", "http://127.0.0.1:3600"]);
-     }
- 
-     // dossier row: label on the left, a mono value in a hairline pill on the
+ // Renders a page from its schema. A setting is a row of data; where it lands
+ // and what draws it are decided by Spans and its kind, so adding one is an
+@@ -158,7 +159,7 @@ Item {
+                                     text: I18n.tr(cell.r.actionLabel || "Generate")
+                                     onAct: {
+                                         if (cell.r.key === "i18nGenerate")
+-                                            Quickshell.execDetached(["kitty", "--class", "ryoku-i18n", "-e", "sh", "-c",
++                                            Spawn.spawn(["kitty", "--class", "ryoku-i18n", "-e", "sh", "-c",
+                                                 "ryoku-i18n llm " + I18n.lang + "; echo; read -n1 -rsp 'Done. Press any key to close…'; echo"]);
+                                     }
+                                 }
 diff --git a/ryoku/hub/quickshell/Singletons/Spawn.qml b/ryoku/hub/quickshell/Singletons/Spawn.qml
 new file mode 120000
 index 00000000..0f357b51
@@ -577,52 +573,15 @@ index 00000000..e6763e6b
 +../../../shared/quickshell/SpawnCore.qml
 \ No newline at end of file
 diff --git a/ryoku/hub/quickshell/Singletons/qmldir b/ryoku/hub/quickshell/Singletons/qmldir
-index 4032da1c..990f37f7 100644
+index e747def7..962296e3 100644
 --- a/ryoku/hub/quickshell/Singletons/qmldir
 +++ b/ryoku/hub/quickshell/Singletons/qmldir
-@@ -3,3 +3,5 @@ singleton Updates Updates.qml
- singleton SysInfo SysInfo.qml
+@@ -4,3 +4,5 @@ singleton SysInfo SysInfo.qml
+ singleton LiveStats LiveStats.qml
  singleton Wallust Wallust.qml
  singleton Config Config.qml
 +singleton Spawn Spawn.qml
 +SpawnCore SpawnCore.qml
-diff --git a/ryoku/hub/quickshell/UpdatesPage.qml b/ryoku/hub/quickshell/UpdatesPage.qml
-index a3ccc420..5a849d67 100644
---- a/ryoku/hub/quickshell/UpdatesPage.qml
-+++ b/ryoku/hub/quickshell/UpdatesPage.qml
-@@ -128,7 +128,7 @@ Item {
-     // is polling (positional args, so a quote in the label can't break out),
-     // then optimistically resume the running view so the buttons clear.
-     function answer(choice) {
--        Quickshell.execDetached(["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "sh", choice, page.answerPath]);
-+        Spawn.spawn(["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "sh", choice, page.answerPath]);
-         page.phase = "running";
-     }
- 
-@@ -138,20 +138,20 @@ Item {
-     function rollback() {
-         if (page.snapshot === "")
-             return;
--        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", page.snapshot]);
-+        Spawn.spawn(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", page.snapshot]);
-         page.dismiss();
-     }
- 
-     // dismiss a finished/failed run: clear the run-state file so the page and
-     // island return to idle.
-     function dismiss() {
--        Quickshell.execDetached(["sh", "-c", "printf '%s' '{\"phase\":\"idle\"}' > \"$1\"", "sh", page.statePath]);
-+        Spawn.spawn(["sh", "-c", "printf '%s' '{\"phase\":\"idle\"}' > \"$1\"", "sh", page.statePath]);
-         page.phase = "idle";
-         Updates.check();
-     }
- 
-     function startUpdate() {
--        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
-+        Spawn.spawn(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
-     }
- 
-     // idle list: incoming commits when behind, else the recent history the
 diff --git a/ryoku/hub/quickshell/lib/no-raw-spawn.test.mjs b/ryoku/hub/quickshell/lib/no-raw-spawn.test.mjs
 new file mode 100644
 index 00000000..05ece942
@@ -706,6 +665,230 @@ index 00000000..05ece942
 +
 +if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 +console.log("\nAll tests PASSED");
+diff --git a/ryoku/hub/quickshell/pages/DictationPage.qml b/ryoku/hub/quickshell/pages/DictationPage.qml
+index 4e894f77..aba698e5 100644
+--- a/ryoku/hub/quickshell/pages/DictationPage.qml
++++ b/ryoku/hub/quickshell/pages/DictationPage.qml
+@@ -7,6 +7,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // System > Dictation (DESIGN.md section 11, SYSTEM). Voxtype speech-to-text:
+ // switch voice typing on, pick a speech-to-text engine and model, download
+@@ -110,14 +111,14 @@ Item {
+     // gpk (GlazePKG, the RyokuArch package manager) needs a tty for its AUR
+     // build and sudo prompts; --hold keeps any error on screen after it exits.
+     function installVoxtype() {
+-        Quickshell.execDetached(["kitty", "--hold", "-e", "gpk", "install", "voxtype-bin", "--manager", "aur"]);
++        Spawn.spawn(["kitty", "--hold", "-e", "gpk", "install", "voxtype-bin", "--manager", "aur"]);
+     }
+ 
+     // remove: gpk drops the package (tty for sudo), then we disable and delete
+     // the user service so no dead unit lingers; config and models stay for a
+     // reinstall.
+     function removeVoxtype() {
+-        Quickshell.execDetached(["kitty", "--hold", "-e", "sh", "-c",
++        Spawn.spawn(["kitty", "--hold", "-e", "sh", "-c",
+             "gpk remove voxtype-bin && { systemctl --user disable --now voxtype.service 2>/dev/null; rm -f ~/.config/systemd/user/voxtype.service; systemctl --user daemon-reload 2>/dev/null; }"]);
+     }
+ 
+diff --git a/ryoku/hub/quickshell/pages/FastfetchPage.qml b/ryoku/hub/quickshell/pages/FastfetchPage.qml
+index 84c5b67d..9ca9b921 100644
+--- a/ryoku/hub/quickshell/pages/FastfetchPage.qml
++++ b/ryoku/hub/quickshell/pages/FastfetchPage.qml
+@@ -7,6 +7,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // Fastfetch (DESIGN.md section 8, DESKTOP). The branded terminal readout, edited
+ // end to end. config.jsonc stays the source of truth (the head's EDIT CONFIG
+@@ -329,10 +330,10 @@ Item {
+         var s = pg.model.logo.source;
+         if (!s || s.length === 0)
+             return;
+-        Quickshell.execDetached(["kitty", "-e", "nvim", s]);
++        Spawn.spawn(["kitty", "-e", "nvim", s]);
+     }
+-    function previewInTerminal() { Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
+-    function openConfig() { Quickshell.execDetached(["kitty", "-e", "nvim", "-O", pg.configPath]); }
++    function previewInTerminal() { Spawn.spawn(["kitty", "-e", "sh", "-c", "ryoku-fastfetch; read -n1"]); }
++    function openConfig() { Spawn.spawn(["kitty", "-e", "nvim", "-O", pg.configPath]); }
+ 
+     FileDialog {
+         id: imageDlg
+diff --git a/ryoku/hub/quickshell/pages/GpuPage.qml b/ryoku/hub/quickshell/pages/GpuPage.qml
+index 11f2811e..087872ca 100644
+--- a/ryoku/hub/quickshell/pages/GpuPage.qml
++++ b/ryoku/hub/quickshell/pages/GpuPage.qml
+@@ -6,6 +6,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // System > GPU. Four honest jobs, top to bottom: see the graphics hardware,
+ // choose which GPU the desktop renders on, tune power and performance for this
+@@ -152,7 +153,7 @@ Item {
+         planProc.running = true;
+     }
+     function enableInTerminal() {
+-        Quickshell.execDetached(["kitty", "--class", "ryoku-gpu", "-e", "sh", "-c",
++        Spawn.spawn(["kitty", "--class", "ryoku-gpu", "-e", "sh", "-c",
+             "ryoku-hub gpu apply enable; echo; read -n1 -rsp 'Done. Press any key to close…'; echo"]);
+         pg.planning = false;
+         pg.planText = "";
+diff --git a/ryoku/hub/quickshell/pages/KeybindsPage.qml b/ryoku/hub/quickshell/pages/KeybindsPage.qml
+index 86952371..e24e779f 100644
+--- a/ryoku/hub/quickshell/pages/KeybindsPage.qml
++++ b/ryoku/hub/quickshell/pages/KeybindsPage.qml
+@@ -7,6 +7,7 @@ import Quickshell
+ import Quickshell.Hyprland
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // Keybinds (DESIGN.md section 8, SYSTEM). Two surfaces under one head: the live
+ // shortcut legend (every desktop bind, read straight from what Hyprland has
+@@ -318,8 +319,8 @@ Item {
+     property string recordCombo: ""
+     readonly property bool recording: pg.recordRow >= 0 || pg.recordCombo.length > 0
+ 
+-    function enterRecordSubmap() { Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.submap(\"record\")"]); }
+-    function exitRecordSubmap() { Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.submap(\"reset\")"]); }
++    function enterRecordSubmap() { Spawn.spawn(["hyprctl", "dispatch", "hl.dsp.submap(\"record\")"]); }
++    function exitRecordSubmap() { Spawn.spawn(["hyprctl", "dispatch", "hl.dsp.submap(\"reset\")"]); }
+ 
+     function startRecord(i) {
+         if (!pg.hubReady || i < 0)
+diff --git a/ryoku/hub/quickshell/pages/LockscreenPage.qml b/ryoku/hub/quickshell/pages/LockscreenPage.qml
+index 34833730..113b2ee0 100644
+--- a/ryoku/hub/quickshell/pages/LockscreenPage.qml
++++ b/ryoku/hub/quickshell/pages/LockscreenPage.qml
+@@ -7,6 +7,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // Lockscreen (DESIGN.md section 8, DESKTOP). Choose the skin the lock and
+ // sign-in screens wear, from the qylock themes installed on disk. This is not a
+@@ -167,7 +168,7 @@ Item {
+         actProc.running = true;
+     }
+     function preview(slug) {
+-        Quickshell.execDetached([pg.lockSh, slug]);
++        Spawn.spawn([pg.lockSh, slug]);
+     }
+ 
+     // live filter: name, theme, slug, tags and copy all match the rail query.
+diff --git a/ryoku/hub/quickshell/pages/PerformancePage.qml b/ryoku/hub/quickshell/pages/PerformancePage.qml
+index 0450aea2..fc720d31 100644
+--- a/ryoku/hub/quickshell/pages/PerformancePage.qml
++++ b/ryoku/hub/quickshell/pages/PerformancePage.qml
+@@ -6,6 +6,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // Performance (DESIGN.md section 11, ADVANCED). The tweaks that trade a little
+ // eye-candy, idle animation or resident memory for lower CPU, GPU and RAM use.
+@@ -147,7 +148,7 @@ Item {
+         cfg.writeAdapter();
+         pg.committed = pg.clone(pg.draft);
+         if (needsReload)
+-            Quickshell.execDetached(["hyprctl", "reload"]);
++            Spawn.spawn(["hyprctl", "reload"]);
+     }
+ 
+     Component.onCompleted: pg.adopt()
+diff --git a/ryoku/hub/quickshell/pages/RashinPage.qml b/ryoku/hub/quickshell/pages/RashinPage.qml
+index d0547808..67c1c415 100644
+--- a/ryoku/hub/quickshell/pages/RashinPage.qml
++++ b/ryoku/hub/quickshell/pages/RashinPage.qml
+@@ -6,6 +6,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // Rashin (DESIGN.md section 11, ADVANCED). The optional, fully local agent OS
+ // (羅針, the system needle). This page is the Hub's welcome to Rashin, wearing
+@@ -153,10 +154,10 @@ Item {
+         } catch (e) {}
+     }
+     function runSetup() {
+-        Quickshell.execDetached(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
++        Spawn.spawn(["kitty", "--class", "ryoku-rashin-setup", "-e", "ryoku-rashin", "setup"]);
+     }
+     function openDashboard() {
+-        Quickshell.execDetached(["xdg-open", "http://127.0.0.1:3600"]);
++        Spawn.spawn(["xdg-open", "http://127.0.0.1:3600"]);
+     }
+ 
+     // ── reusable poster parts ────────────────────────────────────────────────
+diff --git a/ryoku/hub/quickshell/pages/StorePage.qml b/ryoku/hub/quickshell/pages/StorePage.qml
+index 356e0cee..c6929e02 100644
+--- a/ryoku/hub/quickshell/pages/StorePage.qml
++++ b/ryoku/hub/quickshell/pages/StorePage.qml
+@@ -6,6 +6,7 @@ import Quickshell
+ import Quickshell.Io
+ import Ryoku.Ui
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // Store (DESIGN.md section 8, ADD-ONS). Browse and install shell plugins and
+ // extras bundles in one place. A Plugins / Bundles switch flips the two
+@@ -126,7 +127,7 @@ Item {
+         return n;
+     }
+     function runTerminal(args) {
+-        Quickshell.execDetached(["kitty", "--class", "ryoku-extras", "-e"].concat(args));
++        Spawn.spawn(["kitty", "--class", "ryoku-extras", "-e"].concat(args));
+     }
+     function openBundle(id) { pg.selectedId = id; }
+     function closeBundle() { pg.selectedId = ""; statusProc.running = true; }
+diff --git a/ryoku/hub/quickshell/pages/UpdatesPage.qml b/ryoku/hub/quickshell/pages/UpdatesPage.qml
+index 5b111645..5d9b69dd 100644
+--- a/ryoku/hub/quickshell/pages/UpdatesPage.qml
++++ b/ryoku/hub/quickshell/pages/UpdatesPage.qml
+@@ -176,7 +176,7 @@ Item {
+     // is polling (positional args, so a quote in the label can't break out),
+     // then optimistically resume the running view so the buttons clear.
+     function answer(choice) {
+-        Quickshell.execDetached(["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "sh", choice, pg.answerPath]);
++        Spawn.spawn(["sh", "-c", "printf '%s' \"$1\" > \"$2\"", "sh", choice, pg.answerPath]);
+         pg.phase = "running";
+     }
+ 
+@@ -186,20 +186,20 @@ Item {
+     function rollback() {
+         if (pg.snapshot === "")
+             return;
+-        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", pg.snapshot]);
++        Spawn.spawn(["kitty", "-e", "sh", "-c", "ryoku rollback \"$1\"; printf '\\npress enter to close '; read -r _", "sh", pg.snapshot]);
+         pg.dismiss();
+     }
+ 
+     // dismiss a finished/failed run: clear the run-state file so the page and
+     // island return to idle.
+     function dismiss() {
+-        Quickshell.execDetached(["sh", "-c", "printf '%s' '{\"phase\":\"idle\"}' > \"$1\"", "sh", pg.statePath]);
++        Spawn.spawn(["sh", "-c", "printf '%s' '{\"phase\":\"idle\"}' > \"$1\"", "sh", pg.statePath]);
+         pg.phase = "idle";
+         Updates.check();
+     }
+ 
+     function startUpdate() {
+-        Quickshell.execDetached(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
++        Spawn.spawn(["kitty", "-e", "sh", "-c", "RYOKU_UPDATE_UI=hub exec ryoku update"]);
+     }
+ 
+     // idle list: incoming commits when behind, else the recent history the
 diff --git a/ryoku/lockscreen/qylock/quickshell-lockscreen/Singletons/Spawn.qml b/ryoku/lockscreen/qylock/quickshell-lockscreen/Singletons/Spawn.qml
 new file mode 120000
 index 00000000..e5014804
@@ -1161,10 +1344,10 @@ index 00000000..3d2efaa4
 +if (failed > 0) { console.log("\n" + failed + " test(s) FAILED"); process.exit(1); }
 +console.log("\nAll tests PASSED");
 diff --git a/ryoku/shell/deploy.sh b/ryoku/shell/deploy.sh
-index 4358d55d..029fe21c 100755
+index a8e5f0ad..0ccba524 100755
 --- a/ryoku/shell/deploy.sh
 +++ b/ryoku/shell/deploy.sh
-@@ -178,15 +178,18 @@ say "installing Ryoku.PluginKit module"
+@@ -272,15 +272,18 @@ say "installing Ryoku.PluginKit module"
  say "installed Ryoku.PluginKit -> $qmldir/Ryoku/PluginKit"
  
  # Quickshell components: a deployed daemon runs `qs -c <name>`, reading
@@ -1186,7 +1369,7 @@ index 4358d55d..029fe21c 100755
  
  # First-party GUI apps: each ryoku/apps/<name>/quickshell ships as qs -c <name>,
  # launched from a keybind and a .desktop entry. Drop in a new app dir and it ships.
-@@ -195,7 +198,7 @@ for appdir in "$here"/../apps/*/; do
+@@ -289,7 +292,7 @@ for appdir in "$here"/../apps/*/; do
    [[ -d "${appdir}quickshell" ]] || continue
    appname="$(basename "$appdir")"
    mkdir -p "$cfg/quickshell/$appname"
@@ -1246,10 +1429,10 @@ index d4113016..5a4c1a2c 100644
                          }
                      }
 diff --git a/ryoku/shell/quickshell/launcher/ResultGrid.qml b/ryoku/shell/quickshell/launcher/ResultGrid.qml
-index 903bb55d..db3b926c 100644
+index 274f4653..6450424a 100644
 --- a/ryoku/shell/quickshell/launcher/ResultGrid.qml
 +++ b/ryoku/shell/quickshell/launcher/ResultGrid.qml
-@@ -185,6 +185,16 @@ Flickable {
+@@ -189,6 +189,16 @@ Flickable {
                                  width: parent.width - 8 * grid.s
                                  spacing: 4 * grid.s
  
@@ -1513,27 +1696,18 @@ index caf5dc28..78027c0c 100644
                      // show; drop the cached rows so the next query refetches.
                      packages.cachedQuery = "";
 diff --git a/ryoku/shell/quickshell/launcher/shell.qml b/ryoku/shell/quickshell/launcher/shell.qml
-index ce3bb120..3bd64e46 100644
+index 2aa52ff8..f47256a5 100644
 --- a/ryoku/shell/quickshell/launcher/shell.qml
 +++ b/ryoku/shell/quickshell/launcher/shell.qml
-@@ -23,7 +23,7 @@ ShellRoot {
+@@ -24,7 +24,7 @@ ShellRoot {
      // being hidden and respawn it on the next open. A no-op when the flag is off;
      // the daemon just records the state.
      onOpenChanged: {
 -        Quickshell.execDetached(["ryoku-shell", "state", "launcher", open ? "1" : "0"]);
 +        Spawn.spawn(["ryoku-shell", "state", "launcher", open ? "1" : "0"]);
-         if (open)
+         if (open) {
+             blurRestoreDelay.stop();
              root.applyBackdropBlur();
-         else
-@@ -43,7 +43,7 @@ ShellRoot {
-     property int  savedBlurSize: 5
- 
-     function evalBlur(enabled, size) {
--        Quickshell.execDetached(["hyprctl", "eval",
-+        Spawn.spawn(["hyprctl", "eval",
-             "hl.config({ decoration = { blur = { enabled = " + (enabled ? "true" : "false")
-                 + ", size = " + Math.max(1, size) + " } } })"]);
-     }
 diff --git a/ryoku/shell/quickshell/lib/no-raw-spawn.test.mjs b/ryoku/shell/quickshell/lib/no-raw-spawn.test.mjs
 new file mode 100644
 index 00000000..6a459504
@@ -1647,10 +1821,10 @@ index 9c60b03d..025dc04a 100644
 +singleton Spawn Spawn.qml
 +SpawnCore SpawnCore.qml
 diff --git a/ryoku/shell/quickshell/overview/shell.qml b/ryoku/shell/quickshell/overview/shell.qml
-index 5c047e48..bd8a15cb 100644
+index 4074c207..4d5d055a 100644
 --- a/ryoku/shell/quickshell/overview/shell.qml
 +++ b/ryoku/shell/quickshell/overview/shell.qml
-@@ -35,7 +35,7 @@ ShellRoot {
+@@ -36,7 +36,7 @@ ShellRoot {
      // Report open/close to the shell daemon so its opt-in idle-park worker
      // (unloadOverviewWhenIdle) can free this resident expo after a grace of being
      // hidden and respawn it on the next Super+Tab. A no-op when the flag is off.
@@ -1659,20 +1833,26 @@ index 5c047e48..bd8a15cb 100644
  
      function focusedMonitor() {
          var m = Hyprland.focusedMonitor;
+diff --git a/ryoku/shell/quickshell/pill/AtollBar.qml b/ryoku/shell/quickshell/pill/AtollBar.qml
+index 94b11e1b..5894071b 100644
+--- a/ryoku/shell/quickshell/pill/AtollBar.qml
++++ b/ryoku/shell/quickshell/pill/AtollBar.qml
+@@ -107,8 +107,8 @@ Item {
+                 id: leftIcons
+                 anchors.centerIn: parent
+                 spacing: 2 * atoll.s
+-                IconBtn { glyph: "search"; onAct: Quickshell.execDetached(["ryoku-shell", "launcher"]) }
+-                IconBtn { glyph: "settings"; onAct: Quickshell.execDetached(["sh", "-c", "flock -n -o /tmp/ryoku-hub.lock qs -c hub"]) }
++                IconBtn { glyph: "search"; onAct: Spawn.spawn(["ryoku-shell", "launcher"]) }
++                IconBtn { glyph: "settings"; onAct: Spawn.spawn(["sh", "-c", "flock -n -o /tmp/ryoku-hub.lock qs -c hub"]) }
+                 IconBtn { glyph: "power_settings_new"; onAct: atoll.popoutRequested("power", atoll.centre(leftIsland)) }
+             }
+         }
 diff --git a/ryoku/shell/quickshell/pill/Bar.qml b/ryoku/shell/quickshell/pill/Bar.qml
-index 2a82edef..b295afc2 100644
+index e0879e6c..46b3c8df 100644
 --- a/ryoku/shell/quickshell/pill/Bar.qml
 +++ b/ryoku/shell/quickshell/pill/Bar.qml
-@@ -145,7 +145,7 @@ Item {
-                     height: bar.moduleSpan
-                     width: bar.moduleSpan
-                     filled: false
--                    onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
-+                    onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
- 
-                     BrandMark {
-                         size: 11 * bar.s
-@@ -425,7 +425,7 @@ Item {
+@@ -151,7 +151,7 @@ Item {
                          height: bar.moduleSpan
                          width: bar.moduleSpan
                          filled: false
@@ -1681,51 +1861,42 @@ index 2a82edef..b295afc2 100644
                          BrandMark { size: 11 * bar.s }
                      }
                      BarModule {
-@@ -626,7 +626,7 @@ Item {
-                     height: bar.moduleSpan
-                     width: bar.moduleSpan
-                     filled: false
--                    onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
-+                    onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
-                     BrandMark { size: 11 * bar.s }
-                 }
-                 BarModule {
-diff --git a/ryoku/shell/quickshell/pill/DeckControls.qml b/ryoku/shell/quickshell/pill/DeckControls.qml
-index b0262b8f..447c73fc 100644
---- a/ryoku/shell/quickshell/pill/DeckControls.qml
-+++ b/ryoku/shell/quickshell/pill/DeckControls.qml
-@@ -53,7 +53,7 @@ Item {
-         stdout: StdioCollector { onStreamFinished: root.wifiOn = this.text.trim() === "enabled" }
-     }
-     function toggleWifi() {
--        Quickshell.execDetached(["nmcli", "radio", "wifi", root.wifiOn ? "off" : "on"]);
-+        Spawn.spawn(["nmcli", "radio", "wifi", root.wifiOn ? "off" : "on"]);
-         root.wifiOn = !root.wifiOn;
-         wifiPoll.restart();
-     }
-@@ -66,7 +66,7 @@ Item {
-         stdout: StdioCollector { onStreamFinished: root.micMuted = this.text.indexOf("MUTED") >= 0 }
-     }
-     function toggleMic() {
--        Quickshell.execDetached(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]);
-+        Spawn.spawn(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]);
-         root.micMuted = !root.micMuted;
-         micPoll.restart();
-     }
-@@ -86,7 +86,7 @@ Item {
-         stdout: StdioCollector { onStreamFinished: root.nightOn = this.text.trim() === "on" }
-     }
-     function toggleNight() {
--        Quickshell.execDetached([root.scripts + "ryoku-cmd-nightlight"]);
-+        Spawn.spawn([root.scripts + "ryoku-cmd-nightlight"]);
-         root.nightOn = !root.nightOn;
-         nightPoll.restart();
+@@ -449,7 +449,7 @@ Item {
+                         height: bar.moduleSpan
+                         width: bar.moduleSpan
+                         filled: false
+-                        onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
++                        onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
+                         BrandMark { size: 11 * bar.s }
+                     }
+                     BarModule {
+@@ -683,7 +683,7 @@ Item {
+                         height: bar.moduleSpan
+                         width: bar.moduleSpan
+                         filled: false
+-                        onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
++                        onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
+                         BrandMark { size: 11 * bar.s }
+                     }
+                     BarModule {
+diff --git a/ryoku/shell/quickshell/pill/BarModularFace.qml b/ryoku/shell/quickshell/pill/BarModularFace.qml
+index 63a16d61..16c2f96b 100644
+--- a/ryoku/shell/quickshell/pill/BarModularFace.qml
++++ b/ryoku/shell/quickshell/pill/BarModularFace.qml
+@@ -72,7 +72,7 @@ Item {
+         id: sealC
+         BarModule {
+             s: face.s; height: face.moduleSpan; width: face.moduleSpan; filled: false
+-            onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"])
++            onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
+             BrandMark { size: 11 * face.s }
+         }
      }
 diff --git a/ryoku/shell/quickshell/pill/DeckRecord.qml b/ryoku/shell/quickshell/pill/DeckRecord.qml
-index 54298c3b..535338c1 100644
+index 9b4298e9..693bd290 100644
 --- a/ryoku/shell/quickshell/pill/DeckRecord.qml
 +++ b/ryoku/shell/quickshell/pill/DeckRecord.qml
-@@ -280,19 +280,19 @@ Item {
+@@ -340,19 +340,19 @@ Item {
                          glyph: "play"
                          box: 24
                          tint: Theme.cream
@@ -1761,6 +1932,28 @@ index 2073a0ea..0c5ddd66 100644
                  tools.pendingArgv = null;
              }
          }
+diff --git a/ryoku/shell/quickshell/pill/DyadBar.qml b/ryoku/shell/quickshell/pill/DyadBar.qml
+index 36963df3..a12a385c 100644
+--- a/ryoku/shell/quickshell/pill/DyadBar.qml
++++ b/ryoku/shell/quickshell/pill/DyadBar.qml
+@@ -171,7 +171,7 @@ Item {
+         anchors.topMargin: bar.edgeM
+         anchors.leftMargin: bar.edgeM
+         spacing: bar.gap
+-        Chip { glyph: "力"; tint: Theme.brand; px: 16 * bar.s; onTapped: Quickshell.execDetached(["ryoku-shell", "launcher"]) }
++        Chip { glyph: "力"; tint: Theme.brand; px: 16 * bar.s; onTapped: Spawn.spawn(["ryoku-shell", "launcher"]) }
+         Island {
+             DataText {
+                 text: (Hyprland.activeToplevel && Hyprland.activeToplevel.lastIpcObject
+@@ -220,7 +220,7 @@ Item {
+             DataText { text: Audio.sink ? Math.round(Audio.sink.audio.volume * 100) + "%" : "--" }
+             TapHandler { onTapped: bar.askPopout(volIsl, "mixer") }
+         }
+-        Chip { sym: "power_settings_new"; px: 18 * bar.s; onTapped: Quickshell.execDetached(["ryoku-shell", "power"]) }
++        Chip { sym: "power_settings_new"; px: 18 * bar.s; onTapped: Spawn.spawn(["ryoku-shell", "power"]) }
+     }
+ 
+     // ============================ BOTTOM EDGE ==================================
 diff --git a/ryoku/shell/quickshell/pill/Inbox.qml b/ryoku/shell/quickshell/pill/Inbox.qml
 index e89830f1..65e0e7b1 100644
 --- a/ryoku/shell/quickshell/pill/Inbox.qml
@@ -1781,10 +1974,10 @@ index e89830f1..65e0e7b1 100644
                                      font.family: Theme.font
                                      font.pixelSize: 10 * root.s
 diff --git a/ryoku/shell/quickshell/pill/RecordHud.qml b/ryoku/shell/quickshell/pill/RecordHud.qml
-index a072de0c..58e73c0e 100644
+index ee240755..0825af1c 100644
 --- a/ryoku/shell/quickshell/pill/RecordHud.qml
 +++ b/ryoku/shell/quickshell/pill/RecordHud.qml
-@@ -105,7 +105,7 @@ Item {
+@@ -106,7 +106,7 @@ Item {
      // the app is installed.
      function launchRyomotion() {
          Recorder.chooserOpen = false;
@@ -1820,7 +2013,7 @@ index a66b32ff..577c3317 100644
  
      function wipe() {
 diff --git a/ryoku/shell/quickshell/pill/Singletons/Devices.qml b/ryoku/shell/quickshell/pill/Singletons/Devices.qml
-index ea8c9721..c8c7b494 100644
+index d75643f0..b323d572 100644
 --- a/ryoku/shell/quickshell/pill/Singletons/Devices.qml
 +++ b/ryoku/shell/quickshell/pill/Singletons/Devices.qml
 @@ -40,11 +40,11 @@ Singleton {
@@ -1846,13 +2039,13 @@ index ea8c9721..c8c7b494 100644
              String(pct), "--bus", bus, "--noverify"]);
      }
  
-@@ -81,7 +81,7 @@ Singleton {
-     function setPanelBrightness(pct) {
-         var clamped = Math.max(5, Math.min(100, Math.round(pct)));
-         root.panelBrightness = clamped;
--        Quickshell.execDetached(["brightnessctl", "set", clamped + "%"]);
-+        Spawn.spawn(["brightnessctl", "set", clamped + "%"]);
-         root.panelBrightnessUserChanged(clamped);
+@@ -86,7 +86,7 @@ Singleton {
+     function setBacklight(pct) {
+         var p = Math.max(1, Math.min(100, Math.round(pct)));
+         root.backlightPct = p;
+-        Quickshell.execDetached(["brightnessctl", "set", p + "%"]);
++        Spawn.spawn(["brightnessctl", "set", p + "%"]);
+         root.backlightUserChanged(p);
      }
  
 diff --git a/ryoku/shell/quickshell/pill/Singletons/Notifs.qml b/ryoku/shell/quickshell/pill/Singletons/Notifs.qml
@@ -1903,7 +2096,7 @@ index ca234a0a..6448af7e 100644
          if (!t) return "";
          var m = Math.floor((Date.now() - t) / 60000);
 diff --git a/ryoku/shell/quickshell/pill/Singletons/Recorder.qml b/ryoku/shell/quickshell/pill/Singletons/Recorder.qml
-index abcdfe41..1e179983 100644
+index c051b223..eee199cf 100644
 --- a/ryoku/shell/quickshell/pill/Singletons/Recorder.qml
 +++ b/ryoku/shell/quickshell/pill/Singletons/Recorder.qml
 @@ -47,7 +47,7 @@ Singleton {
@@ -1915,8 +2108,13 @@ index abcdfe41..1e179983 100644
              "mkdir -p \"$(dirname '" + root.regionFilePath + "')\"; "
              + "g=$(slurp -f '%wx%h+%x+%y' 2>/dev/null); "
              + "printf '%s' \"$g\" > '" + root.regionFilePath + ".tmp'; "
-@@ -71,7 +71,7 @@ Singleton {
+@@ -86,11 +86,11 @@ Singleton {
+         printErrors: false
+         onLoaded: root.discordMode = ((discordPref.text() || "").trim() === "1")
      }
+-    onDiscordModeChanged: Quickshell.execDetached(["sh", "-c",
++    onDiscordModeChanged: Spawn.spawn(["sh", "-c",
+         "mkdir -p \"${1%/*}\"; printf '%s' \"$2\" > \"$1\"", "sh", root.discordFile, root.discordMode ? "1" : "0"])
  
      function start(extraArgs) {
 -        Quickshell.execDetached([root.script, ...(extraArgs || [])]);
@@ -1924,7 +2122,7 @@ index abcdfe41..1e179983 100644
          root.paused = false;
          root.active = true;
          root.startedAt = Math.floor(Date.now() / 1000);
-@@ -80,7 +80,7 @@ Singleton {
+@@ -99,13 +99,13 @@ Singleton {
      }
  
      function stop() {
@@ -1932,8 +2130,15 @@ index abcdfe41..1e179983 100644
 +        Spawn.spawn([root.script, "--stop"]);
          root.active = false;
          root.paused = false;
+         // discord-quick: hand the just-finished clip to the compressor, which
+         // waits for gsr/wf to finalise the mp4 before re-encoding it in place.
+         if (root.pendingDiscord) {
+-            Quickshell.execDetached([root.discordScript]);
++            Spawn.spawn([root.discordScript]);
+             root.pendingDiscord = false;
+         }
      }
-@@ -88,7 +88,7 @@ Singleton {
+@@ -113,7 +113,7 @@ Singleton {
      function togglePause() {
          if (!root.canPause)
              return;
@@ -1942,7 +2147,7 @@ index abcdfe41..1e179983 100644
          root.paused = !root.paused;
      }
      // studio: record with gpu-screen-recorder + a cursor track, then open the clip
-@@ -112,7 +112,7 @@ Singleton {
+@@ -137,7 +137,7 @@ Singleton {
          // SIGTERM the wrapper (not gsr): it stops the capture, writes the cursor
          // sidecar, and opens the editor, so it needs to run its own shutdown.
          if (studioProc.running && studioProc.processId > 0)
@@ -2003,6 +2208,37 @@ index bad41d34..546c12e4 100644
 -    Component.onCompleted: Quickshell.execDetached(["mkdir", "-p", root.dir])
 +    Component.onCompleted: Spawn.spawn(["mkdir", "-p", root.dir])
  }
+diff --git a/ryoku/shell/quickshell/pill/Singletons/Toggles.qml b/ryoku/shell/quickshell/pill/Singletons/Toggles.qml
+index 1b8c1727..cff1b8ce 100644
+--- a/ryoku/shell/quickshell/pill/Singletons/Toggles.qml
++++ b/ryoku/shell/quickshell/pill/Singletons/Toggles.qml
+@@ -28,7 +28,7 @@ Singleton {
+         stdout: StdioCollector { onStreamFinished: root.wifiOn = this.text.trim() === "enabled" }
+     }
+     function toggleWifi() {
+-        Quickshell.execDetached(["nmcli", "radio", "wifi", root.wifiOn ? "off" : "on"]);
++        Spawn.spawn(["nmcli", "radio", "wifi", root.wifiOn ? "off" : "on"]);
+         root.wifiOn = !root.wifiOn;
+         wifiPoll.restart();
+     }
+@@ -42,7 +42,7 @@ Singleton {
+         stdout: StdioCollector { onStreamFinished: root.micMuted = this.text.indexOf("MUTED") >= 0 }
+     }
+     function toggleMic() {
+-        Quickshell.execDetached(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]);
++        Spawn.spawn(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]);
+         root.micMuted = !root.micMuted;
+         micPoll.restart();
+     }
+@@ -56,7 +56,7 @@ Singleton {
+         stdout: StdioCollector { onStreamFinished: root.nightOn = this.text.trim() === "on" }
+     }
+     function toggleNight() {
+-        Quickshell.execDetached([root.scripts + "ryoku-cmd-nightlight"]);
++        Spawn.spawn([root.scripts + "ryoku-cmd-nightlight"]);
+         root.nightOn = !root.nightOn;
+         nightPoll.restart();
+     }
 diff --git a/ryoku/shell/quickshell/pill/Singletons/Updates.qml b/ryoku/shell/quickshell/pill/Singletons/Updates.qml
 index ade48b0b..2204e5d7 100644
 --- a/ryoku/shell/quickshell/pill/Singletons/Updates.qml
@@ -2017,15 +2253,77 @@ index ade48b0b..2204e5d7 100644
      }
  
 diff --git a/ryoku/shell/quickshell/pill/Singletons/qmldir b/ryoku/shell/quickshell/pill/Singletons/qmldir
-index 5c4a1d63..7c5bc755 100644
+index df0a0fed..d2860686 100644
 --- a/ryoku/shell/quickshell/pill/Singletons/qmldir
 +++ b/ryoku/shell/quickshell/pill/Singletons/qmldir
-@@ -26,3 +26,5 @@ singleton IslandDock IslandDock.qml
- singleton SysStats SysStats.qml
- singleton NetSpeed NetSpeed.qml
- singleton Fullscreen Fullscreen.qml
+@@ -29,3 +29,5 @@ singleton Fullscreen Fullscreen.qml
+ singleton Toggles Toggles.qml
+ singleton Workspaces Workspaces.qml
+ singleton Session Session.qml
 +singleton Spawn Spawn.qml
 +SpawnCore SpawnCore.qml
+diff --git a/ryoku/shell/quickshell/pill/popouts/AtollBatteryPopout.qml b/ryoku/shell/quickshell/pill/popouts/AtollBatteryPopout.qml
+index 0ae7b1f7..d31b1ccf 100644
+--- a/ryoku/shell/quickshell/pill/popouts/AtollBatteryPopout.qml
++++ b/ryoku/shell/quickshell/pill/popouts/AtollBatteryPopout.qml
+@@ -68,7 +68,7 @@ Item {
+         property int pct: -1
+         onTriggered: {
+             if (briWrite.pct >= 0) {
+-                Quickshell.execDetached(["brightnessctl", "set", briWrite.pct + "%"]);
++                Spawn.spawn(["brightnessctl", "set", briWrite.pct + "%"]);
+                 briWrite.pct = -1;
+             }
+         }
+@@ -111,7 +111,7 @@ Item {
+     }
+ 
+     function setProfile(name) {
+-        Quickshell.execDetached(["powerprofilesctl", "set", name]);
++        Spawn.spawn(["powerprofilesctl", "set", name]);
+         root.profile = name;
+         profRead.running = true;
+     }
+@@ -124,7 +124,7 @@ Item {
+         { key: "power",   glyph: "power_settings_new",  label: "Power",   danger: true,  argv: ["systemctl", "poweroff"] }
+     ]
+ 
+-    function dispatch(a) { Quickshell.execDetached(a.argv); }
++    function dispatch(a) { Spawn.spawn(a.argv); }
+ 
+     // profiles have no poll (they change only on a set), so read them on open;
+     // brightness reads via its own poll timer's triggeredOnStart.
+diff --git a/ryoku/shell/quickshell/pill/popouts/AtollMusicPopout.qml b/ryoku/shell/quickshell/pill/popouts/AtollMusicPopout.qml
+index 36dd4776..61c07ea5 100644
+--- a/ryoku/shell/quickshell/pill/popouts/AtollMusicPopout.qml
++++ b/ryoku/shell/quickshell/pill/popouts/AtollMusicPopout.qml
+@@ -105,7 +105,7 @@ Item {
+     function eqSetEnabled(on) {
+         root.eqEnabled = on;
+         eqSave();
+-        Quickshell.execDetached(["ryoku-eq", "apply"]);
++        Spawn.spawn(["ryoku-eq", "apply"]);
+     }
+ 
+     // live path: remember the latest value per band, flush on a short clock so a
+@@ -118,7 +118,7 @@ Item {
+         onTriggered: {
+             if (root._pendBand < 0)
+                 return;
+-            Quickshell.execDetached(["ryoku-eq", "set", String(root._pendBand + 1), root._pendDb.toFixed(1)]);
++            Spawn.spawn(["ryoku-eq", "set", String(root._pendBand + 1), root._pendDb.toFixed(1)]);
+             root._pendBand = -1;
+         }
+     }
+@@ -148,7 +148,7 @@ Item {
+         eqSave();
+         if (root.eqEnabled)
+             for (var i = 0; i < 10; i++)
+-                Quickshell.execDetached(["ryoku-eq", "set", String(i + 1), p[i].toFixed(1)]);
++                Spawn.spawn(["ryoku-eq", "set", String(i + 1), p[i].toFixed(1)]);
+     }
+ 
+     // one transport control: a Material glyph that lifts on hover, dims when the
 diff --git a/ryoku/shell/quickshell/pill/popouts/Power.qml b/ryoku/shell/quickshell/pill/popouts/Power.qml
 index 9ffe32cb..bd283efa 100644
 --- a/ryoku/shell/quickshell/pill/popouts/Power.qml
@@ -2039,11 +2337,32 @@ index 9ffe32cb..bd283efa 100644
          root.closed();
      }
      Column {
+diff --git a/ryoku/shell/quickshell/pill/popouts/PowerAction.qml b/ryoku/shell/quickshell/pill/popouts/PowerAction.qml
+index 9dfc59a5..f68b2fae 100644
+--- a/ryoku/shell/quickshell/pill/popouts/PowerAction.qml
++++ b/ryoku/shell/quickshell/pill/popouts/PowerAction.qml
+@@ -4,6 +4,7 @@ import QtQuick
+ import Quickshell
+ import Quickshell.Hyprland
+ import Ryoku.Ui.Singletons
++import "../Singletons"
+ 
+ // One session action in the power panel's action row. Safe actions (lock, sleep)
+ // fire on a tap. Destructive ones (logout, restart, shutdown) fire only on a
+@@ -44,7 +45,7 @@ Item {
+         if (root.dispatch && root.dispatch.length)
+             Hyprland.dispatch(root.dispatch);
+         else if (root.argv && root.argv.length)
+-            Quickshell.execDetached(root.argv);
++            Spawn.spawn(root.argv);
+         root.ran();
+     }
+ 
 diff --git a/ryoku/shell/quickshell/pill/shell.qml b/ryoku/shell/quickshell/pill/shell.qml
-index 6e0460b0..1a9c3e15 100644
+index 56a3fa7f..37cc709c 100644
 --- a/ryoku/shell/quickshell/pill/shell.qml
 +++ b/ryoku/shell/quickshell/pill/shell.qml
-@@ -152,7 +152,7 @@ ShellRoot {
+@@ -176,7 +176,7 @@ ShellRoot {
      readonly property string caffeineScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-caffeine"
  
      function syncCaffeine(action) {
@@ -2052,7 +2371,7 @@ index 6e0460b0..1a9c3e15 100644
      }
  
      Connections {
-@@ -170,7 +170,7 @@ ShellRoot {
+@@ -194,7 +194,7 @@ ShellRoot {
      readonly property string gameModeScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-game-mode"
  
      function syncGameMode(action) {
@@ -2061,7 +2380,7 @@ index 6e0460b0..1a9c3e15 100644
      }
  
      Connections {
-@@ -279,7 +279,7 @@ ShellRoot {
+@@ -303,7 +303,7 @@ ShellRoot {
      // launcher, so we mirror its flock guard to avoid spawning a second
      // Hub instance.
      function openUpdates() {
@@ -2070,6 +2389,103 @@ index 6e0460b0..1a9c3e15 100644
              "ryoku-hub config set section updates; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
      }
  
+diff --git a/ryoku/shell/quickshell/ryolayer/Singletons/Eq.qml b/ryoku/shell/quickshell/ryolayer/Singletons/Eq.qml
+index 805ec291..db18f7e2 100644
+--- a/ryoku/shell/quickshell/ryolayer/Singletons/Eq.qml
++++ b/ryoku/shell/quickshell/ryolayer/Singletons/Eq.qml
+@@ -48,7 +48,7 @@ Singleton {
+     function setEnabled(on) {
+         adapter.enabled = on;
+         save();
+-        Quickshell.execDetached(["ryoku-eq", "apply"]);
++        Spawn.spawn(["ryoku-eq", "apply"]);
+     }
+ 
+     // live path: remember the latest value per band, flush on a short clock.
+@@ -60,7 +60,7 @@ Singleton {
+         onTriggered: {
+             if (root._pendingBand < 0)
+                 return;
+-            Quickshell.execDetached(["ryoku-eq", "set", String(root._pendingBand + 1), root._pendingDb.toFixed(1)]);
++            Spawn.spawn(["ryoku-eq", "set", String(root._pendingBand + 1), root._pendingDb.toFixed(1)]);
+             root._pendingBand = -1;
+         }
+     }
+@@ -90,6 +90,6 @@ Singleton {
+         save();
+         if (root.enabled)
+             for (var i = 0; i < 10; i++)
+-                Quickshell.execDetached(["ryoku-eq", "set", String(i + 1), p[i].toFixed(1)]);
++                Spawn.spawn(["ryoku-eq", "set", String(i + 1), p[i].toFixed(1)]);
+     }
+ }
+diff --git a/ryoku/shell/quickshell/ryolayer/Singletons/Spawn.qml b/ryoku/shell/quickshell/ryolayer/Singletons/Spawn.qml
+new file mode 120000
+index 00000000..e5014804
+--- /dev/null
++++ b/ryoku/shell/quickshell/ryolayer/Singletons/Spawn.qml
+@@ -0,0 +1 @@
++../../../../shared/quickshell/SpawnSingleton.qml
+\ No newline at end of file
+diff --git a/ryoku/shell/quickshell/ryolayer/Singletons/SpawnCore.qml b/ryoku/shell/quickshell/ryolayer/Singletons/SpawnCore.qml
+new file mode 120000
+index 00000000..6e29da51
+--- /dev/null
++++ b/ryoku/shell/quickshell/ryolayer/Singletons/SpawnCore.qml
+@@ -0,0 +1 @@
++../../../../shared/quickshell/SpawnCore.qml
+\ No newline at end of file
+diff --git a/ryoku/shell/quickshell/ryolayer/Singletons/qmldir b/ryoku/shell/quickshell/ryolayer/Singletons/qmldir
+index fce489e1..222b7c82 100644
+--- a/ryoku/shell/quickshell/ryolayer/Singletons/qmldir
++++ b/ryoku/shell/quickshell/ryolayer/Singletons/qmldir
+@@ -6,3 +6,5 @@ singleton Eq Eq.qml
+ singleton Sound Sound.qml
+ singleton Notes Notes.qml
+ singleton Sys Sys.qml
++singleton Spawn Spawn.qml
++SpawnCore SpawnCore.qml
+diff --git a/ryoku/shell/quickshell/ryolayer/shell.qml b/ryoku/shell/quickshell/ryolayer/shell.qml
+index 745a86a7..ddc40fdc 100644
+--- a/ryoku/shell/quickshell/ryolayer/shell.qml
++++ b/ryoku/shell/quickshell/ryolayer/shell.qml
+@@ -41,8 +41,8 @@ ShellRoot {
+         return false;
+     }
+     readonly property bool residentNeeded: root.open || root.hasPins
+-    onResidentNeededChanged: Quickshell.execDetached(["ryoku-shell", "state", "ryolayer", residentNeeded ? "1" : "0"])
+-    Component.onCompleted: Quickshell.execDetached(["ryoku-shell", "state", "ryolayer", residentNeeded ? "1" : "0"])
++    onResidentNeededChanged: Spawn.spawn(["ryoku-shell", "state", "ryolayer", residentNeeded ? "1" : "0"])
++    Component.onCompleted: Spawn.spawn(["ryoku-shell", "state", "ryolayer", residentNeeded ? "1" : "0"])
+ 
+     readonly property string focusedName: {
+         var m = Hyprland.focusedMonitor;
+diff --git a/ryoku/shell/quickshell/ryolayer/widgets/mic/MicWidget.qml b/ryoku/shell/quickshell/ryolayer/widgets/mic/MicWidget.qml
+index dc4855c3..23974c0d 100644
+--- a/ryoku/shell/quickshell/ryolayer/widgets/mic/MicWidget.qml
++++ b/ryoku/shell/quickshell/ryolayer/widgets/mic/MicWidget.qml
+@@ -152,7 +152,7 @@ Item {
+         // ── normalize action ─────────────────────────────────────────────
+         Btn {
+             text: "Normalize gain (unity)"
+-            onAct: Quickshell.execDetached(["ryoku-mic", "apply"])
++            onAct: Spawn.spawn(["ryoku-mic", "apply"])
+         }
+     }
+ }
+diff --git a/ryoku/shell/quickshell/ryolayer/widgets/notes/NotesWidget.qml b/ryoku/shell/quickshell/ryolayer/widgets/notes/NotesWidget.qml
+index 378708dd..e55e2f6b 100644
+--- a/ryoku/shell/quickshell/ryolayer/widgets/notes/NotesWidget.qml
++++ b/ryoku/shell/quickshell/ryolayer/widgets/notes/NotesWidget.qml
+@@ -185,7 +185,7 @@ Item {
+                 label: "COPY"
+                 bone: notes.copyFlash
+                 onAct: {
+-                    Quickshell.execDetached(["wl-copy", editor.text]);
++                    Spawn.spawn(["wl-copy", editor.text]);
+                     notes.copyFlash = true;
+                     copyFlashT.restart();
+                 }
 diff --git a/ryoku/shell/quickshell/wallpaper/Singletons/Spawn.qml b/ryoku/shell/quickshell/wallpaper/Singletons/Spawn.qml
 new file mode 120000
 index 00000000..e5014804
@@ -2096,6 +2512,28 @@ index 5695af0a..c16a86fc 100644
  singleton Walls Walls.qml
 +singleton Spawn Spawn.qml
 +SpawnCore SpawnCore.qml
+diff --git a/ryoku/shell/quickshell/widgets/README.md b/ryoku/shell/quickshell/widgets/README.md
+index 4d441e53..4cdc10f9 100644
+--- a/ryoku/shell/quickshell/widgets/README.md
++++ b/ryoku/shell/quickshell/widgets/README.md
+@@ -140,7 +140,7 @@ key it never knew about. So a new knob lands in two places, every time.
+ There's no "show me this page" call. You ask the hub's Go backend to remember the
+ section, then launch the hub:
+ 
+-    Quickshell.execDetached(["sh", "-c",
++    Spawn.spawn(["sh", "-c",
+         "ryoku-hub config set section widgets; flock -n -o /tmp/ryoku-hub.lock qs -c hub"])
+ 
+ `ryoku-hub config set section widgets` writes the hub's TOML so it opens on the
+@@ -149,7 +149,7 @@ uses so you don't get two hub windows. The section name ("widgets") has to be a
+ real entry in the hub's `Hub.qml` `sectionDefs`, or it'll fall back to the
+ default page. "Reload shell" is the plain version of the same trick:
+ 
+-    Quickshell.execDetached(["ryoku-shell", "reload"])
++    Spawn.spawn(["ryoku-shell", "reload"])
+ 
+ ### Adding a knob end to end
+ 
 diff --git a/ryoku/shell/quickshell/widgets/Singletons/Spawn.qml b/ryoku/shell/quickshell/widgets/Singletons/Spawn.qml
 new file mode 120000
 index 00000000..e5014804
@@ -2141,36 +2579,35 @@ index 3a094a4e..2019c5fc 100644
      }
  
 diff --git a/tests/shell-unit-tests.sh b/tests/shell-unit-tests.sh
-index c5e2f342..c3aff4ce 100755
+index 1cd6d635..945a1ec1 100755
 --- a/tests/shell-unit-tests.sh
 +++ b/tests/shell-unit-tests.sh
-@@ -1,11 +1,11 @@
+@@ -1,10 +1,11 @@
  #!/usr/bin/env bash
- # run the shell's pure-JS unit tests. the *.test.mjs files that exercise the
- # logic helpers behind the Quickshell surfaces (launcher fuzzy ranker,
--# ryoshot coordinate/keymap/annotation libs). no Quickshell or display dep,
--# so they run anywhere node is around, and unlike the advisory qmllint job
--# this one is a real gate. nothing to maintain: the runner finds every
--# ryoku/shell/**/*.test.mjs, so a new file is picked up the moment it lands
--# next to what it covers.
-+# ryoshot coordinate/keymap/annotation libs, the spawn-wrapper lint checks).
-+# no Quickshell or display dep, so they run anywhere node is around, and
-+# unlike the advisory qmllint job this one is a real gate. nothing to
-+# maintain: the runner finds every ryoku/{shell,apps,hub,lockscreen,shared}/**/*.test.mjs,
-+# so a new file is picked up the moment it lands next to what it covers.
+ # run the desktop's pure-JS unit tests. the *.test.mjs files that exercise the
+ # logic helpers behind the Quickshell surfaces (launcher fuzzy ranker, ryoshot
+-# coordinate/keymap/annotation libs, hub display arrangement). no Quickshell or
+-# display dep, so they run anywhere node is around, and unlike the advisory
+-# qmllint job this one is a real gate. nothing to maintain: the runner finds
+-# every ryoku/{shell,hub}/**/*.test.mjs, so a new file is picked up on landing.
++# coordinate/keymap/annotation libs, hub display arrangement, the spawn-wrapper
++# lint checks). no Quickshell or display dep, so they run anywhere node is
++# around, and unlike the advisory qmllint job this one is a real gate. nothing
++# to maintain: the runner finds every ryoku/{shell,hub,apps,lockscreen,shared}/**/*.test.mjs,
++# so a new file is picked up on landing.
  set -euo pipefail
  
  ROOT=${RYOKU_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
-@@ -15,10 +15,10 @@ if ! command -v node >/dev/null 2>&1; then
+@@ -14,10 +15,10 @@ if ! command -v node >/dev/null 2>&1; then
    exit 1
  fi
  
--mapfile -d '' tests < <(find "$ROOT/ryoku/shell" -name '*.test.mjs' -type f -print0 | sort -z)
-+mapfile -d '' tests < <(find "$ROOT/ryoku/shell" "$ROOT/ryoku/apps" "$ROOT/ryoku/hub" "$ROOT/ryoku/lockscreen" "$ROOT/ryoku/shared" -name '*.test.mjs' -type f -print0 | sort -z)
+-mapfile -d '' tests < <(find "$ROOT/ryoku/shell" "$ROOT/ryoku/hub" -name '*.test.mjs' -type f -print0 | sort -z)
++mapfile -d '' tests < <(find "$ROOT/ryoku/shell" "$ROOT/ryoku/hub" "$ROOT/ryoku/apps" "$ROOT/ryoku/lockscreen" "$ROOT/ryoku/shared" -name '*.test.mjs' -type f -print0 | sort -z)
  
  if (( ${#tests[@]} == 0 )); then
--  echo "::error::no shell unit tests found under ryoku/shell" >&2
-+  echo "::error::no shell unit tests found under ryoku/{shell,apps,hub,lockscreen,shared}" >&2
+-  echo "::error::no unit tests found under ryoku/shell or ryoku/hub" >&2
++  echo "::error::no unit tests found under ryoku/{shell,hub,apps,lockscreen,shared}" >&2
    exit 1
  fi
  

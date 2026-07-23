@@ -1,0 +1,238 @@
+From 9afaf7a3c483838d3f7f27c635bccc9c442d180e Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Sat, 18 Jul 2026 15:47:54 -0700
+Subject: Patch: Add OSD on brightness change from keyboard and sidebar.
+
+Redesigned for beta-18: upstream's hardware-key path moved off the Go
+daemon onto a standalone script (ryoku-cmd-brightness, direct from
+binds.lua) that also drives external DDC monitors, which the original
+patch's daemon-side backlightAdjust() never did. Ported the OSD-flash
+half of the original patch (Devices.qml state + signal, Osd.qml row,
+shell.qml IPC plumbing) but re-pointed the report path: the script
+calls the existing `ryoku-shell` client with a new `backlight <pct>`
+verb (added to daemon.go/main.go) instead of the daemon computing the
+delta itself, since the script already applied it.
+
+Sidebar fader commits flash too, for free: BrightnessControl.qml
+already funnels through Devices.setBacklight(), which now emits the
+same user-changed signal the OSD listens for.
+---
+ ryoku/hyprland/scripts/ryoku-cmd-brightness   |  7 +++
+ ryoku/shell/ipc/daemon.go                     |  9 +++
+ ryoku/shell/ipc/ipc-surface.txt               |  3 +
+ ryoku/shell/ipc/main.go                       |  1 +
+ ryoku/shell/quickshell/pill/Osd.qml           | 59 +++++++++++++++++++
+ .../quickshell/pill/Singletons/Devices.qml    | 15 +++++
+ ryoku/shell/quickshell/pill/shell.qml         |  5 ++
+ 7 files changed, 99 insertions(+)
+
+diff --git a/ryoku/hyprland/scripts/ryoku-cmd-brightness b/ryoku/hyprland/scripts/ryoku-cmd-brightness
+index 544b3a85..26363aea 100755
+--- a/ryoku/hyprland/scripts/ryoku-cmd-brightness
++++ b/ryoku/hyprland/scripts/ryoku-cmd-brightness
+@@ -25,6 +25,13 @@ if compgen -G "/sys/class/backlight/*" >/dev/null; then
+   else
+     brightnessctl set "${mag}%-" >/dev/null 2>&1 || true
+   fi
++  # Report the new level so the pill can flash an OSD, the same way volume's
++  # live property already does. Backgrounded and best-effort: a slow or
++  # missing daemon must never add latency to a repeating hardware key.
++  (
++    pct=$(brightnessctl -m 2>/dev/null | awk -F, 'NR==1{print substr($4,1,length($4)-1)}')
++    [[ -n $pct ]] && ryoku-shell backlight "$pct" >/dev/null 2>&1
++  ) &
+ fi
+ 
+ # External monitors over DDC/CI. Always attempted, never fatal.
+diff --git a/ryoku/shell/ipc/daemon.go b/ryoku/shell/ipc/daemon.go
+index 17e20789..42443a6d 100644
+--- a/ryoku/shell/ipc/daemon.go
++++ b/ryoku/shell/ipc/daemon.go
+@@ -643,6 +643,15 @@ func (d *daemon) dispatch(line string) string {
+ 		}
+ 		d.ensure("pill")
+ 		return pillIpc("pluginPopout", d.activeMonitor(), args[0])
++	case "backlight":
++		// backlight <pct> -> ryoku-cmd-brightness already applied this to the
++		// panel (hardware keys); just relay the new % to the pill so its OSD
++		// flashes, the same way volume's live Pipewire property does.
++		if len(args) < 1 {
++			return "err backlight: need <pct>"
++		}
++		d.ensure("pill")
++		return pillIpc("backlight", args[0])
+ 	case "plugins":
+ 		// plugins reload -> the per-monitor PluginPopouts watch plugins.json and
+ 		// re-discover on change, so a Settings save retunes live; this is a no-op
+diff --git a/ryoku/shell/ipc/ipc-surface.txt b/ryoku/shell/ipc/ipc-surface.txt
+index 2cafe189..b0107c70 100644
+--- a/ryoku/shell/ipc/ipc-surface.txt
++++ b/ryoku/shell/ipc/ipc-surface.txt
+@@ -1,3 +1,4 @@
++backlight
+ battery
+ calendar
+ clipboard
+@@ -24,6 +25,7 @@ overview
+ palette
+ peek
+ ping
++pinned
+ plugin
+ plugins
+ power
+@@ -34,6 +36,7 @@ ryolayer
+ saturation
+ scale
+ set
++signature
+ stash
+ stash-send
+ state
+diff --git a/ryoku/shell/ipc/main.go b/ryoku/shell/ipc/main.go
+index 8a8575f2..d1cd3632 100644
+--- a/ryoku/shell/ipc/main.go
++++ b/ryoku/shell/ipc/main.go
+@@ -75,5 +75,6 @@ func usage() {
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell lock")
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell wallpaper [next|init|set <path>]")
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell voice")
++	fmt.Fprintln(os.Stderr, "  ryoku-shell backlight <pct>")
+ 	fmt.Fprintln(os.Stderr, "  ryoku-shell <reload|status|ping|quit>")
+ }
+diff --git a/ryoku/shell/quickshell/pill/Osd.qml b/ryoku/shell/quickshell/pill/Osd.qml
+index ae902588..1fe5f0bc 100644
+--- a/ryoku/shell/quickshell/pill/Osd.qml
++++ b/ryoku/shell/quickshell/pill/Osd.qml
+@@ -96,6 +96,11 @@ Item {
+         function onMutedChanged() { root.flash("volume"); }
+     }
+ 
++    Connections {
++        target: Devices
++        function onBacklightUserChanged() { root.flash("brightness"); }
++    }
++
+     onPlayerChanged: {
+         Qt.callLater(function() {
+             if (stickyPlayer !== player)
+@@ -165,6 +170,60 @@ Item {
+         }
+     }
+ 
++    Item {
++        id: brightnessRow
++        anchors.fill: parent
++        opacity: root.kind === "brightness" ? 1 : 0
++        visible: opacity > 0.01
++        Behavior on opacity { NumberAnimation { duration: 150 } }
++
++        GlyphIcon {
++            id: brightnessGlyph
++            anchors.left: parent.left
++            anchors.verticalCenter: parent.verticalCenter
++            width: 17 * root.s
++            height: 17 * root.s
++            name: "sun"
++            color: Theme.iconDim
++            stroke: 1.7
++        }
++
++        Text {
++            id: brightnessPct
++            anchors.right: parent.right
++            anchors.verticalCenter: parent.verticalCenter
++            width: 32 * root.s
++            horizontalAlignment: Text.AlignRight
++            text: Math.max(0, Devices.backlightPct) + "%"
++            color: Theme.cream
++            font.family: Theme.font
++            font.pixelSize: 11 * root.s
++            font.weight: Font.DemiBold
++            font.features: { "tnum": 1 }
++        }
++
++        Rectangle {
++            anchors.left: brightnessGlyph.right
++            anchors.leftMargin: 12 * root.s
++            anchors.right: brightnessPct.left
++            anchors.rightMargin: 12 * root.s
++            anchors.verticalCenter: parent.verticalCenter
++            height: 4 * root.s
++            radius: Theme.radius
++            color: Theme.threadBg
++
++            Rectangle {
++                anchors.left: parent.left
++                anchors.top: parent.top
++                anchors.bottom: parent.bottom
++                width: parent.width * Math.max(0, Devices.backlightPct) / 100
++                radius: parent.radius
++                color: Theme.vermLit
++                Behavior on width { NumberAnimation { duration: Motion.fast } }
++            }
++        }
++    }
++
+     Item {
+         id: trackRow
+         anchors.fill: parent
+diff --git a/ryoku/shell/quickshell/pill/Singletons/Devices.qml b/ryoku/shell/quickshell/pill/Singletons/Devices.qml
+index c6863546..d75643f0 100644
+--- a/ryoku/shell/quickshell/pill/Singletons/Devices.qml
++++ b/ryoku/shell/quickshell/pill/Singletons/Devices.qml
+@@ -71,6 +71,11 @@ Singleton {
+     property int backlightPct: -1
+     readonly property bool backlightAvailable: root.backlightPct >= 0
+ 
++    // fires only for a user-driven change (sidebar fader commit, hardware key)
++    // so the OSD can flash the same way volume's live property does -- never
++    // for readBacklight()'s passive resync (hypridle dim/restore, sidebar open).
++    signal backlightUserChanged(int pct)
++
+     function readBacklight() {
+         blRead.running = true;
+     }
+@@ -82,6 +87,16 @@ Singleton {
+         var p = Math.max(1, Math.min(100, Math.round(pct)));
+         root.backlightPct = p;
+         Quickshell.execDetached(["brightnessctl", "set", p + "%"]);
++        root.backlightUserChanged(p);
++    }
++
++    // record a change already applied elsewhere (a hardware key, via
++    // ryoku-cmd-brightness) and flash: no hardware call, brightnessctl was the
++    // one that just ran.
++    function reportBacklightChange(pct) {
++        var p = Math.max(0, Math.min(100, Math.round(pct)));
++        root.backlightPct = p;
++        root.backlightUserChanged(p);
+     }
+ 
+     Process {
+diff --git a/ryoku/shell/quickshell/pill/shell.qml b/ryoku/shell/quickshell/pill/shell.qml
+index cb37bdd7..f92d7f54 100644
+--- a/ryoku/shell/quickshell/pill/shell.qml
++++ b/ryoku/shell/quickshell/pill/shell.qml
+@@ -368,6 +368,9 @@ ShellRoot {
+         function media(mon: string): void { root.sfc(mon, "media"); }
+         function resources(mon: string): void { root.sfc(mon, "resources"); }
+         function wallpaper(mon: string): void { root.sfc(mon, "wallpaper"); }
++        // hardware brightness keys already applied via ryoku-cmd-brightness; this
++        // just reports the new panel % so the OSD flashes, like volume's does.
++        function backlight(pct: string): void { Devices.reportBacklightChange(parseInt(pct, 10)); }
+     }
+ 
+     // The daemon writes surface commands to this socket to toggle pill surfaces
+@@ -402,6 +405,8 @@ ShellRoot {
+         case "pluginPopout":
+             root.togglePopout(mon, "plugin:" + (parts.length > 2 ? parts[2] : ""));
+             return true;
++        case "backlight":
++            Devices.reportBacklightChange(parseInt(mon, 10)); return true;
+         case "voiceShow":
+             root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
+         case "voiceOff":
+-- 
+2.55.0
+

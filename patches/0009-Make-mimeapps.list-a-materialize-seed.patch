@@ -1,8 +1,8 @@
-From f43843d27dffb605f115f96a38f18e0034f19874 Mon Sep 17 00:00:00 2001
+From 83de232ac64784a2274c77c496f2a2375c4bbeba Mon Sep 17 00:00:00 2001
 From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
-Date: Tue, 21 Jul 2026 18:11:11 -0700
-Subject: [PATCH] Patch: Make mimeapps.list a materialize seed so default-app
- changes survive an update.
+Date: Thu, 23 Jul 2026 08:21:56 -0700
+Subject: Patch: Make mimeapps.list a materialize seed so default-app changes
+ survive an update.
 
 ---
  ryoku/cli/internal/updater/materialize.go | 5 ++++-
@@ -10,7 +10,7 @@ Subject: [PATCH] Patch: Make mimeapps.list a materialize seed so default-app
  2 files changed, 10 insertions(+), 4 deletions(-)
 
 diff --git a/ryoku/cli/internal/updater/materialize.go b/ryoku/cli/internal/updater/materialize.go
-index 0e3fb971..da782132 100644
+index f479c2b4..64a68f31 100644
 --- a/ryoku/cli/internal/updater/materialize.go
 +++ b/ryoku/cli/internal/updater/materialize.go
 @@ -16,7 +16,9 @@ import (
@@ -33,11 +33,11 @@ index 0e3fb971..da782132 100644
  
  // Materialize lays the Ryoku-owned base configs into the user's ~/.config,
 diff --git a/ryoku/shell/deploy.sh b/ryoku/shell/deploy.sh
-index 720a0a1f..4358d55d 100755
+index 32f6a5a4..a8e5f0ad 100755
 --- a/ryoku/shell/deploy.sh
 +++ b/ryoku/shell/deploy.sh
-@@ -276,10 +276,13 @@ mkdir -p "$cfg/fish/conf.d"; cp -a "$here/../apps/fish/conf.d/." "$cfg/fish/conf
- mkdir -p "$cfg/qt6ct"; cp -a "$here/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
+@@ -372,10 +372,13 @@ mkdir -p "$cfg/qt6ct"; cp -a "$here/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
+ mkdir -p "$cfg/btop"; cp -a "$here/../apps/btop/btop.conf" "$cfg/btop/btop.conf"
  mkdir -p "$cfg/pipewire"; cp -a "$here/../apps/pipewire/." "$cfg/pipewire/"
  mkdir -p "$cfg/systemd/user"; cp -a "$here/systemd/user/." "$cfg/systemd/user/"
 -# pip (PEP 668 --user) + the default-app map: Ryoku-owned, so a dev box tracks
