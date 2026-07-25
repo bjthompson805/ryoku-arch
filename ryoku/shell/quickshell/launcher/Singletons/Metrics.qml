@@ -10,7 +10,7 @@ Singleton {
     readonly property real searchHeight: 46
     readonly property real rowHeight:    40
     readonly property real iconSize:     22
-    readonly property real tileSize:     92
+    readonly property real tileSize:     84
     readonly property int  gridColumns:  6
 
     readonly property real padOuter:  16
