@@ -1,0 +1,43 @@
+From ab7d692c7e691ca186b0dbefde7cb661c485a639 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Mon, 27 Jul 2026 13:59:55 -0700
+Subject: [PATCH] Patch: Fix Bar weather toggle and quick-toggles picker never
+ saving.
+
+hub.defs (Hub.qml) is the whitelist save()/dirty/snapshot() all key off
+of; barShowWeather, barShowSpecialWs, barToggles, and the three
+barLayoutLeft/Centre/Right modular-layout pickers were missing from it.
+A key missing from defs never round-trips: snapshot() (and so
+committed/draft) never picks it up from the adapter, so the Bar tab's
+Weather switch and Quick-toggles picker always rendered off/empty
+regardless of the real saved state, and editing them via Save silently
+never reached shell.json.
+
+Verified live: before the fix, flipping the file's barShowWeather
+directly (bypassing Settings) correctly showed/hid the bar's weather
+glyph, proving Bar.qml's own reactivity was fine and the break was
+entirely in Hub.qml's save bookkeeping. After adding the six keys to
+defs with their existing adapter defaults, the Bar tab's Weather switch
+and Quick-toggles picker both reflect real state and persist edits.
+---
+ ryoku/hub/quickshell/Hub.qml | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ryoku/hub/quickshell/Hub.qml b/ryoku/hub/quickshell/Hub.qml
+index 91655499..b9a13150 100644
+--- a/ryoku/hub/quickshell/Hub.qml
++++ b/ryoku/hub/quickshell/Hub.qml
+@@ -307,7 +307,9 @@ Rectangle {
+         "surfaceColor": "#0f1115", "osdRadius": 28, "osdOpacity": 1,
+         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30, "washiVariant": "ryoku", "atollVariant": "ilyamiro", "dyadVariant": "faithful",
+         "barShowTitle": true, "barShowMedia": true, "barShowStatus": true,
+-        "barShowNetSpeed": true,
++        "barShowWeather": true, "barShowSpecialWs": true, "barShowNetSpeed": true,
++        "barToggles": ["caffeine", "dnd", "nightlight"],
++        "barLayoutLeft": [], "barLayoutCentre": [], "barLayoutRight": [],
+         "barOccupiedWorkspaces": true, "islandEdge": "top", "islandAlong": -1,
+         "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"],
+         "islandRadius": 17, "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
+-- 
+2.55.0
+
