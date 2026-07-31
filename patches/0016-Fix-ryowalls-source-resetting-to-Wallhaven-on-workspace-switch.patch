@@ -1,0 +1,144 @@
+From a01928c12b8f61170ca56bbd88793b6b0d844584 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Thu, 30 Jul 2026 20:37:47 -0700
+Subject: [PATCH] Patch: Fix ryowalls source resetting to Wallhaven on a
+ workspace switch.
+
+The source picker's filter field commits (picks row 0, always the first
+unfiltered builtin, "Wallhaven") on Qt's TextInput.editingFinished, which
+fires on Enter *or* on plain focus loss. The field grabs focus when the
+picker opens and nothing reclaims it afterward, so it is still the
+window's focus item long after a pick; the window later losing active
+state (switching Hyprland workspaces away) fires that same blur signal
+and silently re-picks Wallhaven. Wire both of SourcePicker's fields to
+the Enter-only `accepted` signal instead of the Enter-or-blur `committed`
+one.
+
+Also persist Wallhaven.source (and the associated library fields) to
+ryowalls.json like every other setting on the page, since it was the one
+browsing-mode field that wasn't, and dispatch App.qml's initial load
+through reload() instead of searchLatest() so a restored "live" source
+loads correctly on startup.
+---
+ ryoku/apps/ryowalls/quickshell/App.qml        |  5 +++-
+ .../quickshell/Singletons/Wallhaven.qml       | 28 +++++++++++++++----
+ .../apps/ryowalls/quickshell/SourcePicker.qml | 13 +++++++--
+ 3 files changed, 38 insertions(+), 8 deletions(-)
+
+diff --git a/ryoku/apps/ryowalls/quickshell/App.qml b/ryoku/apps/ryowalls/quickshell/App.qml
+index 90d9871d..da35935d 100644
+--- a/ryoku/apps/ryowalls/quickshell/App.qml
++++ b/ryoku/apps/ryowalls/quickshell/App.qml
+@@ -117,7 +117,10 @@ Rectangle {
+     }
+ 
+     Component.onCompleted: {
+-        if (Wallhaven.results.length === 0) Wallhaven.searchLatest("");
++        // reload(), not searchLatest(): it dispatches on the restored source
++        // (live/local load differently), where searchLatest always assumes a
++        // paged wallhaven-style search.
++        if (Wallhaven.results.length === 0) Wallhaven.reload();
+         app.forceActiveFocus();
+     }
+ 
+diff --git a/ryoku/apps/ryowalls/quickshell/Singletons/Wallhaven.qml b/ryoku/apps/ryowalls/quickshell/Singletons/Wallhaven.qml
+index e5baa123..54ae570b 100644
+--- a/ryoku/apps/ryowalls/quickshell/Singletons/Wallhaven.qml
++++ b/ryoku/apps/ryowalls/quickshell/Singletons/Wallhaven.qml
+@@ -32,7 +32,9 @@ Singleton {
+     // wallhaven (images) | live (local ~/Pictures/livewalls videos) | moewalls
+     // (anime/aesthetic video from moewalls.com). The one app-state singleton
+     // drives all three so the grid, preview and tune keep their bindings.
+-    property string source: "wallhaven"
++    // persisted, like every other setting on this page, so a relaunch reopens
++    // on the source you were last browsing, not back on Wallhaven.
++    property string source: cfg.source || "wallhaven"
+ 
+     // ---- settings (persisted to ~/.config/ryoku/ryowalls.json) -------------
+     readonly property string apiKey: cfg.apiKey || ""
+@@ -260,10 +262,12 @@ Singleton {
+ 
+     // ---- user-added libraries (any GitHub repo of wallpapers) ---------------
+     // Ryoku hosts nothing: the user points ryowalls at repos at their discretion.
+-    property string libraryRepo: ""
+-    property string libraryBranch: ""
+-    property string libraryPath: ""
+-    property string libraryName: ""
++    // repo/branch/path/name are persisted alongside source so a restored "lib"
++    // source has somewhere to point.
++    property string libraryRepo: cfg.libraryRepo || ""
++    property string libraryBranch: cfg.libraryBranch || ""
++    property string libraryPath: cfg.libraryPath || ""
++    property string libraryName: cfg.libraryName || ""
+     property string libraryType: "all"      // all | images | live
+     readonly property var libraries: cfg.libraries || []
+ 
+@@ -276,6 +280,12 @@ Singleton {
+         libraryPath = lib.path || "";
+         libraryType = "all";
+         results = []; selected = null; error = ""; page = 1; query = "";
++        cfg.source = "lib";
++        cfg.libraryRepo = libraryRepo;
++        cfg.libraryBranch = libraryBranch;
++        cfg.libraryPath = libraryPath;
++        cfg.libraryName = libraryName;
++        saveSettings();
+         reload();
+     }
+     function setLibraryType(t) {
+@@ -314,6 +324,8 @@ Singleton {
+         source = s;
+         if (s === "local") libraryType = "all";
+         results = []; selected = null; error = ""; page = 1; localSelection = [];
++        cfg.source = s;
++        saveSettings();
+         reload();
+     }
+     function reload() {
+@@ -704,6 +716,12 @@ Singleton {
+             property string liveFit: "fill"
+             // user-added wallpaper libraries: [{name, repo, branch, path}]
+             property var libraries: []
++            // which source the grid was last browsing, so a relaunch reopens there.
++            property string source: "wallhaven"
++            property string libraryRepo: ""
++            property string libraryBranch: ""
++            property string libraryPath: ""
++            property string libraryName: ""
+         }
+     }
+ 
+diff --git a/ryoku/apps/ryowalls/quickshell/SourcePicker.qml b/ryoku/apps/ryowalls/quickshell/SourcePicker.qml
+index e9193c43..cb01862c 100644
+--- a/ryoku/apps/ryowalls/quickshell/SourcePicker.qml
++++ b/ryoku/apps/ryowalls/quickshell/SourcePicker.qml
+@@ -118,7 +118,12 @@ Item {
+                 width: parent.width
+                 placeholder: "Filter sources…"
+                 onEdited: (v) => picker.filter = v
+-                onCommitted: if (picker.shown.length) picker.choose(picker.shown[0])
++                // accepted (Enter only), not committed: committed also fires on a
++                // plain focus loss (TextInput.editingFinished), and this field
++                // keeps focus after a pick since nothing reclaims it — so a later
++                // window deactivation (e.g. a workspace switch) would silently
++                // re-pick row 0, always "Wallhaven", the first unfiltered row.
++                onAccepted: if (picker.shown.length) picker.choose(picker.shown[0])
+             }
+ 
+             Flickable {
+@@ -207,7 +212,11 @@ Item {
+                 width: parent.width
+                 tabular: true
+                 placeholder: "owner/repo@branch"
+-                onCommitted: (v) => { if (v.trim().length > 0) { Wallhaven.addLibrary(v); addField.clear(); picker.dismissed(); } }
++                // accepted (Enter only): committed also fires on a plain focus
++                // loss, which would otherwise submit a half-typed repo string
++                // whenever the window is deactivated (e.g. a workspace switch)
++                // while this field happens to hold focus.
++                onAccepted: { if (addField.text.trim().length > 0) { Wallhaven.addLibrary(addField.text); addField.clear(); picker.dismissed(); } }
+             }
+         }
+     }
+-- 
+2.55.0
+
