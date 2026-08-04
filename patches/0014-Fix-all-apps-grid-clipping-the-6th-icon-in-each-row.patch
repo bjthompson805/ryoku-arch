@@ -1,0 +1,31 @@
+From 7ce23aaa1fdf5c6543035a59463aa497cc93175a Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Sat, 25 Jul 2026 10:04:40 -0700
+Subject: [PATCH] Patch: Fix all-apps grid clipping the 6th icon in each row.
+
+The compact-scale pass (720->560 window, 108->92 tiles) shrank tileSize
+without rechecking that columns*tile+gaps still fit the new content
+width: 6*92 + 5*4 = 572px against a 528px available width, so the grid
+overflowed the Flickable's clip by 44px and sheared the last tile in
+each row roughly in half. Shrink tileSize to 84 (6*84 + 5*4 = 524, fits
+within 528) to match the compact window without dropping a column.
+---
+ ryoku/shell/quickshell/launcher/Singletons/Metrics.qml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ryoku/shell/quickshell/launcher/Singletons/Metrics.qml b/ryoku/shell/quickshell/launcher/Singletons/Metrics.qml
+index cc535e0f..8f199fa6 100644
+--- a/ryoku/shell/quickshell/launcher/Singletons/Metrics.qml
++++ b/ryoku/shell/quickshell/launcher/Singletons/Metrics.qml
+@@ -10,7 +10,7 @@ Singleton {
+     readonly property real searchHeight: 46
+     readonly property real rowHeight:    40
+     readonly property real iconSize:     22
+-    readonly property real tileSize:     92
++    readonly property real tileSize:     84
+     readonly property int  gridColumns:  6
+ 
+     readonly property real padOuter:  16
+-- 
+2.55.0
+
