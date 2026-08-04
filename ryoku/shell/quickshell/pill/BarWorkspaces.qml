@@ -1,7 +1,9 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Widgets
 import "Singletons"
 
 // the workspace indicator, per bar skin.
@@ -15,6 +17,13 @@ import "Singletons"
 //   aegis     = numeral cells, the active one marked by an accent underline.
 //   stele     = numeral cells, the active one boxed in an engraved frame.
 // click jumps, wheel walks neighbours. cells past five appear once used.
+// barWorkspaceIcons: an occupied pill/ring swaps its numeral for up to
+// maxWsIcons tiny per-window app icons (deduped by class, resolved the same
+// way as the overview's WorkspaceCell), growing to fit them; empty
+// workspaces are untouched. Only the non-cell dialects (noctalia and its
+// siblings, plus nacre) pick this up -- caelestia/aegis/stele's cells share a
+// fixed-step sliding accent indicator that assumes uniform cell width, so a
+// variable-width cell would need that math reworked; out of scope here.
 Item {
     id: strip
 
@@ -41,6 +50,42 @@ Item {
     readonly property real ringActive: 9 * s
     readonly property real ringGap: 5 * s
 
+    // tiny per-window icons: only the non-cell dialects render these.
+    readonly property bool wsIconsOn: Config.barWorkspaceIcons && !cells
+    readonly property int maxWsIcons: 3
+    readonly property real wsIconPx: 9 * s
+    readonly property real wsIconGap: 3 * s
+    readonly property real wsIconPadAlong: 5 * s
+    readonly property real wsIconPadCross: 4 * s
+    // uniform cross size for the noctalia row / nacre rings so entries stay
+    // aligned whether or not a given one happens to be showing icons.
+    readonly property real dotCross: (wsIconsOn && !nacre)
+        ? Math.max(dotSize, wsIconPx + 2 * wsIconPadCross) : dotSize
+    readonly property real ringCross: (wsIconsOn && nacre)
+        ? Math.max(ringActive, wsIconPx + 2 * wsIconPadCross) : ringActive
+    property var classesByWs: ({})
+
+    // the along-bar extent a given workspace's entry occupies -- used both by
+    // the delegates and by implicitWidth/Height below, so the module's
+    // reserved band always matches what's actually drawn.
+    function wsAlong(id) {
+        if (cells)
+            return vertical ? cellH : cellW;
+        var arr = wsIconsOn ? (classesByWs[id] || []) : [];
+        if (arr.length === 0)
+            return nacre ? ringActive : (id === activeWsId ? activeLen : dotSize);
+        return arr.length * wsIconPx + Math.max(0, arr.length - 1) * wsIconGap + 2 * wsIconPadAlong;
+    }
+
+    // icon path resolution: same two-step lookup as the overview's WorkspaceCell.
+    function iconFor(className) {
+        if (!className)
+            return "";
+        const desktop = DesktopEntries.heuristicLookup(className);
+        const byEntry = (desktop && desktop.icon) ? Quickshell.iconPath(desktop.icon, true) : "";
+        return byEntry !== "" ? byEntry : Quickshell.iconPath(className.toLowerCase(), true);
+    }
+
     readonly property int base: Math.floor((activeWsId - 1) / 10) * 10
     // occupancy = which workspaces own a window, from hyprctl. Quickshell's
     // bulk refresh doesn't parse this Hyprland's IPC, so its own workspace and
@@ -55,17 +100,33 @@ Item {
             onStreamFinished: {
                 try {
                     var occ = {};
+                    var byWs = {};
                     var cs = JSON.parse(this.text);
-                    for (var i = 0; i < cs.length; i++)
-                        if (cs[i].workspace && cs[i].workspace.id > 0)
-                            occ[cs[i].workspace.id] = true;
+                    for (var i = 0; i < cs.length; i++) {
+                        var w = cs[i].workspace;
+                        if (!w || !(w.id > 0))
+                            continue;
+                        occ[w.id] = true;
+                        if (strip.wsIconsOn) {
+                            var arr = byWs[w.id] || (byWs[w.id] = []);
+                            var cls = cs[i].class || "";
+                            if (cls && arr.indexOf(cls) < 0 && arr.length < strip.maxWsIcons)
+                                arr.push(cls);
+                        }
+                    }
                     strip.occupiedSet = occ;
+                    strip.classesByWs = byWs;
                 } catch (e) {}
             }
         }
     }
     Timer { id: occDebounce; interval: 80; onTriggered: clientsProc.running = true }
     Component.onCompleted: clientsProc.running = true
+    // classesByWs is only populated while wsIconsOn is true (see above), so
+    // flipping the setting on needs its own re-query -- otherwise it stays
+    // empty (numerals keep showing despite the pill already having resized)
+    // until the next window/workspace event happens to trigger one.
+    onWsIconsOnChanged: clientsProc.running = true
     Connections {
         target: Hyprland
         function onRawEvent(event) {
@@ -102,12 +163,19 @@ Item {
     readonly property int count: wsList.length
     readonly property int activeIdx: Math.max(0, wsList.indexOf(activeWsId))
 
-    implicitWidth: nacre ? (vertical ? ringActive : count * ringActive + (count - 1) * ringGap)
-        : cells ? (vertical ? cellW : count * cellW)
-        : (vertical ? dotSize : count * dotSize + (count - 1) * dotGap + (activeLen - dotSize))
-    implicitHeight: nacre ? (vertical ? count * ringActive + (count - 1) * ringGap : ringActive)
-        : cells ? (vertical ? count * cellH : cellH)
-        : (vertical ? count * dotSize + (count - 1) * dotGap + (activeLen - dotSize) : dotSize)
+    // sum of each entry's along-bar extent + the gaps between them; unaffected
+    // by icons unless wsIconsOn actually grew some entry past its base size.
+    readonly property real wsRunExtent: {
+        var sum = 0;
+        for (var i = 0; i < wsList.length; i++)
+            sum += wsAlong(wsList[i]);
+        var gap = nacre ? ringGap : (cells ? 0 : dotGap);
+        return sum + Math.max(0, wsList.length - 1) * gap;
+    }
+    readonly property real crossExtent: nacre ? ringCross : cells ? (vertical ? cellW : cellH) : dotCross
+
+    implicitWidth: vertical ? crossExtent : wsRunExtent
+    implicitHeight: vertical ? wsRunExtent : crossExtent
 
     function jump(id) {
         Hyprland.dispatch('hl.dsp.workspace.move({ workspace = ' + id + ', monitor = "current" })');
@@ -120,6 +188,16 @@ Item {
     }
     WheelHandler {
         onWheel: (w) => strip.walk(w.angleDelta.y > 0 ? -1 : 1)
+    }
+
+    // one tiny app icon, shared by the noctalia and nacre icon rows/columns.
+    Component {
+        id: wsIconD
+        IconImage {
+            required property string modelData
+            implicitSize: strip.wsIconPx
+            source: strip.iconFor(modelData)
+        }
     }
 
     // ---- numeral cells: caelestia, aegis, stele --------------------------
@@ -226,9 +304,16 @@ Item {
                 readonly property int wsId: nPill.modelData
                 readonly property bool active: nPill.wsId === strip.activeWsId
                 readonly property bool occupied: strip.occupiedSet[wsId] === true
-                width: strip.vertical ? strip.dotSize : (active ? strip.activeLen : strip.dotSize)
-                height: strip.vertical ? (active ? strip.activeLen : strip.dotSize) : strip.dotSize
-                radius: strip.dotSize / 2
+                readonly property var classes: strip.wsIconsOn ? (strip.classesByWs[wsId] || []) : []
+                readonly property bool showIcons: classes.length > 0
+                readonly property real iconRunExtent: classes.length * strip.wsIconPx
+                    + Math.max(0, classes.length - 1) * strip.wsIconGap
+                readonly property real along: showIcons
+                    ? (iconRunExtent + 2 * strip.wsIconPadAlong)
+                    : (active ? strip.activeLen : strip.dotSize)
+                width: strip.vertical ? strip.dotCross : along
+                height: strip.vertical ? along : strip.dotCross
+                radius: Math.min(width, height) / 2
                 color: active ? Theme.verm
                     : (occupied ? Qt.alpha(Theme.cream, 0.55) : Qt.alpha(Theme.cream, 0.18))
                 Behavior on width { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
@@ -237,13 +322,27 @@ Item {
 
                 Text {
                     anchors.centerIn: parent
-                    visible: nPill.active
+                    visible: nPill.active && !nPill.showIcons
                     text: nPill.wsId - strip.base
                     color: Theme.cardBot
                     font.family: Theme.font
                     font.pixelSize: 8.5 * strip.s
                     font.weight: Font.Bold
                     font.features: ({ "tnum": 1 })
+                }
+                Row {
+                    visible: !strip.vertical && nPill.showIcons
+                    anchors.centerIn: parent
+                    spacing: strip.wsIconGap
+                    opacity: nPill.active ? 1.0 : 0.55
+                    Repeater { model: nPill.classes; delegate: wsIconD }
+                }
+                Column {
+                    visible: strip.vertical && nPill.showIcons
+                    anchors.centerIn: parent
+                    spacing: strip.wsIconGap
+                    opacity: nPill.active ? 1.0 : 0.55
+                    Repeater { model: nPill.classes; delegate: wsIconD }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -271,10 +370,18 @@ Item {
                 required property int modelData
                 readonly property bool active: nRing.modelData === strip.activeWsId
                 readonly property bool occupied: strip.occupiedSet[nRing.modelData] === true
-                width: strip.ringActive
-                height: strip.ringActive
+                readonly property var classes: strip.wsIconsOn ? (strip.classesByWs[nRing.modelData] || []) : []
+                readonly property bool showIcons: classes.length > 0
+                readonly property real iconRunExtent: classes.length * strip.wsIconPx
+                    + Math.max(0, classes.length - 1) * strip.wsIconGap
+                readonly property real along: showIcons
+                    ? (iconRunExtent + 2 * strip.wsIconPadAlong)
+                    : strip.ringActive
+                width: strip.vertical ? strip.ringCross : along
+                height: strip.vertical ? along : strip.ringCross
 
                 Rectangle {
+                    visible: !nRing.showIcons
                     anchors.centerIn: parent
                     width: nRing.active ? strip.ringActive : strip.ringSize
                     height: width
@@ -285,6 +392,29 @@ Item {
                         : (nRing.occupied ? Qt.alpha(Theme.cream, 0.55) : Qt.alpha(Theme.cream, 0.20))
                     Behavior on width { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
                     Behavior on border.color { ColorAnimation { duration: Motion.effects } }
+                }
+                // occupied + icons on: the hollow ring gives way to a faint
+                // filled chip, since a ring's own outline leaves no room to
+                // carry icons.
+                Rectangle {
+                    visible: nRing.showIcons
+                    anchors.fill: parent
+                    radius: Math.min(width, height) / 2
+                    color: nRing.active ? Qt.alpha(Theme.verm, 0.20) : Qt.alpha(Theme.cream, 0.10)
+                }
+                Row {
+                    visible: !strip.vertical && nRing.showIcons
+                    anchors.centerIn: parent
+                    spacing: strip.wsIconGap
+                    opacity: nRing.active ? 1.0 : 0.55
+                    Repeater { model: nRing.classes; delegate: wsIconD }
+                }
+                Column {
+                    visible: strip.vertical && nRing.showIcons
+                    anchors.centerIn: parent
+                    spacing: strip.wsIconGap
+                    opacity: nRing.active ? 1.0 : 0.55
+                    Repeater { model: nRing.classes; delegate: wsIconD }
                 }
                 MouseArea {
                     anchors.fill: parent
