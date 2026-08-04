@@ -1,0 +1,385 @@
+From 03e04f892f5a5301e9469e29a9a38c7c0602d701 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Mon, 3 Aug 2026 20:38:16 -0700
+Subject: [PATCH] Patch: Add per-window workspace icons, ported from upstream's
+ rewrite.
+
+Upstream's latest rebuild of the bar (the framebars/RailWorkspaces rewrite)
+shows a tiny app icon per open window in the workspace indicator instead of
+just the workspace number. That whole rewrite is too large and too different
+in architecture to backport wholesale, so this ports just the behavior into
+the existing BarWorkspaces.qml, gated behind a new toggle: Settings > Desktop
+> Shell > Bar > Content > "Per-window workspace icons" (barWorkspaceIcons,
+default off).
+
+When on, an occupied workspace's pill/ring grows to show up to 3 deduped
+per-window app icons (resolved via DesktopEntries.heuristicLookup +
+Quickshell.iconPath, the same lookup the overview's WorkspaceCell already
+uses) instead of its numeral; empty workspaces are untouched. Icon data
+comes from the same hyprctl -j clients poll BarWorkspaces already runs for
+occupied-workspace tracking, extended to also collect classes per
+workspace, so no extra process spawn.
+
+Scoped to the noctalia and nacre dialects (and the other style names that
+share their render paths: triptych, inir, aurora, angel, delos) since they
+already size each pill/ring independently. caelestia/aegis/stele keep plain
+numerals: their cells share one sliding accent indicator computed from a
+uniform cell-width step, so a variable-width cell would need that math
+reworked -- out of scope here. nacre's hollow-ring look has no room for
+icons, so an occupied ring becomes a small filled chip instead when the
+toggle is on; empty workspaces keep the ring.
+
+Ported from a beta-18 patch written against an older Hub.qml (a monolithic
+defs/JsonAdapter block plus a schema/ShellSettingsPage.js row table). This
+branch's Settings page never went through that split: it's still one
+ShellSettingsPage.qml with hand-written controls, so the setting is wired
+in there directly -- shellKeys, defaults, the draft object, the shellA
+JsonAdapter, and a ToggleRow next to "Only occupied workspaces" -- instead
+of touching Hub.qml or a schema file. BarWorkspaces.qml and the pill's
+Config.qml needed no adaptation; both matched the beta-18 source exactly.
+
+Verified live: toggling on/off resizes and re-queries immediately, and
+switching between dialects keeps working correctly.
+---
+ ryoku/hub/quickshell/ShellSettingsPage.qml    |  12 +-
+ ryoku/shell/quickshell/pill/BarWorkspaces.qml | 160 ++++++++++++++++--
+ .../quickshell/pill/Singletons/Config.qml     |   6 +-
+ 3 files changed, 160 insertions(+), 18 deletions(-)
+
+diff --git a/ryoku/hub/quickshell/ShellSettingsPage.qml b/ryoku/hub/quickshell/ShellSettingsPage.qml
+index d6dd3623..dc853458 100644
+--- a/ryoku/hub/quickshell/ShellSettingsPage.qml
++++ b/ryoku/hub/quickshell/ShellSettingsPage.qml
+@@ -21,7 +21,7 @@ Item {
+         "shadowStrength", "shadowSize", "surfaceColor",
+         "osdRadius", "osdOpacity",
+         "barEnabled", "barPosition", "barStyle", "barHeight",
+-        "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barOccupiedWorkspaces",
++        "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barOccupiedWorkspaces", "barWorkspaceIcons",
+         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
+         "fontFamily", "fontScale",
+         "weatherLocation", "weatherUnit",
+@@ -95,7 +95,7 @@ Item {
+         "shadowStrength": 0.63, "shadowSize": 12, "surfaceColor": "#0f1115",
+         "osdRadius": 28, "osdOpacity": 1,
+         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
+-        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barOccupiedWorkspaces": true,
++        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barOccupiedWorkspaces": true, "barWorkspaceIcons": false,
+         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
+         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
+         "weatherLocation": "", "weatherUnit": "auto",
+@@ -140,6 +140,7 @@ Item {
+         property bool barShowStats: true
+         property bool barShowNetSpeed: true
+         property bool barOccupiedWorkspaces: true
++        property bool barWorkspaceIcons: false
+         property string islandEdge: "top"
+         property real islandAlong: -1
+         property bool islandHidden: false
+@@ -363,6 +364,7 @@ Item {
+             property bool barShowStats: true
+             property bool barShowNetSpeed: true
+             property bool barOccupiedWorkspaces: true
++            property bool barWorkspaceIcons: false
+             property string islandEdge: "top"
+             property real islandAlong: -1
+             property bool islandHidden: false
+@@ -882,6 +884,12 @@ Item {
+                         checked: draft.barOccupiedWorkspaces
+                         onToggled: (v) => page.edit("barOccupiedWorkspaces", v)
+                     }
++                    ToggleRow {
++                        width: parent.width; label: "Per-window workspace icons"
++                        visible: ["noctalia", "triptych", "nacre", "inir", "aurora", "angel", "delos"].indexOf(draft.barStyle) >= 0
++                        checked: draft.barWorkspaceIcons
++                        onToggled: (v) => page.edit("barWorkspaceIcons", v)
++                    }
+                 }
+ 
+                 SettingSection {
+diff --git a/ryoku/shell/quickshell/pill/BarWorkspaces.qml b/ryoku/shell/quickshell/pill/BarWorkspaces.qml
+index a83e4682..463d6c9d 100644
+--- a/ryoku/shell/quickshell/pill/BarWorkspaces.qml
++++ b/ryoku/shell/quickshell/pill/BarWorkspaces.qml
+@@ -1,7 +1,9 @@
+ pragma ComponentBehavior: Bound
+ import QtQuick
++import Quickshell
+ import Quickshell.Hyprland
+ import Quickshell.Io
++import Quickshell.Widgets
+ import "Singletons"
+ 
+ // the workspace indicator, per bar skin.
+@@ -15,6 +17,13 @@ import "Singletons"
+ //   aegis     = numeral cells, the active one marked by an accent underline.
+ //   stele     = numeral cells, the active one boxed in an engraved frame.
+ // click jumps, wheel walks neighbours. cells past five appear once used.
++// barWorkspaceIcons: an occupied pill/ring swaps its numeral for up to
++// maxWsIcons tiny per-window app icons (deduped by class, resolved the same
++// way as the overview's WorkspaceCell), growing to fit them; empty
++// workspaces are untouched. Only the non-cell dialects (noctalia and its
++// siblings, plus nacre) pick this up -- caelestia/aegis/stele's cells share a
++// fixed-step sliding accent indicator that assumes uniform cell width, so a
++// variable-width cell would need that math reworked; out of scope here.
+ Item {
+     id: strip
+ 
+@@ -41,6 +50,42 @@ Item {
+     readonly property real ringActive: 9 * s
+     readonly property real ringGap: 5 * s
+ 
++    // tiny per-window icons: only the non-cell dialects render these.
++    readonly property bool wsIconsOn: Config.barWorkspaceIcons && !cells
++    readonly property int maxWsIcons: 3
++    readonly property real wsIconPx: 9 * s
++    readonly property real wsIconGap: 3 * s
++    readonly property real wsIconPadAlong: 5 * s
++    readonly property real wsIconPadCross: 4 * s
++    // uniform cross size for the noctalia row / nacre rings so entries stay
++    // aligned whether or not a given one happens to be showing icons.
++    readonly property real dotCross: (wsIconsOn && !nacre)
++        ? Math.max(dotSize, wsIconPx + 2 * wsIconPadCross) : dotSize
++    readonly property real ringCross: (wsIconsOn && nacre)
++        ? Math.max(ringActive, wsIconPx + 2 * wsIconPadCross) : ringActive
++    property var classesByWs: ({})
++
++    // the along-bar extent a given workspace's entry occupies -- used both by
++    // the delegates and by implicitWidth/Height below, so the module's
++    // reserved band always matches what's actually drawn.
++    function wsAlong(id) {
++        if (cells)
++            return vertical ? cellH : cellW;
++        var arr = wsIconsOn ? (classesByWs[id] || []) : [];
++        if (arr.length === 0)
++            return nacre ? ringActive : (id === activeWsId ? activeLen : dotSize);
++        return arr.length * wsIconPx + Math.max(0, arr.length - 1) * wsIconGap + 2 * wsIconPadAlong;
++    }
++
++    // icon path resolution: same two-step lookup as the overview's WorkspaceCell.
++    function iconFor(className) {
++        if (!className)
++            return "";
++        const desktop = DesktopEntries.heuristicLookup(className);
++        const byEntry = (desktop && desktop.icon) ? Quickshell.iconPath(desktop.icon, true) : "";
++        return byEntry !== "" ? byEntry : Quickshell.iconPath(className.toLowerCase(), true);
++    }
++
+     readonly property int base: Math.floor((activeWsId - 1) / 10) * 10
+     // occupancy = which workspaces own a window, from hyprctl. Quickshell's
+     // bulk refresh doesn't parse this Hyprland's IPC, so its own workspace and
+@@ -55,17 +100,33 @@ Item {
+             onStreamFinished: {
+                 try {
+                     var occ = {};
++                    var byWs = {};
+                     var cs = JSON.parse(this.text);
+-                    for (var i = 0; i < cs.length; i++)
+-                        if (cs[i].workspace && cs[i].workspace.id > 0)
+-                            occ[cs[i].workspace.id] = true;
++                    for (var i = 0; i < cs.length; i++) {
++                        var w = cs[i].workspace;
++                        if (!w || !(w.id > 0))
++                            continue;
++                        occ[w.id] = true;
++                        if (strip.wsIconsOn) {
++                            var arr = byWs[w.id] || (byWs[w.id] = []);
++                            var cls = cs[i].class || "";
++                            if (cls && arr.indexOf(cls) < 0 && arr.length < strip.maxWsIcons)
++                                arr.push(cls);
++                        }
++                    }
+                     strip.occupiedSet = occ;
++                    strip.classesByWs = byWs;
+                 } catch (e) {}
+             }
+         }
+     }
+     Timer { id: occDebounce; interval: 80; onTriggered: clientsProc.running = true }
+     Component.onCompleted: clientsProc.running = true
++    // classesByWs is only populated while wsIconsOn is true (see above), so
++    // flipping the setting on needs its own re-query -- otherwise it stays
++    // empty (numerals keep showing despite the pill already having resized)
++    // until the next window/workspace event happens to trigger one.
++    onWsIconsOnChanged: clientsProc.running = true
+     Connections {
+         target: Hyprland
+         function onRawEvent(event) {
+@@ -102,12 +163,19 @@ Item {
+     readonly property int count: wsList.length
+     readonly property int activeIdx: Math.max(0, wsList.indexOf(activeWsId))
+ 
+-    implicitWidth: nacre ? (vertical ? ringActive : count * ringActive + (count - 1) * ringGap)
+-        : cells ? (vertical ? cellW : count * cellW)
+-        : (vertical ? dotSize : count * dotSize + (count - 1) * dotGap + (activeLen - dotSize))
+-    implicitHeight: nacre ? (vertical ? count * ringActive + (count - 1) * ringGap : ringActive)
+-        : cells ? (vertical ? count * cellH : cellH)
+-        : (vertical ? count * dotSize + (count - 1) * dotGap + (activeLen - dotSize) : dotSize)
++    // sum of each entry's along-bar extent + the gaps between them; unaffected
++    // by icons unless wsIconsOn actually grew some entry past its base size.
++    readonly property real wsRunExtent: {
++        var sum = 0;
++        for (var i = 0; i < wsList.length; i++)
++            sum += wsAlong(wsList[i]);
++        var gap = nacre ? ringGap : (cells ? 0 : dotGap);
++        return sum + Math.max(0, wsList.length - 1) * gap;
++    }
++    readonly property real crossExtent: nacre ? ringCross : cells ? (vertical ? cellW : cellH) : dotCross
++
++    implicitWidth: vertical ? crossExtent : wsRunExtent
++    implicitHeight: vertical ? wsRunExtent : crossExtent
+ 
+     function jump(id) {
+         Hyprland.dispatch('hl.dsp.workspace.move({ workspace = ' + id + ', monitor = "current" })');
+@@ -122,6 +190,16 @@ Item {
+         onWheel: (w) => strip.walk(w.angleDelta.y > 0 ? -1 : 1)
+     }
+ 
++    // one tiny app icon, shared by the noctalia and nacre icon rows/columns.
++    Component {
++        id: wsIconD
++        IconImage {
++            required property string modelData
++            implicitSize: strip.wsIconPx
++            source: strip.iconFor(modelData)
++        }
++    }
++
+     // ---- numeral cells: caelestia, aegis, stele --------------------------
+     Item {
+         visible: strip.cells
+@@ -226,9 +304,16 @@ Item {
+                 readonly property int wsId: nPill.modelData
+                 readonly property bool active: nPill.wsId === strip.activeWsId
+                 readonly property bool occupied: strip.occupiedSet[wsId] === true
+-                width: strip.vertical ? strip.dotSize : (active ? strip.activeLen : strip.dotSize)
+-                height: strip.vertical ? (active ? strip.activeLen : strip.dotSize) : strip.dotSize
+-                radius: strip.dotSize / 2
++                readonly property var classes: strip.wsIconsOn ? (strip.classesByWs[wsId] || []) : []
++                readonly property bool showIcons: classes.length > 0
++                readonly property real iconRunExtent: classes.length * strip.wsIconPx
++                    + Math.max(0, classes.length - 1) * strip.wsIconGap
++                readonly property real along: showIcons
++                    ? (iconRunExtent + 2 * strip.wsIconPadAlong)
++                    : (active ? strip.activeLen : strip.dotSize)
++                width: strip.vertical ? strip.dotCross : along
++                height: strip.vertical ? along : strip.dotCross
++                radius: Math.min(width, height) / 2
+                 color: active ? Theme.verm
+                     : (occupied ? Qt.alpha(Theme.cream, 0.55) : Qt.alpha(Theme.cream, 0.18))
+                 Behavior on width { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
+@@ -237,7 +322,7 @@ Item {
+ 
+                 Text {
+                     anchors.centerIn: parent
+-                    visible: nPill.active
++                    visible: nPill.active && !nPill.showIcons
+                     text: nPill.wsId - strip.base
+                     color: Theme.cardBot
+                     font.family: Theme.font
+@@ -245,6 +330,20 @@ Item {
+                     font.weight: Font.Bold
+                     font.features: ({ "tnum": 1 })
+                 }
++                Row {
++                    visible: !strip.vertical && nPill.showIcons
++                    anchors.centerIn: parent
++                    spacing: strip.wsIconGap
++                    opacity: nPill.active ? 1.0 : 0.55
++                    Repeater { model: nPill.classes; delegate: wsIconD }
++                }
++                Column {
++                    visible: strip.vertical && nPill.showIcons
++                    anchors.centerIn: parent
++                    spacing: strip.wsIconGap
++                    opacity: nPill.active ? 1.0 : 0.55
++                    Repeater { model: nPill.classes; delegate: wsIconD }
++                }
+                 MouseArea {
+                     anchors.fill: parent
+                     cursorShape: Qt.PointingHandCursor
+@@ -271,10 +370,18 @@ Item {
+                 required property int modelData
+                 readonly property bool active: nRing.modelData === strip.activeWsId
+                 readonly property bool occupied: strip.occupiedSet[nRing.modelData] === true
+-                width: strip.ringActive
+-                height: strip.ringActive
++                readonly property var classes: strip.wsIconsOn ? (strip.classesByWs[nRing.modelData] || []) : []
++                readonly property bool showIcons: classes.length > 0
++                readonly property real iconRunExtent: classes.length * strip.wsIconPx
++                    + Math.max(0, classes.length - 1) * strip.wsIconGap
++                readonly property real along: showIcons
++                    ? (iconRunExtent + 2 * strip.wsIconPadAlong)
++                    : strip.ringActive
++                width: strip.vertical ? strip.ringCross : along
++                height: strip.vertical ? along : strip.ringCross
+ 
+                 Rectangle {
++                    visible: !nRing.showIcons
+                     anchors.centerIn: parent
+                     width: nRing.active ? strip.ringActive : strip.ringSize
+                     height: width
+@@ -286,6 +393,29 @@ Item {
+                     Behavior on width { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
+                     Behavior on border.color { ColorAnimation { duration: Motion.effects } }
+                 }
++                // occupied + icons on: the hollow ring gives way to a faint
++                // filled chip, since a ring's own outline leaves no room to
++                // carry icons.
++                Rectangle {
++                    visible: nRing.showIcons
++                    anchors.fill: parent
++                    radius: Math.min(width, height) / 2
++                    color: nRing.active ? Qt.alpha(Theme.verm, 0.20) : Qt.alpha(Theme.cream, 0.10)
++                }
++                Row {
++                    visible: !strip.vertical && nRing.showIcons
++                    anchors.centerIn: parent
++                    spacing: strip.wsIconGap
++                    opacity: nRing.active ? 1.0 : 0.55
++                    Repeater { model: nRing.classes; delegate: wsIconD }
++                }
++                Column {
++                    visible: strip.vertical && nRing.showIcons
++                    anchors.centerIn: parent
++                    spacing: strip.wsIconGap
++                    opacity: nRing.active ? 1.0 : 0.55
++                    Repeater { model: nRing.classes; delegate: wsIconD }
++                }
+                 MouseArea {
+                     anchors.fill: parent
+                     cursorShape: Qt.PointingHandCursor
+diff --git a/ryoku/shell/quickshell/pill/Singletons/Config.qml b/ryoku/shell/quickshell/pill/Singletons/Config.qml
+index 7229ed51..a0d1e616 100644
+--- a/ryoku/shell/quickshell/pill/Singletons/Config.qml
++++ b/ryoku/shell/quickshell/pill/Singletons/Config.qml
+@@ -48,7 +48,9 @@ Singleton {
+     // active one), hiding empty numbers. barShowStats gates the CPU/RAM/temp
+     // readout on noctalia only (native and unconditional on nacre and the flat
+     // skins); barShowNetSpeed gates the network readout everywhere it appears
+-    // (noctalia, nacre, inir/aurora/angel).
++    // (noctalia, nacre, inir/aurora/angel). barWorkspaceIcons swaps an occupied
++    // workspace's numeral for tiny per-window app icons (noctalia/nacre and
++    // their siblings only).
+     property alias barEnabled:            adapter.barEnabled
+     property alias barPosition:           adapter.barPosition
+     property alias barStyle:              adapter.barStyle
+@@ -59,6 +61,7 @@ Singleton {
+     property alias barShowStats:          adapter.barShowStats
+     property alias barShowNetSpeed:       adapter.barShowNetSpeed
+     property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
++    property alias barWorkspaceIcons:     adapter.barWorkspaceIcons
+     // delos = the single floating-island bar. islandModules names the modules
+     // it carries, in display order, and the user picks them (power is not one:
+     // Super+Esc opens it). islandEdge / islandAlong persist where it last
+@@ -156,6 +159,7 @@ Singleton {
+             property bool barShowStats: true
+             property bool barShowNetSpeed: true
+             property bool barOccupiedWorkspaces: true
++            property bool barWorkspaceIcons: false
+             property string islandEdge: "top"
+             property real islandAlong: -1
+             property bool islandHidden: false
+-- 
+2.55.0
+
