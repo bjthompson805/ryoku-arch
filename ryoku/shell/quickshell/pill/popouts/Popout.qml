@@ -97,8 +97,14 @@ Item {
     // the body-hover hold only applies to hover-driven popouts (edge band or a
     // bar module): a click-pinned popout must close the moment it's unpinned
     // (close button, Escape, keybind re-toggle), even under the pointer.
+    // a host can feed in hover state from outside its own tree (e.g. a region
+    // that's shadowed by something else painting above this popout, like the
+    // bar riding above a full-span sidebar's body -- see shell.qml) that
+    // should hold an already-open popout open the same way its own body does,
+    // but must never be able to open it fresh the way triggerHovered can.
+    property bool extraHold: false
     readonly property bool hovered: (hoverOpen && triggerHH.hovered) || triggerHovered
-        || (bodyHH.hovered && (hoverOpen || closeDelay > 0))
+        || ((bodyHH.hovered || edgeGapHH.hovered || extraHold) && (hoverOpen || closeDelay > 0))
     // host gates this off while a centre surface is open or a window is
     // fullscreen, so an edge hover never fights a modal surface.
     property bool active: true
@@ -167,6 +173,18 @@ Item {
     readonly property real bodyW: curW
     readonly property real bodyH: spanning ? height : curH
 
+    // the body stops `frameThickness` short of the true screen edge (the neck
+    // where the blob fuses into the border) -- with `trigger` zeroed out below
+    // (every popout in this shell sets hoverOpen: false), that strip carries no
+    // HoverHandler at all, and it's exactly where the pointer clamps once it
+    // reaches the physical screen edge. cover it here so hovering all the way
+    // out to the edge still reads as hovering the popout instead of dropping
+    // `hovered` and closing out from under a pointer that never left.
+    readonly property real edgeGapX: atLeft ? 0 : atRight ? (width - frameThickness) : bodyX
+    readonly property real edgeGapY: atTop ? 0 : atBottom ? (height - frameThickness) : bodyY
+    readonly property real edgeGapW: vertical ? frameThickness + 2 : bodyW
+    readonly property real edgeGapH: vertical ? bodyH : frameThickness + 2
+
     // hover trigger = the frame border itself: a thin strip of the frame next
     // to the popout, `frameThickness` deep (same pixels the mixer/power popouts
     // use). spans the frame next to the body but capped so it's a small,
@@ -186,17 +204,31 @@ Item {
     // starts. prog never appears here, so a melt tick cannot recommit the
     // wayland input region 60 times a second (the close-time frame drops), and
     // a melting body stops eating clicks the instant it is dismissed.
-    readonly property real maskX: atLeft ? frameThickness
+    //
+    // this is the region the compositor actually delivers pointer events to
+    // (shell.qml unions it into the overlay's real wayland input mask) -- it
+    // is NOT just a visual convenience, so it must reach the true screen edge
+    // on the border side, same as edgeGapX/Y/W/H below reach for hover: the
+    // body itself stops `frameThickness` short of that edge (the neck), and
+    // without the mask covering that strip too, no pointer event ever reaches
+    // it at all, no matter what QML-level HoverHandler waits there.
+    readonly property real maskX: atLeft ? 0
                                 : atRight ? (width - frameThickness - bodyOpenW)
                                 : hugRight ? (width - bodyOpenW)
                                 : hugLeft ? 0
                                 : alongX
     readonly property real maskY: spanning ? 0
-                                : atTop ? frameThickness
+                                : atTop ? 0
                                 : atBottom ? (height - frameThickness - bodyOpenH)
                                 : alongY
-    readonly property real maskW: heldOpen ? bodyOpenW : 0
-    readonly property real maskH: heldOpen ? bodyOpenH : 0
+    // Region's x/y/width/height are int-typed, and maskX/maskW are each
+    // independently truncated to get there -- a fractional `s` scale (an odd
+    // fontScale, non-integer monitor scaling, ...) can drop up to ~2px off the
+    // combined right/bottom edge that way, right where the cursor clamps at
+    // the physical screen edge. pad past the true edge so truncation can
+    // never reopen the gap it's here to close.
+    readonly property real maskW: heldOpen ? (vertical ? bodyOpenW + frameThickness + 2 : bodyOpenW) : 0
+    readonly property real maskH: heldOpen ? (vertical ? bodyOpenH : bodyOpenH + frameThickness + 2) : 0
 
     states: State {
         name: "open"
@@ -312,5 +344,16 @@ Item {
         width: root.triggerW
         height: root.triggerH
         HoverHandler { id: triggerHH }
+    }
+
+    // only ever holds an already-open popout open (see edgeGapX/Y/W/H above);
+    // disabled while closed so it can never be what opens one.
+    Item {
+        id: edgeGap
+        x: root.edgeGapX
+        y: root.edgeGapY
+        width: root.edgeGapW
+        height: root.edgeGapH
+        HoverHandler { id: edgeGapHH; enabled: root.heldOpen }
     }
 }
