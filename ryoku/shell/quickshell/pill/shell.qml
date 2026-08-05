@@ -1199,6 +1199,38 @@ ShellRoot {
                     height: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.height : 0
                     onDropped: (drop) => { for (var i = 0; i < drop.urls.length; i++) Stash.addUrl(drop.urls[i]); drop.accept(); }
                 }
+                // the bar rides above every popout's body (topBar: z 1, see the
+                // comment there), which for most popouts only ever covers their
+                // thin neck -- but a full-span sidebar's body runs right through
+                // the bar's own strip, so wherever the two overlap the bar wins
+                // the pointer and the sidebar's own body/edgeGap HoverHandlers
+                // underneath never see it, dropping `hovered` and closing the
+                // sidebar out from under a pointer sitting on/around a bar icon
+                // (e.g. power) even though it's still over the open panel. the
+                // corner hotspot (z 3) compounds it: its own hit square
+                // (sidebarCornerSize, ~34px scaled) is much bigger than the
+                // tight sub-zone that actually arms it (reach, ~6px scaled), so
+                // its z 3 alone shadows everything underneath across that whole
+                // outer ring too, not just its tight core.
+                // covers 0..sidebarTopGap: the same inset SidebarFeatures/System
+                // give their own content (topInset) to clear the bar, so this
+                // band never overlaps a real interactive element underneath --
+                // z 4 (above the corner) would otherwise steal hover from the
+                // sidebar's own buttons/icons (killing their cursor/glow) if it
+                // reached any further down, which is why this does NOT just
+                // blanket the whole column. hover-only, invisible, and gated to
+                // matter only once already open, so it can never be what opens
+                // the sidebar fresh, and the corner's own arm/open bookkeeping
+                // underneath is no longer needed by the time it's live.
+                Item {
+                    id: sidebarLeftBarGap
+                    z: 4
+                    x: 0
+                    y: 0
+                    width: sidebarLeftPop.maskX + sidebarLeftPop.maskW
+                    height: overlay.sidebarTopGap
+                    HoverHandler { id: sidebarLeftBarGapHH; enabled: sidebarLeftPop.heldOpen }
+                }
                 Popout {
                     id: sidebarLeftPop
                     group: blobGroup
@@ -1211,6 +1243,7 @@ ShellRoot {
                     s: overlay.s
                     active: overlay.sidebarLeftOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarLeft")
                     triggerHovered: (Config.sidebarClickless && sidebarLeftCorner.armed) || overlay.leftDragActive
+                    extraHold: sidebarLeftBarGapHH.hovered
                     pinned: root.popout === "sidebarLeft" && root.popoutMon === overlay.modelData.name
                     fullSpan: true
                     openW: overlay.sidebarW
@@ -1255,6 +1288,17 @@ ShellRoot {
                         onTapped: root.togglePopout(overlay.modelData.name, "sidebarRight")
                     }
                 }
+                // mirror of sidebarLeftBarGap above -- see that comment for why
+                // this is needed at all.
+                Item {
+                    id: sidebarRightBarGap
+                    z: 4
+                    x: sidebarRightPop.maskX
+                    y: 0
+                    width: overlay.width - x
+                    height: overlay.sidebarTopGap
+                    HoverHandler { id: sidebarRightBarGapHH; enabled: sidebarRightPop.heldOpen }
+                }
                 Popout {
                     id: sidebarRightPop
                     group: blobGroup
@@ -1267,6 +1311,7 @@ ShellRoot {
                     s: overlay.s
                     active: overlay.sidebarRightOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarRight")
                     triggerHovered: Config.sidebarClickless && sidebarRightCorner.armed
+                    extraHold: sidebarRightBarGapHH.hovered
                     pinned: root.popout === "sidebarRight" && root.popoutMon === overlay.modelData.name
                     fullSpan: true
                     openW: overlay.sidebarW
