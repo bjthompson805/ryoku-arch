@@ -9,9 +9,11 @@ import Quickshell
  * that paints a window icon (minimized tray, ws switcher).
  */
 Singleton {
-    function iconFor(t) {
-        var cls = (t && t.lastIpcObject && t.lastIpcObject.class) ? t.lastIpcObject.class
-            : (t && t.wayland && t.wayland.appId ? t.wayland.appId : "");
+    // resolve an icon path from a raw window class / app-id string, e.g.
+    // ToplevelManager.activeToplevel.appId (a generic wlr toplevel, not a
+    // Hyprland one -- iconFor below can't be used there, it needs the
+    // Hyprland-specific class/appId fields).
+    function iconForClass(cls) {
         if (!cls)
             return "";
         var apps = DesktopEntries.applications.values;
@@ -21,5 +23,11 @@ Singleton {
                 return Quickshell.iconPath(e.icon, "application-x-executable");
         }
         return Quickshell.iconPath(cls, "application-x-executable");
+    }
+
+    function iconFor(t) {
+        var cls = (t && t.lastIpcObject && t.lastIpcObject.class) ? t.lastIpcObject.class
+            : (t && t.wayland && t.wayland.appId ? t.wayland.appId : "");
+        return iconForClass(cls);
     }
 }
