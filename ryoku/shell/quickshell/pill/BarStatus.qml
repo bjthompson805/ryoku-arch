@@ -209,4 +209,12 @@ Grid {
         color: Theme.flameGlow
         font.pixelSize: status.glyphPx
     }
+
+    // game mode shows only while it's on.
+    MaterialIcon {
+        visible: Flags.gameMode
+        text: "sports_esports"
+        color: Theme.flameGlow
+        font.pixelSize: status.glyphPx
+    }
 }
