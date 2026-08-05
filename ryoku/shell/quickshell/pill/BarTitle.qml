@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Widgets
 import "Singletons"
 
 // the focused-window title. on a focus change the outgoing title cross-fades
@@ -6,20 +7,28 @@ import "Singletons"
 // new length instead of snapping, so the left island and its frame lobe resize
 // smoothly. the live layer is bound straight to the source, so the title always
 // shows; an empty title (no window, or the toggle off) collapses to nothing.
+// iconSource, when set, paints the focused window's app icon ahead of the
+// title text; it's bound straight to the source like the live text layer, no
+// cross-fade of its own.
 Item {
     id: root
 
     property real s: 1
     property string label: ""
+    property string iconSource: ""
     property real maxWidth: 240
     readonly property real lead: 6 * s
+    readonly property bool hasIcon: iconSource.length > 0
+    readonly property real iconSize: 12 * s
+    readonly property real iconGap: 5 * s
+    readonly property real textLead: lead + (hasIcon ? iconSize + iconGap : 0)
 
     property bool ready: false
     property string prevLabel: ""
     Component.onCompleted: { prevLabel = label; ready = true; }
 
     clip: true
-    width: label.length > 0 ? Math.min(metrics.implicitWidth, maxWidth - lead) + lead : 0
+    width: label.length > 0 ? Math.min(metrics.implicitWidth, maxWidth - textLead) + textLead : 0
     implicitWidth: width
     height: metrics.implicitHeight
     implicitHeight: height
@@ -52,12 +61,22 @@ Item {
         font.weight: Font.Medium
     }
 
+    // the focused window's app icon, ahead of the title text.
+    IconImage {
+        id: icon
+        visible: root.hasIcon
+        x: root.lead
+        anchors.verticalCenter: parent.verticalCenter
+        implicitSize: root.iconSize
+        source: root.iconSource
+    }
+
     // the old title, held and faded out on a change.
     Text {
         id: ghost
-        x: root.lead
+        x: root.textLead
         anchors.verticalCenter: parent.verticalCenter
-        width: root.width - root.lead
+        width: root.width - root.textLead
         elide: Text.ElideRight
         color: Theme.dim
         font: metrics.font
@@ -66,9 +85,9 @@ Item {
     // the current title.
     Text {
         id: live
-        x: root.lead
+        x: root.textLead
         anchors.verticalCenter: parent.verticalCenter
-        width: root.width - root.lead
+        width: root.width - root.textLead
         elide: Text.ElideRight
         text: root.label
         color: Theme.dim
