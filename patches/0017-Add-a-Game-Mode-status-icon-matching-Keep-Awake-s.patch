@@ -1,0 +1,29 @@
+From 0db9ceb17027914c64dc0c49fdb0d47004375f36 Mon Sep 17 00:00:00 2001
+From: Brandon Thompson <brandon.joseph.thompson@gmail.com>
+Date: Wed, 5 Aug 2026 10:46:17 -0700
+Subject: [PATCH] Patch: Add a Game Mode status icon, matching Keep Awake's.
+
+---
+ ryoku/shell/quickshell/pill/BarStatus.qml | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/ryoku/shell/quickshell/pill/BarStatus.qml b/ryoku/shell/quickshell/pill/BarStatus.qml
+index 1e36773f..d6356cef 100644
+--- a/ryoku/shell/quickshell/pill/BarStatus.qml
++++ b/ryoku/shell/quickshell/pill/BarStatus.qml
+@@ -209,4 +209,12 @@ Grid {
+         color: Theme.flameGlow
+         font.pixelSize: status.glyphPx
+     }
++
++    // game mode shows only while it's on.
++    MaterialIcon {
++        visible: Flags.gameMode
++        text: "sports_esports"
++        color: Theme.flameGlow
++        font.pixelSize: status.glyphPx
++    }
+ }
+-- 
+2.55.0
+
