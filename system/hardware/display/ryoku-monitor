@@ -291,16 +291,31 @@ cmd_autoscale() {
   # two passes. first, apply each monitor's DPI scale: Hyprland snaps a
   # requested scale to the nearest one that yields whole logical pixels (e.g.
   # 1.5 on a 2560 panel -> 1.6), so the accepted scale is only known once
-  # it's applied.
-  local name mode wanted current
-  while IFS='|' read -r name mode _ wanted current; do
-    [[ -n $name ]] || continue
-    grep -qxF "$name" <<<"$pinned" && continue
-    if awk -v a="$current" -v b="$wanted" 'BEGIN { exit (a == b) ? 1 : 0 }'; then
-      apply_monitor "output = \"$name\", mode = \"$mode\", scale = $wanted"
-      echo "ryoku-monitor: $name -> scale $wanted"
-    fi
-  done < <(monitors_json | dpi_specs)
+  # it's applied. re-checked and reapplied a few times (bounded, like
+  # settle_modes below): at login the panel can still be modesetting on its
+  # own -- observed 2-3 modesets for a single internal eDP panel during one
+  # boot -- and a `hyprctl eval` that lands mid-negotiation gets silently
+  # overwritten by Hyprland's own resolution a moment later, so a single
+  # apply isn't trustworthy here. write_monitors_conf below persists whatever
+  # is live once this loop is done, so an unnoticed clobber would otherwise
+  # get baked into the drop-in and outlive the session.
+  local name mode wanted current tries=0 max_tries=5 drift
+  while ((tries < max_tries)); do
+    drift=0
+    while IFS='|' read -r name mode _ wanted current; do
+      [[ -n $name ]] || continue
+      grep -qxF "$name" <<<"$pinned" && continue
+      if awk -v a="$current" -v b="$wanted" 'BEGIN { exit (a == b) ? 1 : 0 }'; then
+        apply_monitor "output = \"$name\", mode = \"$mode\", scale = $wanted"
+        echo "ryoku-monitor: $name -> scale $wanted"
+        drift=1
+      fi
+    done < <(monitors_json | dpi_specs)
+    ((drift)) || break
+    [[ -n ${RYOKU_MONITOR_JSON:-} ]] && break
+    tries=$((tries + 1))
+    ((tries < max_tries)) && sleep 0.3
+  done
 
   # then lay the displays in one non-overlapping row, left-to-right by current
   # x, advancing by each monitor's real logical width (pixels / accepted scale).
