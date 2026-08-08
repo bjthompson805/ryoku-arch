@@ -143,9 +143,18 @@ Item {
     readonly property var wsList: {
         var out = [];
         if (Config.barOccupiedWorkspaces) {
+            // fill gaps below the highest occupied workspace too, so an empty
+            // ws2 still shows when ws3 has windows -- only the tail past the
+            // last occupied one (or the active one, if it sits further out)
+            // stays collapsed.
+            var maxOccupied = 0;
             for (var i = 1; i <= 10; i++) {
-                var id = base + i;
-                if (occupiedSet[id] || id === activeWsId)
+                if (occupiedSet[base + i])
+                    maxOccupied = i;
+            }
+            for (var j = 1; j <= 10; j++) {
+                var id = base + j;
+                if (j <= maxOccupied || id === activeWsId)
                     out.push(id);
             }
             if (out.length === 0)
