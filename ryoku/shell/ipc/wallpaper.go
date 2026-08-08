@@ -37,6 +37,15 @@ func liveDir() string   { return filepath.Join(os.Getenv("HOME"), "Pictures", "l
 func wallState() string { return filepath.Join(stateDir(), "ryoku-wallpaper") }
 func wallBag() string   { return filepath.Join(stateDir(), "ryoku-wallpaper-bag") }
 
+// gameModeOn reports whether ryoku-cmd-game-mode's own marker is present. Its
+// state lives under a "ryoku" subdirectory (unlike this file's flat
+// ryoku-*-prefixed files) because the script and the Flags.qml singleton share
+// that layout; mirror it here rather than plumb the path in.
+func gameModeOn() bool {
+	_, err := os.Stat(filepath.Join(stateDir(), "ryoku", "game-mode.enabled"))
+	return err == nil
+}
+
 // transition = flags appended after `awww img <pic>`. Super+W picks one at random
 // so consecutive switches feel varied.
 type transition struct {
@@ -559,6 +568,16 @@ func (d *daemon) paintWorker() {
 		}
 		_ = exec.Command("wallust", append([]string{"run", src}, tuneArgs()...)...).Run()
 		_ = exec.Command("hyprctl", "reload", "config-only").Run()
+		// a reload rereads the Lua config, which wipes any runtime `hyprctl eval`
+		// override -- including Game Mode's compositor tuning (see
+		// ryoku-cmd-game-mode's own hypr_fast comment). This repaint runs off
+		// wallInit at every daemon bootstrap, racing Game Mode's own re-apply from
+		// the same login with no ordering between the two, so a repaint landing
+		// second silently undoes it. Re-assert whenever Game Mode is the one
+		// currently on; idempotent and cheap either way.
+		if gameModeOn() {
+			_ = exec.Command("ryoku-cmd-game-mode", "start").Run()
+		}
 		select {
 		case d.ledsSig <- struct{}{}:
 		default:
