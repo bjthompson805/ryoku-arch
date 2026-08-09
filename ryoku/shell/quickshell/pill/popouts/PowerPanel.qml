@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Widgets
 import ".."
 import "../Singletons"
 
@@ -16,6 +17,19 @@ Item {
     property real s: 1
     property bool open: false
     signal closeRequested()
+
+    // the popout host's own blob-body corner radii (see Popout.qml), so the
+    // hero below can clip to match instead of squaring off a rounded corner.
+    property real heroTopLeftRadius: 0
+    property real heroTopRightRadius: 0
+
+    // the blob's border (shell.qml's blobGroup.borderWidth) is a ~1.5px band
+    // drawn just INSIDE the shape's silhouette, not outside it -- content
+    // painted flush to the edge covers that band on any side that isn't
+    // fused into the frame, corner radius or not. inset the hero off its
+    // three exposed edges (left/top/right; the bottom transitions into the
+    // strip, not a body edge) to clear it.
+    readonly property real edgeInset: 3 * root.s
 
     readonly property real cardW: 640 * root.s
     readonly property real heroH: 260 * root.s
@@ -39,14 +53,28 @@ Item {
     MouseArea { anchors.fill: parent }
 
     // ── hero: the live wallpaper ──────────────────────────────────────────
-    WallpaperHero {
-        id: hero
-        anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: root.heroH
-        active: root.open
-        path: Session.wallpaper
-        isVideo: Session.wallIsVideo
-        poster: Session.livePoster
+    // clipped to the blob body's own top corner radii: a plain rectangular
+    // hero would square off whatever corner the blob rounds and cover the
+    // border there.
+    ClippingRectangle {
+        id: heroClip
+        anchors {
+            left: parent.left; right: parent.right; top: parent.top
+            leftMargin: root.edgeInset; rightMargin: root.edgeInset; topMargin: root.edgeInset
+        }
+        height: root.heroH - root.edgeInset
+        color: "transparent"
+        topLeftRadius: Math.max(0, root.heroTopLeftRadius - root.edgeInset)
+        topRightRadius: Math.max(0, root.heroTopRightRadius - root.edgeInset)
+
+        WallpaperHero {
+            id: hero
+            anchors.fill: parent
+            active: root.open
+            path: Session.wallpaper
+            isVideo: Session.wallIsVideo
+            poster: Session.livePoster
+        }
 
         // fade the hero's foot into the strip so hero and strip read as one body.
         Rectangle {

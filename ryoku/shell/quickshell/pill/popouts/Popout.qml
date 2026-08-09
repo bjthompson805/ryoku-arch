@@ -310,6 +310,15 @@ Item {
         implicitHeight: root.spanning ? (root.height + 120) : (root.bodyH > 0 ? Math.max(0, root.bodyH + neckH - (root.vertical ? 0 : root.burial)) : 0)
     }
 
+    // corner radii actually applied to the blob body, for content that paints
+    // its own edge-to-edge fill (a wallpaper hero, album art, ...). without
+    // this, a plain rectangular fill squares off whichever corner the blob
+    // rounds, and reads as the frame border thinning or vanishing there.
+    property alias contentTopLeftRadius: bodyBlob.topLeftRadius
+    property alias contentTopRightRadius: bodyBlob.topRightRadius
+    property alias contentBottomLeftRadius: bodyBlob.bottomLeftRadius
+    property alias contentBottomRightRadius: bodyBlob.bottomRightRadius
+
     // content at full size, revealed by a widening clip anchored to the border
     // side -> curtain reveals edge-first; content never reflows.
     Item {

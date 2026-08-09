@@ -805,6 +805,8 @@ ShellRoot {
                         id: powerContent
                         s: overlay.s
                         open: powerPop.prog > 0.5
+                        heroTopLeftRadius: powerPop.contentTopLeftRadius
+                        heroTopRightRadius: powerPop.contentTopRightRadius
                         onCloseRequested: root.popout = ""
                     }
                 }
