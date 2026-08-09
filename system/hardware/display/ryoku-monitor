@@ -36,6 +36,26 @@ monitors_user="${RYOKU_MONITORS_USER:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/mon
 # forced DPI pass wipes it.
 applied_layout="${RYOKU_MONITORS_APPLIED:-${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/monitors-applied.json}"
 
+# atomically replace $1 with stdin: write to a same-directory temp file, then
+# rename. autostart.lua's unconditional `ryoku-monitor autoscale` and
+# displays.lua's `monitor.added` handler both fire at login -- Hyprland emits
+# monitor.added for outputs already present at its own startup enumeration,
+# not just true hotplugs -- so two autoscale runs can race to write
+# monitors_conf at once. writing straight into the destination with a plain
+# `>` redirect truncates it once at open, so a slower run resuming its own
+# write after a faster concurrent run already replaced the file can leave
+# that run's leftover tail bytes trailing a shorter write (observed as a
+# stray trailing `)` -- the tail of the other run's last line -- breaking the
+# Lua syntax). rename is atomic, so the file is always one run's complete,
+# valid content, never a mix of two.
+atomic_write() {
+  local dest="$1" tmp
+  tmp="$(mktemp "${dest}.XXXXXX")"
+  cat >"$tmp"
+  chmod 644 "$tmp"
+  mv -f "$tmp" "$dest"
+}
+
 # names pinned in monitors_user.lua, one per line. empty if none.
 pinned_outputs() {
   [[ -f $monitors_user ]] || return 0
@@ -173,7 +193,7 @@ write_monitors_conf() {
     printf '\n'
     printf '%s\n' "-- Catch-all for monitors not listed above (hotplug-friendly, safe 1x default)."
     printf '%s\n' 'hl.monitor({ output = "", mode = "highrr", position = "auto", scale = 1 })'
-  } >"$monitors_conf"
+  } | atomic_write "$monitors_conf"
 }
 
 # apply one rule live. the Lua config manager rejects `hyprctl keyword`, so live
@@ -479,7 +499,7 @@ write_monitors_explicit() {
     printf '\n'
     printf '%s\n' "-- Catch-all for monitors not listed above (hotplug-friendly, safe 1x default)."
     printf '%s\n' 'hl.monitor({ output = "", mode = "highrr", position = "auto", scale = 1 })'
-  } >"$monitors_conf"
+  } | atomic_write "$monitors_conf"
 }
 
 # apply a layout live and remember it as the implicit applied layout, so the
