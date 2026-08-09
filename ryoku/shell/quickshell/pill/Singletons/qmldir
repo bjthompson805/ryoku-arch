@@ -28,3 +28,4 @@ singleton NetSpeed NetSpeed.qml
 singleton Fullscreen Fullscreen.qml
 singleton Spawn Spawn.qml
 SpawnCore SpawnCore.qml
+singleton Session Session.qml

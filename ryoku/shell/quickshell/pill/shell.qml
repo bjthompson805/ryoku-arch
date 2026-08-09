@@ -798,11 +798,14 @@ ShellRoot {
                     s: overlay.s
                     active: !overlay.monFullscreen
                     pinned: root.popout === "power" && root.popoutMon === overlay.modelData.name
-                    openW: 74 * overlay.s
-                    openH: 312 * overlay.s
+                    openW: powerContent.implicitWidth
+                    openH: powerContent.implicitHeight
 
-                    Power {
+                    PowerPanel {
+                        id: powerContent
                         s: overlay.s
+                        open: powerPop.prog > 0.5
+                        onCloseRequested: root.popout = ""
                     }
                 }
 
