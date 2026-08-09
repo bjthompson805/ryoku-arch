@@ -353,7 +353,7 @@ Item {
             onVisibleChanged: if (!visible) hud.hoverPopoutRequested("media", false)
         }
     }
-    Component { id: titleComp; BarTitle { s: hud.s; maxWidth: 220 * hud.s; label: Config.barShowTitle && ToplevelManager.activeToplevel ? (ToplevelManager.activeToplevel.title || "") : ""; iconSource: Config.barShowTitle && ToplevelManager.activeToplevel ? Apps.iconForClass(ToplevelManager.activeToplevel.appId) : "" } }
+    Component { id: titleComp; BarTitle { s: hud.s; maxWidth: 220 * hud.s; label: Config.barShowTitle && ToplevelManager.activeToplevel ? (ToplevelManager.activeToplevel.title || "") : ""; iconSource: Config.barShowTitle && ToplevelManager.activeToplevel ? Apps.iconForClass(ToplevelManager.activeToplevel.appId) : ""; onRequestPopout: (name, center) => hud.popoutRequested(name) } }
     Component { id: statusComp; BarStatus { s: hud.s; vertical: hud.layoutVertical; onRequestPopout: (name, center) => hud.popoutRequested(name) } }
     Component { id: trayComp; BarTray { s: hud.s; vertical: hud.layoutVertical; trayWindow: hud.trayWindow; menuEdgeY: hud.py + hud.bodyH } }
 

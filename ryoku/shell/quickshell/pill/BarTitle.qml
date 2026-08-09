@@ -9,7 +9,9 @@ import "Singletons"
 // shows; an empty title (no window, or the toggle off) collapses to nothing.
 // iconSource, when set, paints the focused window's app icon ahead of the
 // title text; it's bound straight to the source like the live text layer, no
-// cross-fade of its own.
+// cross-fade of its own. clicking it (while a window is focused) opens the
+// window-info popout, off the same requestPopout(name, center) convention as
+// BarStats/BarNetSpeed.
 Item {
     id: root
 
@@ -22,6 +24,13 @@ Item {
     readonly property real iconSize: 12 * s
     readonly property real iconGap: 5 * s
     readonly property real textLead: lead + (hasIcon ? iconSize + iconGap : 0)
+
+    signal requestPopout(string name, real center)
+
+    function open() {
+        const p = root.mapToItem(null, root.width / 2, root.height / 2);
+        root.requestPopout("windowinfo", p.x);
+    }
 
     property bool ready: false
     property string prevLabel: ""
@@ -93,5 +102,12 @@ Item {
         color: Theme.dim
         font: metrics.font
         opacity: 1
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.label.length > 0
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.open()
     }
 }

@@ -60,7 +60,10 @@ A left group and a right group flank the centred clock:
 - **力 seal** the brand mark and launcher trigger; a bare glyph (a `BarModule`
   with `filled: false`), not a control capsule.
 - **workspaces** (`BarWorkspaces`) the skin's workspace strip.
-- **focused title** the active window's title.
+- **focused title** the active window's title; clicking it opens the
+  window-info popout (`WindowInfoPopout`) with the window's class, workspace,
+  monitor, geometry and floating/fullscreen state, and the process behind it
+  (pid, command line, live CPU/memory).
 - **clock** (`BarClock`, centred) the time; clicking opens the calendar popout.
 - **now-playing** (`BarMedia`) the track's art + title; clicking toggles play, the
   wheel nudges volume, and hovering opens the transport popout (`MediaPopout`).

@@ -613,6 +613,7 @@ ShellRoot {
                 Region { x: networkPop.maskX; y: networkPop.maskY; width: networkPop.maskW; height: networkPop.maskH }
                 Region { x: batteryPop.maskX; y: batteryPop.maskY; width: batteryPop.maskW; height: batteryPop.maskH }
                 Region { x: bluetoothPop.maskX; y: bluetoothPop.maskY; width: bluetoothPop.maskW; height: bluetoothPop.maskH }
+                Region { x: windowInfoPop.maskX; y: windowInfoPop.maskY; width: windowInfoPop.maskW; height: windowInfoPop.maskH }
                 Region { x: calendarPop.maskX; y: calendarPop.maskY; width: calendarPop.maskW; height: calendarPop.maskH }
                 Region { x: clipboardPop.maskX; y: clipboardPop.maskY; width: clipboardPop.maskW; height: clipboardPop.maskH }
                 Region { x: linkPop.maskX; y: linkPop.maskY; width: linkPop.maskW; height: linkPop.maskH }
@@ -898,6 +899,31 @@ ShellRoot {
                         id: netSpeedContent
                         s: overlay.s
                         open: netSpeedPop.prog > 0.5
+                    }
+                }
+
+                // window-info popout: opened from the bar's title module, the
+                // focused window's class/workspace/geometry and the process
+                // behind it grow from the bar edge at the title.
+                Popout {
+                    id: windowInfoPop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.popoutCenter
+                    s: overlay.s
+                    active: !overlay.monFullscreen
+                    pinned: root.popout === "windowinfo" && root.popoutMon === overlay.modelData.name
+                    openW: windowInfoContent.implicitWidth
+                    openH: windowInfoContent.implicitHeight
+
+                    WindowInfoPopout {
+                        id: windowInfoContent
+                        s: overlay.s
+                        open: windowInfoPop.prog > 0.5
                     }
                 }
 

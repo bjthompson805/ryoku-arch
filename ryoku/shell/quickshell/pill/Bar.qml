@@ -171,6 +171,7 @@ Item {
                     maxWidth: (bar.triptych ? 240 : 340) * bar.s
                     label: Config.barShowTitle && ToplevelManager.activeToplevel ? (ToplevelManager.activeToplevel.title || "") : ""
                     iconSource: Config.barShowTitle && ToplevelManager.activeToplevel ? Apps.iconForClass(ToplevelManager.activeToplevel.appId) : ""
+                    onRequestPopout: (name, center) => bar.popoutRequested(name, center)
                 }
             }
         }
@@ -447,6 +448,7 @@ Item {
                         maxWidth: nLeftCap.titleMax
                         label: Config.barShowTitle && ToplevelManager.activeToplevel ? (ToplevelManager.activeToplevel.title || "") : ""
                         iconSource: Config.barShowTitle && ToplevelManager.activeToplevel ? Apps.iconForClass(ToplevelManager.activeToplevel.appId) : ""
+                        onRequestPopout: (name, center) => bar.popoutRequested(name, center)
                     }
                 }
             }
