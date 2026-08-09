@@ -663,7 +663,7 @@ ShellRoot {
                 BlobGroup {
                     id: blobGroup
                     color: Config.matchWallpaper ? Wallust.surface : Config.surfaceColor
-                    borderColor: Wallust.border
+                    borderColor: Config.matchWallpaper ? Wallust.border : Config.lockedBorderColor
                     borderWidth: 1.5
                     smoothing: Config.frameSmoothing
                     shadowStrength: Config.shadowStrength

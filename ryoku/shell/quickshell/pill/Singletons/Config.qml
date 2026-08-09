@@ -111,6 +111,15 @@ Singleton {
     // master shared with the daemon and window borders). on by default.
     property alias matchWallpaper: themeAdapter.followWallpaper
 
+    // lockedBorderColor: the fixed border colour to paint the frame/OSD
+    // silhouette with when matchWallpaper is off. Reads hypr.json's own
+    // appearance.activeBorder (read-only; Ryoku Settings' Borders tab owns it)
+    // so a locked theme's frame outline always matches the locked Hyprland
+    // window border instead of drifting with whatever the live wallpaper's
+    // wallust palette happens to be.
+    readonly property color lockedBorderColor:
+        hyprAdapter.appearance.activeBorder || "#e0563b"
+
     // brand: the desktop's mark + name, user-overridable from Ryoku Settings ->
     // Shell -> Global. a small cross-cutting identity master (like theme.json).
     // markText is the glyph/short-text seal (default 力); markImage an optional
@@ -209,6 +218,18 @@ Singleton {
             property bool markTint: true
             property string name: "Ryoku"
         }
+    }
+
+    // hypr.json's appearance section is owned by the Hub's Borders tab; read
+    // only, for lockedBorderColor above.
+    FileView {
+        id: hyprFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/hypr.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        JsonAdapter { id: hyprAdapter; property var appearance: ({}) }
     }
 
     // general.json owns clock24h (Desktop -> General settings write it); read only.
