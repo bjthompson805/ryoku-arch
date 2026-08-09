@@ -30,7 +30,18 @@ Item {
     readonly property bool hovered: ma.containsMouse
     readonly property color accent: root.confirm ? Theme.vermLit : Theme.cream
 
+    // heat.cancel() drains the fill straight back to empty the instant a hold
+    // confirms (see HeatHold.qml -- shared with the clipboard wipe button,
+    // which wants exactly that reset). a destructive session action instead
+    // needs the tile to stay full through to the panel closing, or it reads
+    // as the hold having been let go rather than fired. latched here so the
+    // fill visuals don't depend on heat's own hold value once fired; cleared
+    // on the next press so a failed dispatch (e.g. polkit deny) doesn't leave
+    // the tile stuck full for a following attempt.
+    property bool locked: false
+
     function fire() {
+        root.locked = true;
         heat.cancel();
         if (root.dispatch && root.dispatch.length)
             Hyprland.dispatch(root.dispatch);
@@ -50,7 +61,7 @@ Item {
         radius: Motion.rTile * root.s
         color: root.hovered ? Theme.frameBg : "transparent"
         border.width: 1
-        border.color: (root.hovered || heat.holding) ? Theme.frameBorder : Theme.border
+        border.color: (root.hovered || heat.holding || root.locked) ? Theme.frameBorder : Theme.border
         Behavior on color { ColorAnimation { duration: Motion.fast } }
         clip: true
 
@@ -68,8 +79,8 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: parent.height * heat.hold
-                visible: heat.holding
+                height: parent.height * (root.locked ? 1 : heat.hold)
+                visible: heat.holding || root.locked
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: Qt.alpha(Theme.verm, 0.7) }
                     GradientStop { position: 1.0; color: Qt.alpha(Theme.vermLit, 0.15) }
@@ -87,7 +98,7 @@ Item {
             width: 22 * root.s; height: 22 * root.s
             name: root.glyph
             stroke: 1.9
-            color: heat.holding ? Theme.flameCore : (root.hovered ? root.accent : Theme.iconDim)
+            color: (heat.holding || root.locked) ? Theme.flameCore : (root.hovered ? root.accent : Theme.iconDim)
             Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
         Text {
@@ -97,7 +108,7 @@ Item {
             font.pixelSize: 10 * root.s
             font.capitalization: Font.AllUppercase
             font.letterSpacing: 1
-            color: heat.holding ? Theme.flameCore : (root.hovered ? Theme.subtle : Theme.faint)
+            color: (heat.holding || root.locked) ? Theme.flameCore : (root.hovered ? Theme.subtle : Theme.faint)
             Behavior on color { ColorAnimation { duration: Motion.fast } }
         }
     }
@@ -107,7 +118,7 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onPressed: if (root.confirm) heat.press()
+        onPressed: if (root.confirm) { root.locked = false; heat.press(); }
         onReleased: if (root.confirm) heat.release()
         onCanceled: if (root.confirm) heat.cancel()
         onExited: if (root.confirm) heat.cancel()
