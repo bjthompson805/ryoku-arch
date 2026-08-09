@@ -65,11 +65,13 @@ Item {
     readonly property int rightOtherCount: (bar.noctalia && Config.barShowNetSpeed ? 1 : 0)
         + (bar.noctalia && Config.barShowStats ? 1 : 0)
         + (Config.barShowStatus ? 1 : 0)
+        + (Config.barShowWeather && Weather.available ? 1 : 0)
         + (hTray.count > 0 ? 1 : 0)
         + 1 // power, always shown
     readonly property real rightFixedWidth: (bar.noctalia && Config.barShowNetSpeed ? netSpeedLoader.width : 0)
         + (bar.noctalia && Config.barShowStats ? statsLoader.width : 0)
         + (Config.barShowStatus ? statusMod.width : 0)
+        + (Config.barShowWeather && Weather.available ? weatherMod.width : 0)
         + (hTray.count > 0 ? trayMod.width : 0)
         + hPowerMod.width
         + rightRow.spacing * Math.max(0, bar.rightOtherCount - 1)
@@ -298,6 +300,20 @@ Item {
 
                     BarStatus {
                         id: hStatus
+                        s: bar.s
+                        onRequestPopout: (name, center) => bar.popoutRequested(name, center)
+                    }
+                }
+
+                BarModule {
+                    id: weatherMod
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    visible: Config.barShowWeather && Weather.available
+                    interactive: false
+
+                    BarWeather {
                         s: bar.s
                         onRequestPopout: (name, center) => bar.popoutRequested(name, center)
                     }
@@ -543,6 +559,15 @@ Item {
                         s: bar.s
                         height: bar.moduleSpan
                         padX: 8 * bar.s
+                        visible: Config.barShowWeather && Weather.available
+                        interactive: false
+                        BarWeather { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                    }
+                    BarModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                        s: bar.s
+                        height: bar.moduleSpan
+                        padX: 8 * bar.s
                         visible: nTray.count > 0
                         interactive: false
                         BarTray { id: nTray; s: bar.s; trayWindow: bar.trayWindow; menuEdgeY: bar.height }
@@ -704,6 +729,14 @@ Item {
                     visible: Config.barShowStatus
                     interactive: false
                     BarStatus { id: flatStatus; s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                }
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    visible: Config.barShowWeather && Weather.available
+                    interactive: false
+                    BarWeather { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                 }
                 Sep { visible: bar.inir && flatTray.count > 0 }
                 BarModule {

@@ -21,7 +21,7 @@ Item {
         "shadowStrength", "shadowSize", "surfaceColor",
         "osdRadius", "osdOpacity",
         "barEnabled", "barPosition", "barStyle", "barHeight",
-        "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barOccupiedWorkspaces", "barWorkspaceIcons",
+        "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barShowWeather", "barOccupiedWorkspaces", "barWorkspaceIcons",
         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
         "fontFamily", "fontScale",
         "weatherLocation", "weatherUnit",
@@ -95,7 +95,7 @@ Item {
         "shadowStrength": 0.63, "shadowSize": 12, "surfaceColor": "#0f1115",
         "osdRadius": 28, "osdOpacity": 1,
         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
-        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barOccupiedWorkspaces": true, "barWorkspaceIcons": false,
+        "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barShowWeather": true, "barOccupiedWorkspaces": true, "barWorkspaceIcons": false,
         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
         "weatherLocation": "", "weatherUnit": "auto",
@@ -139,6 +139,7 @@ Item {
         property bool barShowStatus: true
         property bool barShowStats: true
         property bool barShowNetSpeed: true
+        property bool barShowWeather: true
         property bool barOccupiedWorkspaces: true
         property bool barWorkspaceIcons: false
         property string islandEdge: "top"
@@ -363,6 +364,7 @@ Item {
             property bool barShowStatus: true
             property bool barShowStats: true
             property bool barShowNetSpeed: true
+            property bool barShowWeather: true
             property bool barOccupiedWorkspaces: true
             property bool barWorkspaceIcons: false
             property string islandEdge: "top"
@@ -878,6 +880,12 @@ Item {
                         width: parent.width; label: "Status glyphs (network, battery, inbox)"
                         checked: draft.barShowStatus
                         onToggled: (v) => page.edit("barShowStatus", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Weather"
+                        visible: draft.barStyle !== "delos"
+                        checked: draft.barShowWeather
+                        onToggled: (v) => page.edit("barShowWeather", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Only occupied workspaces"

@@ -883,6 +883,31 @@ ShellRoot {
                     }
                 }
 
+                // weather popout: opened from the bar's weather module, the
+                // current reading + hourly strip + daily forecast grows from
+                // the bar edge at the module.
+                Popout {
+                    id: weatherPop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.popoutCenter
+                    s: overlay.s
+                    active: !overlay.monFullscreen
+                    pinned: root.popout === "weather" && root.popoutMon === overlay.modelData.name
+                    openW: wxContent.implicitWidth
+                    openH: wxContent.implicitHeight
+
+                    WeatherPopout {
+                        id: wxContent
+                        s: overlay.s
+                        open: weatherPop.prog > 0.5
+                    }
+                }
+
                 // net-speed popout: opened from the bar's net-speed module, the
                 // download / upload readout grows from the bar edge at the module.
                 Popout {

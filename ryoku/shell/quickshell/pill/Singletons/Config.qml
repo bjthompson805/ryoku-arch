@@ -48,8 +48,10 @@ Singleton {
     // active one), hiding empty numbers. barShowStats gates the CPU/RAM/temp
     // readout on noctalia only (native and unconditional on nacre and the flat
     // skins); barShowNetSpeed gates the network readout everywhere it appears
-    // (noctalia, nacre, inir/aurora/angel). barWorkspaceIcons swaps an occupied
-    // workspace's numeral for tiny per-window app icons (noctalia/nacre and
+    // (noctalia, nacre, inir/aurora/angel); barShowWeather gates the condition
+    // glyph + temperature readout everywhere except delos.
+    // barWorkspaceIcons swaps an occupied workspace's numeral for tiny
+    // per-window app icons (noctalia/nacre and
     // their siblings only).
     property alias barEnabled:            adapter.barEnabled
     property alias barPosition:           adapter.barPosition
@@ -60,6 +62,7 @@ Singleton {
     property alias barShowStatus:         adapter.barShowStatus
     property alias barShowStats:          adapter.barShowStats
     property alias barShowNetSpeed:       adapter.barShowNetSpeed
+    property alias barShowWeather:        adapter.barShowWeather
     property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
     property alias barWorkspaceIcons:     adapter.barWorkspaceIcons
     // delos = the single floating-island bar. islandModules names the modules
@@ -167,6 +170,7 @@ Singleton {
             property bool barShowStatus: true
             property bool barShowStats: true
             property bool barShowNetSpeed: true
+            property bool barShowWeather: true
             property bool barOccupiedWorkspaces: true
             property bool barWorkspaceIcons: false
             property string islandEdge: "top"
