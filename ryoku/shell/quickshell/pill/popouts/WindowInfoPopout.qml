@@ -142,7 +142,7 @@ Item {
         }
     }
 
-    // a label above a full-width, truncated mono value -- for the command
+    // a label above a full-width, wrapped mono value -- for the command
     // line, which is too long to sit beside its label on one row.
     component FullValueRow: Column {
         id: fullRow
@@ -165,7 +165,7 @@ Item {
         Text {
             width: parent.width
             text: fullRow.value
-            elide: Text.ElideRight
+            wrapMode: Text.Wrap
             color: Theme.dim
             font.family: Theme.mono
             font.pixelSize: 9.5 * root.s
