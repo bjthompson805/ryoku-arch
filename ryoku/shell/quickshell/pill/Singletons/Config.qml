@@ -52,7 +52,10 @@ Singleton {
     // glyph + temperature readout everywhere except delos.
     // barWorkspaceIcons swaps an occupied workspace's numeral for tiny
     // per-window app icons (noctalia/nacre and
-    // their siblings only).
+    // their siblings only). barShowDisplay gates the display glyph next to
+    // volume in the status cluster (panel backlight, vibrance, any external
+    // ddc monitor) -- everywhere barShowStatus appears. named "display" rather
+    // than "brightness" since it covers more than just the backlight level.
     property alias barEnabled:            adapter.barEnabled
     property alias barPosition:           adapter.barPosition
     property alias barStyle:              adapter.barStyle
@@ -63,6 +66,7 @@ Singleton {
     property alias barShowStats:          adapter.barShowStats
     property alias barShowNetSpeed:       adapter.barShowNetSpeed
     property alias barShowWeather:        adapter.barShowWeather
+    property alias barShowDisplay:        adapter.barShowDisplay
     property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
     property alias barWorkspaceIcons:     adapter.barWorkspaceIcons
     // delos = the single floating-island bar. islandModules names the modules
@@ -171,6 +175,7 @@ Singleton {
             property bool barShowStats: true
             property bool barShowNetSpeed: true
             property bool barShowWeather: true
+            property bool barShowDisplay: true
             property bool barOccupiedWorkspaces: true
             property bool barWorkspaceIcons: false
             property string islandEdge: "top"

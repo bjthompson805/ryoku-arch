@@ -77,6 +77,35 @@ Grid {
         }
     }
 
+    // display: click opens the display popout (panel backlight, vibrance,
+    // any external ddc monitor). split out of the mixer since it isn't audio;
+    // named "display" rather than "brightness" since it covers more than just
+    // the backlight level.
+    Item {
+        id: dispIcon
+        visible: Config.barShowDisplay
+        width: status.glyphPx + 4 * status.s
+        height: status.glyphPx + 4 * status.s
+
+        GlyphIcon {
+            anchors.centerIn: parent
+            // "brightness_high"/"brightness_low" read as a vague badge/rosette
+            // at this size; a dimmed sun (5 rays instead of 8) reads as low
+            // brightness without the "dark mode" connotation a moon carries,
+            // and matches the sun glyph the display popout's own fader uses.
+            width: status.glyphPx
+            height: status.glyphPx
+            name: Devices.panelBrightness > 50 ? "sun" : "sun-dim"
+            color: Theme.subtle
+            stroke: 1.7
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: status.open("display", dispIcon)
+        }
+    }
+
     // network: click opens the network popout.
     Item {
         id: netIcon

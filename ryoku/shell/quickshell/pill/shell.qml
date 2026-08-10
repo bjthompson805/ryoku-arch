@@ -612,6 +612,7 @@ ShellRoot {
                 Region { x: powerPop.maskX; y: powerPop.maskY; width: powerPop.maskW; height: powerPop.maskH }
                 Region { x: networkPop.maskX; y: networkPop.maskY; width: networkPop.maskW; height: networkPop.maskH }
                 Region { x: batteryPop.maskX; y: batteryPop.maskY; width: batteryPop.maskW; height: batteryPop.maskH }
+                Region { x: displayPop.maskX; y: displayPop.maskY; width: displayPop.maskW; height: displayPop.maskH }
                 Region { x: bluetoothPop.maskX; y: bluetoothPop.maskY; width: bluetoothPop.maskW; height: bluetoothPop.maskH }
                 Region { x: windowInfoPop.maskX; y: windowInfoPop.maskY; width: windowInfoPop.maskW; height: windowInfoPop.maskH }
                 Region { x: calendarPop.maskX; y: calendarPop.maskY; width: calendarPop.maskW; height: calendarPop.maskH }
@@ -856,6 +857,31 @@ ShellRoot {
                         id: batContent
                         s: overlay.s
                         open: batteryPop.prog > 0.5
+                    }
+                }
+
+                // display popout: opened from the bar's display module (next
+                // to volume) -- laptop panel backlight, screen vibrance, and
+                // any external ddc monitor's brightness.
+                Popout {
+                    id: displayPop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.popoutCenter
+                    s: overlay.s
+                    active: !overlay.monFullscreen
+                    pinned: root.popout === "display" && root.popoutMon === overlay.modelData.name
+                    openW: displayContent.implicitWidth
+                    openH: displayContent.implicitHeight
+
+                    DisplayPopout {
+                        id: displayContent
+                        s: overlay.s
+                        open: displayPop.prog > 0.5
                     }
                 }
 
