@@ -105,6 +105,17 @@ ShellRoot {
         value: Flags.dnd
     }
 
+    // pill weather units from the config: "auto" follows the locale. WeatherCore
+    // (the shared base Weather.qml extends) is deliberately config-agnostic --
+    // it only knows "" | "C" | "F" -- so the translation from Config's
+    // "auto"/"celsius"/"fahrenheit" happens here, same as launcher/shell.qml's
+    // equivalent Binding.
+    Binding {
+        target: Weather
+        property: "unitOverride"
+        value: Config.weatherUnit === "celsius" ? "C" : Config.weatherUnit === "fahrenheit" ? "F" : ""
+    }
+
     PanelWindow {
         id: inhibitWin
         visible: Flags.keepAwake

@@ -7,6 +7,7 @@ singleton Metrics Metrics.qml
 singleton Frecency Frecency.qml
 singleton Dispatcher Dispatcher.qml
 singleton Weather Weather.qml
+WeatherCore WeatherCore.qml
 singleton Spectrum Spectrum.qml
 singleton Players Players.qml
 singleton Radio Radio.qml
