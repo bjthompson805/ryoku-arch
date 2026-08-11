@@ -65,8 +65,65 @@ QtObject {
         var buf = "# cmd: " + entry.cmd + "\n# started: " + new Date(entry.startedAt).toString() + "\n";
         var view = null;
         var cleanExit = false;   // set once a code-0 exit decides this log is not worth keeping
+        var gotStarted = false;  // set once `started` fires
+        var handled = false;     // guards against handleExit running twice
+
+        function handleExit(code, startFailure) {
+            if (handled)
+                return;
+            handled = true;
+            if (startFailure) {
+                buf += "# FAILED TO START (binary not found or not executable)\n";
+                entry.exitCode = null;
+            } else {
+                buf += "# EXIT " + code + "\n";
+                entry.exitCode = code;
+            }
+            root._untrack(id);
+            if (!startFailure && code === 0) {
+                // A clean exit means the log is noise, not evidence: drop it
+                // from the registry and delete the file so successful,
+                // routine spawns don't pile up on disk forever.
+                cleanExit = true;
+                root._forget(id, entry);
+                if (view) {
+                    view.destroy();
+                    view = null;
+                }
+                root._deleteLog(path);
+            } else {
+                root._ensureDir(dir, function () {
+                    if (!view)
+                        view = root._fileViewComp.createObject(root, { path: path, atomicWrites: true, printErrors: false });
+                    view.setText(buf);
+                });
+                root._notifyFailure(entry, startFailure ? null : code);
+            }
+            Qt.callLater(function () {
+                proc.destroy();
+                outP.destroy();
+                errP.destroy();
+                if (view)
+                    view.destroy();
+            });
+        }
 
         root._track(id, entry);
+
+        // A missing/unexecutable binary never fires `started` or `exited` --
+        // Quickshell just logs its own WARN and silently flips `running`
+        // back to false, so a bad command used to fail completely silently
+        // (no log, no notification). Catch that: `running` going false
+        // without `started` ever having fired only happens on a failed
+        // launch (confirmed empirically -- a real exit always fires
+        // `started`/`exited` before the matching runningChanged(false)).
+        proc.runningChanged.connect(function () {
+            if (!proc.running && !gotStarted)
+                handleExit(null, true);
+        });
+        proc.started.connect(function () { gotStarted = true; });
+        proc.exited.connect(function (code) { handleExit(code, false); });
+
         proc.running = true;   // fires now, unconditionally — nothing above may gate this
 
         root._ensureDir(dir, function () {
@@ -85,38 +142,6 @@ QtObject {
             buf += "ERR: " + line + "\n";
             if (view)
                 view.setText(buf);
-        });
-
-        proc.exited.connect(function (code) {
-            buf += "# EXIT " + code + "\n";
-            entry.exitCode = code;
-            root._untrack(id);
-            if (code === 0) {
-                // A clean exit means the log is noise, not evidence: drop it
-                // from the registry and delete the file so successful,
-                // routine spawns don't pile up on disk forever.
-                cleanExit = true;
-                root._forget(id, entry);
-                if (view) {
-                    view.destroy();
-                    view = null;
-                }
-                root._deleteLog(path);
-            } else {
-                root._ensureDir(dir, function () {
-                    if (!view)
-                        view = root._fileViewComp.createObject(root, { path: path, atomicWrites: true, printErrors: false });
-                    view.setText(buf);
-                });
-                root._notifyFailure(entry, code);
-            }
-            Qt.callLater(function () {
-                proc.destroy();
-                outP.destroy();
-                errP.destroy();
-                if (view)
-                    view.destroy();
-            });
         });
     }
 
@@ -164,12 +189,16 @@ QtObject {
     // unwrapped Process (not routed through spawn() itself, which would
     // recursively try to log the notify-send invocation, and again if
     // notify-send itself failed to launch).
+    // code === null means the process never started at all (bad binary),
+    // as opposed to a real exit with a nonzero code.
     function _notifyFailure(entry, code) {
         // Short and human on purpose: some notification-center surfaces (e.g.
         // this shell's own Inbox) prefer body over summary for their preview
         // text, so body needs to read well on its own, not carry a log dump —
         // "View log" is what the full output is for.
-        var summary = (entry.id || entry.cmd) + " failed (exit " + code + ")";
+        var summary = (entry.id || entry.cmd) + (code === null
+            ? " failed to start (binary not found?)"
+            : " failed (exit " + code + ")");
         var body = entry.cmd;
         var p = root._notifyComp.createObject(root, {
             command: ["notify-send", "-w", "-A", "open=View log", "-u", "critical", "-a", "Ryoku", summary, body]
