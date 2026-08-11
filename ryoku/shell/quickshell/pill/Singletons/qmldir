@@ -6,6 +6,8 @@ singleton Flags Flags.qml
 singleton Notifs Notifs.qml
 singleton Cliphist Cliphist.qml
 singleton Devices Devices.qml
+singleton BluetoothLink BluetoothLink.qml
+singleton WifiLink WifiLink.qml
 singleton Battery Battery.qml
 singleton Vpn Vpn.qml
 singleton VoiceCall VoiceCall.qml

@@ -94,19 +94,17 @@ Item {
         stdout: StdioCollector { onStreamFinished: wallStateProc.running = true }
     }
 
-    // --- Comfort: backlight and night light, applied at once via the shipped tools. ---
+    // --- Comfort: backlight and night light, applied at once via the shipped tools.
+    // backlight itself is owned by the shared Devices singleton (see
+    // ryoku/shared/quickshell/Devices.qml) -- same brightnessctl state the pill's
+    // DisplayPopout drives, so a change here and a change from the sidebar fader
+    // never fall out of sync. ---
     readonly property string scriptsDir: Quickshell.env("HOME") + "/.config/hypr/scripts/"
-    property int brightness: -1
     property bool nightOn: false
     property int nightTemp: 4000
     property string comfortError: ""
 
-    function refreshComfort() { brightGetProc.running = true; nightStatusProc.running = true; Vibrance.refresh(); }
-    function setBrightness(v) {
-        page.brightness = v;
-        brightSetProc.command = ["brightnessctl", "set", v + "%"];
-        brightSetProc.running = true;
-    }
+    function refreshComfort() { Devices.probePanelBrightness(); nightStatusProc.running = true; Vibrance.refresh(); }
     function setNight(on) {
         page.nightOn = on;
         nightProc.command = on ? [page.scriptsDir + "ryoku-cmd-nightlight", "on", String(page.nightTemp)]
@@ -115,27 +113,6 @@ Item {
     }
     function setNightTemp(t) { page.nightTemp = t; if (page.nightOn) nightDebounce.restart(); }
 
-    Process {
-        id: brightGetProc
-        command: ["brightnessctl", "-m"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var first = this.text.trim().split("\n")[0];
-                var pct = parseInt((first.split(",")[3] || "").replace("%", ""), 10);
-                if (!isNaN(pct))
-                    page.brightness = pct;
-            }
-        }
-    }
-    Process {
-        id: brightSetProc
-        onExited: (code, status) => {
-            page.comfortError = code === 0 ? "" : "Couldn't set brightness.";
-            if (page.comfortError !== "")
-                comfortErrorClear.restart();
-        }
-    }
-
     // Saturation/vibrance: shared with the shell's display popout via
     // Singletons/Vibrance.qml (GLSL decoration:screen_shader, applied
     // through `hyprctl eval` -- see VibranceCore.qml for the full writeup).
@@ -143,10 +120,10 @@ Item {
     // engine, so each gets its own Vibrance singleton instance;
     // refreshComfort() calls Vibrance.refresh() (re-reads the on-disk value,
     // no compositor push) on every Comfort visit so a change made from the
-    // shell's own fader still shows up here, the same way brightGetProc
-    // re-syncs brightness. Debounced like the shell's fader: each apply
-    // writes a file and asks Hyprland to recompile a shader, too heavy to
-    // fire on every drag tick.
+    // shell's own fader still shows up here, the same way
+    // Devices.probePanelBrightness() re-syncs backlight. Debounced like the
+    // shell's fader: each apply writes a file and asks Hyprland to recompile
+    // a shader, too heavy to fire on every drag tick.
     function setVibrance(pct) {
         Vibrance.vibrance = Math.round(pct);
         vibranceDebounce.restart();
@@ -862,8 +839,8 @@ Item {
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Brightness"; percent: true
                     from: 0.05; to: 1; step: 0.01
-                    value: page.brightness < 0 ? 1 : page.brightness / 100
-                    onModified: (v) => page.setBrightness(Math.round(v * 100))
+                    value: Devices.panelBrightness < 0 ? 1 : Devices.panelBrightness / 100
+                    onModified: (v) => Devices.setPanelBrightness(Math.round(v * 100))
                 }
             }
             SettingSection {

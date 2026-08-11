@@ -3,6 +3,9 @@ singleton Updates Updates.qml
 singleton SysInfo SysInfo.qml
 singleton Wallust Wallust.qml
 singleton Config Config.qml
+singleton Devices Devices.qml
+singleton BluetoothLink BluetoothLink.qml
+singleton WifiLink WifiLink.qml
 singleton Spawn Spawn.qml
 SpawnCore SpawnCore.qml
 singleton Vibrance Vibrance.qml

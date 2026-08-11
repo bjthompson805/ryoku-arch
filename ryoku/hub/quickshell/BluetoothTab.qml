@@ -3,191 +3,20 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
-import Quickshell.Io
-import Quickshell.Bluetooth
 import "Singletons"
 
 // Bluetooth subtab of Connections: adapter toggle, scan with 25 s auto-stop,
 // live device list. known devices use Quickshell's connect/disconnect; unpaired
 // ones run bluetoothctl pair-trust-connect with an inline ember while running
 // and a transient failure line. ported from the shell's narrow LinkBt drill-in
-// to a full-width hub page on the warm Theme palette.
+// to a full-width hub page on the warm Theme palette. adapter/device state and
+// the pair/scan/service-repair flows live in the shared BluetoothLink
+// singleton (see ryoku/shared/quickshell/BluetoothLink.qml) so this page and
+// the pill's LinkBt drill-in agree on them instead of racing separate copies.
 Item {
     id: page
 
-    readonly property var adapter: (typeof Bluetooth !== "undefined" && Bluetooth) ? Bluetooth.defaultAdapter : null
-    readonly property var devices: (typeof Bluetooth !== "undefined" && Bluetooth && Bluetooth.devices) ? Bluetooth.devices.values : []
-    readonly property bool adapterOn: adapter ? adapter.enabled === true : false
-    readonly property bool discovering: adapter ? adapter.discovering === true : false
-    readonly property bool hasAdapter: adapter !== null
-    // rfkill (airplane mode, a laptop radio key) blocks the radio at the
-    // kernel; BlueZ then refuses Powered=true, which is why a plain toggle can
-    // look dead. Surfaced so the toggle can unblock first (setAdapterEnabled).
-    readonly property bool blocked: (adapter && typeof BluetoothAdapterState !== "undefined")
-        ? adapter.state === BluetoothAdapterState.Blocked : false
-    readonly property int connectedCount: {
-        var n = 0;
-        for (var i = 0; i < devices.length; i++)
-            if (devices[i] && devices[i].connected)
-                n++;
-        return n;
-    }
-
-    // BlueZ hands the cache out in arbitrary order. sort connected first, then
-    // paired, then named devices, nameless MACs last. a scan shouldn't churn the
-    // useful rows around.
-    readonly property var devicesSorted: devices.slice().sort(function(a, b) {
-        function rank(d) {
-            if (!d) return 3;
-            if (d.connected) return 0;
-            if (d.paired) return 1;
-            return (d.name && d.name.length) ? 2 : 3;
-        }
-        var r = rank(a) - rank(b);
-        if (r !== 0) return r;
-        return String((a && a.name) || "").localeCompare(String((b && b.name) || ""));
-    })
-
-    property string pairingAddress: ""
-    property string failedAddress: ""
-    property string serviceError: ""
-
-    function metaFor(d) {
-        if (!d) return "";
-        var parts = [];
-        if (d.connected) parts.push("connected");
-        else if (d.paired) parts.push("paired");
-        if (d.state !== undefined && typeof BluetoothDeviceState !== "undefined") {
-            var st = BluetoothDeviceState.toString(d.state);
-            if (st && st.length > 0 && parts.indexOf(st.toLowerCase()) === -1)
-                parts.push(st.toLowerCase());
-        }
-        return parts.join(" · ");
-    }
-
-    function batteryLevel(d) {
-        if (!d || d.battery === undefined || d.battery === null) return -1;
-        var b = d.battery;
-        if (b <= 0) return -1;
-        if (b <= 1) b = b * 100;
-        return Math.round(b);
-    }
-
-    // row click: disconnect if connected, connect if paired, else run the
-    // bluetoothctl pair-trust-connect flow.
-    function activateDevice(d) {
-        if (!d)
-            return;
-        if (d.connected) {
-            if (typeof d.disconnect === "function")
-                d.disconnect();
-            return;
-        }
-        if (d.paired) {
-            if (typeof d.connect === "function")
-                d.connect();
-            return;
-        }
-        pairDevice(d);
-    }
-
-    function pairDevice(d) {
-        if (!d || !d.address || pairProc.running)
-            return;
-        page.pairingAddress = d.address;
-        page.failedAddress = "";
-        pairProc.command = ["sh", "-c",
-            'timeout 30 bluetoothctl pair "$1" && bluetoothctl trust "$1" && timeout 30 bluetoothctl connect "$1"',
-            "sh", d.address];
-        pairProc.running = true;
-    }
-
-    // one entry point for the adapter toggle. a blocked radio is unblocked
-    // first (/dev/rfkill is seat-writable via systemd uaccess, no root), and
-    // powered on when the unblock lands; everything else is a plain flip.
-    function setAdapterEnabled(v) {
-        if (!adapter)
-            return;
-        if (v && (blocked || unblockProc.running)) {
-            if (!unblockProc.running)
-                unblockProc.running = true;
-            return;
-        }
-        adapter.enabled = v;
-    }
-
-    function startService() {
-        if (svcProc.running)
-            return;
-        page.serviceError = "";
-        svcProc.running = true;
-    }
-
-    // leaving the subtab (or closing the hub) mid-scan stops discovery so BlueZ
-    // isn't left chewing the radio in the background.
-    Component.onDestruction: {
-        scanTimer.stop();
-        if (page.adapter && page.adapter.discovering)
-            page.adapter.discovering = false;
-    }
-
-    Timer {
-        id: scanTimer
-        interval: 25000
-        repeat: false
-        onTriggered: if (page.adapter) page.adapter.discovering = false
-    }
-
-    Timer {
-        id: failTimer
-        interval: 4000
-        repeat: false
-        onTriggered: page.failedAddress = ""
-    }
-
-    Process {
-        id: pairProc
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
-        onExited: function(exitCode) {
-            var addr = page.pairingAddress;
-            page.pairingAddress = "";
-            if (exitCode !== 0) {
-                page.failedAddress = addr;
-                failTimer.restart();
-            }
-        }
-    }
-
-    // rfkill unblock, then power the adapter once the radio is free.
-    Process {
-        id: unblockProc
-        command: ["rfkill", "unblock", "bluetooth"]
-        onExited: if (page.adapter) page.adapter.enabled = true
-    }
-
-    // revive a stopped bluetoothd (service disabled by hand, or an install
-    // predating the bluez dependency). pkexec raises the polkit prompt
-    // (hyprpolkitagent); enable --now so it also survives the next boot.
-    Process {
-        id: svcProc
-        command: ["pkexec", "systemctl", "enable", "--now", "bluetooth.service"]
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
-        onExited: function(exitCode) {
-            if (exitCode !== 0) {
-                page.serviceError = "Could not start the bluetooth service.";
-                svcErrTimer.restart();
-            }
-        }
-    }
-
-    Timer {
-        id: svcErrTimer
-        interval: 6000
-        repeat: false
-        onTriggered: page.serviceError = ""
-    }
+    readonly property bool adapterOn: BluetoothLink.adapter ? BluetoothLink.adapter.enabled === true : false
 
     // ---------- header band ------------------------------------------------
     Item {
@@ -239,11 +68,11 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: page.adapterOn
                 text: {
-                    var known = page.devices.length;
+                    var known = BluetoothLink.devices.length;
                     if (known === 0)
-                        return page.discovering ? "Scanning…" : "No devices yet";
-                    if (page.connectedCount > 0)
-                        return page.connectedCount + " connected · " + known + " known";
+                        return BluetoothLink.discovering ? "Scanning…" : "No devices yet";
+                    if (BluetoothLink.connectedCount > 0)
+                        return BluetoothLink.connectedCount + " connected · " + known + " known";
                     return known + " known";
                 }
                 color: Theme.faint
@@ -272,10 +101,10 @@ Item {
                     radius: height / 2
                     height: 30
                     width: scanLbl.implicitWidth + 28
-                    color: page.discovering ? Qt.rgba(242 / 255, 86 / 255, 35 / 255, 0.14)
+                    color: BluetoothLink.discovering ? Qt.rgba(242 / 255, 86 / 255, 35 / 255, 0.14)
                         : (scanHov.hovered ? Theme.keyTop : "transparent")
                     border.width: 1
-                    border.color: page.discovering ? Theme.ember
+                    border.color: BluetoothLink.discovering ? Theme.ember
                         : (scanHov.hovered ? Theme.ember : Theme.line)
                     Behavior on color { ColorAnimation { duration: Theme.quick } }
                     Behavior on border.color { ColorAnimation { duration: Theme.quick } }
@@ -283,8 +112,8 @@ Item {
                     Text {
                         id: scanLbl
                         anchors.centerIn: parent
-                        text: page.discovering ? "Scanning…" : "Scan"
-                        color: page.discovering ? Theme.ember
+                        text: BluetoothLink.discovering ? "Scanning…" : "Scan"
+                        color: BluetoothLink.discovering ? Theme.ember
                             : (scanHov.hovered ? Theme.bright : Theme.cream)
                         font.family: Theme.font
                         font.pixelSize: 12
@@ -292,17 +121,7 @@ Item {
                     }
 
                     HoverHandler { id: scanHov; cursorShape: Qt.PointingHandCursor }
-                    TapHandler {
-                        onTapped: {
-                            if (!page.adapter)
-                                return;
-                            page.adapter.discovering = !page.adapter.discovering;
-                            if (page.adapter.discovering)
-                                scanTimer.restart();
-                            else
-                                scanTimer.stop();
-                        }
-                    }
+                    TapHandler { onTapped: BluetoothLink.toggleScan() }
                 }
             }
 
@@ -310,11 +129,11 @@ Item {
             // service is gone: a switch that can't act shouldn't look live.
             ToggleRow {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: page.hasAdapter
+                visible: BluetoothLink.hasAdapter
                 width: 56
                 label: ""
                 checked: page.adapterOn
-                onToggled: (v) => page.setAdapterEnabled(v)
+                onToggled: (v) => BluetoothLink.setAdapterEnabled(v)
             }
         }
     }
@@ -341,15 +160,15 @@ Item {
         // off / empty placeholder, centred so the page never looks broken.
         Column {
             anchors.centerIn: parent
-            visible: !page.hasAdapter || !page.adapterOn || page.devices.length === 0
+            visible: !BluetoothLink.hasAdapter || !page.adapterOn || BluetoothLink.devices.length === 0
             spacing: 10
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: !page.hasAdapter ? "Bluetooth isn't available."
-                    : page.blocked ? "Bluetooth is blocked."
+                text: !BluetoothLink.hasAdapter ? "Bluetooth isn't available."
+                    : BluetoothLink.blocked ? "Bluetooth is blocked."
                     : !page.adapterOn ? "Bluetooth is off."
-                    : (page.discovering ? "Scanning…" : "No devices yet.")
+                    : (BluetoothLink.discovering ? "Scanning…" : "No devices yet.")
                 color: Theme.dim
                 font.family: Theme.font
                 font.pixelSize: 15
@@ -357,9 +176,9 @@ Item {
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                visible: !page.hasAdapter || !page.adapterOn || (!page.discovering && page.devices.length === 0)
-                text: !page.hasAdapter ? "The bluetooth service (bluez) isn't running."
-                    : page.blocked ? "The radio is off at the hardware level (rfkill); the toggle unblocks it."
+                visible: !BluetoothLink.hasAdapter || !page.adapterOn || (!BluetoothLink.discovering && BluetoothLink.devices.length === 0)
+                text: !BluetoothLink.hasAdapter ? "The bluetooth service (bluez) isn't running."
+                    : BluetoothLink.blocked ? "The radio is off at the hardware level (rfkill); the toggle unblocks it."
                     : !page.adapterOn ? "Turn the adapter on to see nearby and paired devices."
                     : "Hit Scan to discover nearby devices."
                 color: Theme.faint
@@ -371,33 +190,33 @@ Item {
             // service repair, shown only when org.bluez is missing entirely.
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
-                visible: !page.hasAdapter
+                visible: !BluetoothLink.hasAdapter
                 radius: height / 2
                 height: 32
                 width: svcLbl.implicitWidth + 32
-                color: svcHov.hovered && !svcProc.running ? Theme.keyTop : "transparent"
+                color: svcHov.hovered && !BluetoothLink.startingService ? Theme.keyTop : "transparent"
                 border.width: 1
-                border.color: svcProc.running ? Theme.ember : (svcHov.hovered ? Theme.ember : Theme.line)
+                border.color: BluetoothLink.startingService ? Theme.ember : (svcHov.hovered ? Theme.ember : Theme.line)
                 Behavior on border.color { ColorAnimation { duration: Theme.quick } }
 
                 Text {
                     id: svcLbl
                     anchors.centerIn: parent
-                    text: svcProc.running ? "Starting…" : "Start service"
-                    color: svcProc.running ? Theme.ember : (svcHov.hovered ? Theme.bright : Theme.cream)
+                    text: BluetoothLink.startingService ? "Starting…" : "Start service"
+                    color: BluetoothLink.startingService ? Theme.ember : (svcHov.hovered ? Theme.bright : Theme.cream)
                     font.family: Theme.font
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                 }
 
                 HoverHandler { id: svcHov; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: page.startService() }
+                TapHandler { onTapped: BluetoothLink.startService() }
             }
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                visible: page.serviceError.length > 0
-                text: page.serviceError
+                visible: BluetoothLink.serviceFailed
+                text: "Could not start the bluetooth service."
                 color: Theme.ember
                 font.family: Theme.font
                 font.pixelSize: 12
@@ -407,7 +226,7 @@ Item {
 
         Flickable {
             id: devFlick
-            visible: page.adapterOn && page.devices.length > 0
+            visible: page.adapterOn && BluetoothLink.devices.length > 0
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
@@ -436,7 +255,7 @@ Item {
                 spacing: 8
 
                 Repeater {
-                    model: page.devicesSorted
+                    model: BluetoothLink.devicesSorted
 
                     delegate: Column {
                         id: dev
@@ -445,9 +264,9 @@ Item {
                         readonly property bool isConnected: modelData ? modelData.connected === true : false
                         readonly property bool isPaired: modelData ? modelData.paired === true : false
                         readonly property string addr: (modelData && modelData.address) ? modelData.address : ""
-                        readonly property bool pairing: addr.length > 0 && page.pairingAddress === addr
-                        readonly property bool failed: addr.length > 0 && page.failedAddress === addr
-                        readonly property int battery: page.batteryLevel(modelData)
+                        readonly property bool pairing: addr.length > 0 && BluetoothLink.pairingAddress === addr
+                        readonly property bool failed: addr.length > 0 && BluetoothLink.failedAddress === addr
+                        readonly property int battery: BluetoothLink.batteryLevel(modelData)
 
                         width: parent.width
                         spacing: 4
@@ -466,7 +285,7 @@ Item {
                             Behavior on border.color { ColorAnimation { duration: Theme.quick } }
 
                             HoverHandler { id: rowHov; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: page.activateDevice(dev.modelData) }
+                            TapHandler { onTapped: BluetoothLink.activateDevice(dev.modelData) }
 
                             // BT rune tile.
                             Rectangle {
@@ -523,7 +342,7 @@ Item {
                                 Text {
                                     width: parent.width
                                     visible: text.length > 0
-                                    text: dev.pairing ? "pairing…" : page.metaFor(dev.modelData)
+                                    text: dev.pairing ? "pairing…" : BluetoothLink.metaFor(dev.modelData)
                                     color: dev.pairing ? Theme.ember : Theme.faint
                                     font.family: Theme.font
                                     font.pixelSize: 11
