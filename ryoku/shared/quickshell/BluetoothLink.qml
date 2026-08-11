@@ -95,15 +95,38 @@ Singleton {
         root.pairDevice(d);
     }
 
+    // driven over bluetoothctl's own interactive stdin/stdout, not the
+    // one-shot `bluetoothctl pair <addr>` form: a one-shot invocation never
+    // registers an agent, so a phone's SSP numeric-comparison confirm (the
+    // "Confirm passkey NNNNNN (yes/no):" prompt every Android/iOS pairing
+    // needs) has nowhere to be answered -- the device connects but never
+    // actually bonds, and drops again the next time it sleeps. Registering
+    // an agent and auto-confirming here mirrors what a human driving
+    // bluetoothctl by hand (or GNOME/KDE's pairing applet) already does: the
+    // phone shows the same passkey on its own screen, so this is the same
+    // "do the numbers match" trust model, just answered on our end with
+    // nowhere to display it. trust+connect ride the same session once
+    // pairing lands, so a successful pair doesn't need a second tap.
+    property bool _pairSucceeded: false
+
     function pairDevice(d) {
         if (!d || !d.address || pairProc.running)
             return;
         root.pairingAddress = d.address;
         root.failedAddress = "";
-        pairProc.command = ["sh", "-c",
-            'timeout 30 bluetoothctl pair "$1" && bluetoothctl trust "$1" && timeout 30 bluetoothctl connect "$1"',
-            "sh", d.address];
+        root._pairSucceeded = false;
+        pairProc.command = ["bluetoothctl"];
         pairProc.running = true;
+        pairTimeout.restart();
+    }
+
+    // belt-and-suspenders: a phone that never answers the confirm prompt
+    // (locked, out of range, ignored) would otherwise leave this session
+    // open forever.
+    Timer {
+        id: pairTimeout
+        interval: 30000
+        onTriggered: if (pairProc.running) pairProc.running = false
     }
 
     // one entry point for the adapter toggle. a blocked radio is unblocked
@@ -173,12 +196,27 @@ Singleton {
 
     Process {
         id: pairProc
-        stdout: StdioCollector {}
+        stdinEnabled: true
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                if (line.indexOf("(yes/no)") !== -1) {
+                    pairProc.write("yes\n");
+                } else if (line.indexOf("Pairing successful") !== -1) {
+                    root._pairSucceeded = true;
+                    pairProc.write("trust " + root.pairingAddress + "\nconnect " + root.pairingAddress + "\nquit\n");
+                } else if (line.indexOf("Failed to pair") !== -1) {
+                    pairProc.write("quit\n");
+                }
+            }
+        }
         stderr: StdioCollector {}
+        onStarted: pairProc.write("agent DisplayYesNo\ndefault-agent\npair " + root.pairingAddress + "\n")
         onExited: function(exitCode) {
+            pairTimeout.stop();
             var addr = root.pairingAddress;
             root.pairingAddress = "";
-            if (exitCode !== 0) {
+            if (!root._pairSucceeded) {
                 root.failedAddress = addr;
                 failTimer.restart();
             }
