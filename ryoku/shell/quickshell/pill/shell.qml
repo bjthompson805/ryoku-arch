@@ -25,7 +25,7 @@ import "popouts"
 //                  the bar riding one edge, and every summoned surface as an
 //                  edge popout growing from the bar (see popouts/). never moves
 //                  windows; grows in place.
-//   OsdWindow    = the volume/brightness OSD, bottom-centre above the bar.
+//   OsdWindow    = the volume/brightness OSD, top-centre below the bar.
 //
 // input routing = the overlay window mask: the bar strip and open popout bodies
 // catch clicks, the rest of the screen clicks through. a modal (keyboard) popout

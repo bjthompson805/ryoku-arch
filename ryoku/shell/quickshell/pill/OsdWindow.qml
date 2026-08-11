@@ -6,8 +6,8 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "Singletons"
 
-// Volume / brightness OSD in its own small layer window, bottom-centre just
-// above the bar. Re-homed from the floating pill: the Osd component still
+// Volume / brightness OSD in its own small layer window, top-centre just
+// below the bar. Re-homed from the floating pill: the Osd component still
 // drives its own flashing on volume/brightness change (via Pipewire), so this
 // window only maps while it flashes. Click-through, never takes focus, never
 // reserves space.
@@ -19,12 +19,12 @@ PanelWindow {
 
     // top/bottom bar (left/right collapse to top, as the overlay does).
     readonly property string barPos: Config.barEnabled ? (Config.barPosition === "bottom" ? "bottom" : "top") : ""
-    readonly property bool barBottom: barPos === "bottom"
-    // clear the bottom bar band (or just the bottom frame lip), matching the
-    // overlay's barVisibleH, then float a small gap above it.
+    readonly property bool barTop: barPos === "top"
+    // clear the top bar band (or just the top frame lip), matching the
+    // overlay's barVisibleH, then float a small gap below it.
     readonly property real frameLip: Math.max(0, Config.frameBorder - 50)
     readonly property real barVisibleH: frameLip + Config.barHeight * s
-    readonly property real bottomInset: (barBottom ? barVisibleH : frameLip) + 12 * s
+    readonly property real topInset: (barTop ? barVisibleH : frameLip) + 12 * s
 
     // this monitor's visible workspace holds a fullscreen window: the whole
     // shell hides then, so the OSD stays down too (suppressed clears its
@@ -45,8 +45,8 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     WlrLayershell.namespace: "ryoku-osd"
 
-    anchors.bottom: true
-    margins.bottom: bottomInset
+    anchors.top: true
+    margins.top: topInset
 
     implicitWidth: osd.desiredW
     implicitHeight: osd.desiredH
