@@ -90,12 +90,11 @@ Grid {
         GlyphIcon {
             anchors.centerIn: parent
             // "brightness_high"/"brightness_low" read as a vague badge/rosette
-            // at this size; a dimmed sun (5 rays instead of 8) reads as low
-            // brightness without the "dark mode" connotation a moon carries,
-            // and matches the sun glyph the display popout's own fader uses.
+            // at this size; a sun with short vs. long rays reads as low/high
+            // brightness without the "dark mode" connotation a moon carries.
             width: status.glyphPx
             height: status.glyphPx
-            name: Devices.panelBrightness > 50 ? "sun" : "sun-dim"
+            name: Devices.panelBrightness > 50 ? "sun-bright" : "sun-dim"
             color: Theme.subtle
             stroke: 1.7
         }
@@ -103,6 +102,10 @@ Grid {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: status.open("display", dispIcon)
+            onWheel: (w) => {
+                const cur = Devices.panelBrightness < 0 ? 50 : Devices.panelBrightness;
+                Devices.setPanelBrightness(cur + (w.angleDelta.y > 0 ? 3 : -3));
+            }
         }
     }
 

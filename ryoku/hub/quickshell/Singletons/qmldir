@@ -5,3 +5,5 @@ singleton Wallust Wallust.qml
 singleton Config Config.qml
 singleton Spawn Spawn.qml
 SpawnCore SpawnCore.qml
+singleton Vibrance Vibrance.qml
+VibranceCore VibranceCore.qml

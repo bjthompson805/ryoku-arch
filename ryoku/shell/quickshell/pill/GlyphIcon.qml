@@ -17,7 +17,8 @@ Item {
 
     readonly property var glyphs: ({
         "sun": { d: "M16 12a4 4 0 1 0-8 0a4 4 0 1 0 8 0 M12 2v2 M12 20v2 M4.2 4.2l1.4 1.4 M18.4 18.4l1.4 1.4 M2 12h2 M20 12h2 M4.2 19.8l1.4-1.4 M18.4 5.6l1.4-1.4", fill: false },
-        "sun-dim": { d: "M16 12a4 4 0 1 0-8 0a4 4 0 1 0 8 0 M12 2L12 4 M21.5 8.9L19.6 9.5 M17.9 20.1L16.7 18.5 M6.1 20.1L7.3 18.5 M2.5 8.9L4.4 9.5", fill: false },
+        "sun-dim": { d: "M16 12a4 4 0 1 0-8 0a4 4 0 1 0 8 0 M12 4v-1 M12 20v1 M4 12h-1 M20 12h1 M5.6 5.6l-0.7-0.7 M18.4 18.4l0.7 0.7 M5.6 18.4l-0.7 0.7 M18.4 5.6l0.7-0.7", fill: false },
+        "sun-bright": { d: "M16 12a4 4 0 1 0-8 0a4 4 0 1 0 8 0 M12 4v-3 M12 20v3 M4 12h-3 M20 12h3 M5.6 5.6l-2.1-2.1 M18.4 18.4l2.1 2.1 M5.6 18.4l-2.1 2.1 M18.4 5.6l2.1-2.1", fill: false },
         "monitor": { d: "M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-16a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z M8 21h8 M12 17v4 M7 13c1.5-4 3-4 5-1s3.5 2 5-2", fill: false },
         "droplet": { d: "M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z", fill: false },
         "speaker": { d: "M4 9v6h4l5 4V5L8 9z M16 9.5a3 3 0 0 1 0 5 M18.5 7.5a6 6 0 0 1 0 9", fill: false },
@@ -87,7 +88,10 @@ Item {
         "link": { d: "M9.5 14.5l5-5 M10.8 7.4l1.6-1.6a3.4 3.4 0 0 1 4.8 4.8l-1.6 1.6 M13.2 16.6l-1.6 1.6a3.4 3.4 0 0 1-4.8-4.8l1.6-1.6", fill: false },
         "remux": { d: "M16.5 3.5l4 4-4 4 M20.5 7.5H8.5a4 4 0 0 0-4 4 M7.5 20.5l-4-4 4-4 M3.5 16.5h12a4 4 0 0 0 4-4", fill: false },
         "scan": { d: "M3 7V4.5A1.5 1.5 0 0 1 4.5 3H7 M17 3h2.5A1.5 1.5 0 0 1 21 4.5V7 M21 17v2.5a1.5 1.5 0 0 1-1.5 1.5H17 M7 21H4.5A1.5 1.5 0 0 1 3 19.5V17 M3 12h18", fill: false },
-        "flip": { d: "M12 3v18 M10 8l-5 4 5 4V8z M14 8l5 4-5 4V8z", fill: false }
+        "flip": { d: "M12 3v18 M10 8l-5 4 5 4V8z M14 8l5 4-5 4V8z", fill: false },
+        // ring outline (d) plus a filled right half-disk (d2): the two draw
+        // in the same stroke color so the halves read as "empty"/"solid".
+        "contrast": { d: "M20 12a8 8 0 1 0-16 0a8 8 0 1 0 16 0", d2: "M12 4A8 8 0 0 1 12 20Z", fill: false }
     })
 
     readonly property var g: glyphs[name] !== undefined ? glyphs[name] : ({ d: "", fill: false })
@@ -107,6 +111,15 @@ Item {
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin
             PathSvg { path: root.g.d }
+        }
+
+        // optional filled overlay for glyphs that mix an outline with a
+        // solid region (e.g. "contrast"'s half-filled circle); unused glyphs
+        // leave d2 undefined so this path renders nothing.
+        ShapePath {
+            strokeColor: "transparent"
+            fillColor: root.g.d2 ? root.color : "transparent"
+            PathSvg { path: root.g.d2 || "" }
         }
     }
 }

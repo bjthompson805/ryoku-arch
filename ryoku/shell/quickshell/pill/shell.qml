@@ -83,7 +83,7 @@ ShellRoot {
 
     Component.onCompleted: {
         refresh();
-        Devices.restore();
+        Vibrance.restore();
         Devices.probePanelBrightness();
         // re-arm the durable idle inhibitor for the persisted flag. on a
         // shell reload the external inhibitor is usually still up (lives

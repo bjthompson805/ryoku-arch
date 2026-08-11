@@ -6,10 +6,12 @@ import ".."
 import "../Singletons"
 
 // display popout content: laptop panel backlight (brightnessctl), screen
-// vibrance (nvibrant), and per external monitor brightness (ddcutil), as HFader
-// rows reusing Devices.qml. split out of the mixer's old Display section into
-// its own module next to sound, since it isn't audio -- named "display" rather
-// than "brightness" since it also covers vibrance and any future screen knob.
+// vibrance (a Hyprland screen_shader, via Singletons/Vibrance.qml), and per
+// external monitor brightness (ddcutil), as HFader rows reusing Devices.qml
+// (backlight/ddc) and Vibrance.qml (vibrance, shared with the hub's Comfort
+// page). split out of the mixer's old Display section into its own module
+// next to sound, since it isn't audio -- named "display" rather than
+// "brightness" since it also covers vibrance and any future screen knob.
 // panel brightness re-reads on popout open (hypridle can change it while
 // closed); ddc monitor brightness reads once per monitor on load. writes
 // debounce so a drag never floods i2c/sysfs. plain transparent Item -- the
@@ -31,14 +33,14 @@ Item {
     property real pendingVibrance: -1
     property real pendingPanel: -1
 
-    onOpenChanged: if (root.open) Devices.probePanelBrightness()
-    Component.onCompleted: Devices.probePanelBrightness()
+    onOpenChanged: if (root.open) { Devices.probePanelBrightness(); Vibrance.refresh(); }
+    Component.onCompleted: { Devices.probePanelBrightness(); Vibrance.refresh(); }
 
     Timer {
         id: vibDebounce
         interval: 160
         onTriggered: if (root.pendingVibrance >= 0) {
-            Devices.setVibrance(root.pendingVibrance);
+            Vibrance.setVibrance(root.pendingVibrance);
             root.pendingVibrance = -1;
         }
     }
@@ -106,11 +108,11 @@ Item {
             HFader {
                 width: parent.width
                 s: root.s
-                icon: "droplet"
+                icon: "contrast"
                 lit: vibHover.hovered
-                value: Devices.vibrance / 100
-                valueLabel: Devices.vibrance + "%"
-                onMoved: (v) => Devices.vibrance = Math.round(v * 100)
+                value: Vibrance.vibrance / 100
+                valueLabel: Vibrance.vibrance + "%"
+                onMoved: (v) => Vibrance.vibrance = Math.round(v * 100)
                 onCommitted: (v) => { root.pendingVibrance = v * 100; vibDebounce.restart(); }
 
                 HoverHandler { id: vibHover }

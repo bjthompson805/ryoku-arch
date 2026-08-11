@@ -101,7 +101,7 @@ Item {
     property int nightTemp: 4000
     property string comfortError: ""
 
-    function refreshComfort() { brightGetProc.running = true; nightStatusProc.running = true; }
+    function refreshComfort() { brightGetProc.running = true; nightStatusProc.running = true; Vibrance.refresh(); }
     function setBrightness(v) {
         page.brightness = v;
         brightSetProc.command = ["brightnessctl", "set", v + "%"];
@@ -135,6 +135,24 @@ Item {
                 comfortErrorClear.restart();
         }
     }
+
+    // Saturation/vibrance: shared with the shell's display popout via
+    // Singletons/Vibrance.qml (GLSL decoration:screen_shader, applied
+    // through `hyprctl eval` -- see VibranceCore.qml for the full writeup).
+    // Hub and the shell are separate quickshell instances with no shared
+    // engine, so each gets its own Vibrance singleton instance;
+    // refreshComfort() calls Vibrance.refresh() (re-reads the on-disk value,
+    // no compositor push) on every Comfort visit so a change made from the
+    // shell's own fader still shows up here, the same way brightGetProc
+    // re-syncs brightness. Debounced like the shell's fader: each apply
+    // writes a file and asks Hyprland to recompile a shader, too heavy to
+    // fire on every drag tick.
+    function setVibrance(pct) {
+        Vibrance.vibrance = Math.round(pct);
+        vibranceDebounce.restart();
+    }
+
+    Timer { id: vibranceDebounce; interval: 160; onTriggered: Vibrance.setVibrance(Vibrance.vibrance) }
     Process {
         id: nightStatusProc
         command: [page.scriptsDir + "ryoku-cmd-nightlight", "status"]
@@ -846,6 +864,24 @@ Item {
                     from: 0.05; to: 1; step: 0.01
                     value: page.brightness < 0 ? 1 : page.brightness / 100
                     onModified: (v) => page.setBrightness(Math.round(v * 100))
+                }
+            }
+            SettingSection {
+                width: parent.width
+                title: "VIBRANCE"
+                SliderRow {
+                    width: Math.min(parent.width, 460); label: "Saturation"; percent: true
+                    from: 0; to: 1; step: 0.01
+                    value: Vibrance.vibrance / 100
+                    onModified: (v) => page.setVibrance(Math.round(v * 100))
+                }
+                Text {
+                    width: Math.min(parent.width, 620)
+                    wrapMode: Text.WordWrap
+                    text: "50% is unmodified. Boosts or mutes color intensity via a compositor shader -- works on any GPU."
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 12
                 }
             }
             SettingSection {

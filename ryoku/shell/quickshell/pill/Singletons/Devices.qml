@@ -3,51 +3,18 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// owns screen vibrance (nvibrant) + external monitor brightness (ddcutil) for
-// the mixer. persisted vibrance % = source of truth: loaded and pushed once at
-// startup so the tint survives a reboot, every later set hits nvibrant AND
-// writes the state file back. ddc monitors come from `ddcutil detect` (one
-// fader each). setvcp/getvcp wire format lives here so every caller agrees.
+// owns external monitor brightness (ddcutil) for the mixer. Screen vibrance
+// used to live here too (as a Hyprland decoration:screen_shader GLSL
+// saturation shader) but is now shared with the hub's Comfort page via
+// Singletons/Vibrance.qml -- see VibranceCore.qml for the write-path details.
+// ddc monitors come from `ddcutil detect` (one fader each). setvcp/getvcp
+// wire format lives here so every caller agrees.
 Singleton {
     id: root
-
-    readonly property string stateFile: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku/nvibrant-value"
-
-    property int vibrance: 40
 
     // ddc monitors from `ddcutil detect`: [{ bus, label }]. label = drm connector,
     // else just the i2c bus number.
     property var ddcMonitors: []
-
-    // load saved vibrance % and apply once -> tint survives reboot. singletons
-    // init lazily, so something at startup has to actually touch this for the
-    // restore to fire.
-    function restore() {
-        var raw = vibState.text();
-        var v = parseInt((raw || "40").trim());
-        root.vibrance = isNaN(v) ? 40 : v;
-        if (raw && raw.trim().length)
-            applyVibrance(root.vibrance);
-    }
-
-    // set vibrance to `pct`%: push to nvibrant, save to state. `vibrance` tracks
-    // the last value.
-    function setVibrance(pct) {
-        root.vibrance = Math.round(pct);
-        applyVibrance(pct);
-        saveVibrance(pct);
-    }
-
-    function applyVibrance(pct) {
-        var raw = Math.round(Math.max(0, Math.min(100, pct)) * 1023 / 100);
-        Spawn.spawn(["nvibrant", String(raw), "0", String(raw)]);
-    }
-
-    function saveVibrance(pct) {
-        Spawn.spawn(["sh", "-c",
-            'mkdir -p "$(dirname "$1")" && printf "%s\n" "$2" > "$1"',
-            "_", root.stateFile, String(Math.round(pct))]);
-    }
 
     function detect() {
         ddcDetect.running = true;
@@ -122,12 +89,5 @@ Singleton {
                 root.ddcMonitors = mons;
             }
         }
-    }
-
-    FileView {
-        id: vibState
-        path: root.stateFile
-        blockLoading: true
-        printErrors: false
     }
 }
