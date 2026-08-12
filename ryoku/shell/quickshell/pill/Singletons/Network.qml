@@ -1,50 +1,26 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
+import Quickshell.Networking
 
 // light network presence for the bar's status cluster: connection kind
-// (ethernet/wifi/none) and wifi signal, polled gently through nmcli. the Link
-// surface owns the heavy lifting (scans, connecting); this only answers "am I
-// online and how well" without waking the radio (--rescan no).
+// (ethernet/wifi/none) and wifi signal. Reactive off Quickshell.Networking's
+// NetworkManager binding -- the same D-Bus-backed source Link.qml drives its
+// rows from -- so this updates the instant NM reports a change. Used to poll
+// nmcli every 30s instead, which meant plugging in ethernet or a wifi AP
+// could sit unreflected in the bar for up to half a minute; this is both
+// faster and cheaper (no periodic subprocess spawn).
 Singleton {
     id: root
 
-    // "ethernet" | "wifi" | "" (offline / no nmcli)
-    property string kind: ""
+    readonly property var devices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
+    readonly property var eth: devices.find(function(d) { return d && d.type === DeviceType.Wired && d.connected; }) || null
+    readonly property var wifiDev: devices.find(function(d) { return d && d.type === DeviceType.Wifi && d.connected; }) || null
+    readonly property var wifiActive: (wifiDev && wifiDev.networks) ? (wifiDev.networks.values.find(function(n) { return n && n.connected; }) || null) : null
+
+    // "ethernet" | "wifi" | "" (offline / no NM)
+    readonly property string kind: eth ? "ethernet" : (wifiDev ? "wifi" : "")
     // 0..1 wifi signal, meaningful while kind === "wifi"
-    property real level: 0
-    property bool wifiRadio: true
-
-    function refresh() {
-        stateProc.running = true;
-    }
-
-    Process {
-        id: stateProc
-        running: true
-        command: ["sh", "-c",
-            "nmcli -t -f TYPE,STATE d 2>/dev/null | grep ':connected$' | cut -d: -f1; " +
-            "echo --; nmcli -t -f ACTIVE,SIGNAL dev wifi list --rescan no 2>/dev/null | grep '^yes' | cut -d: -f2 | head -1; " +
-            "echo --; nmcli radio wifi 2>/dev/null"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var parts = this.text.split("--");
-                var types = (parts[0] || "").trim().split("\n").filter(function(t) { return t.length > 0; });
-                var eth = types.indexOf("ethernet") >= 0;
-                var wifi = types.indexOf("wifi") >= 0;
-                root.kind = eth ? "ethernet" : (wifi ? "wifi" : "");
-                var sig = parseInt((parts[1] || "").trim(), 10);
-                root.level = isNaN(sig) ? 0 : Math.max(0, Math.min(1, sig / 100));
-                root.wifiRadio = (parts[2] || "").indexOf("enabled") >= 0;
-            }
-        }
-    }
-
-    Timer {
-        interval: 30000
-        repeat: true
-        running: true
-        onTriggered: root.refresh()
-    }
+    readonly property real level: (wifiActive && wifiActive.signalStrength) || 0
+    readonly property bool wifiRadio: (typeof Networking !== "undefined" && Networking) ? Networking.wifiEnabled : true
 }
