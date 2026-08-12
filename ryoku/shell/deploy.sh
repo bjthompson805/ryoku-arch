@@ -144,6 +144,7 @@ for s in "$here/../../system/extras"/ryoku-*; do
   install -m755 "$s" "$bindir/${s##*/}"
 done
 install -m755 "$here/quickshell/plugins/ryoku-plugins-place" "$bindir/ryoku-plugins-place"
+install -m755 "$here/../apps/fastfetch/ryoku-fastfetch" "$bindir/ryoku-fastfetch"
 say "installed Ryoku CLI and hardware helpers"
 
 # Record the checkout this deploy came from and the commit it laid down, so the
@@ -286,6 +287,12 @@ mkdir -p "$cfg/pip"; cp -a "$here/../apps/pip/pip.conf" "$cfg/pip/pip.conf"
 # seeded once, then left alone, so a user's own default-app choices (xdg-mime,
 # GNOME Settings, a file manager's "Open With") survive a redeploy/update.
 [[ -e "$cfg/mimeapps.list" ]] || cp -a "$here/../apps/mimeapps.list" "$cfg/mimeapps.list"
+# neovim as the default text/code editor: the desktop entry the mimeapps map
+# above points at. ryoku-desktop ships it system-wide; a dev box needs its own
+# copy on the user application search path (~/.local/share/applications takes
+# precedence over /usr/share/applications).
+install -Dm644 "$here/../apps/nvim/ryoku-nvim.desktop" \
+  "$appshare/applications/ryoku-nvim.desktop"
 # Refresh the icon cache only when the theme has an index.theme; the user-overlay
 # hicolor dir usually has none, and gtk-update-icon-cache -f on an index-less dir
 # writes an EMPTY cache that Qt then trusts, hiding every icon in it. With no
