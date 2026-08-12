@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Bluetooth
+import Quickshell.Services.UPower
 import "Singletons"
 
 // status cluster in the reference iconography: Material Symbols for volume,
@@ -175,23 +176,59 @@ Grid {
             id: battRow
             spacing: 3 * status.s
 
-            MaterialIcon {
+            // battery glyph + power-mode badge: the level bars stay the
+            // battery truth, a small corner glyph rides on top while off
+            // the charger and running a non-balanced profile (plus for
+            // Saver, bolt for Performance -- a speedometer doesn't read at
+            // badge size).
+            Item {
+                id: battGlyph
                 anchors.verticalCenter: parent.verticalCenter
-                text: {
-                    if (Battery.charging)
-                        return "battery_charging_full";
-                    const f = Battery.frac;
-                    if (f > 0.95) return "battery_full";
-                    if (f > 0.8) return "battery_6_bar";
-                    if (f > 0.65) return "battery_5_bar";
-                    if (f > 0.5) return "battery_4_bar";
-                    if (f > 0.35) return "battery_3_bar";
-                    if (f > 0.2) return "battery_2_bar";
-                    return "battery_1_bar";
+                width: battLevel.implicitWidth
+                height: battLevel.implicitHeight
+
+                readonly property bool badged: !Battery.charging
+                    && (PowerProfiles.profile === PowerProfile.PowerSaver || PowerProfiles.profile === PowerProfile.Performance)
+                readonly property bool saver: PowerProfiles.profile === PowerProfile.PowerSaver
+
+                MaterialIcon {
+                    id: battLevel
+                    text: {
+                        if (Battery.charging)
+                            return "battery_charging_full";
+                        const f = Battery.frac;
+                        if (f > 0.95) return "battery_full";
+                        if (f > 0.8) return "battery_6_bar";
+                        if (f > 0.65) return "battery_5_bar";
+                        if (f > 0.5) return "battery_4_bar";
+                        if (f > 0.35) return "battery_3_bar";
+                        if (f > 0.2) return "battery_2_bar";
+                        return "battery_1_bar";
+                    }
+                    fill: 1
+                    color: Battery.low ? Theme.vermLit : (Battery.charging ? Theme.flameGlow : Theme.subtle)
+                    font.pixelSize: status.glyphPx + 1 * status.s
                 }
-                fill: 1
-                color: Battery.low ? Theme.vermLit : (Battery.charging ? Theme.flameGlow : Theme.subtle)
-                font.pixelSize: status.glyphPx + 1 * status.s
+
+                Rectangle {
+                    visible: battGlyph.badged
+                    width: 10 * status.s
+                    height: 10 * status.s
+                    radius: width / 2
+                    color: Theme.cardBot
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -2 * status.s
+                    anchors.bottomMargin: -2 * status.s
+
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        text: battGlyph.saver ? "add" : "bolt"
+                        fill: 1
+                        color: battGlyph.saver ? Theme.subtle : Theme.flameGlow
+                        font.pixelSize: 9 * status.s
+                    }
+                }
             }
             Text {
                 visible: !status.vertical
