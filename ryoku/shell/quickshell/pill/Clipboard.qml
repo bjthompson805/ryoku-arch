@@ -117,13 +117,14 @@ PillSurface {
         Item {
             id: wipeBtn
             anchors.verticalCenter: parent.verticalCenter
-            width: 16 * root.s
+            width: wipeLabel.implicitWidth
             height: 16 * root.s
 
             readonly property real hold: wipeHeat.hold
             readonly property bool holding: wipeHeat.holding
 
             Text {
+                id: wipeLabel
                 anchors.centerIn: parent
                 text: "CLR"
                 color: wipeBtn.holding ? Theme.vermLit : (wipeArea.containsMouse ? Theme.cream : Theme.faint)
