@@ -24,7 +24,12 @@ Rectangle {
     // library/scrape clips show the poster + a play badge and never stream here;
     // the hero preview streams the one selected clip, and Save is the only download.
     readonly property bool isLocal: cell.isVideo && !("" + cell.item.video).startsWith("http")
-    readonly property bool playing: cell.isLocal && (ma.containsMouse || !cell.hasThumb)
+    // hover-gated only: local clips now always carry a generated poster (see
+    // ryowalls live-list/local-list), so nothing should autoplay on render —
+    // a grid full of clips used to spin up one hardware decoder per cell
+    // simultaneously (no poster -> play immediately), which was enough
+    // concurrent GPU decode load to wedge the iGPU driver.
+    readonly property bool playing: cell.isLocal && ma.containsMouse
     readonly property string resText: (cell.item && cell.item.resolution) ? ("" + cell.item.resolution) : ""
     readonly property int resH: {
         var p = cell.resText.split("x");

@@ -96,6 +96,31 @@ vid_res_map() {
 		'printf "%s\t%s\n" "$1" "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$1" 2>/dev/null | head -1)"' _
 }
 
+# vid_poster_map: newline-separated video paths in, "path<TAB>posterpath" rows
+# out (posterpath "" on failure). Cached by md5 of the path, regenerated only
+# when the source is newer than its cached poster (same staleness check as the
+# library tree cache above). This exists so the grid never has to fall back to
+# WallCell's "no poster -> autoplay" case: a grid full of clips with no posters
+# used to spin up one hardware decoder per cell at once, enough concurrent GPU
+# decode load to wedge the iGPU driver (2026-08-11).
+poster_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/ryowalls/posters"
+vid_poster_map() {
+	mkdir -p "$poster_dir" 2>/dev/null || true
+	xargs -r -d '\n' -n 1 -P 8 sh -c '
+		f="$1"
+		key="$(printf "%s" "$f" | md5sum | cut -d" " -f1)"
+		out="'"$poster_dir"'/$key.jpg"
+		src_mt="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
+		out_mt="$(stat -c %Y "$out" 2>/dev/null || echo 0)"
+		if [ ! -s "$out" ] || [ "$src_mt" -gt "$out_mt" ]; then
+			ffmpeg -y -ss 00:00:01 -i "$f" -frames:v 1 -vf scale=480:-1 -q:v 4 "$out" >/dev/null 2>&1
+			[ -s "$out" ] || ffmpeg -y -i "$f" -frames:v 1 -vf scale=480:-1 -q:v 4 "$out" >/dev/null 2>&1
+		fi
+		[ -s "$out" ] || out=""
+		printf "%s\t%s\n" "$f" "$out"
+	' _
+}
+
 # downloads land as-is now; enhancing is an explicit, on-demand action.
 finish() { printf '%s\n' "$1"; }
 
@@ -544,10 +569,11 @@ live-list)
 	# badged with its real resolution (parallel probe, order restored via map).
 	dir="$HOME/Pictures/livewalls"; mkdir -p "$dir"
 	mapfile -t vids < <(find "$dir" -maxdepth 1 -type f \( -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' -o -iname '*.mov' \) -printf '%T@\t%p\n' 2>/dev/null | sort -rn | cut -f2-)
-	declare -A vres=()
+	declare -A vres=() vpost=()
 	[ "${#vids[@]}" -gt 0 ] && while IFS="$(printf '\t')" read -r vf vr; do vres["$vf"]="$vr"; done < <(printf '%s\n' "${vids[@]}" | vid_res_map)
+	[ "${#vids[@]}" -gt 0 ] && while IFS="$(printf '\t')" read -r vf vp; do vpost["$vf"]="$vp"; done < <(printf '%s\n' "${vids[@]}" | vid_poster_map)
 	for f in "${vids[@]}"; do
-		jq -cn --arg p "$f" --arg n "$(basename "$f")" --arg r "${vres[$f]:-}" '{id: $p, thumb: "", video: $p, resolution: $r, name: $n}'
+		jq -cn --arg p "$f" --arg n "$(basename "$f")" --arg r "${vres[$f]:-}" --arg t "${vpost[$f]:-}" '{id: $p, thumb: $t, video: $p, resolution: $r, name: $n}'
 	done
 	;;
 live-import)
@@ -599,14 +625,15 @@ local-list)
 	for row in "${lrows[@]}"; do
 		[ "${row%%$'\t'*}" = video ] && vids+=("${row#*$'\t'}")
 	done
-	declare -A vres=()
+	declare -A vres=() vpost=()
 	[ "${#vids[@]}" -gt 0 ] && while IFS="$(printf '\t')" read -r vf vr; do vres["$vf"]="$vr"; done < <(printf '%s\n' "${vids[@]}" | vid_res_map)
+	[ "${#vids[@]}" -gt 0 ] && while IFS="$(printf '\t')" read -r vf vp; do vpost["$vf"]="$vp"; done < <(printf '%s\n' "${vids[@]}" | vid_poster_map)
 	for row in "${lrows[@]}"; do
 		kind="${row%%$'\t'*}"; f="${row#*$'\t'}"
 		n="$(basename "$f")"
 		[ -z "$ql" ] || case "$(printf '%s' "$n" | tr '[:upper:]' '[:lower:]')" in *"$ql"*) ;; *) continue ;; esac
 		if [ "$kind" = video ]; then
-			jq -cn --arg p "$f" --arg n "$n" --arg r "${vres[$f]:-}" '{id:$p, thumb:"", video:$p, resolution:$r, name:$n}'
+			jq -cn --arg p "$f" --arg n "$n" --arg r "${vres[$f]:-}" --arg t "${vpost[$f]:-}" '{id:$p, thumb:$t, video:$p, resolution:$r, name:$n}'
 		else
 			jq -cn --arg p "$f" --arg n "$n" '{id:$p, path:$p, thumb:$p, large:$p, resolution:"", name:$n}'
 		fi
