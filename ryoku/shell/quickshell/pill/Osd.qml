@@ -12,6 +12,8 @@ Item {
     property bool flashing: false
     property string kind: "volume"
     property bool armed: false
+    property string lockKeyName: ""
+    property bool lockKeyState: false
     property string shownTrackLine: ""
     property bool shownPlaying: false
     property string shownArtUrl: ""
@@ -60,6 +62,12 @@ Item {
         hideTimer.restart();
     }
 
+    function flashLockKey(name, on) {
+        lockKeyName = name;
+        lockKeyState = on;
+        flash("lockkey");
+    }
+
     onSuppressedChanged: {
         if (suppressed) {
             hideTimer.stop();
@@ -99,6 +107,13 @@ Item {
     Connections {
         target: Devices
         function onPanelBrightnessUserChanged() { root.flash("brightness"); }
+    }
+
+    Connections {
+        target: LockKeys
+        function onCapsLockChanged() { if (Config.lockKeyOsdEnabled) root.flashLockKey("Caps Lock", LockKeys.capsLock); }
+        function onNumLockChanged() { if (Config.lockKeyOsdEnabled) root.flashLockKey("Num Lock", LockKeys.numLock); }
+        function onScrollLockChanged() { if (Config.lockKeyOsdEnabled) root.flashLockKey("Scroll Lock", LockKeys.scrollLock); }
     }
 
     onPlayerChanged: {
@@ -221,6 +236,50 @@ Item {
                 color: Theme.vermLit
                 Behavior on width { NumberAnimation { duration: Motion.fast } }
             }
+        }
+    }
+
+    Item {
+        id: lockKeyRow
+        anchors.fill: parent
+        opacity: root.kind === "lockkey" ? 1 : 0
+        visible: opacity > 0.01
+        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+        GlyphIcon {
+            id: lockGlyph
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 17 * root.s
+            height: 17 * root.s
+            name: "lock"
+            color: root.lockKeyState ? Theme.iconDim : Theme.dim
+            stroke: 1.7
+        }
+
+        Text {
+            id: lockStateText
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.lockKeyState ? "On" : "Off"
+            color: root.lockKeyState ? Theme.vermLit : Theme.dim
+            font.family: Theme.font
+            font.pixelSize: 11 * root.s
+            font.weight: Font.DemiBold
+        }
+
+        Text {
+            anchors.left: lockGlyph.right
+            anchors.leftMargin: 12 * root.s
+            anchors.right: lockStateText.left
+            anchors.rightMargin: 10 * root.s
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.lockKeyName
+            color: Theme.cream
+            font.family: Theme.font
+            font.pixelSize: 12 * root.s
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
         }
     }
 

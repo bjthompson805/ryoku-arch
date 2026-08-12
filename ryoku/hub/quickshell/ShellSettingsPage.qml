@@ -19,7 +19,7 @@ Item {
     readonly property var shellKeys: [
         "frameRadius", "roundness", "frameBorder", "frameEnabled", "frameSmoothing", "frameOpacity",
         "shadowStrength", "shadowSize", "surfaceColor",
-        "osdRadius", "osdOpacity",
+        "osdRadius", "osdOpacity", "lockKeyOsdEnabled",
         "barEnabled", "barPosition", "barStyle", "barHeight",
         "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barShowWeather", "barShowDisplay", "barOccupiedWorkspaces", "barWorkspaceIcons",
         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
@@ -93,7 +93,7 @@ Item {
     readonly property var defaults: ({
         "frameRadius": 9, "roundness": 10, "frameBorder": 59, "frameEnabled": true, "frameSmoothing": 8, "frameOpacity": 1,
         "shadowStrength": 0.63, "shadowSize": 12, "surfaceColor": "#0f1115",
-        "osdRadius": 28, "osdOpacity": 1,
+        "osdRadius": 28, "osdOpacity": 1, "lockKeyOsdEnabled": true,
         "barEnabled": true, "barPosition": "top", "barStyle": "noctalia", "barHeight": 30,
         "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barShowWeather": true, "barShowDisplay": true, "barOccupiedWorkspaces": true, "barWorkspaceIcons": false,
         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
@@ -130,6 +130,7 @@ Item {
         property color surfaceColor: "#0f1115"
         property real osdRadius: 28
         property real osdOpacity: 1
+        property bool lockKeyOsdEnabled: true
         property bool barEnabled: true
         property string barPosition: "top"
         property string barStyle: "noctalia"
@@ -356,6 +357,7 @@ Item {
             property color surfaceColor: "#0f1115"
             property real osdRadius: 28
             property real osdOpacity: 1
+            property bool lockKeyOsdEnabled: true
             property bool barEnabled: true
             property string barPosition: "top"
             property string barStyle: "noctalia"
@@ -577,6 +579,11 @@ Item {
                         width: parent.width; label: "Opacity"; percent: true
                         from: 0.2; to: 1; step: 0.01; value: draft.osdOpacity
                         onModified: (v) => page.edit("osdOpacity", v)
+                    }
+                    ToggleRow {
+                        width: parent.width; label: "Show Caps/Num/Scroll Lock OSD"
+                        checked: draft.lockKeyOsdEnabled
+                        onToggled: (v) => page.edit("lockKeyOsdEnabled", v)
                     }
                 }
             }

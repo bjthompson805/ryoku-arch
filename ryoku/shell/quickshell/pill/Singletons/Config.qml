@@ -34,9 +34,11 @@ Singleton {
 
     // osd = the volume/brightness flash and notification toasts: small edge
     // windows that share the frame surface. osdRadius rounds their corners,
-    // osdOpacity fades them.
+    // osdOpacity fades them. lockKeyOsdEnabled gates the Caps/Num/Scroll Lock
+    // flash specifically (the other OSD kinds are always on).
     property alias osdRadius:  adapter.osdRadius
     property alias osdOpacity: adapter.osdOpacity
+    property alias lockKeyOsdEnabled: adapter.lockKeyOsdEnabled
 
     // bar = the shell's resting face, drawn on the frame's thickened edge
     // (Bar.qml). barPosition is "top" or "bottom"; barStyle picks the skin,
@@ -165,6 +167,7 @@ Singleton {
             property color surfaceColor: "#0f1115"
             property real osdRadius: 28
             property real osdOpacity: 1
+            property bool lockKeyOsdEnabled: true
             property bool barEnabled: true
             property string barPosition: "top"
             property string barStyle: "noctalia"
