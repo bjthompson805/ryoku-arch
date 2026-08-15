@@ -215,7 +215,12 @@ Item {
                 anchors.top: parent.top
                 anchors.topMargin: 2 * root.s
                 implicitSize: 16 * root.s
-                source: Apps.iconForClass(root.wmClass)
+                // gated like sample()/procSampler below -- iconForClass scans every
+                // desktop entry plus an icon-theme lookup, real synchronous work
+                // this closed-and-invisible popout has no business paying on every
+                // single focus change (BarTitle already pays it once, for the
+                // visible title icon).
+                source: root.open ? Apps.iconForClass(root.wmClass) : ""
             }
             Text {
                 width: parent.width - 16 * root.s - 8 * root.s
