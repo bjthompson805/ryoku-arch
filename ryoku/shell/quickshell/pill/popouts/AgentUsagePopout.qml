@@ -16,12 +16,14 @@ Item {
     property real s: 1
     property bool open: false
 
-    // ticks while open so "resets in 47m" doesn't freeze at the moment the
-    // popout was opened -- cheap, it only re-evaluates text bindings.
+    // ticks while open so "resets in 47m" and "checked 8s ago" don't freeze
+    // at the moment the popout was opened -- cheap, it only re-evaluates
+    // text bindings. 5s (not 30s) so "checked Ns ago" reads as live enough
+    // to actually reassure someone that clicking refresh did something.
     property real nowMs: Date.now()
     onOpenChanged: if (open) root.nowMs = Date.now()
     Timer {
-        interval: 30000
+        interval: 5000
         repeat: true
         running: root.open
         onTriggered: root.nowMs = Date.now()
@@ -49,6 +51,32 @@ Item {
         if (!(resetAtMs > 0))
             return "";
         return "Resets in " + root.formatDuration(resetAtMs - root.nowMs);
+    }
+
+    // formatDuration's coarsest unit is minutes, too blunt for "just
+    // attempted a second ago" -- the whole point of that half of the label
+    // is proving something happened within the last few seconds.
+    function _ago(ms) {
+        var elapsed = Math.max(0, root.nowMs - ms);
+        if (elapsed < 5000)
+            return "just now";
+        if (elapsed < 60000)
+            return Math.round(elapsed / 1000) + "s ago";
+        return root.formatDuration(elapsed) + " ago";
+    }
+
+    // two different questions, both worth answering separately: "how old is
+    // the number on screen" (lastUpdatedMs -- only moves on a SUCCESSFUL
+    // probe) vs "did it just try again" (lastCheckedMs -- moves on every
+    // attempt, success or failure). A long rate-limit stretch can have
+    // lastCheckedMs ticking every minute while the displayed percentage is
+    // hours stale; collapsing them into one label would hide exactly that.
+    function stalenessLabel() {
+        var updated = AgentUsage.lastUpdatedMs > 0 ? "Updated " + root._ago(AgentUsage.lastUpdatedMs) : "";
+        if (!AgentUsage.lastProbeFailed || !(AgentUsage.lastCheckedMs > 0))
+            return updated;
+        var checked = "retried " + root._ago(AgentUsage.lastCheckedMs);
+        return updated.length > 0 ? updated + " · " + checked : "Checked " + root._ago(AgentUsage.lastCheckedMs);
     }
 
     function dayLabel(date) {
@@ -333,6 +361,16 @@ Item {
                     onClicked: AgentUsage.refreshNow()
                 }
             }
+        }
+
+        Text {
+            visible: text.length > 0
+            width: parent.width
+            horizontalAlignment: Text.AlignRight
+            text: root.stalenessLabel()
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: 9 * root.s
         }
 
         // ---------- limits ----------

@@ -18,11 +18,12 @@ import Quickshell.Io
 // ones until the next poll lands. the pollers run only while `active` (a
 // visible BarAgentUsage sets it), same idiom as SysStats/NetSpeed -- on two
 // separate clocks, since the two costs are wildly different: the rate-limit
-// probe is one small request and needs to stay current (polls every minute),
+// probe is one small request and needs to stay current (polls every 2
+// minutes -- Anthropic's usage endpoint 429s a straight 1-minute cadence),
 // the transcript scan is real CPU for numbers that only need daily
 // granularity anyway (every 15 minutes). refreshNow() (the popout's manual
-// refresh button) runs both
-// immediately, bypassing the probe's retry throttle.
+// refresh button) runs both against a much shorter cooldown than the
+// periodic timer's, but not zero -- see manualCooldownMs.
 Singleton {
     id: root
 
@@ -43,6 +44,17 @@ Singleton {
     // (which is sticky), so the popout can still surface "rate-limited,
     // retrying shortly" even while it's showing a stale-but-real reading.
     property bool lastProbeFailed: false
+    // epoch ms of the most recent completed attempt, success or failure --
+    // so the popout can say "checked 8s ago" and a repeated-but-genuinely-
+    // rechecked 429 reads as "still limited as of just now" instead of
+    // looking like the click did nothing at all.
+    property real lastCheckedMs: 0
+    // epoch ms of the most recent SUCCESSFUL probe -- distinct from
+    // lastCheckedMs. a long rate-limit stretch can leave lastCheckedMs
+    // ticking every couple minutes while the actual sessionPercent/
+    // weeklyPercent on screen are hours stale; this is what answers "how
+    // old is the number I'm looking at", not "when did it last try".
+    property real lastUpdatedMs: 0
     property string planLabel: ""
     property int sessionPercent: 0
     property int weeklyPercent: 0
@@ -62,9 +74,16 @@ Singleton {
 
     // a 429 or transport failure shouldn't retry faster than this even if the
     // periodic timer pokes refresh() again right away (mirrors Omarchy's
-    // collector); a manual refreshNow() click bypasses it -- a deliberate
-    // click ten seconds after the last one is a request, not a retry loop.
+    // collector).
     readonly property int minRetryIntervalMs: 15000
+    // the manual refresh button's own floor -- much shorter than the timer's,
+    // so it still feels responsive, but NOT zero: a user double/triple
+    // clicking it during an active rate limit was re-triggering a fresh 429
+    // from Anthropic on every single click (confirmed live -- every click
+    // really was reaching the endpoint and really was getting rate-limited
+    // again each time, not a stuck/frozen UI), which just kept the window
+    // extended. This stops a click storm from being self-defeating.
+    readonly property int manualCooldownMs: 5000
     property real lastAttemptMs: 0
 
     // true while either probe is in flight, for the popout's refresh spinner.
@@ -75,7 +94,8 @@ Singleton {
         root._refreshLocalStats();
     }
 
-    // user-triggered (the popout's refresh button): skips the retry throttle.
+    // user-triggered (the popout's refresh button): shorter floor than the
+    // periodic timer's, not zero -- see manualCooldownMs.
     function refreshNow() {
         root._refreshLimits(true);
         root._refreshLocalStats();
@@ -85,7 +105,8 @@ Singleton {
         if (probeProc.running)
             return;
         var now = Date.now();
-        if (!force && now - root.lastAttemptMs < root.minRetryIntervalMs)
+        var floor = force ? root.manualCooldownMs : root.minRetryIntervalMs;
+        if (now - root.lastAttemptMs < floor)
             return;
         root.lastAttemptMs = now;
         tokenFile.reload();
@@ -192,6 +213,7 @@ Singleton {
         ]);
         var sp = session ? root._normalizePercent(session.utilization, percentScale) : -1;
         var wp = weekly ? root._normalizePercent(weekly.utilization, percentScale) : -1;
+        root.lastCheckedMs = Date.now();
         if (sp < 0 && wp < 0) {
             root.authHelpText = "Anthropic's usage endpoint returned no limits.";
             root.available = root.everHadLimits;
@@ -209,6 +231,7 @@ Singleton {
         root.available = true;
         root.everHadLimits = true;
         root.lastProbeFailed = false;
+        root.lastUpdatedMs = root.lastCheckedMs;
         root._writeCache();
     }
 
@@ -226,6 +249,7 @@ Singleton {
             : "Couldn't reach Anthropic's usage endpoint.";
         root.available = root.everHadLimits;
         root.lastProbeFailed = true;
+        root.lastCheckedMs = Date.now();
     }
 
     // ---- local-stats parsing --------------------------------------------
@@ -268,6 +292,7 @@ Singleton {
             weeklyPercent: root.weeklyPercent,
             sessionResetsAtMs: root.sessionResetsAtMs,
             weeklyResetsAtMs: root.weeklyResetsAtMs,
+            lastUpdatedMs: root.lastUpdatedMs,
             recentDays: root.recentDays,
             modelUsage: root.modelUsage
         }));
@@ -284,6 +309,7 @@ Singleton {
             root.weeklyPercent = c.weeklyPercent || 0;
             root.sessionResetsAtMs = c.sessionResetsAtMs === undefined ? -1 : c.sessionResetsAtMs;
             root.weeklyResetsAtMs = c.weeklyResetsAtMs === undefined ? -1 : c.weeklyResetsAtMs;
+            root.lastUpdatedMs = c.lastUpdatedMs || 0;
             if (c.sessionPercent !== undefined || c.weeklyPercent !== undefined) {
                 root.available = true;
                 root.everHadLimits = true;
@@ -331,6 +357,7 @@ Singleton {
                 root.available = root.everHadLimits;
                 root.authHelpText = "Run `claude auth login` to see usage.";
                 root.lastProbeFailed = true;
+                root.lastCheckedMs = Date.now();
                 return;
             }
             probeProc.token = token;
@@ -340,6 +367,7 @@ Singleton {
             root.available = root.everHadLimits;
             root.authHelpText = "Run `claude auth login` to see usage.";
             root.lastProbeFailed = true;
+            root.lastCheckedMs = Date.now();
         }
     }
 
@@ -370,9 +398,11 @@ Singleton {
                 try {
                     root._applyLimits(JSON.parse(body));
                 } catch (e) {
-                    root.authHelpText = "Couldn't reach Anthropic's usage endpoint.";
-                    root.available = root.everHadLimits;
-                    root.lastProbeFailed = true;
+                    // malformed body on an otherwise-2xx response -- same
+                    // "couldn't reach it" message _applyLimitsError(0) gives
+                    // a genuine transport failure, so just reuse it instead
+                    // of duplicating the message/flag bookkeeping here.
+                    root._applyLimitsError(0);
                 }
             }
         }
@@ -418,10 +448,11 @@ Singleton {
         }
     }
 
-    // the rate-limit probe is one small request, cheap enough to run every
-    // minute.
+    // the rate-limit probe is one small request, but Anthropic's usage
+    // endpoint 429s a straight 1-minute cadence -- 2 minutes is the floor
+    // that actually stays clear.
     Timer {
-        interval: 60000
+        interval: 120000
         repeat: true
         running: root.active
         triggeredOnStart: true
