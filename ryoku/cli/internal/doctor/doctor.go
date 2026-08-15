@@ -1044,7 +1044,6 @@ func reconcileSessionComponents(_ bool) recResult {
 		role, fix string
 		any       []string
 	}{
-		{"authentication agent", "sudo pacman -S hyprpolkitagent", []string{"hyprpolkitagent", "polkit-gnome", "polkit-kde-agent", "lxsession"}},
 		{"desktop portal", "sudo pacman -S xdg-desktop-portal-hyprland", []string{"xdg-desktop-portal-hyprland"}},
 		{"audio server", "sudo pacman -S pipewire wireplumber", []string{"pipewire"}},
 		{"network manager", "sudo pacman -S networkmanager", []string{"networkmanager"}},
@@ -1054,6 +1053,14 @@ func reconcileSessionComponents(_ bool) recResult {
 		if !anyPkgInstalled(c.any...) {
 			missing = append(missing, fmt.Sprintf("%s [%s]", c.role, c.fix))
 		}
+	}
+	// ryoku-shell is its own polkit authentication agent (PolkitPrompt.qml) --
+	// no separate package required. A standalone agent left over from before
+	// that switch (or installed by hand) can still win the session's
+	// org.freedesktop.PolicyKit1.AuthenticationAgent registration race,
+	// silently disabling the themed prompt in favour of the stock one.
+	if anyPkgInstalled("hyprpolkitagent", "polkit-gnome", "polkit-kde-agent", "lxsession") {
+		missing = append(missing, "standalone polkit agent installed, may win registration over ryoku-shell's own agent [sudo systemctl --user disable --now hyprpolkitagent; sudo pacman -Rns hyprpolkitagent]")
 	}
 	if len(missing) == 0 {
 		return okRes("desktop session components present")

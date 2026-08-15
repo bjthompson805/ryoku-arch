@@ -44,7 +44,8 @@ depends=(
   'qt6-wayland'
   'qt6-5compat'
   'qt6-svg'
-  'hyprpolkitagent'
+  # polkit authentication agent is ryoku-shell itself (PolkitPrompt.qml);
+  # quickshell already depends on the `polkit` daemon it registers with.
   'xdg-desktop-portal-hyprland'
   'xdg-desktop-portal-gtk'
   # the standalone Adwaita-dark GTK theme the Hyprland autostart selects

@@ -2,22 +2,12 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Ice 24")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme prefer-dark")
     hl.exec_cmd("gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark")
-    -- hyprpolkitagent.service gates on ConditionEnvironment=WAYLAND_DISPLAY, which
-    -- is checked once at start time and never re-evaluated. Hyprland's own env
-    -- import into the systemd --user manager can lose the race with the start
-    -- calls below, so the condition fails, the unit is silently "skipped" (not
-    -- "failed", so nothing surfaces), and no polkit agent ever runs for the
-    -- session -- every pkexec call then hangs forever waiting for one.
+    -- Hyprland's own env import into the systemd --user manager can lose the
+    -- race with the target start below, so import explicitly first -- other
+    -- session units (portals, etc.) bound to hyprland-session.target gate on
+    -- WAYLAND_DISPLAY being present.
     hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")
-    -- The user manager is one persistent process across logins, so a previous
-    -- session's agent can still be mid crash-loop when this one starts: its old
-    -- Wayland connection just broke (compositor gone), it aborts instantly with
-    -- no display to attach to, and repeats fast enough to hit start-limit-hit --
-    -- which then also blocks the very "start" call below for the new session.
-    -- reset-failed clears that stale lock before asking systemd to start it.
-    hl.exec_cmd("systemctl --user reset-failed hyprpolkitagent")
     hl.exec_cmd("systemctl --user start hyprland-session.target")
-    hl.exec_cmd("systemctl --user start hyprpolkitagent")
     hl.exec_cmd("command -v ryoku-monitor >/dev/null 2>&1 && ryoku-monitor autoscale")
     hl.exec_cmd("command -v ryoku-gpu >/dev/null 2>&1 && ryoku-gpu persist")
     hl.exec_cmd("ryoku-shell daemon")

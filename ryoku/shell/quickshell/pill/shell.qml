@@ -153,6 +153,10 @@ ShellRoot {
         anchors { top: true; left: true }
     }
 
+    // in-shell polkit authentication agent: themed, names the exact
+    // privileged command. Registers itself; nothing to gate on here.
+    PolkitPrompt {}
+
     // Keep-Awake's durable inhibitor lives outside the shell so it survives
     // a reload/restart. ryoku-cmd-caffeine runs systemd-inhibit via
     // systemd-run (setsid fallback), independent of our lifetime. the

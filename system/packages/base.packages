@@ -55,10 +55,11 @@ rtkit
 mesa
 vulkan-icd-loader
 
-# Desktop: plain Hyprland, Xwayland, portals, polkit agent, Qt/GTK runtime
+# Desktop: plain Hyprland, Xwayland, portals, Qt/GTK runtime. The polkit
+# authentication agent is ryoku-shell itself (PolkitPrompt.qml) -- no separate
+# agent package; `polkit` below is just the daemon it registers with.
 hyprland
 xorg-xwayland
-hyprpolkitagent
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 xdg-user-dirs
