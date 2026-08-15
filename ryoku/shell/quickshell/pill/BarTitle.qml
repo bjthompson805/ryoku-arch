@@ -41,14 +41,24 @@ Item {
     implicitWidth: width
     height: metrics.implicitHeight
     implicitHeight: height
+    // both the width ease and the crossfade are pure animation cost on every
+    // focus change -- skip them in Game Mode so a transition never contends
+    // with a game's frame time for main-thread/render-thread work.
     Behavior on width {
-        enabled: root.ready
+        enabled: root.ready && !Flags.gameMode
         NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic }
     }
 
     onLabelChanged: {
         if (!ready)
             return;
+        if (Flags.gameMode) {
+            fade.stop();
+            prevLabel = label;
+            ghost.opacity = 0;
+            live.opacity = 1;
+            return;
+        }
         ghost.text = prevLabel;
         prevLabel = label;
         ghost.opacity = 1;
