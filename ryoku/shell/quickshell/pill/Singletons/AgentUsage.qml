@@ -15,8 +15,14 @@ import Quickshell.Io
 // token-by-day and token-by-model breakdown the popout shows underneath the
 // limits, mirroring Omarchy's agent-usage panel. last-good reading of both
 // is cached to disk so a shell restart shows real numbers instead of blank
-// ones until the next poll lands. the poller runs only while `active` (a
-// visible BarAgentUsage sets it), same idiom as SysStats/NetSpeed.
+// ones until the next poll lands. the pollers run only while `active` (a
+// visible BarAgentUsage sets it), same idiom as SysStats/NetSpeed -- on two
+// separate clocks, since the two costs are wildly different: the rate-limit
+// probe is one small request and needs to stay current (polls every minute),
+// the transcript scan is real CPU for numbers that only need daily
+// granularity anyway (every 15 minutes). refreshNow() (the popout's manual
+// refresh button) runs both
+// immediately, bypassing the probe's retry throttle.
 Singleton {
     id: root
 
@@ -28,6 +34,15 @@ Singleton {
 
     // ---- rate limits (Anthropic's usage endpoint) --------------------------
     property bool available: false
+    // sticky once true: a later probe failure (rate-limited, transport error,
+    // ...) shouldn't blank out a reading we already have. `available` stays
+    // true and keeps showing the last-good numbers; authHelpText carries the
+    // failure detail for the popout instead.
+    property bool everHadLimits: false
+    // true only for the most recent probe -- distinct from `available`
+    // (which is sticky), so the popout can still surface "rate-limited,
+    // retrying shortly" even while it's showing a stale-but-real reading.
+    property bool lastProbeFailed: false
     property string planLabel: ""
     property int sessionPercent: 0
     property int weeklyPercent: 0
@@ -46,20 +61,31 @@ Singleton {
     property var modelUsage: []
 
     // a 429 or transport failure shouldn't retry faster than this even if the
-    // caller pokes refresh() again right away (mirrors Omarchy's collector).
+    // periodic timer pokes refresh() again right away (mirrors Omarchy's
+    // collector); a manual refreshNow() click bypasses it -- a deliberate
+    // click ten seconds after the last one is a request, not a retry loop.
     readonly property int minRetryIntervalMs: 15000
     property real lastAttemptMs: 0
 
+    // true while either probe is in flight, for the popout's refresh spinner.
+    readonly property bool refreshing: probeProc.running || scanProc.running
+
     function refresh() {
-        root._refreshLimits();
+        root._refreshLimits(false);
         root._refreshLocalStats();
     }
 
-    function _refreshLimits() {
+    // user-triggered (the popout's refresh button): skips the retry throttle.
+    function refreshNow() {
+        root._refreshLimits(true);
+        root._refreshLocalStats();
+    }
+
+    function _refreshLimits(force) {
         if (probeProc.running)
             return;
         var now = Date.now();
-        if (now - root.lastAttemptMs < root.minRetryIntervalMs)
+        if (!force && now - root.lastAttemptMs < root.minRetryIntervalMs)
             return;
         root.lastAttemptMs = now;
         tokenFile.reload();
@@ -167,8 +193,9 @@ Singleton {
         var sp = session ? root._normalizePercent(session.utilization, percentScale) : -1;
         var wp = weekly ? root._normalizePercent(weekly.utilization, percentScale) : -1;
         if (sp < 0 && wp < 0) {
-            root.available = false;
             root.authHelpText = "Anthropic's usage endpoint returned no limits.";
+            root.available = root.everHadLimits;
+            root.lastProbeFailed = true;
             return;
         }
         if (sp >= 0) {
@@ -180,7 +207,25 @@ Singleton {
             root.weeklyResetsAtMs = root._resetMs(weekly.resets_at);
         }
         root.available = true;
+        root.everHadLimits = true;
+        root.lastProbeFailed = false;
         root._writeCache();
+    }
+
+    // a non-2xx response: curl still exits 0 and prints the error body, so
+    // this is a separate path from the JSON.parse try/catch below -- an
+    // error payload parses just fine, it just isn't a usage record, and
+    // treating it as "valid JSON with no limits" was exactly what turned a
+    // 429 into a false "no limits at all" (and, before everHadLimits, wiped
+    // an already-good reading over one rate-limited probe).
+    function _applyLimitsError(status) {
+        root.authHelpText = status === 429
+            ? "Anthropic's usage endpoint is rate-limiting checks right now. Retrying shortly."
+            : status > 0
+            ? "Anthropic's usage endpoint returned status " + status + "."
+            : "Couldn't reach Anthropic's usage endpoint.";
+        root.available = root.everHadLimits;
+        root.lastProbeFailed = true;
     }
 
     // ---- local-stats parsing --------------------------------------------
@@ -239,8 +284,10 @@ Singleton {
             root.weeklyPercent = c.weeklyPercent || 0;
             root.sessionResetsAtMs = c.sessionResetsAtMs === undefined ? -1 : c.sessionResetsAtMs;
             root.weeklyResetsAtMs = c.weeklyResetsAtMs === undefined ? -1 : c.weeklyResetsAtMs;
-            if (c.sessionPercent !== undefined || c.weeklyPercent !== undefined)
+            if (c.sessionPercent !== undefined || c.weeklyPercent !== undefined) {
                 root.available = true;
+                root.everHadLimits = true;
+            }
             if (Array.isArray(c.recentDays) && c.recentDays.length > 0) {
                 root.recentDays = c.recentDays;
                 root.localStatsAvailable = true;
@@ -281,34 +328,51 @@ Singleton {
                 root.planLabel = root._planLabel(login.rateLimitTier, login.subscriptionType);
             } catch (e) {}
             if (token.length === 0) {
-                root.available = false;
+                root.available = root.everHadLimits;
                 root.authHelpText = "Run `claude auth login` to see usage.";
+                root.lastProbeFailed = true;
                 return;
             }
             probeProc.token = token;
             probeProc.running = true;
         }
         onLoadFailed: {
-            root.available = false;
+            root.available = root.everHadLimits;
             root.authHelpText = "Run `claude auth login` to see usage.";
+            root.lastProbeFailed = true;
         }
     }
 
     Process {
         id: probeProc
         property string token: ""
+        // -w appends the HTTP status on its own trailing line: curl exits 0
+        // and happily prints an error response body (a 429's JSON, an HTML
+        // error page, ...) same as a real payload, so without checking this
+        // separately, a rate-limited probe parses as "valid JSON, no limits
+        // in it" instead of being recognized as the failure it is.
         command: ["curl", "-s", "--max-time", "8",
+            "-w", "\n%{http_code}",
             "-H", "Authorization: Bearer " + probeProc.token,
             "-H", "anthropic-beta: oauth-2025-04-20",
             "-H", "Accept: application/json",
             "https://api.anthropic.com/api/oauth/usage"]
         stdout: StdioCollector {
             onStreamFinished: {
+                var raw = this.text;
+                var splitAt = raw.lastIndexOf("\n");
+                var body = splitAt >= 0 ? raw.slice(0, splitAt) : "";
+                var status = Number(splitAt >= 0 ? raw.slice(splitAt + 1).trim() : raw.trim());
+                if (!(status >= 200 && status < 300)) {
+                    root._applyLimitsError(status || 0);
+                    return;
+                }
                 try {
-                    root._applyLimits(JSON.parse(this.text));
+                    root._applyLimits(JSON.parse(body));
                 } catch (e) {
-                    root.available = root.sessionPercent > 0 || root.weeklyPercent > 0;
                     root.authHelpText = "Couldn't reach Anthropic's usage endpoint.";
+                    root.available = root.everHadLimits;
+                    root.lastProbeFailed = true;
                 }
             }
         }
@@ -354,11 +418,24 @@ Singleton {
         }
     }
 
+    // the rate-limit probe is one small request, cheap enough to run every
+    // minute.
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.active
+        triggeredOnStart: true
+        onTriggered: root._refreshLimits(false)
+    }
+
+    // the local transcript scan is real CPU (~1.3s over a heavy history on
+    // this machine) for daily-granularity numbers that don't need
+    // minute-level freshness, so it rides its own slower clock.
     Timer {
         interval: 900000
         repeat: true
         running: root.active
         triggeredOnStart: true
-        onTriggered: root.refresh()
+        onTriggered: root._refreshLocalStats()
     }
 }

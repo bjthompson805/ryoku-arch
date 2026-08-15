@@ -259,35 +259,79 @@ Item {
         anchors.rightMargin: 16 * root.s
         spacing: 14 * root.s
 
-        // header: brand glyph + eyebrow + plan, the popout idiom.
-        Row {
+        // header: brand glyph + eyebrow + plan on the left, a manual refresh
+        // button pinned top-right (the timers already poll on their own
+        // cadence -- this is for "no, right now").
+        Item {
             width: parent.width
-            spacing: 8 * root.s
-            MaterialIcon {
+            height: Math.max(headerRow.implicitHeight, refreshBtn.height)
+
+            Row {
+                id: headerRow
+                anchors.left: parent.left
+                anchors.right: refreshBtn.left
+                anchors.rightMargin: 8 * root.s
                 anchors.verticalCenter: parent.verticalCenter
-                text: "auto_awesome"
-                fill: 1
-                color: Theme.brand
-                font.pixelSize: 16 * root.s
+                spacing: 8 * root.s
+                MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "auto_awesome"
+                    fill: 1
+                    color: Theme.brand
+                    font.pixelSize: 16 * root.s
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "CLAUDE CODE"
+                    color: Theme.subtle
+                    font.family: Theme.font
+                    font.pixelSize: 10 * root.s
+                    font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6 * root.s
+                }
+                Text {
+                    visible: AgentUsage.planLabel.length > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: AgentUsage.planLabel
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 10 * root.s
+                    font.weight: Font.Medium
+                }
             }
-            Text {
+
+            Item {
+                id: refreshBtn
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: "CLAUDE CODE"
-                color: Theme.subtle
-                font.family: Theme.font
-                font.pixelSize: 10 * root.s
-                font.weight: Font.DemiBold
-                font.capitalization: Font.AllUppercase
-                font.letterSpacing: 1.6 * root.s
-            }
-            Text {
-                visible: AgentUsage.planLabel.length > 0
-                anchors.verticalCenter: parent.verticalCenter
-                text: AgentUsage.planLabel
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: 10 * root.s
-                font.weight: Font.Medium
+                width: 18 * root.s
+                height: 18 * root.s
+
+                MaterialIcon {
+                    id: refreshGlyph
+                    anchors.centerIn: parent
+                    text: "refresh"
+                    fill: 1
+                    color: refreshArea.containsMouse ? Theme.cream : Theme.subtle
+                    font.pixelSize: 14 * root.s
+
+                    RotationAnimation on rotation {
+                        running: AgentUsage.refreshing
+                        from: 0
+                        to: 360
+                        duration: 700
+                        loops: Animation.Infinite
+                    }
+                }
+
+                MouseArea {
+                    id: refreshArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: AgentUsage.refreshNow()
+                }
             }
         }
 
@@ -312,12 +356,16 @@ Item {
             }
         }
 
+        // shown whenever the most recent probe failed -- even with a
+        // stale-but-real reading still up above (available is sticky, so it
+        // alone can't gate this: a 429 five minutes ago must still be able
+        // to say so here, not just the "never had any data" case).
         Text {
-            visible: !AgentUsage.available
+            visible: !AgentUsage.available || AgentUsage.lastProbeFailed
             width: parent.width
             wrapMode: Text.WordWrap
             text: AgentUsage.authHelpText
-            color: Theme.dim
+            color: (AgentUsage.available && AgentUsage.lastProbeFailed) ? Theme.vermLit : Theme.dim
             font.family: Theme.font
             font.pixelSize: 10.5 * root.s
         }

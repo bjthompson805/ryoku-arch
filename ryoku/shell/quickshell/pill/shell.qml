@@ -639,6 +639,11 @@ ShellRoot {
                 Region { x: workspacesPop.maskX; y: workspacesPop.maskY; width: workspacesPop.maskW; height: workspacesPop.maskH }
                 Region { x: mediaPop.maskX; y: mediaPop.maskY; width: mediaPop.maskW; height: mediaPop.maskH }
                 Region { x: toastPop.maskX; y: toastPop.maskY; width: toastPop.maskW; height: toastPop.maskH }
+                // the only one of the compact right-side popouts (net-speed,
+                // weather, resources) with an actual click target in its body
+                // (the manual refresh button) -- those others are pure
+                // display, so they never needed a mask entry; this one does.
+                Region { x: agentUsagePop.maskX; y: agentUsagePop.maskY; width: agentUsagePop.maskW; height: agentUsagePop.maskH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
                 Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
