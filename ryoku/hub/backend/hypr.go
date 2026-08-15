@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -476,6 +477,10 @@ func runHypr(args []string) error {
 	case "get":
 		o := loadOverrides()
 		_ = writeGeneratedLua(o) // re-emit settings.lua if a deploy wiped it
+		// a write here (rare: only when settings.lua was missing/stale) trips
+		// Hyprland's own config auto-reload, not the explicit hyprReload() path
+		// above, so it needs its own re-assert.
+		reassertGameMode()
 		return printJSON(o)
 	case "defaults":
 		return printJSON(defaultOverrides())
@@ -552,12 +557,41 @@ func hyprEval(lua string) {
 
 func hyprReload() {
 	_ = exec.Command("hyprctl", "reload").Run()
+	// a reload rereads the Lua config, which wipes any runtime `hyprctl eval`
+	// override -- including Game Mode's compositor tuning (see
+	// ryoku-cmd-game-mode's own hypr_fast comment). Every reload in this package
+	// funnels through here, so re-asserting once covers save/restore/schemes/rice;
+	// idempotent and cheap either way (mirrors the same fix in the shell's
+	// wallpaper daemon, ipc/wallpaper.go's paintWorker).
+	reassertGameMode()
+}
+
+// gameModeOn reports whether ryoku-cmd-game-mode's own marker is present. Its
+// state lives under a "ryoku" subdirectory (the script and the shell's
+// Flags.qml singleton share that layout).
+func gameModeOn() bool {
+	_, err := os.Stat(filepath.Join(stateHome(), "ryoku", "game-mode.enabled"))
+	return err == nil
+}
+
+func reassertGameMode() {
+	if gameModeOn() {
+		_ = exec.Command("ryoku-cmd-game-mode", "start").Run()
+	}
 }
 
 // writeGeneratedLua renders settings.lua from the overrides (diffed against the
-// shipped defaults) and writes it atomically.
+// shipped defaults) and writes it atomically. Skips the write when the content
+// hasn't changed: Hyprland's config auto-reload watches this file, so an
+// unconditional write on every `hypr get` (called just by opening a Hub page)
+// was reloading Hyprland on every visit for no reason, silently clearing
+// Game Mode's runtime compositor overrides.
 func writeGeneratedLua(o Overrides) error {
-	return atomicWrite(generatedLuaPath(), []byte(genLua(o, loadThemeState().FollowWallpaper)), 0o644)
+	b := []byte(genLua(o, loadThemeState().FollowWallpaper))
+	if existing, err := os.ReadFile(generatedLuaPath()); err == nil && bytes.Equal(existing, b) {
+		return nil
+	}
+	return atomicWrite(generatedLuaPath(), b, 0o644)
 }
 
 // --- Lua generation -------------------------------------------------------
