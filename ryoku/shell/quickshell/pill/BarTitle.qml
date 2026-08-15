@@ -91,11 +91,20 @@ Item {
     }
 
     // the old title, held and faded out on a change.
+    //
+    // width is pinned to the maxWidth cap, not root.width -- root's own
+    // clip: true already does the reveal/hide as its width eases, the same
+    // curtain idiom popouts/Popout.qml uses ("content at full size, revealed
+    // by a widening clip ... content never reflows"). binding this to the
+    // animating root.width instead would re-run Text's elide layout on
+    // every one of the ~30 frames of that 500ms ease, for both labels, on
+    // every single focus change -- real main-thread cost for a result the
+    // clip already produces for free.
     Text {
         id: ghost
         x: root.textLead
         anchors.verticalCenter: parent.verticalCenter
-        width: root.width - root.textLead
+        width: root.maxWidth - root.textLead
         elide: Text.ElideRight
         color: Theme.dim
         font: metrics.font
@@ -106,7 +115,7 @@ Item {
         id: live
         x: root.textLead
         anchors.verticalCenter: parent.verticalCenter
-        width: root.width - root.textLead
+        width: root.maxWidth - root.textLead
         elide: Text.ElideRight
         text: root.label
         color: Theme.dim
