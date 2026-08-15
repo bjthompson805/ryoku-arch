@@ -35,3 +35,4 @@ SpawnCore SpawnCore.qml
 singleton Vibrance Vibrance.qml
 VibranceCore VibranceCore.qml
 singleton Session Session.qml
+singleton AgentUsage AgentUsage.qml

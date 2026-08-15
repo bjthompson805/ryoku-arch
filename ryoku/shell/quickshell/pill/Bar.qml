@@ -168,6 +168,17 @@ Item {
                     }
                 }
 
+                // Loader, not a plain visible: toggle -- see the matching
+                // comment on netSpeedLoader below: triptych/caelestia/aegis/
+                // stele reuse this same leftRow but never show this module.
+                Loader {
+                    id: agentUsageLoader
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: active
+                    active: bar.noctalia && Config.barShowAgentUsage
+                    sourceComponent: agentUsageModuleComp
+                }
+
                 // now-playing, bounced here from the right island when the
                 // noctalia right side can't fit it beside the centred clock
                 // (bar.mediaCramped) -- rather than just shrinking in place,
@@ -386,10 +397,11 @@ Item {
         }
     }
 
-    // Stats/net-speed modules for the shared right island (nacre and the flat
-    // skins already load their own copies lazily further down): kept as
-    // Components so triptych/caelestia/aegis/stele, which reuse this same
-    // branch but never show these modules, don't instantiate SysStats/NetSpeed
+    // Stats/net-speed modules for the shared right island and the agent-usage
+    // module for the shared left island (nacre and the flat skins already
+    // load their own copies lazily further down): kept as Components so
+    // triptych/caelestia/aegis/stele, which reuse these same rows but never
+    // show these modules, don't instantiate SysStats/NetSpeed/AgentUsage
     // either.
     Component {
         id: netSpeedModuleComp
@@ -411,6 +423,20 @@ Item {
             interactive: false
 
             BarStats {
+                s: bar.s
+                onRequestPopout: (name, center) => bar.popoutRequested(name, center)
+            }
+        }
+    }
+    Component {
+        id: agentUsageModuleComp
+        BarModule {
+            s: bar.s
+            height: bar.moduleSpan
+            padX: 6 * bar.s
+            interactive: false
+
+            BarAgentUsage {
                 s: bar.s
                 onRequestPopout: (name, center) => bar.popoutRequested(name, center)
             }
@@ -553,6 +579,15 @@ Item {
                         visible: Config.barShowNetSpeed
                         interactive: false
                         BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                    }
+                    BarModule {
+                        anchors.verticalCenter: parent.verticalCenter
+                        s: bar.s
+                        height: bar.moduleSpan
+                        padX: 6 * bar.s
+                        visible: Config.barShowAgentUsage
+                        interactive: false
+                        BarAgentUsage { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                     }
                 }
             }
@@ -717,6 +752,18 @@ Item {
                     interactive: false
                     BarNetSpeed { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                 }
+                // angel only here -- inir/aurora's left cluster is already
+                // crowded (workspaces, stats, net-speed, media), so their
+                // agent-usage module rides the right cluster instead, below.
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    padX: 8 * bar.s
+                    visible: bar.angel && Config.barShowAgentUsage
+                    interactive: false
+                    BarAgentUsage { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                }
                 Sep { visible: bar.inir && Config.barShowMedia && Media.present }
                 BarReveal {
                     anchors.verticalCenter: parent.verticalCenter
@@ -769,6 +816,17 @@ Item {
                     visible: Config.barShowWeather && Weather.available
                     interactive: false
                     BarWeather { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
+                }
+                // inir/aurora only -- angel keeps its copy on the left
+                // cluster, above; inir/aurora's left is the crowded one.
+                Sep { visible: bar.inir && Config.barShowAgentUsage }
+                BarModule {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    height: bar.moduleSpan
+                    visible: (bar.inir || bar.aurora) && Config.barShowAgentUsage
+                    interactive: false
+                    BarAgentUsage { s: bar.s; onRequestPopout: (name, center) => bar.popoutRequested(name, center) }
                 }
                 Sep { visible: bar.inir && flatTray.count > 0 }
                 BarModule {

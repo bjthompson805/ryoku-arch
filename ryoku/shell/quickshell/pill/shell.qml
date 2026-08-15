@@ -969,6 +969,31 @@ ShellRoot {
                     }
                 }
 
+                // agent-usage popout: opened from the bar's agent-usage module,
+                // Claude Code's session/weekly rate-limit percentages grow from
+                // the bar edge at the module.
+                Popout {
+                    id: agentUsagePop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.popoutCenter
+                    s: overlay.s
+                    active: !overlay.monFullscreen
+                    pinned: root.popout === "agentusage" && root.popoutMon === overlay.modelData.name
+                    openW: agentUsageContent.implicitWidth
+                    openH: agentUsageContent.implicitHeight
+
+                    AgentUsagePopout {
+                        id: agentUsageContent
+                        s: overlay.s
+                        open: agentUsagePop.prog > 0.5
+                    }
+                }
+
                 // window-info popout: opened from the bar's title module, the
                 // focused window's class/workspace/geometry and the process
                 // behind it grow from the bar edge at the title.

@@ -58,6 +58,8 @@ Singleton {
     // volume in the status cluster (panel backlight, vibrance, any external
     // ddc monitor) -- everywhere barShowStatus appears. named "display" rather
     // than "brightness" since it covers more than just the backlight level.
+    // barShowAgentUsage gates the Claude Code usage readout, same reach as
+    // barShowStats (noctalia/nacre/flat).
     property alias barEnabled:            adapter.barEnabled
     property alias barPosition:           adapter.barPosition
     property alias barStyle:              adapter.barStyle
@@ -69,6 +71,7 @@ Singleton {
     property alias barShowNetSpeed:       adapter.barShowNetSpeed
     property alias barShowWeather:        adapter.barShowWeather
     property alias barShowDisplay:        adapter.barShowDisplay
+    property alias barShowAgentUsage:     adapter.barShowAgentUsage
     property alias barOccupiedWorkspaces: adapter.barOccupiedWorkspaces
     property alias barWorkspaceIcons:     adapter.barWorkspaceIcons
     // delos = the single floating-island bar. islandModules names the modules
@@ -179,6 +182,7 @@ Singleton {
             property bool barShowNetSpeed: true
             property bool barShowWeather: true
             property bool barShowDisplay: true
+            property bool barShowAgentUsage: true
             property bool barOccupiedWorkspaces: true
             property bool barWorkspaceIcons: false
             property string islandEdge: "top"
