@@ -56,9 +56,10 @@ Item {
     // status; on narrower screens the full row (those two plus a horizontal
     // now-playing) can outgrow the gap beside the centred clock. decide from
     // quantities that never depend on the outcome -- BarMedia.naturalWidth is
-    // its width as if horizontal regardless of its actual `vertical` state,
-    // and every other module here is sized independently of it -- so setting
-    // `vertical` from this can't feed back into its own condition.
+    // its width as laid out in the right island regardless of whether it ends
+    // up shown there, and every other module here is sized independently of
+    // it -- so bouncing the module to the left island from this can't feed
+    // back into its own condition.
     readonly property real rightAvailable: Math.max(0, (bar.width - bar.centreW) / 2 - bar.edgeMargin - 16 * bar.s)
     // how many of the row's other modules actually lay out (Row skips
     // invisible/inactive children entirely, so the gap count has to match).
@@ -167,6 +168,36 @@ Item {
                     }
                 }
 
+                // now-playing, bounced here from the right island when the
+                // noctalia right side can't fit it beside the centred clock
+                // (bar.mediaCramped) -- rather than just shrinking in place,
+                // it relocates to sit just before the title. icon-only here
+                // too: the left island has no equivalent of rightAvailable
+                // capping its width, so a bounced module stays icon-sized
+                // rather than risking the same overflow on the other side of
+                // the clock that bouncing it was meant to fix.
+                BarReveal {
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: bar.s
+                    dropWhenClosed: true
+                    shown: bar.mediaCramped
+
+                    BarModule {
+                        id: mediaModLeft
+                        s: bar.s
+                        height: bar.moduleSpan
+                        onTapped: hMediaLeft.toggle()
+                        onWheeled: (steps) => bar.nudgeVolume(steps)
+                        onHoveredChanged: bar.hoverPopoutRequested("media", mediaModLeft.mapToItem(null, mediaModLeft.width / 2, mediaModLeft.height / 2).x, mediaModLeft.hovered)
+
+                        BarMedia {
+                            id: hMediaLeft
+                            s: bar.s
+                            vertical: true
+                        }
+                    }
+                }
+
                 BarTitle {
                     anchors.verticalCenter: parent.verticalCenter
                     s: bar.s
@@ -245,11 +276,13 @@ Item {
                 anchors.rightMargin: bar.triptych ? bar.islandPad : 0
                 spacing: 8 * bar.s
 
+                // hidden (rather than shrunk) once bar.mediaCramped bounces it
+                // to the left island instead -- see leftRow above.
                 BarReveal {
                     anchors.verticalCenter: parent.verticalCenter
                     s: bar.s
                     dropWhenClosed: true
-                    shown: !bar.triptych && Config.barShowMedia && Media.present
+                    shown: !bar.triptych && Config.barShowMedia && Media.present && !bar.mediaCramped
 
                     BarModule {
                         id: mediaMod
@@ -262,7 +295,6 @@ Item {
                         BarMedia {
                             id: hMedia
                             s: bar.s
-                            vertical: bar.mediaCramped
                         }
                     }
                 }
