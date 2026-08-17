@@ -657,9 +657,19 @@ func genLua(o Overrides, follow bool) string {
 			b.WriteString(rl)
 		}
 	}
-	for _, k := range o.Keybinds {
-		if kb := genKeybind(k); kb != "" {
-			b.WriteString(kb)
+	if len(o.Keybinds) > 0 {
+		// a custom bind that shadows a shipped combo (see the Custom tab's
+		// "shipped" conflict badge) needs the shipped one unbound first: Hyprland
+		// doesn't replace an existing bind on the same combo when another is
+		// registered, it stacks them, so both would fire on press without this.
+		shipped := shippedCombos()
+		for _, k := range o.Keybinds {
+			if strings.TrimSpace(k.Keys) != "" && shipped[normCombo(k.Keys)] {
+				fmt.Fprintf(&b, "hl.unbind(%s)\n", luaStr(k.Keys))
+			}
+			if kb := genKeybind(k); kb != "" {
+				b.WriteString(kb)
+			}
 		}
 	}
 	if pl := genPlugins(o); pl != "" {

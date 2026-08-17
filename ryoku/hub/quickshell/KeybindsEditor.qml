@@ -48,20 +48,32 @@ Item {
                 n++;
         return n;
     }
-    // "" none, "shipped" shadows a Ryoku bind, "duplicate" repeats another custom.
+    // "" none, "shipped" shadows a Ryoku bind (saving unbinds the shipped one, so
+    // this combo cleanly becomes yours), "duplicate" repeats another custom bind
+    // (a real footgun: only the last-declared one ends up bound).
     function rowConflict(i) {
         var k = page.normKeys(store.keybinds[i].keys);
         if (!k)
             return "";
-        if (page.shippedKeys[k])
-            return "shipped";
-        return page.customCount(k) > 1 ? "duplicate" : "";
+        if (page.customCount(k) > 1)
+            return "duplicate";
+        return page.shippedKeys[k] ? "shipped" : "";
     }
+    // duplicates are worth a loud warning; a shipped override is expected and
+    // safe, so it's counted separately and shown calmer.
     readonly property int conflictCount: {
         void store.rev;
         var n = 0;
         for (var i = 0; i < store.keybinds.length; i++)
-            if (page.rowConflict(i) !== "")
+            if (page.rowConflict(i) === "duplicate")
+                n++;
+        return n;
+    }
+    readonly property int overrideCount: {
+        void store.rev;
+        var n = 0;
+        for (var i = 0; i < store.keybinds.length; i++)
+            if (page.rowConflict(i) === "shipped")
                 n++;
         return n;
     }
@@ -73,11 +85,19 @@ Item {
         { "key": "togglefloating", "label": "Toggle floating" }
     ]
 
+    // a single field commit (blur/Enter on a TextInput, a Dropdown choice) edits
+    // its row's object in place and just bumps rev, rather than reassigning
+    // store.keybinds wholesale: the Repeater's model is that array directly, and
+    // a plain-array model has no incremental change signal, so reassigning it
+    // makes the Repeater tear down and recreate every row's delegates (and every
+    // TextInput in them) on every keystroke-commit. That both loses whatever the
+    // user was mid-typing elsewhere and, worse, can destroy the very field a
+    // click was headed for out from under it (the field silently eats the first
+    // click). add()/remove() do need to reassign -- the row count actually
+    // changes -- so those keep the full-array path.
     function patch(i, key, val) {
-        var a = store.keybinds.slice();
-        a[i] = Object.assign({}, a[i]);
-        a[i][key] = val;
-        store.editList("keybinds", a);
+        store.keybinds[i][key] = val;
+        store.rev++;
     }
     function remove(i) {
         var a = store.keybinds.slice();
@@ -96,7 +116,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         wrapMode: Text.WordWrap
-        text: "Custom shortcuts layered over the ones Ryoku ships and kept in the Hub, so they show in the Shortcuts legend and get conflict-checked. Add binds here, not by hand in ~/.config/hypr/user.lua: binds written there never appear in the legend and aren't checked for conflicts. Write the combo the way Hyprland does, e.g. SUPER + J or SUPER + SHIFT + Return."
+        text: "Custom shortcuts layered over the ones Ryoku ships and kept in the Hub, so they show in the Shortcuts legend and get conflict-checked. Reusing a shipped combo overrides it cleanly, swapping in your action; reusing another custom combo doesn't, only the last one you saved actually binds. Add binds here, not by hand in ~/.config/hypr/user.lua: binds written there never appear in the legend and aren't checked for conflicts. Write the combo the way Hyprland does, e.g. SUPER + J or SUPER + SHIFT + Return."
         color: Theme.dim
         font.family: Theme.font
         font.pixelSize: 12
@@ -109,7 +129,10 @@ Item {
         anchors.topMargin: 14
         label: "Add shortcut"
         icon: "plus"
-        onClicked: page.add()
+        // same reasoning as Save below: commit whatever's mid-edit before the
+        // new row's full-array add() rebuilds every delegate, or the just-typed
+        // text in an unfocused-but-uncommitted field gets discarded.
+        onClicked: { page.forceActiveFocus(); page.add(); }
     }
 
     Flickable {
@@ -157,14 +180,19 @@ Item {
                     id: rowItem
                     required property int index
                     required property var modelData
-                    readonly property bool needsValue: rowItem.modelData.action === "exec" || rowItem.modelData.action === undefined
-                    readonly property string conflict: page.rowConflict(rowItem.index)
+                    // modelData's fields now mutate in place (see patch()), which
+                    // doesn't itself trigger a re-evaluation of plain property reads
+                    // off it, so these depend on rev explicitly instead.
+                    readonly property bool needsValue: { void store.rev; return rowItem.modelData.action === "exec" || rowItem.modelData.action === undefined; }
+                    readonly property string conflict: { void store.rev; return page.rowConflict(rowItem.index); }
+                    readonly property color conflictColor: rowItem.conflict === "duplicate" ? Theme.gold
+                        : (rowItem.conflict === "shipped" ? Theme.ember : Theme.line)
                     width: rows.width
                     height: 56
                     radius: Theme.radius
                     color: Theme.surfaceLo
                     border.width: 1
-                    border.color: rowItem.conflict !== "" ? Theme.gold : Theme.line
+                    border.color: rowItem.conflictColor
 
                     Row {
                         anchors.fill: parent
@@ -180,7 +208,7 @@ Item {
                             radius: Theme.radius
                             color: Theme.surface
                             border.width: 1
-                            border.color: keysIn.activeFocus ? Theme.ember : (rowItem.conflict !== "" ? Theme.gold : Theme.line)
+                            border.color: keysIn.activeFocus ? Theme.ember : rowItem.conflictColor
                             Behavior on border.color { ColorAnimation { duration: Theme.quick } }
 
                             TextInput {
@@ -196,6 +224,7 @@ Item {
                                 font.weight: Font.DemiBold
                                 clip: true
                                 selectByMouse: true
+                                KeyNavigation.tab: valIn
                                 onEditingFinished: page.patch(rowItem.index, "keys", text)
 
                                 Text {
@@ -215,7 +244,7 @@ Item {
                             fieldWidth: 150
                             label: ""
                             options: page.actionOpts
-                            current: rowItem.modelData.action || "exec"
+                            current: { void store.rev; return rowItem.modelData.action || "exec"; }
                             onChosen: (k) => page.patch(rowItem.index, "action", k)
                         }
 
@@ -243,6 +272,7 @@ Item {
                                 font.pixelSize: 13
                                 clip: true
                                 selectByMouse: true
+                                KeyNavigation.backtab: keysIn
                                 onEditingFinished: page.patch(rowItem.index, "value", text)
 
                                 Text {
@@ -299,14 +329,18 @@ Item {
             anchors.leftMargin: 20
             anchors.verticalCenter: parent.verticalCenter
             width: 9; height: 9; radius: 4.5
-            color: page.conflictCount > 0 ? Theme.gold : (store.dirty ? Theme.ember : Theme.ok)
+            color: page.conflictCount > 0 ? Theme.gold : (page.overrideCount > 0 ? Theme.ember : (store.dirty ? Theme.ember : Theme.ok))
         }
         Text {
             anchors.left: dot.right
             anchors.leftMargin: 11
             anchors.verticalCenter: parent.verticalCenter
-            text: page.conflictCount > 0 ? (page.conflictCount + " conflict with a shipped or duplicate combo") : (store.dirty ? "Unsaved shortcuts" : "Saved")
-            color: page.conflictCount > 0 ? Theme.gold : (store.dirty ? Theme.bright : Theme.dim)
+            text: page.conflictCount > 0
+                ? (page.conflictCount + (page.conflictCount === 1 ? " duplicate combo — only the last one binds" : " duplicate combos — only the last one binds"))
+                : (page.overrideCount > 0
+                    ? (page.overrideCount + (page.overrideCount === 1 ? " shortcut overrides a shipped default" : " shortcuts override shipped defaults") + (store.dirty ? " · unsaved" : ""))
+                    : (store.dirty ? "Unsaved shortcuts" : "Saved"))
+            color: page.conflictCount > 0 ? Theme.gold : (store.dirty || page.overrideCount > 0 ? Theme.bright : Theme.dim)
             font.family: Theme.font
             font.pixelSize: 13
             font.weight: Font.DemiBold
@@ -337,7 +371,12 @@ Item {
                 icon: "check"
                 primary: true
                 enabled: store.dirty
-                onClicked: store.save()
+                // Save is a TapHandler, not a focusable control, so it never steals
+                // focus on its own: a row's key/command TextInput only commits its
+                // typed text to the store on editingFinished (Enter or losing
+                // focus), so clicking here mid-edit would save a stale value
+                // unless something first knocks that field out of focus. Force it.
+                onClicked: { page.forceActiveFocus(); store.save(); }
             }
         }
     }

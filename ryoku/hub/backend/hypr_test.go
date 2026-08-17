@@ -180,6 +180,36 @@ func TestGenLuaWindowRuleAndKeybind(t *testing.T) {
 	}
 }
 
+// a custom bind on a combo binds.lua already ships (e.g. Super+E -> nautilus)
+// must unbind that shipped combo first: Hyprland stacks binds on the same combo
+// rather than replacing them, so without the unbind both would fire on press.
+// a custom bind on a free combo needs no unbind.
+func TestGenLuaKeybindUnbindsShippedCombo(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	if err := os.MkdirAll(filepath.Join(dir, "hypr", "modules"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	shipped := "-- Apps\nhl.bind(\"SUPER + E\", hl.dsp.exec_cmd(\"nautilus\"))\n"
+	if err := os.WriteFile(filepath.Join(dir, "hypr", "modules", "binds.lua"), []byte(shipped), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	o := defaultOverrides()
+	o.Keybinds = []Keybind{
+		{Keys: "SUPER + E", Action: "exec", Value: "kcalc"},
+		{Keys: "SUPER + SHIFT + Z", Action: "exec", Value: "foo"},
+	}
+	out := genLua(o, true)
+
+	if !strings.Contains(out, "hl.unbind(\"SUPER + E\")\nhl.bind(\"SUPER + E\", hl.dsp.exec_cmd(\"kcalc\"))") {
+		t.Errorf("shipped combo not unbound before the overriding custom bind:\n%s", out)
+	}
+	if strings.Contains(out, "hl.unbind(\"SUPER + SHIFT + Z\")") {
+		t.Errorf("unbind emitted for a combo that isn't shipped:\n%s", out)
+	}
+}
+
 // rule with no match -> dropped (class-of-everything would be a footgun). exec
 // bind with no command -> dropped.
 func TestGenLuaDropsIncomplete(t *testing.T) {
