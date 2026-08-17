@@ -8,6 +8,7 @@ Rectangle {
 
     property alias text: input.text
     property string placeholder: "Search\u2026"
+    property bool showShortcutHint: true
     signal escaped()
 
     function focusInput() { input.forceActiveFocus(); }
@@ -76,7 +77,7 @@ Rectangle {
 
         Text {
             anchors.centerIn: parent
-            visible: input.text.length === 0 && !input.activeFocus
+            visible: field.showShortcutHint && input.text.length === 0 && !input.activeFocus
             text: "Ctrl K"
             color: Theme.faint
             font.family: Theme.mono

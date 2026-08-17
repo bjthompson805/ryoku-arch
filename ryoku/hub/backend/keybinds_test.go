@@ -72,8 +72,8 @@ func TestDerivedDescriptionFromDispatcher(t *testing.T) {
 		t.Fatal("Apps category missing")
 	}
 	// kitty has no trailing comment; description comes from the dispatcher.
-	if a.Binds[0].Desc != "Terminal" {
-		t.Errorf("derived desc = %q, want Terminal", a.Binds[0].Desc)
+	if a.Binds[0].Desc != "Terminal (Kitty)" {
+		t.Errorf("derived desc = %q, want Terminal (Kitty)", a.Binds[0].Desc)
 	}
 }
 

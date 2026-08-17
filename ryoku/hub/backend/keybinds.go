@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -39,6 +40,33 @@ func keybinds() legend {
 		return legend{Categories: []category{}}
 	}
 	return parseBinds(string(b))
+}
+
+// normCombo canonicalizes a key combo for conflict comparison: case-insensitive,
+// order-independent. Mirrors the Hub UI's own normKeys (KeybindsEditor.qml), so
+// a combo only counts as shadowing a shipped bind when the UI already flags it
+// "shipped".
+func normCombo(s string) string {
+	var toks []string
+	for _, p := range strings.Split(s, "+") {
+		if p = strings.ToLower(strings.TrimSpace(p)); p != "" {
+			toks = append(toks, p)
+		}
+	}
+	sort.Strings(toks)
+	return strings.Join(toks, "+")
+}
+
+// shippedCombos: every key combo bound in the live shipped legend (binds.lua),
+// normalized for lookup against a Hub-stored custom bind's raw Keys text.
+func shippedCombos() map[string]bool {
+	set := map[string]bool{}
+	for _, c := range keybinds().Categories {
+		for _, b := range c.Binds {
+			set[normCombo(strings.Join(b.Keys, "+"))] = true
+		}
+	}
+	return set
 }
 
 var (
@@ -227,11 +255,11 @@ func describeDispatcher(d string) string {
 func describeExec(cmd string) string {
 	switch {
 	case cmd == "kitty":
-		return "terminal"
+		return "terminal (Kitty)"
 	case cmd == "nautilus":
-		return "files"
+		return "files (Nautilus)"
 	case cmd == "chromium":
-		return "browser"
+		return "browser (Chromium)"
 	case strings.Contains(cmd, "hyprpicker"):
 		return "pick a color"
 	case strings.Contains(cmd, "set-volume") && strings.Contains(cmd, "%+"):

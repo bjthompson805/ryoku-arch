@@ -10,6 +10,7 @@ Item {
 
     property var categories: []
     property string tab: "all"
+    property alias query: search.text
 
     Segmented {
         id: tabs
@@ -21,6 +22,17 @@ Item {
         ]
         current: page.tab
         onSelected: (k) => page.tab = k
+    }
+
+    SearchField {
+        id: search
+        anchors.right: parent.right
+        anchors.verticalCenter: tabs.verticalCenter
+        width: 260
+        placeholder: "Search shortcuts…"
+        showShortcutHint: false
+        visible: page.tab === "all"
+        onEscaped: text = ""
     }
 
     Loader {
@@ -43,7 +55,7 @@ Item {
 
     Component {
         id: legendComp
-        KeybindLegend { categories: page.categories }
+        KeybindLegend { categories: page.categories; query: page.query }
     }
 
     Component {
