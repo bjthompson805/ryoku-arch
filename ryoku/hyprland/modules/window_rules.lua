@@ -49,6 +49,14 @@ hl.window_rule({
 })
 
 hl.window_rule({
+    name   = "float-kcalc",
+    match  = { class = "org.kde.kcalc" },
+    float  = true,
+    size   = { 340, 460 },
+    center = true,
+})
+
+hl.window_rule({
     name   = "float-nautilus",
     match  = { class = "org.gnome.Nautilus" },
     float  = true,

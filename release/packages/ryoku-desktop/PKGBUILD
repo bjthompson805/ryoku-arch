@@ -71,6 +71,10 @@ depends=(
   # optdepend never installs on -Syu) and the right-click menu actually shows up.
   'nautilus'
   'nautilus-python'
+  # calculator behind the Super+Alt+C keybind; a hard depend like kitty/nautilus
+  # above so the shortcut works out of the box and `ryoku update` pulls it onto
+  # existing boxes.
+  'kcalc'
   # tools the shipped autostart, pill, ryoshot, and helper scripts call by name
   'hypridle'
   'brightnessctl'
