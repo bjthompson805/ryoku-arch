@@ -549,6 +549,17 @@ ShellRoot {
                 (leftEdgeDrop.containsDrag || sidebarLeftContent.dragActive)
             onLeftDragActiveChanged: if (overlay.leftDragActive) root.sidebarLeftPane = "stash"
 
+            // touch edge-swipe: a finger dragging in from the very left/right
+            // edge opens that sidebar, for touchscreens with no mouse. wider
+            // than leftEdgeStripW (a finger is far less precise than a
+            // pointer) but still kept inside Hyprland's gaps_out ring (18px,
+            // decoration.lua) so it can't swallow a touch meant for window
+            // content just past the edge. the distance threshold (not the
+            // strip width) is scaled by `s` -- it's a gesture-size judgment
+            // call, not a fixed compositor gap.
+            readonly property real edgeSwipeStripW: 16
+            readonly property real edgeSwipeThreshold: 36 * s
+
             // a keyboard-needing popout (clipboard/link/keyring/deck/workspaces)
             // pinned on this monitor: grabs the keyboard for text entry.
             readonly property bool kbPopout: root.popoutMon === modelData.name
@@ -652,8 +663,10 @@ ShellRoot {
                 Region { x: delosIsland.trigX; y: delosIsland.trigY; width: overlay.delos ? delosIsland.trigW : 0; height: overlay.delos ? delosIsland.trigH : 0 }
                 Region { x: 0; y: 0; width: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.sidebarCornerW : 0; height: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.sidebarCornerH : 0 }
                 Region { x: 0; y: 0; width: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.leftEdgeStripW : 0; height: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.height : 0 }
+                Region { x: 0; y: 0; width: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.edgeSwipeStripW : 0; height: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.height : 0 }
                 Region { x: sidebarLeftPop.maskX; y: sidebarLeftPop.maskY; width: sidebarLeftPop.maskW; height: sidebarLeftPop.maskH }
                 Region { x: (overlay.width - overlay.sidebarCornerW); y: 0; width: (overlay.sidebarRightOn && !overlay.monFullscreen) ? overlay.sidebarCornerW : 0; height: (overlay.sidebarRightOn && !overlay.monFullscreen) ? overlay.sidebarCornerH : 0 }
+                Region { x: (overlay.width - overlay.edgeSwipeStripW); y: 0; width: (overlay.sidebarRightOn && !overlay.monFullscreen) ? overlay.edgeSwipeStripW : 0; height: (overlay.sidebarRightOn && !overlay.monFullscreen) ? overlay.height : 0 }
                 Region { x: sidebarRightPop.maskX; y: sidebarRightPop.maskY; width: sidebarRightPop.maskW; height: sidebarRightPop.maskH }
             }
 
@@ -666,7 +679,32 @@ ShellRoot {
                     // their own clicks, the band is inert), so it never dismisses.
                     // only a true backdrop press dismisses the modal popout.
                     if (overlay.inBarStrip(mouse.x, mouse.y)) return;
-                    if (overlay.kbPopout) root.popout = "";
+                    if (!overlay.kbPopout) return;
+                    // sidebars are in kbPopouts (below), so this backdrop is
+                    // "enabled" the whole time either is open. normally that's
+                    // fine -- a press on the sidebar's own content should hit
+                    // that content first (higher z) and never reach this
+                    // backdrop at all. but for TOUCH specifically, a bare
+                    // TapHandler (the toggle tiles, the tab-rail icons) does
+                    // not reliably block this MouseArea's synthesized-mouse-
+                    // from-touch press the way a MouseArea nested inside a
+                    // MouseArea would (confirmed live: a tap that visibly
+                    // toggled Tablet Mode or switched tabs ALSO fired this
+                    // handler) -- while Calendar's day cells (MouseArea) and
+                    // the notifications ListView (Flickable's own grab) do
+                    // block it, which is why only those felt "safe." rather
+                    // than trust "did something else already consume this,"
+                    // check position directly against the open sidebar's own
+                    // mask rect, which shell.qml already computes precisely.
+                    if (root.popout === "sidebarLeft" &&
+                        mouse.x >= sidebarLeftPop.maskX && mouse.x < sidebarLeftPop.maskX + sidebarLeftPop.maskW &&
+                        mouse.y >= sidebarLeftPop.maskY && mouse.y < sidebarLeftPop.maskY + sidebarLeftPop.maskH)
+                        return;
+                    if (root.popout === "sidebarRight" &&
+                        mouse.x >= sidebarRightPop.maskX && mouse.x < sidebarRightPop.maskX + sidebarRightPop.maskW &&
+                        mouse.y >= sidebarRightPop.maskY && mouse.y < sidebarRightPop.maskY + sidebarRightPop.maskH)
+                        return;
+                    root.popout = "";
                 }
             }
 
@@ -1326,6 +1364,35 @@ ShellRoot {
                     height: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.height : 0
                     onDropped: (drop) => { for (var i = 0; i < drop.urls.length; i++) Stash.addUrl(drop.urls[i]); drop.accept(); }
                 }
+                // touch edge-swipe: a finger dragging in from anywhere down the
+                // left edge opens this sidebar, same open call the corner tap
+                // and IPC path already use. acceptedDevices excludes mouse/
+                // trackpad, so an ordinary pointer drag at the edge (a window
+                // resize, a trackpad workspace swipe) can never trip it -- only
+                // a genuine touch can. fires once the finger crosses
+                // edgeSwipeThreshold, not on release, so it reads as an
+                // immediate reveal rather than a laggy gesture.
+                Item {
+                    id: sidebarLeftSwipe
+                    visible: overlay.sidebarLeftOn && !overlay.monFullscreen
+                    x: 0
+                    y: 0
+                    width: overlay.edgeSwipeStripW
+                    height: overlay.height
+                    property bool triggered: false
+                    DragHandler {
+                        target: null
+                        acceptedDevices: PointerDevice.TouchScreen
+                        onActiveChanged: if (active) sidebarLeftSwipe.triggered = false
+                        onTranslationChanged: {
+                            if (!active || sidebarLeftSwipe.triggered || translation.x < overlay.edgeSwipeThreshold)
+                                return;
+                            sidebarLeftSwipe.triggered = true;
+                            if (!(root.popout === "sidebarLeft" && root.popoutMon === overlay.modelData.name))
+                                root.togglePopout(overlay.modelData.name, "sidebarLeft");
+                        }
+                    }
+                }
                 // the bar rides above every popout's body (topBar: z 1, see the
                 // comment there), which for most popouts only ever covers their
                 // thin neck -- but a full-span sidebar's body runs right through
@@ -1413,6 +1480,29 @@ ShellRoot {
                     TapHandler {
                         enabled: !Config.sidebarClickless
                         onTapped: root.togglePopout(overlay.modelData.name, "sidebarRight")
+                    }
+                }
+                // touch edge-swipe: mirror of sidebarLeftSwipe above, on the
+                // right edge (translation.x negative = dragging inward/left).
+                Item {
+                    id: sidebarRightSwipe
+                    visible: overlay.sidebarRightOn && !overlay.monFullscreen
+                    x: overlay.width - overlay.edgeSwipeStripW
+                    y: 0
+                    width: overlay.edgeSwipeStripW
+                    height: overlay.height
+                    property bool triggered: false
+                    DragHandler {
+                        target: null
+                        acceptedDevices: PointerDevice.TouchScreen
+                        onActiveChanged: if (active) sidebarRightSwipe.triggered = false
+                        onTranslationChanged: {
+                            if (!active || sidebarRightSwipe.triggered || translation.x > -overlay.edgeSwipeThreshold)
+                                return;
+                            sidebarRightSwipe.triggered = true;
+                            if (!(root.popout === "sidebarRight" && root.popoutMon === overlay.modelData.name))
+                                root.togglePopout(overlay.modelData.name, "sidebarRight");
+                        }
                     }
                 }
                 // mirror of sidebarLeftBarGap above -- see that comment for why
