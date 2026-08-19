@@ -9,12 +9,14 @@ import "Singletons"
 /**
  * controls zone of the 力 deck = the unified control centre. two "session"
  * states on top (Keep-Awake with its live elapsed clock, Game-Mode with its
- * profile name) as wide stat-tiles carrying an inline switch, then the five
- * momentary quick-toggles (wifi, bluetooth, mic, do-not-disturb, night) as a
- * flat tile row beneath. replaces the old three stacked Keep-Awake / Game-Mode
- * / Toggles sections. polling (wifi / mic / night probes) is gated on `active`
- * so it only runs while the deck is open. content is column-wide; the deck
- * renders the "Controls" eyebrow above us.
+ * profile name) as wide stat-tiles carrying an inline switch, then the
+ * momentary quick-toggles (wifi, bluetooth, mic, do-not-disturb, night,
+ * airplane, tablet) as a collapsible, reorderable tile row (DeckToggles.qml)
+ * beneath. this file owns every toggle's live state/probes; DeckToggles owns
+ * the catalog, layout and edit-mode UI. polling (wifi / mic / night /
+ * airplane / tablet probes) is gated on `active` so it only runs while the
+ * deck is open. content is column-wide; the deck renders the "Controls"
+ * eyebrow above us.
  */
 Item {
     id: root
@@ -92,10 +94,43 @@ Item {
     }
     Timer { id: nightPoll; interval: 2000; onTriggered: nightProc.running = true }
 
+    // airplane: rfkill block/unblock all radios at once. poll-based (not just
+    // a locally-flipped bool) so a physical airplane-mode hardware key is
+    // reflected instead of fought.
+    property bool airplaneOn: false
+    Process {
+        id: airplaneProc
+        command: ["sh", "-c", "rfkill -J 2>/dev/null | jq -r 'if ([.rfkilldevices[]? | select(.type==\"wlan\" or .type==\"bluetooth\") | .soft] | any(. == \"unblocked\")) then \"off\" else \"on\" end'"]
+        stdout: StdioCollector { onStreamFinished: root.airplaneOn = this.text.trim() === "on" }
+    }
+    function toggleAirplane() {
+        Spawn.spawn(["sh", "-c", root.airplaneOn ? "rfkill unblock all" : "rfkill block all"]);
+        root.airplaneOn = !root.airplaneOn;
+        airplanePoll.restart();
+    }
+    Timer { id: airplanePoll; interval: 1200; onTriggered: airplaneProc.running = true }
+
+    // tablet mode: disables the built-in keyboard + trackpad only, via the
+    // ryoku-cmd-tablet-mode script (device detection lives there, not here).
+    property bool tabletOn: false
+    Process {
+        id: tabletProc
+        command: ["sh", "-c", root.scripts + "ryoku-cmd-tablet-mode status 2>/dev/null"]
+        stdout: StdioCollector { onStreamFinished: root.tabletOn = this.text.trim() === "on" }
+    }
+    function toggleTablet() {
+        Spawn.spawn([root.scripts + "ryoku-cmd-tablet-mode", root.tabletOn ? "off" : "on"]);
+        root.tabletOn = !root.tabletOn;
+        tabletPoll.restart();
+    }
+    Timer { id: tabletPoll; interval: 2000; onTriggered: tabletProc.running = true }
+
     function repoll() {
         wifiProc.running = true;
         micProc.running = true;
         nightProc.running = true;
+        airplaneProc.running = true;
+        tabletProc.running = true;
     }
     onActiveChanged: if (active) repoll()
     Component.onCompleted: repoll()
@@ -174,31 +209,6 @@ Item {
         TapHandler { onTapped: st.toggled() }
     }
 
-    // ── flat quick-toggle tile: glyph only, lights vermilion when on. ──
-    component ToggleTile: Rectangle {
-        id: tt
-        property string glyph: ""
-        property bool on: false
-        signal acted()
-        height: 38 * root.s
-        radius: Theme.radius
-        color: tt.on ? Theme.brand : (tHov.hovered ? Theme.frameBg : "transparent")
-        border.width: 1
-        border.color: tt.on ? Theme.brand : (tHov.hovered ? Theme.frameBorder : Theme.border)
-        Behavior on color { ColorAnimation { duration: Motion.fast } }
-        Behavior on border.color { ColorAnimation { duration: Motion.fast } }
-        GlyphIcon {
-            anchors.centerIn: parent
-            width: 15 * root.s
-            height: 15 * root.s
-            name: tt.glyph
-            color: tt.on ? Theme.onAccent : (tHov.hovered ? Theme.cream : Theme.iconDim)
-            stroke: 1.6
-        }
-        HoverHandler { id: tHov; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: tt.acted() }
-    }
-
     Column {
         id: content
         anchors.top: parent.top
@@ -230,43 +240,12 @@ Item {
             }
         }
 
-        // five momentary quick-toggles.
-        Row {
-            id: togglesRow
+        // quick-toggles: collapsible, reorderable row (wifi/bluetooth/mic/
+        // dnd/night/airplane/tablet), catalog + edit-mode in DeckToggles.qml.
+        DeckToggles {
             width: parent.width
-            spacing: 8 * root.s
-            readonly property real tileW: (width - spacing * 4) / 5
-
-            ToggleTile {
-                width: togglesRow.tileW
-                glyph: "wifi"
-                on: root.wifiOn
-                onActed: root.toggleWifi()
-            }
-            ToggleTile {
-                width: togglesRow.tileW
-                glyph: "bluetooth"
-                on: root.btOn
-                onActed: root.toggleBt()
-            }
-            ToggleTile {
-                width: togglesRow.tileW
-                glyph: root.micMuted ? "mic-off" : "mic"
-                on: !root.micMuted
-                onActed: root.toggleMic()
-            }
-            ToggleTile {
-                width: togglesRow.tileW
-                glyph: "dnd"
-                on: Flags.dnd
-                onActed: Flags.dnd = !Flags.dnd
-            }
-            ToggleTile {
-                width: togglesRow.tileW
-                glyph: "moon"
-                on: root.nightOn
-                onActed: root.toggleNight()
-            }
+            s: root.s
+            deck: root
         }
     }
 }

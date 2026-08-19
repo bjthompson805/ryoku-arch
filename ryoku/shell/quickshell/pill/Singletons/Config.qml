@@ -97,6 +97,11 @@ Singleton {
     property alias sidebarClickless:    adapter.sidebarClickless
     property alias sidebarWidth:        adapter.sidebarWidth
     property alias sidebarCornerSize:   adapter.sidebarCornerSize
+    // sidebarToggles: the right sidebar's quick-toggle row (DeckToggles.qml).
+    // same membership-is-order idiom as sidebarRightPanes/islandModules --
+    // enabled subset + display order in one array, edited inline via the
+    // row's own pencil edit-mode (or the Hub's checkboxes, append-only).
+    property alias sidebarToggles:      adapter.sidebarToggles
 
     // roundness = the shell-wide inner corner radius (the "Global" shape knob).
     // every internal tile, card, row and chip reads Theme.radius, which follows
@@ -199,6 +204,7 @@ Singleton {
             property bool sidebarClickless: true
             property real sidebarWidth: 340
             property real sidebarCornerSize: 34
+            property var sidebarToggles: ["wifi", "bluetooth", "mic", "dnd", "night", "airplane", "tablet"]
             property real roundness: 10
             property string weatherLocation: ""
             property string weatherUnit: "auto"

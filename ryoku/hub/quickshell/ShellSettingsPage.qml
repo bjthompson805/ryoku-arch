@@ -26,7 +26,7 @@ Item {
         "fontFamily", "fontScale",
         "weatherLocation", "weatherUnit",
         "sidebarLeftEnabled", "sidebarRightEnabled", "sidebarLeftPanes", "sidebarRightPanes",
-        "sidebarClickless", "sidebarWidth", "sidebarCornerSize"
+        "sidebarClickless", "sidebarWidth", "sidebarCornerSize", "sidebarToggles"
     ]
     readonly property var vizKeys: [
         "enabled", "bars", "height", "thickness", "bloom", "reflection", "idleWave",
@@ -101,6 +101,7 @@ Item {
         "weatherLocation": "", "weatherUnit": "auto",
         "sidebarLeftEnabled": true, "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
         "sidebarClickless": true, "sidebarWidth": 340, "sidebarCornerSize": 34,
+        "sidebarToggles": ["wifi", "bluetooth", "mic", "dnd", "night", "airplane", "tablet"],
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
         "style": "bars", "shape": "rounded", "position": "bottom", "mirror": false,
@@ -161,6 +162,7 @@ Item {
         property bool sidebarClickless: true
         property real sidebarWidth: 340
         property real sidebarCornerSize: 34
+        property var sidebarToggles: ["wifi", "bluetooth", "mic", "dnd", "night", "airplane", "tablet"]
         property bool enabled: true
         property int bars: 64
         property real height: 0.42
@@ -389,6 +391,7 @@ Item {
             property bool sidebarClickless: true
             property real sidebarWidth: 340
             property real sidebarCornerSize: 34
+            property var sidebarToggles: ["wifi", "bluetooth", "mic", "dnd", "night", "airplane", "tablet"]
         }
     }
 
@@ -1006,6 +1009,27 @@ Item {
                         width: parent.width
                         wrapMode: Text.WordWrap
                         text: "Melts out of the frame's right edge when you hover (or click) the top-right corner, carrying your chosen system panes as tabs in the order you enable them."
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                    }
+                }
+
+                SettingSection {
+                    width: parent.width
+                    title: "QUICK TOGGLES"
+                    ToggleRow { width: parent.width; label: "Wi-Fi"; checked: (draft.sidebarToggles || []).indexOf("wifi") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "wifi", v) }
+                    ToggleRow { width: parent.width; label: "Bluetooth"; checked: (draft.sidebarToggles || []).indexOf("bluetooth") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "bluetooth", v) }
+                    ToggleRow { width: parent.width; label: "Mic"; checked: (draft.sidebarToggles || []).indexOf("mic") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "mic", v) }
+                    ToggleRow { width: parent.width; label: "Do Not Disturb"; checked: (draft.sidebarToggles || []).indexOf("dnd") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "dnd", v) }
+                    ToggleRow { width: parent.width; label: "Night Light"; checked: (draft.sidebarToggles || []).indexOf("night") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "night", v) }
+                    ToggleRow { width: parent.width; label: "Airplane Mode"; checked: (draft.sidebarToggles || []).indexOf("airplane") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "airplane", v) }
+                    ToggleRow { width: parent.width; label: "Tablet Mode"; checked: (draft.sidebarToggles || []).indexOf("tablet") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "tablet", v) }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Which quick-toggles show in the sidebar's Controls row, and their order. Reorder them inline from the row's own edit mode (the pencil icon) -- this list only adds or removes."
                         color: Theme.faint
                         font.family: Theme.font
                         font.pixelSize: 12

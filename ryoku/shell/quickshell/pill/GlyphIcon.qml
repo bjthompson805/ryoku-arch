@@ -91,7 +91,19 @@ Item {
         "flip": { d: "M12 3v18 M10 8l-5 4 5 4V8z M14 8l5 4-5 4V8z", fill: false },
         // ring outline (d) plus a filled right half-disk (d2): the two draw
         // in the same stroke color so the halves read as "empty"/"solid".
-        "contrast": { d: "M20 12a8 8 0 1 0-16 0a8 8 0 1 0 16 0", d2: "M12 4A8 8 0 0 1 12 20Z", fill: false }
+        "contrast": { d: "M20 12a8 8 0 1 0-16 0a8 8 0 1 0 16 0", d2: "M12 4A8 8 0 0 1 12 20Z", fill: false },
+        "pencil": { d: "M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z", fill: false },
+        "add": { d: "M12 5v14 M5 12h14", fill: false },
+        "airplane": { d: "M12 2L13 8.5L21 15L21 16.6L13 13.2L13 18.3L16.3 20.6L16.3 21.6L12 20.3L7.7 21.6L7.7 20.6L11 18.3L11 13.2L3 16.6L3 15L11 8.5Z", fill: true },
+        // Windows' tablet-mode glyph: a landscape screen (stroked) with a
+        // hand -- one continuous tapered silhouette, fingertip narrowing out
+        // of a rounded palm mass -- touching it from outside the lower-
+        // right corner, filled via d2.
+        "tablet": {
+            d: "M3 5h15a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 3 5z",
+            d2: "M14 13C12 14.8 12 19 15.3 21.3C18 23.2 22 21.6 21.6 18C21.2 15 17.5 12.5 14 13Z",
+            fill: false
+        }
     })
 
     readonly property var g: glyphs[name] !== undefined ? glyphs[name] : ({ d: "", fill: false })

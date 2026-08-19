@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# tablet mode = disable the built-in keyboard + trackpad only (a 2-in-1
+# folded flat), never external/USB/BT peripherals.
+#
+#   status   "on" | "off"
+#   on       disable the built-in keyboard + trackpad
+#   off      re-enable them
+#   toggle
+#
+# detection is generic, not machine-specific:
+#   keyboard: exact device name "at-translated-set-2-keyboard", the
+#     near-universal Linux name for a laptop's AT-translated keyboard
+#     controller.
+#   trackpad: any `mice` device whose name contains "touchpad" (libinput's
+#     standard naming), plus any sibling `mice` device sharing that
+#     touchpad's vendor:product-id prefix -- some trackpads expose a second
+#     logical "-mouse" node for the same physical hardware that would
+#     otherwise still pass clicks through.
+#
+# Ryoku's Hyprland runs the Lua config parser (hyprctl keyword is rejected,
+# see ryoku-cmd-game-mode). per-device enable/disable goes through
+# `hyprctl eval` + `hl.device({name=..., enabled=...})` -- NOT
+# `hl.config({device=...})`, which Hyprland rejects as an unknown key
+# (verified live against a running instance before this script was written).
+#
+# a physical convertible's SW_TABLET_MODE hinge switch is not auto-detected
+# here -- manual software toggle only.
+#
+# known limitation: `hyprctl reload` re-reads the Lua config and clears
+# every eval override, silently re-enabling the devices while the state
+# file still says "on" -- same accepted tradeoff ryoku-cmd-game-mode
+# documents for its own compositor eval overrides.
+set -u
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-tablet-mode"
+
+is_on() { [[ -f $state ]]; }
+
+target_devices() {
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  hyprctl devices -j 2>/dev/null | jq -r '
+    (.keyboards[]? | select(.name == "at-translated-set-2-keyboard") | .name),
+    ( [.mice[]? | select(.name | test("touchpad"; "i"))] as $pads
+      | ($pads | map(.name | sub("-(touchpad|mouse)$"; ""))) as $prefixes
+      | .mice[]?
+      | .name as $n
+      | select(($prefixes | index($n | sub("-(touchpad|mouse)$"; ""))) != null)
+      | $n
+    )
+  ' | sort -u
+}
+
+set_devices() { # $1 = true|false
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  local name lua=""
+  while IFS= read -r name; do
+    [[ -z $name ]] && continue
+    lua+="hl.device({ name = \"$name\", enabled = $1 })"$'\n'
+  done < <(target_devices)
+  [[ -n $lua ]] && hyprctl eval "$lua" >/dev/null 2>&1
+  return 0
+}
+
+start() {
+  mkdir -p "$(dirname "$state")" 2>/dev/null || true
+  : >"$state" 2>/dev/null || true
+  set_devices false
+}
+
+stop() {
+  rm -f "$state" 2>/dev/null || true
+  set_devices true
+}
+
+case "${1:-toggle}" in
+  status)
+    if is_on; then echo on; else echo off; fi
+    ;;
+  on)
+    start
+    ;;
+  off)
+    stop
+    ;;
+  toggle)
+    if is_on; then stop; else start; fi
+    ;;
+  *)
+    echo "usage: ryoku-cmd-tablet-mode [status | on | off | toggle]" >&2
+    exit 1
+    ;;
+esac
