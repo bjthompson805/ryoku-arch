@@ -52,25 +52,23 @@ Item {
     readonly property real rightX: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightX : 0) : rightIsland.x
     readonly property real rightW: bar.nacre ? (nacreLoader.item ? nacreLoader.item.rightW : 0) : rightIsland.width
 
-    // noctalia's right island grew a net-speed and stats readout ahead of
-    // status; on narrower screens the full row (those two plus a horizontal
-    // now-playing) can outgrow the gap beside the centred clock. decide from
-    // quantities that never depend on the outcome -- BarMedia.naturalWidth is
-    // its width as laid out in the right island regardless of whether it ends
-    // up shown there, and every other module here is sized independently of
-    // it -- so bouncing the module to the left island from this can't feed
-    // back into its own condition.
+    // noctalia's right island grew a net-speed readout ahead of status; on
+    // narrower screens the full row (that plus a horizontal now-playing) can
+    // outgrow the gap beside the centred clock. decide from quantities that
+    // never depend on the outcome -- BarMedia.naturalWidth is its width as
+    // laid out in the right island regardless of whether it ends up shown
+    // there, and every other module here is sized independently of it -- so
+    // bouncing the module to the left island from this can't feed back into
+    // its own condition.
     readonly property real rightAvailable: Math.max(0, (bar.width - bar.centreW) / 2 - bar.edgeMargin - 16 * bar.s)
     // how many of the row's other modules actually lay out (Row skips
     // invisible/inactive children entirely, so the gap count has to match).
     readonly property int rightOtherCount: (bar.noctalia && Config.barShowNetSpeed ? 1 : 0)
-        + (bar.noctalia && Config.barShowStats ? 1 : 0)
         + (Config.barShowStatus ? 1 : 0)
         + (Config.barShowWeather && Weather.available ? 1 : 0)
         + (hTray.count > 0 ? 1 : 0)
         + 1 // power, always shown
     readonly property real rightFixedWidth: (bar.noctalia && Config.barShowNetSpeed ? netSpeedLoader.width : 0)
-        + (bar.noctalia && Config.barShowStats ? statsLoader.width : 0)
         + (Config.barShowStatus ? statusMod.width : 0)
         + (Config.barShowWeather && Weather.available ? weatherMod.width : 0)
         + (hTray.count > 0 ? trayMod.width : 0)
@@ -171,6 +169,16 @@ Item {
                 // Loader, not a plain visible: toggle -- see the matching
                 // comment on netSpeedLoader below: triptych/caelestia/aegis/
                 // stele reuse this same leftRow but never show this module.
+                // sits ahead of the agent-usage module, between it and the
+                // workspaces module.
+                Loader {
+                    id: statsLoader
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: active
+                    active: bar.noctalia && Config.barShowStats
+                    sourceComponent: statsModuleComp
+                }
+
                 Loader {
                     id: agentUsageLoader
                     anchors.verticalCenter: parent.verticalCenter
@@ -323,14 +331,6 @@ Item {
                     visible: active
                     active: bar.noctalia && Config.barShowNetSpeed
                     sourceComponent: netSpeedModuleComp
-                }
-
-                Loader {
-                    id: statsLoader
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: active
-                    active: bar.noctalia && Config.barShowStats
-                    sourceComponent: statsModuleComp
                 }
 
                 BarModule {
