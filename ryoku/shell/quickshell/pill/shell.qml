@@ -943,6 +943,31 @@ ShellRoot {
                     }
                 }
 
+                // webcam-bridge popout: opened from BarStatus.qml's bridge
+                // icon, which only shows while the non-UVC libcamera bridge
+                // is up -- explains what it is and reports its live status.
+                Popout {
+                    id: webcamBridgePop
+                    group: blobGroup
+                    frameThickness: overlay.barVisibleH
+                    radius: Config.frameRadius
+                    smoothing: Config.frameSmoothing
+                    edge: overlay.barPos
+                    hoverOpen: false
+                    alongCenter: root.popoutCenter
+                    s: overlay.s
+                    active: !overlay.monFullscreen
+                    pinned: root.popout === "webcamBridge" && root.popoutMon === overlay.modelData.name
+                    openW: webcamBridgeContent.implicitWidth
+                    openH: webcamBridgeContent.implicitHeight
+
+                    WebcamBridgePopout {
+                        id: webcamBridgeContent
+                        s: overlay.s
+                        open: webcamBridgePop.prog > 0.5
+                    }
+                }
+
                 // resources popout: opened from the Nacre stats module, the CPU /
                 // memory / temp readout grows from the bar edge at the module.
                 Popout {

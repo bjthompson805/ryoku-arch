@@ -37,7 +37,8 @@ Item {
         { key: "dnd",       glyph: "dnd",       label: "Do Not Disturb" },
         { key: "night",     glyph: "moon",      label: "Night Light" },
         { key: "airplane",  glyph: "airplane",  label: "Airplane Mode" },
-        { key: "tablet",    glyph: "tablet",    label: "Tablet Mode" }
+        { key: "tablet",    glyph: "tablet",    label: "Tablet Mode" },
+        { key: "webcam",    glyph: "webcam",    label: "Webcam" }
     ]
     readonly property var catalogByKey: {
         var m = ({});
@@ -63,6 +64,7 @@ Item {
             case "night": return root.deck.nightOn;
             case "airplane": return root.deck.airplaneOn;
             case "tablet": return root.deck.tabletOn;
+            case "webcam": return Webcam.on;
         }
         return false;
     }
@@ -75,6 +77,7 @@ Item {
             case "night": root.deck.toggleNight(); break;
             case "airplane": root.deck.toggleAirplane(); break;
             case "tablet": root.deck.toggleTablet(); break;
+            case "webcam": Webcam.toggle(); break;
         }
     }
 

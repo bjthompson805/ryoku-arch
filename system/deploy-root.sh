@@ -47,4 +47,12 @@ install -Dm644 "$repo/system/hardware/network/49-ryoku-wifi-powersave.rules" \
   /etc/polkit-1/rules.d/49-ryoku-wifi-powersave.rules
 say "installed wifi power-save helper and polkit rule"
 
+# Webcam kill-switch. Same reasoning as the wifi helper above: the polkit
+# rule is pinned to /usr/bin/ryoku-webcam, so deploy.sh never installs this
+# one to a $HOME bindir.
+install -Dm755 "$repo/system/hardware/camera/ryoku-webcam" /usr/bin/ryoku-webcam
+install -Dm644 "$repo/system/hardware/camera/50-ryoku-webcam.rules" \
+  /etc/polkit-1/rules.d/50-ryoku-webcam.rules
+say "installed webcam kill-switch helper and polkit rule"
+
 say "done. re-run after every git pull to pick up changes to these files."

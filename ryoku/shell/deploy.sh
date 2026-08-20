@@ -90,6 +90,17 @@ say "installed $bindir/ryoku-shell"
 install -m755 "$here/../hyprland/scripts/ryoku-cmd-radio" "$bindir/ryoku-cmd-radio"
 say "installed $bindir/ryoku-cmd-radio"
 
+# Same reasoning as ryoku-cmd-radio above: autostart.lua calls this by bare
+# name (`ensure-default`, bringing the non-UVC bridge up on login), so a dev
+# deploy needs it on PATH too, not just under ~/.config/hypr/scripts.
+install -m755 "$here/../hyprland/scripts/ryoku-cmd-webcam" "$bindir/ryoku-cmd-webcam"
+say "installed $bindir/ryoku-cmd-webcam"
+
+# ryoku-cmd-webcam resolves this sibling next to itself, not via PATH -- needs
+# to land beside the copy above for that to work from $bindir too.
+install -m755 "$here/../hyprland/scripts/ryoku-cmd-webcam-bridge" "$bindir/ryoku-cmd-webcam-bridge"
+say "installed $bindir/ryoku-cmd-webcam-bridge"
+
 # Build ryoku-livewall, the software-decode video-wallpaper daemon the shell drives
 # for live wallpapers. Needs wayland-scanner + a C toolchain + ffmpeg/wayland dev
 # libs (build-time only); skip cleanly when absent so a plain config deploy still

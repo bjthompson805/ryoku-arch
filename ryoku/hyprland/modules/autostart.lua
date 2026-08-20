@@ -14,6 +14,11 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("command -v ryoku-idle >/dev/null 2>&1 && ryoku-idle start")
     hl.exec_cmd("command -v ryoku-leds >/dev/null 2>&1 && ryoku-leds apply")
     hl.exec_cmd("command -v ryoku-mic >/dev/null 2>&1 && ryoku-mic")
+    -- webcam kill switch: brings the non-UVC bridge up if this machine has a
+    -- MIPI/ISP camera and no one has explicitly turned it off, so the deck
+    -- toggle's "on" reads true on a mixed UVC+non-UVC system from first
+    -- login, not just after a manual toggle. A no-op on a plain UVC laptop.
+    hl.exec_cmd("command -v ryoku-cmd-webcam >/dev/null 2>&1 && ryoku-cmd-webcam ensure-default >/dev/null 2>&1")
     -- Booted into a btrfs snapshot from the Limine menu: offer the one-click
     -- restore. limine-snapper-sync ships this as an XDG autostart entry, which
     -- Hyprland never runs (no autostart manager), so start it here; on a normal

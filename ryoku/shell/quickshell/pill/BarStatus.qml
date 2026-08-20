@@ -40,7 +40,7 @@ Grid {
 
     readonly property real glyphPx: 14 * s
 
-    columns: vertical ? 1 : 8
+    columns: vertical ? 1 : 9
     columnSpacing: 9 * s
     rowSpacing: 7 * s
     verticalItemAlignment: Grid.AlignVCenter
@@ -268,6 +268,32 @@ Grid {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: status.open("inbox", bellIcon)
+        }
+    }
+
+    // webcam bridge: shows only while the non-UVC libcamera->v4l2loopback
+    // bridge is up (see Singletons/Webcam.qml, ryoku-cmd-webcam-bridge). the
+    // one cool-toned glyph in an otherwise all-warm status cluster, so "a
+    // background process is relaying your camera" reads as distinct from
+    // every ember-toned feature glyph here. click opens a popout explaining
+    // what it is and showing its live status.
+    Item {
+        id: webcamBridgeIcon
+        visible: Webcam.bridgeOn
+        width: status.glyphPx + 4 * status.s
+        height: status.glyphPx + 4 * status.s
+
+        MaterialIcon {
+            anchors.centerIn: parent
+            text: "videocam"
+            fill: Webcam.streaming ? 1 : 0
+            color: Theme.bridgeGlow
+            font.pixelSize: status.glyphPx
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: status.open("webcamBridge", webcamBridgeIcon)
         }
     }
 

@@ -14,6 +14,7 @@ singleton Vpn Vpn.qml
 singleton VoiceCall VoiceCall.qml
 singleton Recorder Recorder.qml
 singleton Camera Camera.qml
+singleton Webcam Webcam.qml
 singleton Audio Audio.qml
 singleton VoiceBars VoiceBars.qml
 singleton Weather Weather.qml

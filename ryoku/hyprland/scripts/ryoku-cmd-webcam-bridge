@@ -1,0 +1,362 @@
+#!/usr/bin/env python3
+# lazy producer for the non-UVC webcam bridge -- internal, started/stopped by
+# ryoku-cmd-webcam, not meant to be run directly.
+#
+# WHY a persistent single process with an internal switch, rather than the
+# obvious "start/stop separate gst-launch producer processes" (an earlier
+# version of this file): verified empirically, several ways, that
+# v4l2loopback does not support handing a device off from one writer
+# PROCESS to another while a reader is attached, under either
+# exclusive_caps setting -- a second writer process is refused outright
+# while the device presents Capture-only caps to existing readers, and even
+# briefly having zero writers connected breaks an already-open reader's
+# format negotiation, regardless of exclusive_caps. One process holding one
+# unbroken connection to the loopback device for the entire time the bridge
+# is "on" sidesteps this.
+#
+# WHY both branches are permanently linked into a `funnel` (many-to-one
+# merge) with a completely static connection to v4l2sink, rather than
+# dynamically unlinking/relinking whichever branch is active straight into
+# the sink (an earlier version of this file, using a blocking pad probe --
+# the standard GStreamer "dynamic pipeline" pattern): confirmed empirically
+# against the real device that v4l2sink calls S_FMT again on every fresh
+# pad-link/caps event, even when the caps are byte-for-byte identical to
+# before, and that call fails with "Device or resource busy" because the
+# V4L2 device is still finishing the previous stream. This isn't specific
+# to a bad caps value -- pinning both branches to the identical resolution
+# didn't fix it, because the problem is the *reconnection itself*, not a
+# mismatch. With a `funnel` and a never-touched sink link, v4l2sink only
+# ever negotiates once, at pipeline start, and never sees a reconnect again
+# -- switching is then just toggling which branch's elements are actually
+# in PLAYING vs NULL state (locked out of the pipeline's own state changes
+# while inactive), no pad manipulation involved at all. This also sidesteps
+# a GStreamer streaming-thread deadlock the pad-probe version had (calling
+# set_state() from inside a pad-probe callback, which runs on the
+# streaming thread, can deadlock trying to join that same thread) -- state
+# changes here happen directly from the poll() timer callback on the main
+# thread, nothing runs on another thread's callback at all.
+#
+# CRITICAL ORDERING: every element below is added to the pipeline with
+# pipeline.add() BEFORE it is linked to anything. Linking first and adding
+# second looks harmless and mostly doesn't error at link time, but silently
+# breaks dataflow later ("streaming stopped, reason not-linked") once the
+# pipeline actually plays -- confirmed empirically to be the root cause of
+# a long chain of confusing failures during development. GStreamer's own
+# docs call this out: caps negotiation during linking needs the elements'
+# parent bin already set.
+import gi
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst, GLib
+
+import json
+import os
+import signal
+import subprocess
+import sys
+
+VIDEO_NR = int(os.environ.get("RYOKU_WEBCAM_LOOPBACK_NR", "32"))
+DEV = f"/dev/video{VIDEO_NR}"
+CFG_PATH = os.path.join(
+    os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
+    "ryoku", "webcam.json")
+STATE_DIR = os.path.join(
+    os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"),
+    "ryoku")
+STREAMING_MARKER = os.path.join(STATE_DIR, "webcam-bridge.streaming")
+# both branches MUST negotiate byte-identical caps, including colorimetry
+# -- required for the funnel design above to avoid ever re-triggering
+# v4l2sink's format negotiation. width/height: videotestsrc defaults small
+# if unconstrained, while this sensor naturally negotiates 1920x1080.
+#
+# colorimetry=sRGB is hardcoded, not auto-detected: an earlier version of
+# this line probed the real camera at bridge startup to discover its
+# native colorimetry, so this would stay correct on non-UVC hardware other
+# than this exact machine's sensor. That probe worked, but it meant
+# touching the real camera (and lighting the privacy LED) once on every
+# bridge startup, before any real consumer had ever connected -- worse
+# than the lazy design was ever supposed to allow. sRGB is confirmed
+# correct for *this* sensor (this hardcoded value is exactly what the
+# probe used to discover on its own). A genuinely different non-UVC
+# sensor could legitimately need a different value here -- if the real
+# branch won't stream at all on such hardware, this line, not the
+# funnel/PTS-rebasing logic elsewhere in this file, is the first place to
+# look. (Confirmed the lag fix elsewhere in this file doesn't depend on
+# this being the *correct*, zero-conversion value: temporarily forcing
+# colorimetry=bt601 here -- deliberately wrong for this sensor, forcing a
+# real per-pixel conversion on every frame -- showed no lag either.)
+BASE_CAPS = "video/x-raw,format=YUY2,width=1920,height=1080,colorimetry=sRGB"
+# tried shortening this to 150ms on the theory that bounding how long a
+# fresh consumer sees the placeholder before switching would reduce the
+# lasting AV-sync lag reported when connecting to a cold real branch --
+# didn't hold up: retesting at the same 150ms showed the same bad lag,
+# meaning the earlier apparent improvement was very likely run-to-run
+# variance (camera/ISP settle time hasn't been perfectly consistent
+# between runs all night), not a real effect of poll frequency.
+POLL_INTERVAL_MS = 1500
+
+
+def flip_method():
+    # Flip is per-machine calibration (Ryoku Hub > Input > Camera): some
+    # MIPI sensors are mounted upside-down with no rotation entry in
+    # libcamera's sensor database, so there's no way to detect this in
+    # software. Re-read fresh each time the real branch engages, not cached
+    # from process start, so a Hub change takes effect on the next use
+    # without needing the whole bridge restarted.
+    try:
+        with open(CFG_PATH) as f:
+            return "rotate-180" if json.load(f).get("flip180") else "none"
+    except Exception:
+        return "none"
+
+
+def mark_streaming():
+    os.makedirs(STATE_DIR, exist_ok=True)
+    open(STREAMING_MARKER, "a").close()
+
+
+def unmark_streaming():
+    try:
+        os.remove(STREAMING_MARKER)
+    except FileNotFoundError:
+        pass
+
+
+def external_openers(my_pid):
+    # distinct PIDs with $dev open, excluding this process itself.
+    try:
+        out = subprocess.run(["fuser", DEV], capture_output=True, text=True).stdout
+    except FileNotFoundError:
+        return 0
+    count = 0
+    for tok in out.split():
+        digits = "".join(c for c in tok if c.isdigit())
+        if not digits or int(digits) == my_pid:
+            continue
+        count += 1
+    return count
+
+
+def make_chain(pipeline, *specs):
+    """Create a list of elements from (factory_name, {prop: value}) specs,
+    adding each to `pipeline` before linking it to the next -- see the
+    CRITICAL ORDERING note at the top of this file."""
+    elems = []
+    for name, props in specs:
+        e = Gst.ElementFactory.make(name, None)
+        if e is None:
+            sys.stderr.write(f"failed to create element '{name}'\n")
+            sys.exit(1)
+        for k, v in props.items():
+            e.set_property(k, v)
+        pipeline.add(e)
+        elems.append(e)
+    for a, b in zip(elems, elems[1:]):
+        if not a.link(b):
+            sys.stderr.write(f"failed to link {a.get_name()} -> {b.get_name()}\n")
+            sys.exit(1)
+    return elems
+
+
+class Bridge:
+    def __init__(self):
+        Gst.init(None)
+
+        self.pipeline = Gst.Pipeline.new("ryoku-webcam-bridge")
+        caps = Gst.Caps.from_string(BASE_CAPS)
+
+        self.idle_chain = make_chain(
+            self.pipeline,
+            # is-live: without this, videotestsrc runs unthrottled --
+            # producing frames as fast as downstream can consume them, PTS
+            # just incrementing by a fixed frame duration each time,
+            # completely untethered from real elapsed time. Confirmed
+            # empirically that its PTS reaches into the *hundreds of
+            # seconds* after the bridge has only been running for single-
+            # digit real seconds, and keeps drifting further the longer it
+            # idles. real_chain's own PTS gets explicitly rebased onto the
+            # pipeline's actual running time on every engagement (see the
+            # probe below) specifically so it lands on real elapsed time --
+            # but idle_chain racing off into a fictional multi-minute
+            # future produces exactly the same kind of jump on the way
+            # back out of it. Live-pacing this to real time is what
+            # actually closes the gap, not anything about how fast the
+            # switch itself happens.
+            ("videotestsrc", {"pattern": "black", "is-live": True}),
+            ("capsfilter", {"caps": caps}),
+        )
+        self.real_chain = make_chain(
+            self.pipeline,
+            ("libcamerasrc", {}),
+            ("videoflip", {"method": "none"}),
+            ("videoconvert", {}),
+            ("capsfilter", {"caps": caps}),
+        )
+        self.real_flip = self.real_chain[1]
+
+        # rebase real_chain's buffer timestamps onto the pipeline's own
+        # running time as they leave the chain -- confirmed empirically
+        # (direct PTS logging around a real switch) that libcamerasrc does
+        # NOT derive its timestamps from the standard GstElement clock/
+        # base_time mechanism (explicitly syncing those made no difference
+        # at all), it stamps buffers from libcamera's own internal frame
+        # timestamps. Left alone, that produces a massive, essentially
+        # random jump (minutes, and not always forward) every time this
+        # chain engages -- exactly the kind of discontinuity that wrecks a
+        # downstream player's AV-sync for the rest of the connection. This
+        # doesn't depend on knowing *how* libcamerasrc computes its
+        # timestamps, only on rewriting them to continue smoothly
+        # regardless: the first buffer after each engagement gets whatever
+        # offset makes it continue the pipeline's current running time,
+        # and every later buffer in that engagement carries the same
+        # offset, preserving the real inter-frame spacing libcamerasrc
+        # itself produced.
+        self._real_rebase_pending = True
+        self._real_pts_offset = 0
+
+        def _rebase_real_pts(pad, info):
+            buf = info.get_buffer()
+            if buf is None or buf.pts == Gst.CLOCK_TIME_NONE:
+                return Gst.PadProbeReturn.OK
+            if self._real_rebase_pending:
+                now = self.pipeline.get_current_running_time()
+                self._real_pts_offset = now - buf.pts
+                self._real_rebase_pending = False
+            buf.pts = max(0, buf.pts + self._real_pts_offset)
+            if buf.dts != Gst.CLOCK_TIME_NONE:
+                buf.dts = max(0, buf.dts + self._real_pts_offset)
+            return Gst.PadProbeReturn.OK
+
+        self.real_chain[-1].get_static_pad("src").add_probe(
+            Gst.PadProbeType.BUFFER, _rebase_real_pts)
+
+        self.funnel = Gst.ElementFactory.make("funnel", None)
+        # leaky=downstream, one buffer deep: if the sink (or whatever's
+        # reading the loopback device) ever falls even briefly behind, drop
+        # the stale buffer instead of queuing it -- without this there's
+        # nothing absorbing small producer/consumer rate mismatches, so any
+        # hiccup compounds into growing latency instead of just skipping a
+        # frame. Live camera preview should always show the newest frame.
+        self.queue = Gst.ElementFactory.make("queue", None)
+        self.sink = Gst.ElementFactory.make("v4l2sink", None)
+        if self.funnel is None or self.queue is None or self.sink is None:
+            sys.stderr.write("failed to create funnel/queue/v4l2sink\n")
+            sys.exit(1)
+        self.queue.set_property("leaky", 2)  # 2 = downstream (GstQueueLeaky)
+        self.queue.set_property("max-size-buffers", 1)
+        self.queue.set_property("max-size-bytes", 0)
+        self.queue.set_property("max-size-time", 0)
+        self.sink.set_property("device", DEV)
+        self.sink.set_property("sync", False)
+        self.pipeline.add(self.funnel)
+        self.pipeline.add(self.queue)
+        self.pipeline.add(self.sink)
+
+        # every link below is permanent for the pipeline's whole lifetime --
+        # see the funnel note at the top of this file for why.
+        self.funnel.link(self.queue)
+        self.queue.link(self.sink)
+        self.idle_chain[-1].link(self.funnel)
+        self.real_chain[-1].link(self.funnel)
+
+        # real_chain starts locked out of the pipeline's own state changes
+        # -- otherwise pipeline.set_state(PLAYING) below would bring it up
+        # too, engaging the real camera immediately instead of only on
+        # demand.
+        #
+        # Tried idling this at READY instead of NULL (camera stays
+        # acquired but not streaming -- confirmed empirically that state
+        # doesn't light the LED, so it looked like a free way to pre-pay
+        # libcamerasrc's acquisition cost). Made things dramatically worse
+        # in practice (lag went from ~0.5s to ~5s) -- most likely repeated
+        # READY<->PLAYING cycling (the fast poll below can catch mpv's own
+        # internal open/close churn during its startup negotiation) leaves
+        # libcamerasrc's internal request queue backlogged rather than
+        # actually saving the acquisition cost it was meant to. Reverted;
+        # NULL is what's actually confirmed working.
+        for e in self.real_chain:
+            e.set_locked_state(True)
+            e.set_state(Gst.State.NULL)
+
+        self.active_chain = self.idle_chain
+        self.my_pid = os.getpid()
+
+        bus = self.pipeline.get_bus()
+        bus.add_signal_watch()
+        bus.connect("message", self._on_bus_message)
+
+        self.loop = GLib.MainLoop()
+
+    def _on_bus_message(self, _bus, msg):
+        if msg.type == Gst.MessageType.ERROR:
+            err, dbg = msg.parse_error()
+            sys.stderr.write(f"gst error: {err} ({dbg})\n")
+        elif msg.type == Gst.MessageType.WARNING:
+            err, dbg = msg.parse_warning()
+            sys.stderr.write(f"gst warning: {err} ({dbg})\n")
+
+    def switch_to(self, target_chain):
+        old_chain = self.active_chain
+        if old_chain is target_chain:
+            return
+        for e in old_chain:
+            e.set_state(Gst.State.NULL)
+            e.set_locked_state(True)
+        if target_chain is self.real_chain:
+            self.real_flip.set_property("method", flip_method())
+            # next buffer out of real_chain gets a fresh PTS-continuity
+            # offset computed -- see the probe set up in __init__.
+            self._real_rebase_pending = True
+        for e in target_chain:
+            e.set_locked_state(False)
+        # downstream first, matches the GStreamer convention for manually
+        # bringing up a linked chain: give data somewhere to land before
+        # the upstream source starts producing it.
+        for e in reversed(target_chain):
+            e.set_state(Gst.State.PLAYING)
+        self.active_chain = target_chain
+        if target_chain is self.real_chain:
+            mark_streaming()
+        else:
+            unmark_streaming()
+
+    def poll(self):
+        if external_openers(self.my_pid) > 0:
+            self.switch_to(self.real_chain)
+        else:
+            self.switch_to(self.idle_chain)
+        return True  # keep repeating
+
+    def run(self):
+        if not os.path.exists(DEV):
+            sys.stderr.write(f"{DEV} does not exist\n")
+            sys.exit(1)
+        unmark_streaming()  # clear a stale marker left by a crashed prior run
+
+        if self.pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
+            sys.stderr.write("failed to start pipeline\n")
+            sys.exit(1)
+
+        GLib.timeout_add(POLL_INTERVAL_MS, self.poll)
+
+        def on_signal():
+            # real_chain sits locked (see switch_to/__init__) whenever it's
+            # not the active chain -- a locked element doesn't necessarily
+            # follow its parent bin's own state changes, so unlock and drop
+            # it to NULL explicitly here rather than assuming the
+            # pipeline-wide NULL below reaches it too.
+            for e in self.real_chain:
+                e.set_locked_state(False)
+                e.set_state(Gst.State.NULL)
+            self.pipeline.set_state(Gst.State.NULL)
+            unmark_streaming()
+            self.loop.quit()
+            return False
+
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, on_signal)
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, on_signal)
+
+        self.loop.run()
+
+
+if __name__ == "__main__":
+    Bridge().run()

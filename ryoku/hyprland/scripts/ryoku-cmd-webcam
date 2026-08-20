@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+# webcam kill switch: deck-toggle entry point. handles two independent camera
+# classes, since not every laptop's built-in camera is a plain USB webcam:
+#
+#   UVC (uvcvideo) exposes a ready V4L2 device -- gated directly via
+#   root-owned chmod (ryoku-webcam status/on/off).
+#
+#   anything else (a MIPI/ISP camera behind a vendor driver -- this repo's
+#   own dev machine's Intel IPU7 included) can't be opened by ordinary apps
+#   at all without a bridge: ryoku-cmd-webcam-bridge pipes libcamera through
+#   GStreamer into a v4l2loopback virtual device, started lazily (only while
+#   something has the loopback open, so the privacy LED only lights during
+#   real use) and torn down when this toggle goes off.
+#
+# if a machine somehow has both at once (a non-UVC built-in plus a UVC
+# camera plugged in over USB), this toggle is a single combined kill switch
+# rather than two tiles: "on" means at least one camera is reachable by
+# apps, "off" means none are, and toggling always drives every detected
+# camera to the new blanket state. On the far more common single-camera
+# machine this is indistinguishable from a plain per-camera toggle.
+#
+# UVC's "on" is just the OS's own default device permissions -- nothing to
+# arrange. The bridge has no such free default (nothing makes v4l2loopback
+# appear on its own), so to keep the combined toggle honest on a mixed
+# system -- "on" actually meaning both cameras are reachable, not just the
+# UVC one -- `ensure-default` brings the bridge up at login whenever a
+# non-UVC camera is present, unless the disabled marker below says the user
+# turned it off on purpose.
+#
+#   status          "on" | "off"
+#   on              make every detected camera reachable
+#   off             make every detected camera unreachable (panic button)
+#   toggle
+#   ensure-default    start the bridge if a non-UVC camera exists and no one
+#                     has explicitly turned it off (called once from autostart)
+#   bridge-status     "on" | "off" -- the bridge alone, not OR'd with UVC;
+#                     feeds the bar's dedicated bridge indicator
+#   streaming-status  "on" | "off" -- is the bridge actively capturing right
+#                     now, not just standing by (lazy: see the bridge script)
+set -u
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku"
+bridge_pid_file="$state_dir/webcam-bridge.pid"
+bridge_log="$state_dir/webcam-bridge.log"
+bridge_disabled_marker="$state_dir/webcam-bridge.disabled"
+loopback_nr="${RYOKU_WEBCAM_LOOPBACK_NR:-32}"
+
+helper="$(command -v ryoku-webcam)" || helper=""
+
+# one "driver devpath" line per physically distinct camera -- an ISP's 30+
+# pipeline nodes share one device path and collapse to a single line, while
+# two separate USB webcams each get their own.
+camera_sources() {
+  local v sysv devpath drv
+  declare -A seen=()
+  for v in /dev/video*; do
+    [[ -e $v ]] || continue
+    sysv="/sys/class/video4linux/$(basename "$v")"
+    devpath=$(readlink -f "$sysv/device" 2>/dev/null) || continue
+    [[ -n ${seen[$devpath]:-} ]] && continue
+    seen[$devpath]=1
+    drv=$(basename "$(readlink -f "$sysv/device/driver" 2>/dev/null)")
+    printf '%s %s\n' "$drv" "$devpath"
+  done
+}
+
+has_bridge_source() { camera_sources | awk '$1 != "uvcvideo"' | grep -q .; }
+
+uvc_accessible() {
+  local v drv
+  for v in /dev/video*; do
+    [[ -e $v ]] || continue
+    drv=$(basename "$(readlink -f "/sys/class/video4linux/$(basename "$v")/device/driver" 2>/dev/null)")
+    [[ $drv == uvcvideo ]] || continue
+    [[ $(stat -c '%a' "$v" 2>/dev/null) != "000" ]] && return 0
+  done
+  return 1
+}
+
+bridge_running() {
+  [[ -f $bridge_pid_file ]] || return 1
+  local pid
+  pid=$(cat "$bridge_pid_file" 2>/dev/null)
+  [[ -n $pid ]] && kill -0 "$pid" 2>/dev/null
+}
+
+status() {
+  if uvc_accessible || bridge_running; then echo on; else echo off; fi
+}
+
+start_bridge() {
+  mkdir -p "$state_dir" 2>/dev/null || true
+  rm -f "$bridge_disabled_marker"
+  [[ -n $helper ]] && pkexec "$helper" load-loopback >/dev/null 2>&1 || true
+  local i
+  for i in {1..30}; do [[ -e "/dev/video$loopback_nr" ]] && break; sleep 0.1; done
+  local bridge_bin="$here/ryoku-cmd-webcam-bridge"
+  # deployed alongside this script always (dev checkout: ~/.config/hypr/scripts;
+  # packaged: /usr/bin) -- resolve next to $0 rather than trusting PATH, which
+  # only carries the packaged location.
+  [[ -x $bridge_bin ]] || bridge_bin="$(command -v ryoku-cmd-webcam-bridge)" || return 0
+  setsid "$bridge_bin" >"$bridge_log" 2>&1 </dev/null &
+  disown
+  echo $! >"$bridge_pid_file"
+}
+
+stop_bridge() {
+  if bridge_running; then
+    kill "$(cat "$bridge_pid_file")" 2>/dev/null || true
+    local i
+    for i in {1..20}; do bridge_running || break; sleep 0.1; done
+  fi
+  rm -f "$bridge_pid_file"
+  mkdir -p "$state_dir" 2>/dev/null || true
+  : >"$bridge_disabled_marker"
+  [[ -n $helper ]] && pkexec "$helper" unload-loopback >/dev/null 2>&1 || true
+}
+
+turn_on() {
+  [[ -n $helper ]] && pkexec "$helper" on >/dev/null 2>&1 || true
+  if has_bridge_source; then
+    bridge_running || start_bridge
+  fi
+}
+
+turn_off() {
+  [[ -n $helper ]] && pkexec "$helper" off >/dev/null 2>&1 || true
+  bridge_running && stop_bridge
+}
+
+# called once from autostart (hyprland/modules/autostart.lua): the bridge has
+# no free default the way UVC's OS-set permissions are, so without this a
+# fresh mixed-camera machine would read "on" (from UVC alone) while the
+# non-UVC camera stays unreachable -- the exact ambiguity a single combined
+# toggle can't otherwise represent. Skips machines with no non-UVC camera,
+# a bridge that's already running, and one the user explicitly turned off.
+ensure_default() {
+  has_bridge_source || return 0
+  bridge_running && return 0
+  [[ -f $bridge_disabled_marker ]] && return 0
+  start_bridge
+}
+
+case "${1:-toggle}" in
+  status)
+    status
+    ;;
+  on)
+    turn_on
+    ;;
+  off)
+    turn_off
+    ;;
+  ensure-default)
+    ensure_default
+    ;;
+  toggle)
+    if [[ $(status) == on ]]; then turn_off; else turn_on; fi
+    ;;
+  bridge-status)
+    # the bridge specifically, not the combined UVC-or-bridge status() above --
+    # feeds the bar's dedicated bridge indicator, which needs to know this
+    # even when a UVC camera is also present and already reads "on" on its own.
+    bridge_running && echo on || echo off
+    ;;
+  streaming-status)
+    # is the bridge actively capturing right now, not just standing by --
+    # ryoku-cmd-webcam-bridge only touches this while libcamerasrc is live.
+    [[ -f "$state_dir/webcam-bridge.streaming" ]] && echo on || echo off
+    ;;
+  *)
+    echo "usage: ryoku-cmd-webcam [status | on | off | toggle | ensure-default | bridge-status | streaming-status]" >&2
+    exit 1
+    ;;
+esac

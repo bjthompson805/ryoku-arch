@@ -101,7 +101,7 @@ Item {
         "weatherLocation": "", "weatherUnit": "auto",
         "sidebarLeftEnabled": true, "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
         "sidebarClickless": true, "sidebarWidth": 340, "sidebarCornerSize": 34,
-        "sidebarToggles": ["wifi", "bluetooth", "mic", "dnd", "night", "airplane", "tablet"],
+        "sidebarToggles": ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"],
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
         "style": "bars", "shape": "rounded", "position": "bottom", "mirror": false,
@@ -162,7 +162,7 @@ Item {
         property bool sidebarClickless: true
         property real sidebarWidth: 340
         property real sidebarCornerSize: 34
-        property var sidebarToggles: ["wifi", "bluetooth", "mic", "dnd", "night", "airplane", "tablet"]
+        property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"]
         property bool enabled: true
         property int bars: 64
         property real height: 0.42
@@ -391,7 +391,7 @@ Item {
             property bool sidebarClickless: true
             property real sidebarWidth: 340
             property real sidebarCornerSize: 34
-            property var sidebarToggles: ["wifi", "bluetooth", "mic", "dnd", "night", "airplane", "tablet"]
+            property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"]
         }
     }
 
@@ -1026,6 +1026,7 @@ Item {
                     ToggleRow { width: parent.width; label: "Night Light"; checked: (draft.sidebarToggles || []).indexOf("night") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "night", v) }
                     ToggleRow { width: parent.width; label: "Airplane Mode"; checked: (draft.sidebarToggles || []).indexOf("airplane") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "airplane", v) }
                     ToggleRow { width: parent.width; label: "Tablet Mode"; checked: (draft.sidebarToggles || []).indexOf("tablet") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "tablet", v) }
+                    ToggleRow { width: parent.width; label: "Webcam"; checked: (draft.sidebarToggles || []).indexOf("webcam") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "webcam", v) }
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap

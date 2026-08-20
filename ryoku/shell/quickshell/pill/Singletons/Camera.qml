@@ -88,5 +88,14 @@ Singleton {
             } catch (e) {}
             root.loaded = true;
         }
+        // A file that doesn't exist yet (first run, before any save() has
+        // ever happened) fires this instead of onLoaded -- confirmed via a
+        // standalone qs test, since FileView never calls onLoaded for ENOENT.
+        // Without this, `loaded` would stay false forever, so the very first
+        // shape/position/flip change would never persist (scheduleSave()
+        // is gated on `loaded`).
+        onLoadFailed: (err) => {
+            root.loaded = true;
+        }
     }
 }

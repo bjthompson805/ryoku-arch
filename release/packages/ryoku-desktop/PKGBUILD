@@ -167,6 +167,17 @@ optdepends=(
   'quickemu: build and run virtual machines in ryovm'
   'libisoburn: instant cloud machines in ryovm (cloud-init seed ISO; xorriso)'
   'spice-gtk: SPICE console + headless VM viewer for ryovm'
+  # webcam deck toggle: only pulled in on machines whose built-in camera is a
+  # MIPI/ISP sensor with no direct V4L2 device (e.g. Intel IPU6/IPU7) -- a
+  # plain USB/UVC webcam needs none of this, ryoku-cmd-webcam chmods it directly.
+  'v4l2loopback-dkms: virtual camera device for the non-UVC webcam bridge'
+  'gstreamer: pipeline runtime, input-selector + capsfilter for the non-UVC webcam bridge'
+  'libcamera: MIPI/ISP camera capture for the non-UVC webcam bridge'
+  'gst-plugin-libcamera: libcamera GStreamer source for the webcam bridge'
+  'gst-plugins-good: v4l2sink + videoflip for the webcam bridge'
+  'gst-plugins-base-libs: videoconvert for the webcam bridge'
+  'psmisc: fuser, used to detect a real consumer on the webcam bridge (privacy LED only lights on real use)'
+  'python-gobject: GStreamer Python bindings the webcam bridge runs on (a single persistent process, not gst-launch)'
 )
 install="$pkgname.install"
 source=()
@@ -330,6 +341,12 @@ package() {
   # without a password, so the deck toggle stays one click.
   install -Dm644 "$_repo/system/hardware/network/49-ryoku-wifi-powersave.rules" \
     "$pkgdir/usr/share/polkit-1/rules.d/49-ryoku-wifi-powersave.rules"
+
+  # Webcam kill-switch: a polkit rule authorizes the privileged helper
+  # (ryoku-webcam, installed to /usr/bin by the hardware glob above) without
+  # a password, so the deck toggle stays one click.
+  install -Dm644 "$_repo/system/hardware/camera/50-ryoku-webcam.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/50-ryoku-webcam.rules"
 
   # Windows dual-boot: cross-drive detector + a limine-entry-tool post.d hook
   # that re-asserts the uuid()-addressed chainload entry whenever the boot menu

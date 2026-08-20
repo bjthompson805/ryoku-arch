@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# privileged webcam kill switch (root, invoked via pkexec by ryoku-cmd-webcam).
+# two independent camera classes, handled differently:
+#
+#   UVC (plain USB webcams -- uvcvideo) already expose a ready-to-use V4L2
+#   device, so gating is a straight chmod on that device's node(s).
+#
+#   everything else (MIPI/ISP cameras behind a vendor driver -- e.g. this
+#   dev machine's Intel IPU7 -- fan out across dozens of raw pipeline nodes
+#   apps can't open directly) goes through ryoku-cmd-webcam's userspace
+#   libcamera->v4l2loopback bridge instead; this helper's job there is just
+#   loading/unloading the v4l2loopback module the bridge publishes to.
+#
+# 50-ryoku-webcam.rules permits this exact binary for wheel with no
+# password. IMPORTANT: because that grant is passwordless, this script never
+# accepts a path/device as an argument -- it always re-derives which nodes
+# are UVC itself. Trusting a caller-supplied path here would let any local
+# process chmod arbitrary files as root.
+#
+#   status            "on" (any UVC node accessible) | "off"
+#   off               chmod 000 every UVC video node
+#   on                chmod 660 root:video every UVC video node (udev default)
+#   load-loopback     modprobe v4l2loopback (idempotent), for the bridge
+#   unload-loopback   modprobe -r v4l2loopback (idempotent)
+set -u
+
+loopback_module="v4l2loopback"
+loopback_video_nr=32
+loopback_label="Virtual Webcam"
+
+# one line per /dev/videoN actually driven by uvcvideo -- the only class a
+# ready V4L2 client can open directly, so the only class direct chmod makes
+# sense for.
+uvc_nodes() {
+  local v drv
+  for v in /dev/video*; do
+    [[ -e $v ]] || continue
+    drv=$(basename "$(readlink -f "/sys/class/video4linux/$(basename "$v")/device/driver" 2>/dev/null)")
+    [[ $drv == uvcvideo ]] && printf '%s\n' "$v"
+  done
+}
+
+loopback_loaded() { [[ -d "/sys/module/$loopback_module" ]]; }
+
+case "${1:-status}" in
+  status)
+    result=off
+    while read -r n; do
+      [[ -z $n ]] && continue
+      [[ $(stat -c '%a' "$n" 2>/dev/null) != "000" ]] && result=on
+    done < <(uvc_nodes)
+    echo "$result"
+    ;;
+  off)
+    while read -r n; do [[ -n $n ]] && chmod 000 "$n" 2>/dev/null; done < <(uvc_nodes)
+    ;;
+  on)
+    while read -r n; do
+      [[ -z $n ]] && continue
+      chmod 660 "$n" 2>/dev/null
+      chgrp video "$n" 2>/dev/null || true
+    done < <(uvc_nodes)
+    ;;
+  load-loopback)
+    command -v modprobe >/dev/null 2>&1 || exit 0
+    loopback_loaded && exit 0
+    modprobe "$loopback_module" video_nr=$loopback_video_nr \
+      card_label="$loopback_label" exclusive_caps=1 2>/dev/null
+    ;;
+  unload-loopback)
+    command -v modprobe >/dev/null 2>&1 || exit 0
+    loopback_loaded || exit 0
+    modprobe -r "$loopback_module" 2>/dev/null
+    ;;
+  *)
+    echo "usage: ryoku-webcam [status | off | on | load-loopback | unload-loopback]" >&2
+    exit 2
+    ;;
+esac
