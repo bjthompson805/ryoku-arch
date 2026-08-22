@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# Installs or updates markdown-writer (github.com/bjthompson805/markdown-writer)
+# from its latest GitHub Release. This fork doesn't run the upstream [ryoku]
+# CI/signed-repo pipeline (see release/packages/), so there's nothing to pin
+# and commit for a personal app like this one -- just rerun this whenever you
+# want the newest upstream build. deploy.sh installs this to ~/.local/bin on
+# every deploy (it globs system/extras/ryoku-*), so it's always on PATH.
+
+set -euo pipefail
+
+repo="bjthompson805/markdown-writer"
+
+echo "ryoku-pkg-markdown-writer: checking $repo for the latest release..." >&2
+release_json=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest")
+tag=$(jq -r '.tag_name' <<<"$release_json")
+asset_url=$(jq -r '.assets[] | select(.name | test("-x86_64\\.pkg\\.tar\\.zst$")) | .browser_download_url' <<<"$release_json" | head -1)
+
+[[ -n $asset_url && $asset_url != "null" ]] || {
+  echo "ryoku-pkg-markdown-writer: no x86_64.pkg.tar.zst asset on the latest release ($tag)" >&2
+  exit 1
+}
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+pkgfile="$tmp/${asset_url##*/}"
+
+echo "ryoku-pkg-markdown-writer: downloading $tag" >&2
+curl -fsSL -o "$pkgfile" "$asset_url"
+
+sudo pacman -U --noconfirm "$pkgfile"
+echo "ryoku-pkg-markdown-writer: installed $tag" >&2

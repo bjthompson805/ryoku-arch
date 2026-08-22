@@ -57,6 +57,14 @@ hl.window_rule({
 })
 
 hl.window_rule({
+    name   = "float-markdown-writer",
+    match  = { class = "markdown-writer" },
+    float  = true,
+    size   = { 700, 500 },
+    center = true,
+})
+
+hl.window_rule({
     name   = "float-nautilus",
     match  = { class = "org.gnome.Nautilus" },
     float  = true,

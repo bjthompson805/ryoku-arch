@@ -55,4 +55,11 @@ install -Dm644 "$repo/system/hardware/camera/50-ryoku-webcam.rules" \
   /etc/polkit-1/rules.d/50-ryoku-webcam.rules
 say "installed webcam kill-switch helper and polkit rule"
 
+# markdown-writer: not part of upstream's deploy-root.sh, added for this fork.
+# Fetches and installs the latest GitHub release every run, so re-running this
+# script also keeps it current -- see system/extras/ryoku-pkg-markdown-writer.
+# Placed last so a network hiccup here never blocks the root-owned installs above.
+"$repo/system/extras/ryoku-pkg-markdown-writer"
+say "installed markdown-writer"
+
 say "done. re-run after every git pull to pick up changes to these files."
