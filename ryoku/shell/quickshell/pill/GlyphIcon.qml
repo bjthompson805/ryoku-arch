@@ -103,6 +103,14 @@ Item {
             d: "M3 5h15a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 3 5z",
             d2: "M14 13C12 14.8 12 19 15.3 21.3C18 23.2 22 21.6 21.6 18C21.2 15 17.5 12.5 14 13Z",
             fill: false
+        },
+        // Lid Sleep: an open laptop (deck + screen) with a bold Z stroked at
+        // the corner -- picked over six other device+sleep readings (moon
+        // badges, a closed clamshell, a closing chevron) for legibility at
+        // the 15px size the sidebar tile actually renders it at.
+        "lidsleep": {
+            d: "M3 18.5h18l-1.7 2.3H4.7z M6.5 17.3V6.3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v11 M15.2 3.5h4.6l-4.6 5h4.6",
+            fill: false
         }
     })
 

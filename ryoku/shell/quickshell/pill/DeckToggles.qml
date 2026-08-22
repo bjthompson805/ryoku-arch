@@ -38,7 +38,8 @@ Item {
         { key: "night",     glyph: "moon",      label: "Night Light" },
         { key: "airplane",  glyph: "airplane",  label: "Airplane Mode" },
         { key: "tablet",    glyph: "tablet",    label: "Tablet Mode" },
-        { key: "webcam",    glyph: "webcam",    label: "Webcam" }
+        { key: "webcam",    glyph: "webcam",    label: "Webcam" },
+        { key: "lidsleep",  glyph: "lidsleep",  label: "Lid Sleep" }
     ]
     readonly property var catalogByKey: {
         var m = ({});
@@ -65,6 +66,7 @@ Item {
             case "airplane": return root.deck.airplaneOn;
             case "tablet": return root.deck.tabletOn;
             case "webcam": return Webcam.on;
+            case "lidsleep": return Flags.lidSleep;
         }
         return false;
     }
@@ -78,6 +80,7 @@ Item {
             case "airplane": root.deck.toggleAirplane(); break;
             case "tablet": root.deck.toggleTablet(); break;
             case "webcam": Webcam.toggle(); break;
+            case "lidsleep": Flags.lidSleep = !Flags.lidSleep; break;
         }
     }
 

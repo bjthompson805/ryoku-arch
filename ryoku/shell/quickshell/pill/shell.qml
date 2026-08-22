@@ -90,6 +90,10 @@ ShellRoot {
         // outside this process), so "start" = idempotent confirm; "stop"
         // clears a stray when Keep-Awake is off.
         root.syncCaffeine(Flags.keepAwake ? "start" : "stop");
+        // re-arm the Lid Sleep override the same way: "start" holds the
+        // handle-lid-switch inhibitor when the user has sleep-on-lid-close
+        // turned off, "stop" is a no-op idle check otherwise.
+        root.syncLidSleep(Flags.lidSleep ? "stop" : "start");
         // re-assert Game Mode if it persisted on. relogin brings Hyprland
         // up fresh from the lua config, so the compositor tuning has to be
         // re-applied (start is idempotent and preserves the saved WiFi
@@ -192,6 +196,23 @@ ShellRoot {
         target: Flags
         function onGameModeChanged() {
             root.syncGameMode(Flags.gameMode ? "start" : "stop");
+        }
+    }
+
+    // Lid Sleep: on (default) leaves logind's own suspend-on-lid-close
+    // alone -- nothing to do. off asks ryoku-cmd-lid-sleep to hold a
+    // handle-lid-switch inhibitor and dpms the screen off/on itself instead,
+    // same durable-outside-the-shell shape as Keep-Awake/Game-Mode above.
+    readonly property string lidSleepScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-lid-sleep"
+
+    function syncLidSleep(action) {
+        Spawn.spawn([root.lidSleepScript, action]);
+    }
+
+    Connections {
+        target: Flags
+        function onLidSleepChanged() {
+            root.syncLidSleep(Flags.lidSleep ? "stop" : "start");
         }
     }
 

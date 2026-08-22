@@ -16,6 +16,7 @@ Singleton {
     property alias keepAwake: adapter.keepAwake
     property alias keepAwakeSince: adapter.keepAwakeSince
     property alias gameMode: adapter.gameMode
+    property alias lidSleep: adapter.lidSleep
 
     // stamp when Keep-Awake turns on, clear when off, so no toggle site has
     // to track it. guarded so a file reload (stamp already set) doesn't
@@ -59,6 +60,11 @@ Singleton {
             property real keepAwakeSince: 0
             property bool gameMode: false
             property bool gameDndPrev: false
+            // true = logind's own default (lid close suspends). false = the
+            // Lid Sleep quick-toggle's override: ryoku-cmd-lid-sleep blocks
+            // logind's handle-lid-switch and just dpms the screen off/on
+            // instead, see shell.qml's syncLidSleep.
+            property bool lidSleep: true
         }
     }
 

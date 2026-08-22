@@ -1027,6 +1027,7 @@ Item {
                     ToggleRow { width: parent.width; label: "Airplane Mode"; checked: (draft.sidebarToggles || []).indexOf("airplane") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "airplane", v) }
                     ToggleRow { width: parent.width; label: "Tablet Mode"; checked: (draft.sidebarToggles || []).indexOf("tablet") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "tablet", v) }
                     ToggleRow { width: parent.width; label: "Webcam"; checked: (draft.sidebarToggles || []).indexOf("webcam") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "webcam", v) }
+                    ToggleRow { width: parent.width; label: "Lid Sleep"; checked: (draft.sidebarToggles || []).indexOf("lidsleep") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "lidsleep", v) }
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
