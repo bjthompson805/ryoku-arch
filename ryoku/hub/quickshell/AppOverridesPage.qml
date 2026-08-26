@@ -396,46 +396,9 @@ Item {
 
     // --- inline field components -------------------------------------------
 
-    // a bordered text field; commits on editing-finished so the list rebuild
-    // never steals a keystroke.
-    component MatchField: Rectangle {
-        id: mf
-        property string value: ""
-        property string placeholder: ""
-        property bool mono: false
-        signal committed(string text)
-
-        height: 30
-        radius: Theme.radius
-        color: Theme.surfaceLo
-        border.width: 1
-        border.color: mfIn.activeFocus ? Theme.ember : Theme.line
-        Behavior on border.color { ColorAnimation { duration: Theme.quick } }
-
-        TextInput {
-            id: mfIn
-            anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-            verticalAlignment: TextInput.AlignVCenter
-            text: mf.value
-            color: Theme.bright
-            font.family: mf.mono ? Theme.mono : Theme.font
-            font.pixelSize: 13
-            clip: true
-            selectByMouse: true
-            onEditingFinished: if (text !== mf.value) mf.committed(text)
-
-            Text {
-                anchors.fill: parent
-                verticalAlignment: Text.AlignVCenter
-                visible: mfIn.text === "" && !mfIn.activeFocus
-                text: mf.placeholder
-                color: Theme.faint
-                font: mfIn.font
-            }
-        }
-    }
+    // the shared bordered text field (see CommitField.qml) under the name
+    // this page's match-row callers already use.
+    component MatchField: CommitField {}
 
     // label + Inherit/Custom toggle; the slider and readout appear only when a
     // custom value is chosen. changed(v) carries the new value, or -1 to inherit.

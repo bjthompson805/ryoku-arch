@@ -202,76 +202,6 @@ Item {
         onTriggered: page.sysApplyState = ""
     }
 
-    // label left, entry right. commits on editing-finished (not per keystroke)
-    // and re-binds to the draft on focus loss so Reset/Revert refresh the shown
-    // text after a manual edit.
-    component TextFieldRow: Item {
-        id: tfr
-
-        property string label: ""
-        property string placeholder: ""
-        property string text: ""
-        signal committed(string value)
-
-        implicitWidth: 320
-        implicitHeight: 38
-
-        Text {
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - box.width - 14
-            elide: Text.ElideRight
-            text: tfr.label
-            color: Theme.cream
-            font.family: Theme.font
-            font.pixelSize: 14
-            font.weight: Font.Medium
-        }
-
-        Rectangle {
-            id: box
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: 240
-            height: 30
-            radius: Theme.radius
-            color: Theme.surfaceLo
-            border.width: 1
-            border.color: entry.activeFocus ? Theme.ember : Theme.line
-            Behavior on border.color { ColorAnimation { duration: Theme.quick } }
-
-            TextInput {
-                id: entry
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                verticalAlignment: TextInput.AlignVCenter
-                text: tfr.text
-                color: Theme.bright
-                font.family: Theme.font
-                font.pixelSize: 13
-                clip: true
-                selectByMouse: true
-                onActiveFocusChanged: {
-                    if (activeFocus)
-                        selectAll();
-                    else
-                        text = Qt.binding(() => tfr.text);
-                }
-                onEditingFinished: tfr.committed(text)
-
-                Text {
-                    anchors.fill: parent
-                    verticalAlignment: Text.AlignVCenter
-                    visible: entry.text === "" && !entry.activeFocus
-                    text: tfr.placeholder
-                    color: Theme.faint
-                    font: entry.font
-                }
-            }
-        }
-    }
-
     Flickable {
         id: flick
         anchors.left: parent.left
@@ -377,10 +307,11 @@ Item {
                     current: page.pickFrom(page.composeIds)
                     onChosen: (k) => page.setOption(page.composeIds, k)
                 }
-                TextFieldRow {
+                SettingField {
                     width: Math.min(parent.width, 460); label: "Extra options"
+                    fieldWidth: 240
                     placeholder: "raw xkb options, comma-separated\u2026"
-                    text: page.extraOptions()
+                    value: page.extraOptions()
                     onCommitted: (v) => page.setExtra(v)
                 }
                 Item {
