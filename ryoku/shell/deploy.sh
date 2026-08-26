@@ -228,6 +228,12 @@ for appdir in "$here"/../apps/*/; do
   say "installed app $appname -> $cfg/quickshell/$appname"
 done
 
+# Ryoku Hub's own launcher entry + icon (the ryoku brand mark — Hub has no
+# bespoke app icon of its own, unlike ryovm/ryowalls).
+install -Dm644 "$here/../hub/hub.desktop" "$appshare/applications/ryoku-hub.desktop"
+install -Dm644 "$here/../assets/brand/logo-mark.svg" "$appshare/icons/hicolor/scalable/apps/ryoku-hub.svg"
+say "installed hub icon -> $appshare/icons/hicolor/scalable/apps/ryoku-hub.svg"
+
 # Nautilus stash actions (a nautilus-python extension). Installs ship it system-wide
 # from the ryoku-desktop package; the dev loop drops it in the user extensions dir.
 install -Dm644 "$here/../apps/nautilus/ryoku-stash-menu.py" \

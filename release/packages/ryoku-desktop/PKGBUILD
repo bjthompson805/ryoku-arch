@@ -245,6 +245,13 @@ package() {
     install -Dm644 "$icon" "$pkgdir/usr/share/icons/hicolor/scalable/apps/$appname.svg"
   done
 
+  # Ryoku Hub's own launcher entry + icon (the ryoku brand mark — Hub has no
+  # bespoke app icon of its own, unlike ryovm/ryowalls).
+  install -Dm644 "$_repo/ryoku/hub/hub.desktop" \
+    "$pkgdir/usr/share/applications/ryoku-hub.desktop"
+  install -Dm644 "$_repo/ryoku/assets/brand/logo-mark.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/ryoku-hub.svg"
+
   # Ryoku.PluginKit: the signature QML kit a shell plugin imports for its
   # content. pure QML, lives on the system import path next to Ryoku.Blobs so
   # plugins (loaded from outside the shell tree) can import it.
