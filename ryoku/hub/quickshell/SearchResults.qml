@@ -2,19 +2,23 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 import "fuzzy.js" as Fuzzy
+import "searchIndex.js" as SettingsIndex
 
 // global results, shown whenever the sidebar search has a query. spans every
-// section: matching section names (navigable) + fuzzy-ranked keybinds (tagged
-// with their category). sections = [{ key, name, icon }].
+// section: matching section names (navigable), fuzzy-ranked individual
+// settings controls (searchIndex.js, tagged with their page/tab), and
+// fuzzy-ranked keybinds (tagged with their category). sections = [{ key,
+// name, icon }].
 Flickable {
     id: page
 
     property var categories: []
     property var sections: []
     property string query: ""
-    signal navigate(string section)
+    signal navigate(string section, string tab)
 
     readonly property var bindHits: query.length > 0 ? Fuzzy.rank(query, categories) : []
+    readonly property var settingHits: query.length > 0 ? Fuzzy.rankSettings(query, SettingsIndex.entries) : []
     readonly property var sectionHits: {
         var out = [];
         if (query.length === 0)
@@ -25,7 +29,18 @@ Flickable {
         }
         return out;
     }
-    readonly property bool empty: query.length > 0 && bindHits.length === 0 && sectionHits.length === 0
+    function sectionName(key) {
+        for (var i = 0; i < sections.length; i++)
+            if (sections[i].key === key)
+                return sections[i].name;
+        return key;
+    }
+    // tab keys are lowercase identifiers ("clock", "wifi"); title-case for
+    // display since searchIndex.js doesn't carry each tab's own display label.
+    function titleCase(s) {
+        return s.replace(/(^|[\s-])\S/g, function (c) { return c.toUpperCase(); });
+    }
+    readonly property bool empty: query.length > 0 && bindHits.length === 0 && sectionHits.length === 0 && settingHits.length === 0
 
     contentHeight: col.implicitHeight
     clip: true
@@ -132,7 +147,82 @@ Flickable {
                     }
 
                     HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: page.navigate(modelData.key) }
+                    TapHandler { onTapped: page.navigate(modelData.key, "") }
+                }
+            }
+        }
+
+        Column {
+            visible: page.settingHits.length > 0
+            width: col.width
+            spacing: 0
+
+            Item {
+                width: parent.width
+                height: 32
+
+                Text {
+                    id: setLabel
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "SETTINGS"
+                    color: Theme.ember
+                    font.family: Theme.mono
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.5
+                }
+
+                Rectangle {
+                    anchors.left: setLabel.right
+                    anchors.leftMargin: 16
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 1
+                    color: Theme.lineSoft
+                }
+            }
+
+            Repeater {
+                model: page.settingHits
+
+                delegate: Item {
+                    required property var modelData
+                    required property int index
+                    width: col.width
+                    height: 48
+
+                    Rectangle {
+                        visible: index > 0
+                        width: parent.width
+                        height: 1
+                        color: Theme.lineSoft
+                    }
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.label
+                        color: setRowHover.hovered ? Theme.bright : Theme.cream
+                        font.family: Theme.font
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        Behavior on color { ColorAnimation { duration: Theme.quick } }
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "in " + page.sectionName(modelData.section) + (modelData.tab.length > 0 ? " → " + page.titleCase(modelData.tab) : "")
+                        color: setRowHover.hovered ? Theme.ember : Theme.faint
+                        font.family: Theme.mono
+                        font.pixelSize: 11
+                        font.weight: Font.Medium
+                        Behavior on color { ColorAnimation { duration: Theme.quick } }
+                    }
+
+                    HoverHandler { id: setRowHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: page.navigate(modelData.section, modelData.tab) }
                 }
             }
         }

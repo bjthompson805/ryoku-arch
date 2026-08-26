@@ -50,6 +50,14 @@ Item {
     ]
 
     property string group: "clock"
+    // set by Hub.qml (from search jumping to a specific tab); applied once on
+    // mount and again live if it changes while this page stays mounted.
+    property string initialTab: ""
+    onInitialTabChanged: if (page.initialTab.length > 0) page.group = page.initialTab
+    Component.onCompleted: if (page.initialTab.length > 0) page.group = page.initialTab
+    // emitted by the Weather tab's "Location" link, which jumps to General
+    // (weather location is shell-wide, not owned by this widget).
+    signal navigate(string section)
     property bool loaded: false
     property var committedVals: ({})
 
@@ -515,6 +523,31 @@ Item {
                 Column {
                     width: wxRow.colW
                     spacing: 30
+
+                    SettingSection {
+                        width: parent.width
+                        title: "LOCATION"
+                        Row {
+                            width: parent.width
+                            spacing: 12
+                            Text {
+                                width: parent.width - locBtn.width - 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                wrapMode: Text.WordWrap
+                                text: "Shared desktop-wide, on General: the bar, sidebar, and this widget all follow it."
+                                color: Theme.faint
+                                font.family: Theme.font
+                                font.pixelSize: 12
+                            }
+                            HubButton {
+                                id: locBtn
+                                anchors.verticalCenter: parent.verticalCenter
+                                label: "Open General"
+                                icon: "compass"
+                                onClicked: page.navigate("general")
+                            }
+                        }
+                    }
 
                     SettingSection {
                         width: parent.width

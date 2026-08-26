@@ -117,9 +117,11 @@ Singleton {
 
     // weather: an explicit location override (a city name; blank = auto-locate by
     // IP) and the temperature unit ("auto" follows the locale, else "celsius" /
-    // "fahrenheit"). the Weather singleton reads both.
-    property alias weatherLocation: adapter.weatherLocation
-    property alias weatherUnit:     adapter.weatherUnit
+    // "fahrenheit"). the Weather singleton reads both. canonical store is
+    // general.json (Ryoku Settings -> Desktop -> General); read only here,
+    // same as clock24h below.
+    property alias weatherLocation: generalAdapter.weatherLocation
+    property alias weatherUnit:     generalAdapter.weatherUnit
 
     // matchWallpaper: when on, every shell surface (frame, bar, popouts, plus
     // desktop widgets, plugin tiles, the window switcher)
@@ -152,7 +154,7 @@ Singleton {
     // (Ryoku Settings -> Desktop -> General); read only here so the
     // bar/sidebar/island clocks follow the same desktop-wide toggle instead
     // of carrying their own.
-    property alias clock24h: clockAdapter.clock24h
+    property alias clock24h: generalAdapter.clock24h
 
     FileView {
         id: file
@@ -206,8 +208,6 @@ Singleton {
             property real sidebarCornerSize: 34
             property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"]
             property real roundness: 10
-            property string weatherLocation: ""
-            property string weatherUnit: "auto"
         }
     }
 
@@ -254,15 +254,21 @@ Singleton {
         JsonAdapter { id: hyprAdapter; property var appearance: ({}) }
     }
 
-    // general.json owns clock24h (Desktop -> General settings write it); read only.
+    // general.json owns clock24h and weatherLocation/weatherUnit (Desktop ->
+    // General settings write them); read only.
     FileView {
-        id: clockFile
+        id: generalFile
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
         blockLoading: true
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter { id: clockAdapter; property bool clock24h: true }
+        JsonAdapter {
+            id: generalAdapter
+            property bool clock24h: true
+            property string weatherLocation: ""
+            property string weatherUnit: "auto"
+        }
     }
 
     // write the live adapter back to shell.json. the delos island calls this

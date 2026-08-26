@@ -24,7 +24,6 @@ Item {
         "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barShowWeather", "barShowDisplay", "barShowAgentUsage", "barOccupiedWorkspaces", "barWorkspaceIcons",
         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
         "fontFamily", "fontScale",
-        "weatherLocation", "weatherUnit",
         "sidebarLeftEnabled", "sidebarRightEnabled", "sidebarLeftPanes", "sidebarRightPanes",
         "sidebarClickless", "sidebarWidth", "sidebarCornerSize", "sidebarToggles"
     ]
@@ -98,7 +97,6 @@ Item {
         "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barShowWeather": true, "barShowDisplay": true, "barShowAgentUsage": true, "barOccupiedWorkspaces": true, "barWorkspaceIcons": false,
         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
-        "weatherLocation": "", "weatherUnit": "auto",
         "sidebarLeftEnabled": true, "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
         "sidebarClickless": true, "sidebarWidth": 340, "sidebarCornerSize": 34,
         "sidebarToggles": ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"],
@@ -110,6 +108,11 @@ Item {
     })
 
     property string group: "frame"
+    // set by Hub.qml (from search jumping to a specific tab); applied once on
+    // mount and again live if it changes while this page stays mounted.
+    property string initialTab: ""
+    onInitialTabChanged: if (page.initialTab.length > 0) page.group = page.initialTab
+    Component.onCompleted: if (page.initialTab.length > 0) page.group = page.initialTab
     property bool shellLoaded: false
     property bool vizLoaded: false
     property bool brandLoaded: false
@@ -153,8 +156,6 @@ Item {
         property real islandRadius: 17
         property string fontFamily: "JetBrainsMono Nerd Font"
         property real fontScale: 1.3
-        property string weatherLocation: ""
-        property string weatherUnit: "auto"
         property bool sidebarLeftEnabled: true
         property bool sidebarRightEnabled: true
         property var sidebarLeftPanes: ["stash"]
@@ -382,8 +383,6 @@ Item {
             property real islandRadius: 17
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
-            property string weatherLocation: ""
-            property string weatherUnit: "auto"
             property bool sidebarLeftEnabled: true
             property bool sidebarRightEnabled: true
             property var sidebarLeftPanes: ["stash"]
@@ -775,23 +774,6 @@ Item {
                         width: parent.width; label: "Size"; percent: true
                         from: 0.7; to: 1.6; step: 0.05; value: draft.fontScale
                         onModified: (v) => page.edit("fontScale", v)
-                    }
-                }
-                SettingSection {
-                    width: parent.width
-                    title: "WEATHER"
-                    SettingField {
-                        width: parent.width; label: "Location"
-                        fieldWidth: 200
-                        placeholder: "Auto (from IP)"
-                        value: draft.weatherLocation
-                        onCommitted: (v) => page.edit("weatherLocation", v)
-                    }
-                    ChoiceRow {
-                        width: parent.width; label: "Units"
-                        options: [{ "key": "auto", "label": "Auto" }, { "key": "celsius", "label": "\u00b0C" }, { "key": "fahrenheit", "label": "\u00b0F" }]
-                        current: draft.weatherUnit
-                        onChosen: (k) => page.edit("weatherUnit", k)
                     }
                 }
             }

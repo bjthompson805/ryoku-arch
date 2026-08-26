@@ -18,6 +18,11 @@ Rectangle {
     property string section: "displays"
     property var keybindsModel: []
     readonly property bool searching: navRail.query.length > 0
+    // set by go(s, tab) just before switching section, for a tabbed page's
+    // Component.onCompleted to consume as its initial tab (search results can
+    // land on a specific tab, not just a section); cleared right after so a
+    // later plain go(s) doesn't leak a stale tab into an unrelated page.
+    property string targetTab: ""
 
     readonly property var sectionDefs: [
         { "key": "profile",     "name": "Profile",         "icon": "user",     "pinned": "top" },
@@ -140,8 +145,12 @@ Rectangle {
     Process { id: saveSection }
     Process { id: restoreProc }
 
-    function go(s) {
+    function go(s, tab) {
         navRail.query = "";
+        // set even when s === hub.section (search jumping to a tab within the
+        // page you're already on): the page picks this up via a live binding,
+        // not just on first mount.
+        hub.targetTab = tab || "";
         if (hub.section === s)
             return;
         // leaving a live-preview page (Appearance, Input) with unsaved edits:
@@ -307,7 +316,7 @@ Rectangle {
         }
     }
 
-    Component { id: searchComp; SearchResults { categories: hub.keybindsModel; sections: hub.sectionDefs; query: navRail.query; onNavigate: (s) => hub.go(s) } }
+    Component { id: searchComp; SearchResults { categories: hub.keybindsModel; sections: hub.sectionDefs; query: navRail.query; onNavigate: (s, t) => hub.go(s, t) } }
     Component { id: profileComp; ProfilePage {} }
     Component { id: generalComp; GeneralPage {} }
     Component { id: displaysComp; DisplaysPage {} }
@@ -322,8 +331,8 @@ Rectangle {
     Component { id: layerRulesComp; LayerRulesPage {} }
     Component { id: autostartComp; AutostartPage {} }
     Component { id: environmentComp; EnvironmentPage {} }
-    Component { id: shellComp; ShellSettingsPage {} }
-    Component { id: widgetsComp; WidgetsPage {} }
+    Component { id: shellComp; ShellSettingsPage { initialTab: hub.targetTab } }
+    Component { id: widgetsComp; WidgetsPage { initialTab: hub.targetTab; onNavigate: (s) => hub.go(s) } }
     Component { id: launcherComp; LauncherPage {} }
     Component { id: fastfetchComp; FastfetchPage {} }
     Component { id: updatesComp; UpdatesPage {} }
