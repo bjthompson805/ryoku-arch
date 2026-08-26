@@ -47,7 +47,23 @@ reads its own format.
 
 Search before adding. There is one source for each config, script, value, and
 fact. If a thing must exist in two places, extract it to one place and reference
-it. Two copies will drift; treat a second copy as a bug.
+it. Two copies will drift; treat a second copy as a bug. This applies to a QML
+component's markup and logic exactly as much as to a config value or a shell
+helper: if you are about to write a second copy of a row, field, or behaviour
+that another Hub page or shell surface already has, stop and factor it out
+instead. Search first (`prowl-agent search`/`find`), not after.
+
+Code shared across more than one Quickshell root (`pill`, `hub`, `widgets`,
+`launcher`, an app) lives once in `ryoku/shared/quickshell/`, symlinked from
+each consumer's directory under its own name (see `WeatherCore.qml` /
+`WifiLink.qml` and their `Singletons/` symlinks for the established pattern;
+`CommitField.qml` / `SettingField.qml` for a visual component, not a
+singleton, symlinked directly into `hub/quickshell/` rather than
+`Singletons/`). `deploy.sh` dereferences these symlinks (`cp -aL`) into real,
+independent files at each root's deployed location, so relative imports
+inside the shared file resolve against the *consuming* surface's directory
+layout, not `shared/quickshell/`'s. Never paste a shared file's contents into
+a second location "to save time" -- add or extend the symlink instead.
 
 ## Comments
 
