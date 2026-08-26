@@ -9,20 +9,21 @@ import "Singletons"
 // Starts with the clock format (12h/24h) -- it used to live on Desktop
 // Widgets, but it drives every clock in the shell (bar, sidebar, launcher,
 // Hub, and the desktop widget), not just the widget, so it belongs here
-// instead. Weather location/units moved here from Shell -> Global for the
-// same reason: the bar, sidebar, and desktop weather widget all follow it.
-// Writes ~/.config/ryoku/general.json, watched live by every surface's
-// Config singleton. Same live-preview-then-Save contract as every other Hub
+// instead. Weather location/units moved here from Shell -> Global, and
+// clock seconds from Desktop Widgets' Clock tab, for the same reason: each
+// drives more than the one surface it used to live on. Writes
+// ~/.config/ryoku/general.json, watched live by every surface's Config
+// singleton. Same live-preview-then-Save contract as every other Hub
 // settings page: edits apply immediately (so the desktop reflects them as
 // you go), but only Save moves the baseline; Revert or leaving with unsaved
 // edits puts the saved state back.
 Item {
     id: page
 
-    readonly property var keys: ["clock24h", "weatherLocation", "weatherUnit"]
+    readonly property var keys: ["clock24h", "clockSeconds", "weatherLocation", "weatherUnit"]
 
     readonly property var defaults: ({
-        "clock24h": true, "weatherLocation": "", "weatherUnit": "auto"
+        "clock24h": true, "clockSeconds": false, "weatherLocation": "", "weatherUnit": "auto"
     })
 
     property bool loaded: false
@@ -31,6 +32,7 @@ Item {
     QtObject {
         id: draft
         property bool clock24h: true
+        property bool clockSeconds: false
         property string weatherLocation: ""
         property string weatherUnit: "auto"
     }
@@ -143,7 +145,7 @@ Item {
     // where they used to live before the move to General. Gated on
     // adapter.weatherMigrated so it only ever runs once, the first time this
     // page loads post-move; shell.json's copy is never consulted again after.
-    function migrate() {
+    function migrateWeather() {
         if (adapter.weatherMigrated)
             return;
         var old = shellCfg.text();
@@ -160,6 +162,24 @@ Item {
         cfg.writeAdapter();
     }
 
+    // same carry-forward for clockSeconds, from widgets.json where Desktop
+    // Widgets' Clock tab used to own it.
+    function migrateClockSeconds() {
+        if (adapter.clockSecondsMigrated)
+            return;
+        var old = widgetsCfg.text();
+        if (old) {
+            try {
+                var parsed = JSON.parse(old);
+                if (typeof parsed.clockSeconds === "boolean") adapter.clockSeconds = parsed.clockSeconds;
+            } catch (e) {
+                console.log("general: widgets.json clockSeconds migration parse failed: " + e);
+            }
+        }
+        adapter.clockSecondsMigrated = true;
+        cfg.writeAdapter();
+    }
+
     FileView {
         id: cfg
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
@@ -168,24 +188,37 @@ Item {
         printErrors: false
         atomicWrites: true
         onFileChanged: reload()
-        onLoaded: { if (!page.loaded) { page.migrate(); page.adopt(); page.loaded = true; } else { page.adoptExternal(); } }
-        onLoadFailed: { if (!page.loaded) { page.migrate(); page.adopt(); page.loaded = true; } }
+        onLoaded: { if (!page.loaded) { page.migrateWeather(); page.migrateClockSeconds(); page.adopt(); page.loaded = true; } else { page.adoptExternal(); } }
+        onLoadFailed: { if (!page.loaded) { page.migrateWeather(); page.migrateClockSeconds(); page.adopt(); page.loaded = true; } }
 
         JsonAdapter {
             id: adapter
             property bool clock24h: true
+            property bool clockSeconds: false
             property string weatherLocation: ""
             property string weatherUnit: "auto"
             property bool weatherMigrated: false
+            property bool clockSecondsMigrated: false
         }
     }
 
-    // read-only, one-shot: only consulted by migrate() above, on a
+    // read-only, one-shot: only consulted by migrateWeather() above, on a
     // general.json that hasn't carried weatherLocation/weatherUnit forward
     // yet. shell.json remains ShellSettingsPage's file to write.
     FileView {
         id: shellCfg
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/shell.json"
+        blockLoading: true
+        watchChanges: false
+        printErrors: false
+    }
+
+    // read-only, one-shot: only consulted by migrateClockSeconds() above, on
+    // a general.json that hasn't carried clockSeconds forward yet. widgets.json
+    // remains WidgetsPage's file to write.
+    FileView {
+        id: widgetsCfg
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/widgets.json"
         blockLoading: true
         watchChanges: false
         printErrors: false
@@ -230,6 +263,12 @@ Item {
                     label: "24-hour clock (applies everywhere: the bar, sidebar, launcher, Hub, and the desktop clock widget)"
                     checked: draft.clock24h
                     onToggled: (v) => page.edit("clock24h", v)
+                }
+                ToggleRow {
+                    width: parent.width
+                    label: "Show seconds (applies to the bar and the desktop clock widget)"
+                    checked: draft.clockSeconds
+                    onToggled: (v) => page.edit("clockSeconds", v)
                 }
             }
 

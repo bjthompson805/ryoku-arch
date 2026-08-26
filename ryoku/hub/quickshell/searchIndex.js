@@ -17,6 +17,7 @@
 // instead of one per dynamic row.
 var entries = [
     { section: "general", tab: null, label: "24-hour clock", keywords: ["time", "clock", "military time", "12 hour", "format", "hour"] },
+    { section: "general", tab: null, label: "Show seconds", keywords: ["clock", "seconds", "time", "format", "bar", "menu bar"] },
     { section: "general", tab: null, label: "Weather location", keywords: ["weather", "location", "city", "geocode", "forecast", "temperature", "auto locate", "ip"] },
     { section: "general", tab: null, label: "Weather units", keywords: ["weather", "temperature", "celsius", "fahrenheit", "degrees", "units"] },
 
@@ -91,7 +92,6 @@ var entries = [
     { section: "widgets", tab: "clock", label: "Clock widget enabled", keywords: ["clock widget", "enable", "desktop clock"] },
     { section: "widgets", tab: "clock", label: "Clock face", keywords: ["clock", "face", "design", "digital", "analog", "minimal", "flip", "rings"] },
     { section: "widgets", tab: "clock", label: "Clock accent", keywords: ["clock", "accent", "colour", "wallust", "brand", "mono"] },
-    { section: "widgets", tab: "clock", label: "Show seconds", keywords: ["clock", "seconds", "time", "format"] },
     { section: "widgets", tab: "clock", label: "Show date", keywords: ["clock", "date", "calendar"] },
     { section: "widgets", tab: "clock", label: "Date style", keywords: ["clock", "date", "style", "inline", "badge", "stacked"] },
     { section: "widgets", tab: "clock", label: "Clock size", keywords: ["clock", "size", "scale"] },

@@ -28,6 +28,15 @@ Item {
         return (h < 10 ? "0" : "") + h;
     }
 
+    // the one-line time reading every dialect but the split-digit layouts
+    // uses. Config.clockSeconds (Desktop -> General) adds ":ss" to either
+    // format.
+    function fmt(d) {
+        if (Config.clock24h)
+            return Qt.formatTime(d, Config.clockSeconds ? "HH:mm:ss" : "HH:mm");
+        return Qt.formatTime(d, Config.clockSeconds ? "h:mm:ss AP" : "h:mm AP");
+    }
+
     implicitWidth: caelestia ? (vertical ? cvcol.implicitWidth : chrow.implicitWidth)
         : aegis ? aerow.implicitWidth
         : stele ? strow.implicitWidth
@@ -39,7 +48,9 @@ Item {
 
     SystemClock {
         id: sys
-        precision: SystemClock.Minutes
+        // seconds resolution only while Config.clockSeconds is on, so the bar
+        // isn't re-rendering every second for nothing when it's off.
+        precision: Config.clockSeconds ? SystemClock.Seconds : SystemClock.Minutes
     }
 
     // ---- caelestia: glyph + time ------------------------------------------
@@ -56,7 +67,7 @@ Item {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+            text: clock.fmt(sys.date)
             color: Theme.cream
             font.family: Theme.font
             font.pixelSize: 12 * clock.s
@@ -110,7 +121,7 @@ Item {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+            text: clock.fmt(sys.date)
             color: Theme.bright
             font.family: Theme.mono
             font.pixelSize: 12 * clock.s
@@ -136,7 +147,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+            text: clock.fmt(sys.date)
             color: Theme.cream
             font.family: Theme.mono
             font.pixelSize: 12 * clock.s
@@ -178,7 +189,7 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+                text: clock.fmt(sys.date)
                 color: Theme.cream
                 font.family: Theme.font
                 font.pixelSize: 11.5 * clock.s
@@ -198,7 +209,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !clock.vertical && clock.stacked
-            text: Config.clock24h ? Qt.formatTime(sys.date, "HH:mm") : Qt.formatTime(sys.date, "h:mm AP")
+            text: clock.fmt(sys.date)
             color: Theme.cream
             font.family: Theme.font
             font.pixelSize: 12 * clock.s

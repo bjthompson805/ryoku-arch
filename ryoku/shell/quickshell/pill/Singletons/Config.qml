@@ -150,11 +150,12 @@ Singleton {
     property alias markTint:  brandAdapter.markTint
     property alias brandName: brandAdapter.name
 
-    // clock24h: 12h vs 24h time display. canonical store is general.json
-    // (Ryoku Settings -> Desktop -> General); read only here so the
-    // bar/sidebar/island clocks follow the same desktop-wide toggle instead
-    // of carrying their own.
+    // clock24h / clockSeconds: 12h vs 24h and whether to show seconds.
+    // canonical store is general.json (Ryoku Settings -> Desktop -> General);
+    // read only here so the bar/sidebar/island clocks follow the same
+    // desktop-wide toggles instead of carrying their own.
     property alias clock24h: generalAdapter.clock24h
+    property alias clockSeconds: generalAdapter.clockSeconds
 
     FileView {
         id: file
@@ -266,6 +267,7 @@ Singleton {
         JsonAdapter {
             id: generalAdapter
             property bool clock24h: true
+            property bool clockSeconds: false
             property string weatherLocation: ""
             property string weatherUnit: "auto"
         }

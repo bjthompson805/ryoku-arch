@@ -19,7 +19,6 @@ Singleton {
     // -- clock ---------------------------------------------------------------
     property alias clockEnabled: adapter.clockEnabled
     property alias clockDesign:  adapter.clockDesign   // digital | minimal | analog | flip | rings
-    property alias clockSeconds: adapter.clockSeconds
     property alias clockAccent:  adapter.clockAccent   // wallust | brand | mono
     property alias clockScale:   adapter.clockScale
     property alias clockAnchor:  adapter.clockAnchor   // top-left .. center .. bottom-right | free
@@ -72,10 +71,11 @@ Singleton {
     property alias markTint:  brandAdapter.markTint
     property alias brandName: brandAdapter.name
 
-    // clock24h: 12h vs 24h time display, a desktop-wide preference (Ryoku
+    // clock24h / clockSeconds: desktop-wide time-display prefs (Ryoku
     // Settings -> Desktop -> General) shared by every clock in the shell, not
     // just this widget. canonical store is general.json; read only here.
     property alias clock24h: generalAdapter.clock24h
+    property alias clockSeconds: generalAdapter.clockSeconds
 
     // write helpers used by desktop drag + right-click menu. write the same file
     // Settings does; the watch reloads it (no-op for the value just written) so
@@ -118,7 +118,6 @@ Singleton {
             id: adapter
             property bool clockEnabled: true
             property string clockDesign: "digital"
-            property bool clockSeconds: false
             property string clockAccent: "wallust"
             property real clockScale: 1.0
             property string clockAnchor: "top-left"
@@ -180,8 +179,8 @@ Singleton {
         }
     }
 
-    // general.json owns clock24h (Ryoku Settings -> Desktop -> General writes
-    // it); read only here, seeded on the Hub side.
+    // general.json owns clock24h and clockSeconds (Ryoku Settings -> Desktop
+    // -> General writes them); read only here, seeded on the Hub side.
     FileView {
         id: generalFile
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
@@ -189,7 +188,7 @@ Singleton {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        JsonAdapter { id: generalAdapter; property bool clock24h: true }
+        JsonAdapter { id: generalAdapter; property bool clock24h: true; property bool clockSeconds: false }
     }
 
     Component.onCompleted: if (!file.text()) file.writeAdapter();

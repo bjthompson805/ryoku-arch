@@ -16,7 +16,7 @@ Item {
     id: page
 
     readonly property var keys: [
-        "clockEnabled", "clockDesign", "clockSeconds", "clockAccent",
+        "clockEnabled", "clockDesign", "clockAccent",
         "clockScale", "clockAnchor", "clockX", "clockY", "clockLocked", "clockOpacity",
         "clockBg", "clockRadius", "dateShow", "dateDesign",
         "weatherEnabled", "weatherDesign", "weatherUnit", "weatherScope", "weatherAnimate",
@@ -29,7 +29,7 @@ Item {
     // mirror of the widgets' canonical defaults (widgets Singletons/Config.qml),
     // for "Reset to defaults" only.
     readonly property var defaults: ({
-        "clockEnabled": true, "clockDesign": "digital", "clockSeconds": false,
+        "clockEnabled": true, "clockDesign": "digital",
         "clockAccent": "wallust", "clockScale": 1.0, "clockAnchor": "top-left",
         "clockX": 72, "clockY": 64, "clockLocked": false, "clockOpacity": 1.0, "clockBg": "none",
         "clockRadius": 26, "dateShow": true, "dateDesign": "inline",
@@ -55,9 +55,38 @@ Item {
     property string initialTab: ""
     onInitialTabChanged: if (page.initialTab.length > 0) page.group = page.initialTab
     Component.onCompleted: if (page.initialTab.length > 0) page.group = page.initialTab
-    // emitted by the Weather tab's "Location" link, which jumps to General
-    // (weather location is shell-wide, not owned by this widget).
+    // emitted by a GeneralLinkSection's button, which jumps to General for a
+    // setting that used to live on this page but is shell-wide now.
     signal navigate(string section)
+
+    // a settings section that's just an explanation + a jump-to-General
+    // button, for a control that moved off this page since it isn't owned by
+    // one widget (weather's location, the clock's seconds format).
+    component GeneralLinkSection: SettingSection {
+        id: gls
+        property string note: ""
+        Row {
+            width: parent.width
+            spacing: 12
+            Text {
+                width: parent.width - linkBtn.width - 12
+                anchors.verticalCenter: parent.verticalCenter
+                wrapMode: Text.WordWrap
+                text: gls.note
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: 12
+            }
+            HubButton {
+                id: linkBtn
+                anchors.verticalCenter: parent.verticalCenter
+                label: "Open General"
+                icon: "compass"
+                onClicked: page.navigate("general")
+            }
+        }
+    }
+
     property bool loaded: false
     property var committedVals: ({})
 
@@ -65,7 +94,6 @@ Item {
         id: draft
         property bool clockEnabled: true
         property string clockDesign: "digital"
-        property bool clockSeconds: false
         property string clockAccent: "wallust"
         property real clockScale: 1.0
         property string clockAnchor: "top-left"
@@ -223,7 +251,6 @@ Item {
             id: adapter
             property bool clockEnabled: true
             property string clockDesign: "digital"
-            property bool clockSeconds: false
             property string clockAccent: "wallust"
             property real clockScale: 1.0
             property string clockAnchor: "top-left"
@@ -359,7 +386,7 @@ Item {
                     opacity: draft.clockEnabled ? 1 : 0.32
                     design: draft.clockDesign
                     is24: Config.clock24h
-                    seconds: draft.clockSeconds
+                    seconds: Config.clockSeconds
                     accentChoice: draft.clockAccent
                     dateShow: draft.dateShow
                     dateDesign: draft.dateDesign
@@ -414,10 +441,10 @@ Item {
                         }
                     }
 
-                    SettingSection {
+                    GeneralLinkSection {
                         width: parent.width
                         title: "FORMAT"
-                        ToggleRow { width: parent.width; label: "Show seconds"; checked: draft.clockSeconds; onToggled: (v) => page.edit("clockSeconds", v) }
+                        note: "Show seconds is shared desktop-wide, on General: the bar and this widget both follow it."
                     }
 
                     SettingSection {
@@ -524,29 +551,10 @@ Item {
                     width: wxRow.colW
                     spacing: 30
 
-                    SettingSection {
+                    GeneralLinkSection {
                         width: parent.width
                         title: "LOCATION"
-                        Row {
-                            width: parent.width
-                            spacing: 12
-                            Text {
-                                width: parent.width - locBtn.width - 12
-                                anchors.verticalCenter: parent.verticalCenter
-                                wrapMode: Text.WordWrap
-                                text: "Shared desktop-wide, on General: the bar, sidebar, and this widget all follow it."
-                                color: Theme.faint
-                                font.family: Theme.font
-                                font.pixelSize: 12
-                            }
-                            HubButton {
-                                id: locBtn
-                                anchors.verticalCenter: parent.verticalCenter
-                                label: "Open General"
-                                icon: "compass"
-                                onClicked: page.navigate("general")
-                            }
-                        }
+                        note: "Shared desktop-wide, on General: the bar, sidebar, and this widget all follow it."
                     }
 
                     SettingSection {
