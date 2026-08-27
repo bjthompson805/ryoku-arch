@@ -16,10 +16,15 @@ Item {
     property string current: ""
     property string placeholder: "Select\u2026"
     property real fieldWidth: 220
+    // shared with a searchIndex.js entry's `highlight` field -- see
+    // HighlightFlash.qml.
+    property string highlightId: ""
     signal chosen(string key)
 
     implicitWidth: 320
     implicitHeight: 38
+
+    HighlightFlash { target: root; highlightId: root.highlightId }
 
     function norm(o) { return (typeof o === "string") ? { "key": o, "label": o } : o; }
     function labelFor(k) {

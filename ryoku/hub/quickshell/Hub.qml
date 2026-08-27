@@ -23,6 +23,10 @@ Rectangle {
     // land on a specific tab, not just a section); cleared right after so a
     // later plain go(s) doesn't leak a stale tab into an unrelated page.
     property string targetTab: ""
+    // same idea as targetTab, but for HubHighlight: the id of a SettingSection
+    // to flash once the target page is up. Set by go(s, tab, highlight);
+    // consumed by highlightTimer, then cleared for the same reason as above.
+    property string targetHighlight: ""
 
     readonly property var sectionDefs: [
         { "key": "profile",     "name": "Profile",         "icon": "user",     "pinned": "top" },
@@ -145,14 +149,20 @@ Rectangle {
     Process { id: saveSection }
     Process { id: restoreProc }
 
-    function go(s, tab) {
+    function go(s, tab, highlight) {
         navRail.query = "";
         // set even when s === hub.section (search jumping to a tab within the
         // page you're already on): the page picks this up via a live binding,
         // not just on first mount.
         hub.targetTab = tab || "";
-        if (hub.section === s)
+        hub.targetHighlight = highlight || "";
+        if (hub.section === s) {
+            // staying on the same page: pageLoader won't fire onLoaded, so
+            // there's no other hook to dispatch the highlight from.
+            if (hub.targetHighlight !== "")
+                highlightTimer.restart();
             return;
+        }
         // leaving a live-preview page (Appearance, Input) with unsaved edits:
         // reset the desktop to the saved state. the page's own teardown can't
         // run a process reliably, so the persistent hub does it.
@@ -263,6 +273,8 @@ Rectangle {
                     slideAnim.target = item;
                     fadeAnim.restart();
                     slideAnim.restart();
+                    if (hub.targetHighlight !== "")
+                        highlightTimer.restart();
                 }
             }
 
@@ -280,6 +292,18 @@ Rectangle {
                 to: 0
                 duration: Theme.medium
                 easing.type: Theme.ease
+            }
+
+            // a beat after the page (re)loads, so the target SettingSection has
+            // actually laid out -- straight off Loader.onLoaded its geometry
+            // isn't settled yet, which would throw scrollIntoView's math off.
+            Timer {
+                id: highlightTimer
+                interval: 80
+                onTriggered: {
+                    HubHighlight.trigger(hub.targetHighlight);
+                    hub.targetHighlight = "";
+                }
             }
         }
     }
@@ -316,7 +340,7 @@ Rectangle {
         }
     }
 
-    Component { id: searchComp; SearchResults { categories: hub.keybindsModel; sections: hub.sectionDefs; query: navRail.query; onNavigate: (s, t) => hub.go(s, t) } }
+    Component { id: searchComp; SearchResults { categories: hub.keybindsModel; sections: hub.sectionDefs; query: navRail.query; onNavigate: (s, t, h) => hub.go(s, t, h) } }
     Component { id: profileComp; ProfilePage {} }
     Component { id: generalComp; GeneralPage {} }
     Component { id: displaysComp; DisplaysPage {} }
@@ -332,7 +356,7 @@ Rectangle {
     Component { id: autostartComp; AutostartPage {} }
     Component { id: environmentComp; EnvironmentPage {} }
     Component { id: shellComp; ShellSettingsPage { initialTab: hub.targetTab } }
-    Component { id: widgetsComp; WidgetsPage { initialTab: hub.targetTab; onNavigate: (s) => hub.go(s) } }
+    Component { id: widgetsComp; WidgetsPage { initialTab: hub.targetTab; onNavigate: (s, h) => hub.go(s, "", h) } }
     Component { id: launcherComp; LauncherPage {} }
     Component { id: fastfetchComp; FastfetchPage {} }
     Component { id: updatesComp; UpdatesPage {} }

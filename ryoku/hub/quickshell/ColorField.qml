@@ -10,7 +10,12 @@ Item {
 
     property string label: ""
     property color value: "#1a1b26"
+    // shared with a searchIndex.js entry's `highlight` field -- see
+    // HighlightFlash.qml.
+    property string highlightId: ""
     signal modified(color value)
+
+    HighlightFlash { target: cf; highlightId: cf.highlightId }
 
     readonly property var presets: [
         "#1a1b26", "#16161e", "#1b1612", "#1e1e2e",

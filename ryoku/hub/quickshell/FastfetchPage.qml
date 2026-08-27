@@ -413,6 +413,7 @@ Item {
                     width: parent.width
                     title: "EMBLEM"
                     Segmented {
+                        id: emblemTypeSeg
                         model: [
                             { "key": "image", "label": "Image" },
                             { "key": "ascii", "label": "ASCII" },
@@ -422,6 +423,7 @@ Item {
                         current: page.model.logo.kind
                         onSelected: (k) => page.setLogo("kind", k)
                     }
+                    HighlightFlash { target: emblemTypeSeg; highlightId: "emblem_type" }
                     Row {
                         width: parent.width
                         spacing: 12
@@ -458,16 +460,19 @@ Item {
                         NumberField {
                             label: "Width"; unit: "col"
                             from: 0; to: 80; value: page.model.logo.width
+                            highlightId: "emblem_width"
                             onModified: (v) => page.setLogo("width", v)
                         }
                         NumberField {
                             label: "Height"; unit: "col"
                             from: 0; to: 60; value: page.model.logo.height
+                            highlightId: "emblem_height"
                             onModified: (v) => page.setLogo("height", v)
                         }
                         NumberField {
                             label: "Pad"; unit: "col"
                             from: 0; to: 20; value: page.model.logo.padding
+                            highlightId: "emblem_padding"
                             onModified: (v) => page.setLogo("padding", v)
                         }
                     }
@@ -487,10 +492,12 @@ Item {
                     width: parent.width
                     title: "ACCENT"
                     ColorField {
+                        id: accentField
                         label: "Readout accent"
                         value: page.accentHex()
                         onModified: (c) => page.setAccent(page.hexToTriple(c))
                     }
+                    HighlightFlash { target: accentField; highlightId: "accent" }
                 }
 
                 // INFO

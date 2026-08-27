@@ -453,12 +453,14 @@ Item {
 
                     ToggleRow {
                         width: parent.width; label: "Enabled"
+                        highlightId: "display_enabled"
                         checked: { void page.tick; return page.sel ? !page.sel.disabled : true; }
                         onToggled: (v) => page.setField(page.selected, "disabled", !v)
                     }
                     Dropdown {
                         width: parent.width; label: "Resolution"
                         fieldWidth: 190
+                        highlightId: "display_resolution"
                         options: { void page.tick; return page.sel ? page.modeOptions(page.sel) : []; }
                         current: { void page.tick; return page.sel ? page.sel.mode : ""; }
                         onChosen: (k) => page.setMode(page.selected, k)
@@ -466,24 +468,28 @@ Item {
                     NumberField {
                         width: parent.width; label: "Scale"
                         from: 0.5; to: 3; step: 0.25; decimals: 2
+                        highlightId: "display_scale"
                         value: { void page.tick; return page.sel ? page.sel.scale : 1; }
                         onModified: (v) => page.setField(page.selected, "scale", v)
                     }
                     ChoiceRow {
                         width: parent.width; label: "Rotation"
                         options: [{ "key": "0", "label": "0\u00b0" }, { "key": "1", "label": "90\u00b0" }, { "key": "2", "label": "180\u00b0" }, { "key": "3", "label": "270\u00b0" }]
+                        highlightId: "display_rotation"
                         current: { void page.tick; return page.sel ? String(page.sel.transform) : "0"; }
                         onChosen: (k) => page.setField(page.selected, "transform", parseInt(k))
                     }
                     ChoiceRow {
                         width: parent.width; label: "Adaptive sync"
                         options: [{ "key": "0", "label": "Off" }, { "key": "1", "label": "On" }, { "key": "2", "label": "Fullscreen" }]
+                        highlightId: "display_vrr"
                         current: { void page.tick; return page.sel ? String(page.sel.vrr) : "0"; }
                         onChosen: (k) => page.setField(page.selected, "vrr", parseInt(k))
                     }
                     Dropdown {
                         width: parent.width; label: "Mirror of"
                         fieldWidth: 190
+                        highlightId: "display_mirror"
                         options: page.mirrorOptions()
                         current: { void page.tick; return page.sel ? page.sel.mirror : ""; }
                         onChosen: (k) => page.setField(page.selected, "mirror", k)
@@ -497,12 +503,14 @@ Item {
                     NumberField {
                         width: parent.width; label: "X"; unit: "px"
                         from: 0; to: 20000; step: 10
+                        highlightId: "display_position_x"
                         value: { void page.tick; return page.sel ? page.sel.x : 0; }
                         onModified: (v) => page.setField(page.selected, "x", v)
                     }
                     NumberField {
                         width: parent.width; label: "Y"; unit: "px"
                         from: 0; to: 20000; step: 10
+                        highlightId: "display_position_y"
                         value: { void page.tick; return page.sel ? page.sel.y : 0; }
                         onModified: (v) => page.setField(page.selected, "y", v)
                     }

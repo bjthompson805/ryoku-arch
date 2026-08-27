@@ -80,6 +80,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             label: "Wi-Fi"
+            highlightId: "wifi_toggle"
             checked: WifiLink.wifiOn
             onToggled: (v) => WifiLink.setWifiEnabled(v)
         }

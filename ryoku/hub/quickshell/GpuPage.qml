@@ -271,6 +271,7 @@ Item {
                     ChoiceRow {
                         width: Math.min(parent.width, 460)
                         label: "Graphics mode"
+                        highlightId: "renders_on"
                         options: [
                             { "key": "hybrid", "label": "Hybrid" },
                             { "key": "performance", "label": "Performance" },
@@ -324,6 +325,7 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "GPU PASSTHROUGH · ADVANCED"
+                    highlightId: "passthrough"
 
                     Text {
                         width: parent.width

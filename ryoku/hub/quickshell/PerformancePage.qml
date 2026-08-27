@@ -68,6 +68,7 @@ Item {
                     width: parent.width
                     label: "Low power mode - strip every heavy effect at once (blur, shadows, animations). The potato switch: implies all four toggles below, so a weak GPU runs the shell lag-free."
                     checked: adapter.lowPowerMode
+                    highlightId: "low_power_mode"
                     onToggled: c => {
                         adapter.lowPowerMode = c;
                         cfg.writeAdapter();
@@ -79,6 +80,7 @@ Item {
                     width: parent.width
                     label: "Reduce motion - make transitions instant (no per-frame animation repaints)"
                     checked: adapter.reduceMotion
+                    highlightId: "reduce_motion"
                     onToggled: c => {
                         adapter.reduceMotion = c;
                         cfg.writeAdapter();
@@ -89,6 +91,7 @@ Item {
                     width: parent.width
                     label: "Disable blur - shell effects and the compositor backdrop blur (the biggest GPU saving)"
                     checked: adapter.disableBlur
+                    highlightId: "disable_blur"
                     onToggled: c => {
                         adapter.disableBlur = c;
                         cfg.writeAdapter();
@@ -100,6 +103,7 @@ Item {
                     width: parent.width
                     label: "Disable shadows - shell drop shadows and the compositor window shadow"
                     checked: adapter.disableShadows
+                    highlightId: "disable_shadows"
                     onToggled: c => {
                         adapter.disableShadows = c;
                         cfg.writeAdapter();
@@ -116,6 +120,7 @@ Item {
                     width: parent.width
                     label: "Hide desktop widgets while windows cover the desktop (frees their memory; they reappear on an empty desktop)"
                     checked: adapter.unloadWidgetsWhenCovered
+                    highlightId: "desktop_widgets"
                     onToggled: c => {
                         adapter.unloadWidgetsWhenCovered = c;
                         cfg.writeAdapter();
@@ -131,6 +136,7 @@ Item {
                     width: parent.width
                     label: "Freeze the visualiser when no audio is playing"
                     checked: adapter.freezeVisualizerWhenIdle
+                    highlightId: "visualiser_freeze"
                     onToggled: c => {
                         adapter.freezeVisualizerWhenIdle = c;
                         cfg.writeAdapter();
@@ -141,6 +147,7 @@ Item {
                     width: parent.width
                     label: "Unload the visualiser to free memory when silent (brief delay when audio resumes)"
                     checked: adapter.unloadVisualizerWhenSilent
+                    highlightId: "visualiser_unload"
                     onToggled: c => {
                         adapter.unloadVisualizerWhenSilent = c;
                         cfg.writeAdapter();
@@ -156,6 +163,7 @@ Item {
                     width: parent.width
                     label: "Freeze the glowing bead animation while the bar is idle"
                     checked: adapter.freezePillWhenIdle
+                    highlightId: "bar"
                     onToggled: c => {
                         adapter.freezePillWhenIdle = c;
                         cfg.writeAdapter();
@@ -171,6 +179,7 @@ Item {
                     width: parent.width
                     label: "Unload the launcher to free its memory when idle (brief delay on the next open)"
                     checked: adapter.unloadLauncherWhenIdle
+                    highlightId: "launcher_overview_launcher"
                     onToggled: c => {
                         adapter.unloadLauncherWhenIdle = c;
                         cfg.writeAdapter();
@@ -181,6 +190,7 @@ Item {
                     width: parent.width
                     label: "Unload the workspace overview to free its memory when idle (brief delay on the next open)"
                     checked: adapter.unloadOverviewWhenIdle
+                    highlightId: "launcher_overview_overview"
                     onToggled: c => {
                         adapter.unloadOverviewWhenIdle = c;
                         cfg.writeAdapter();

@@ -14,11 +14,16 @@ Item {
     property real step: 0.01
     property int decimals: 2
     property bool percent: false
+    // shared with a searchIndex.js entry's `highlight` field -- see
+    // HighlightFlash.qml.
+    property string highlightId: ""
 
     signal modified(real value)
 
     implicitWidth: 320
     implicitHeight: 38
+
+    HighlightFlash { target: root; highlightId: root.highlightId }
 
     readonly property string readout: root.percent
         ? Math.round(root.value * 100) + "%"

@@ -15,11 +15,16 @@ Item {
     property real to: 100
     property real step: 1
     property int decimals: 0
+    // shared with a searchIndex.js entry's `highlight` field -- see
+    // HighlightFlash.qml.
+    property string highlightId: ""
 
     signal modified(real value)
 
     implicitWidth: 320
     implicitHeight: 38
+
+    HighlightFlash { target: root; highlightId: root.highlightId }
 
     function clampq(v) {
         var c = Math.max(root.from, Math.min(root.to, v));

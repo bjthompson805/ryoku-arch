@@ -12,11 +12,19 @@ Item {
     property string value: ""
     property string placeholder: ""
     property real fieldWidth: 200
+    // shared with a searchIndex.js entry's `highlight` field -- see
+    // HighlightFlash.qml. Only meaningful under the Hub, the sole current
+    // symlink consumer of this shared component; HighlightFlash.qml and its
+    // HubHighlight singleton live in the Hub's own quickshell dir, resolved
+    // the same implicit-sibling way CommitField already is below.
+    property string highlightId: ""
 
     signal committed(string value)
 
     implicitWidth: 320
     implicitHeight: 38
+
+    HighlightFlash { target: root; highlightId: root.highlightId }
 
     Text {
         anchors.left: parent.left

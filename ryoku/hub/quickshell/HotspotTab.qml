@@ -102,6 +102,7 @@ Item {
                 width: 64
                 checked: WifiLink.hsActive
                 enabled: !WifiLink.hsBusy
+                highlightId: "hotspot_toggle"
                 onToggled: {
                     if (WifiLink.hsActive) {
                         WifiLink.stopHotspot();
@@ -130,11 +131,16 @@ Item {
                 property string placeholder: ""
                 property bool secret: false
                 property bool reveal: false
+                // shared with a searchIndex.js entry's `highlight` field --
+                // see HighlightFlash.qml.
+                property string highlightId: ""
                 readonly property bool editing: WifiLink.hsEdit === cr.field
                 readonly property bool tooShort: cr.field === "pw" && cr.editing && WifiLink.hsDraft.length > 0 && WifiLink.hsDraft.length < 8
 
                 width: parent ? parent.width : 0
                 height: 44
+
+                HighlightFlash { target: cr; highlightId: cr.highlightId }
 
                 // hairline background, lights up while editing.
                 Rectangle {
@@ -287,6 +293,7 @@ Item {
                 label: "Network name"
                 value: WifiLink.hsName
                 placeholder: "Ryoku"
+                highlightId: "hotspot_name"
             }
 
             CredRow {
@@ -295,6 +302,7 @@ Item {
                 value: WifiLink.hsPw
                 placeholder: "Tap to set"
                 secret: true
+                highlightId: "hotspot_password"
             }
         }
     }

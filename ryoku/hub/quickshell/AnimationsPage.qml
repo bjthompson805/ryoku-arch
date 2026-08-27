@@ -163,6 +163,7 @@ Item {
                 title: "GLOBAL"
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Animations"
+                    highlightId: "global"
                     checked: store.animations
                     onToggled: (v) => store.edit("animations", v)
                 }
@@ -173,11 +174,13 @@ Item {
                 title: "FOCUS FLASH"
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Animate the focused window"
+                    highlightId: "focus_flash_enable"
                     checked: store.plugins.hyprfocus.enabled
                     onToggled: (v) => store.editPlugin("hyprfocus", "enabled", v)
                 }
                 ChoiceRow {
                     width: Math.min(parent.width, 460); label: "Style"
+                    highlightId: "focus_flash_style"
                     options: [{ "key": "flash", "label": "Flash" }, { "key": "bounce", "label": "Bounce" }, { "key": "slide", "label": "Slide" }]
                     current: store.plugins.hyprfocus.mode
                     visible: store.plugins.hyprfocus.enabled
@@ -185,6 +188,7 @@ Item {
                 }
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Flash opacity"; percent: true
+                    highlightId: "focus_flash_opacity"
                     from: 0; to: 1; step: 0.05
                     value: store.plugins.hyprfocus.opacity
                     visible: store.plugins.hyprfocus.enabled && store.plugins.hyprfocus.mode === "flash"
@@ -192,6 +196,7 @@ Item {
                 }
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Bounce strength"; percent: true
+                    highlightId: "focus_flash_bounce"
                     from: 0.5; to: 1; step: 0.01
                     value: store.plugins.hyprfocus.bounce
                     visible: store.plugins.hyprfocus.enabled && store.plugins.hyprfocus.mode === "bounce"
@@ -199,6 +204,7 @@ Item {
                 }
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Slide height"
+                    highlightId: "focus_flash_slide"
                     from: 0; to: 150; step: 5; decimals: 0
                     value: store.plugins.hyprfocus.slide
                     visible: store.plugins.hyprfocus.enabled && store.plugins.hyprfocus.mode === "slide"
@@ -218,6 +224,7 @@ Item {
             SettingSection {
                 width: parent.width
                 title: "CURVES"
+                highlightId: "curves"
 
                 Row {
                     width: parent.width
@@ -300,6 +307,7 @@ Item {
             SettingSection {
                 width: parent.width
                 title: "ANIMATIONS"
+                highlightId: "per_window_animations"
 
                 Text {
                     visible: page.liveAnims.length === 0

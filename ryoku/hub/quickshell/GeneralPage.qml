@@ -261,12 +261,14 @@ Item {
                 ToggleRow {
                     width: parent.width
                     label: "24-hour clock (applies everywhere: the bar, sidebar, launcher, Hub, and the desktop clock widget)"
+                    highlightId: "time_24h"
                     checked: draft.clock24h
                     onToggled: (v) => page.edit("clock24h", v)
                 }
                 ToggleRow {
                     width: parent.width
                     label: "Show seconds (applies to the bar and the desktop clock widget)"
+                    highlightId: "time_seconds"
                     checked: draft.clockSeconds
                     onToggled: (v) => page.edit("clockSeconds", v)
                 }
@@ -278,6 +280,7 @@ Item {
 
                 SettingField {
                     width: parent.width; label: "Location"
+                    highlightId: "general_weather_location"
                     fieldWidth: 200
                     placeholder: "Auto (from IP)"
                     value: draft.weatherLocation
@@ -285,6 +288,7 @@ Item {
                 }
                 ChoiceRow {
                     width: parent.width; label: "Units"
+                    highlightId: "weather_units"
                     options: [{ "key": "auto", "label": "Auto" }, { "key": "celsius", "label": "°C" }, { "key": "fahrenheit", "label": "°F" }]
                     current: draft.weatherUnit
                     onChosen: (k) => page.edit("weatherUnit", k)

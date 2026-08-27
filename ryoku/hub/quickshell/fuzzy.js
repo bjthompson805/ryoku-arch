@@ -54,8 +54,8 @@ function rank(query, cats) {
 
 // rankSettings scores individual Hub settings-page controls (searchIndex.js's
 // `entries`) against the query, over each entry's label + its keyword list,
-// keeping section/tab/label intact (unlike rank(), which is keybind-shaped
-// and only carries keys/desc/cat forward).
+// keeping section/tab/label/highlight intact (unlike rank(), which is
+// keybind-shaped and only carries keys/desc/cat forward).
 function rankSettings(query, entries) {
     var out = [];
     if (!entries)
@@ -65,7 +65,7 @@ function rankSettings(query, entries) {
         var hay = e.label + " " + (e.keywords ? e.keywords.join(" ") : "");
         var s = score(query, hay);
         if (s >= 0)
-            out.push({ section: e.section, tab: e.tab || "", label: e.label, score: s });
+            out.push({ section: e.section, tab: e.tab || "", label: e.label, highlight: e.highlight || "", score: s });
     }
     out.sort(function (a, b) { return b.score - a.score; });
     return out;

@@ -15,7 +15,7 @@ Flickable {
     property var categories: []
     property var sections: []
     property string query: ""
-    signal navigate(string section, string tab)
+    signal navigate(string section, string tab, string highlight)
 
     readonly property var bindHits: query.length > 0 ? Fuzzy.rank(query, categories) : []
     readonly property var settingHits: query.length > 0 ? Fuzzy.rankSettings(query, SettingsIndex.entries) : []
@@ -147,7 +147,7 @@ Flickable {
                     }
 
                     HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: page.navigate(modelData.key, "") }
+                    TapHandler { onTapped: page.navigate(modelData.key, "", "") }
                 }
             }
         }
@@ -222,7 +222,7 @@ Flickable {
                     }
 
                     HoverHandler { id: setRowHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: page.navigate(modelData.section, modelData.tab) }
+                    TapHandler { onTapped: page.navigate(modelData.section, modelData.tab, modelData.highlight || "") }
                 }
             }
         }

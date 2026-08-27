@@ -91,6 +91,7 @@ Item {
                     width: parent.width
                     label: "Framerate"
                     fieldWidth: 200
+                    highlightId: "quality_framerate"
                     options: page.fpsOptions
                     current: String(adapter.fps)
                     onChosen: (k) => {
@@ -102,6 +103,7 @@ Item {
                     width: parent.width
                     label: "Framerate mode"
                     fieldWidth: 200
+                    highlightId: "quality_framerate_mode"
                     options: page.fmOptions
                     current: adapter.framerateMode
                     onChosen: (k) => {
@@ -113,6 +115,7 @@ Item {
                     width: parent.width
                     label: "Quality"
                     fieldWidth: 200
+                    highlightId: "quality_quality"
                     options: page.qualityOptions
                     current: adapter.quality
                     onChosen: (k) => {
@@ -124,6 +127,7 @@ Item {
                     width: parent.width
                     label: "Codec"
                     fieldWidth: 200
+                    highlightId: "quality_codec"
                     options: page.codecOptions
                     current: adapter.codec
                     onChosen: (k) => {
@@ -142,6 +146,7 @@ Item {
                     width: parent.width
                     label: "Encoder"
                     fieldWidth: 200
+                    highlightId: "encoder_encoder"
                     options: page.encoderOptions
                     current: adapter.encoder
                     onChosen: (k) => {
@@ -152,6 +157,7 @@ Item {
                 ToggleRow {
                     width: parent.width
                     label: "Show the cursor in recordings"
+                    highlightId: "encoder_cursor"
                     checked: adapter.cursor
                     onToggled: (c) => {
                         adapter.cursor = c;
@@ -163,6 +169,7 @@ Item {
             SettingSection {
                 width: col.width
                 title: "UNDER THE HOOD"
+                highlightId: "under_the_hood"
                 description: "What the recorder resolves for this machine right now."
 
                 Text {

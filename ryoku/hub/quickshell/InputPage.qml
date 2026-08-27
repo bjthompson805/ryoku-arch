@@ -238,6 +238,7 @@ Item {
                 Dropdown {
                     width: Math.min(parent.width, 460); label: "Layout"
                     fieldWidth: 240
+                    highlightId: "keyboard_layout"
                     options: page.layoutOptions
                     current: page.primaryLayout()
                     placeholder: page.primaryLayout()
@@ -246,6 +247,7 @@ Item {
                 Dropdown {
                     width: Math.min(parent.width, 460); label: "Style"
                     fieldWidth: 240
+                    highlightId: "keyboard_style"
                     options: page.variantOptions
                     current: page.primaryVariant()
                     placeholder: "Default"
@@ -254,6 +256,7 @@ Item {
                 Dropdown {
                     width: Math.min(parent.width, 460); label: "Second layout"
                     fieldWidth: 240
+                    highlightId: "keyboard_second_layout"
                     options: [{ "key": "", "label": "None" }].concat(page.layoutOptions)
                     current: page.secondaryLayout()
                     placeholder: "None"
@@ -262,6 +265,7 @@ Item {
                 ChoiceRow {
                     width: Math.min(parent.width, 460); label: "Switch layouts"
                     visible: page.secondaryLayout().length > 0
+                    highlightId: "keyboard_switch"
                     options: [
                         { "key": "", "label": "Off" },
                         { "key": "grp:alt_shift_toggle", "label": "Alt+Shift" },
@@ -272,6 +276,7 @@ Item {
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Numlock on at login"
+                    highlightId: "keyboard_numlock"
                     checked: store.numlockByDefault
                     onToggled: (v) => store.edit("numlockByDefault", v)
                 }
@@ -282,6 +287,7 @@ Item {
                 title: "KEY REMAPS"
                 ChoiceRow {
                     width: Math.min(parent.width, 460); label: "Caps Lock"
+                    highlightId: "key_remaps_capslock"
                     options: [
                         { "key": "", "label": "Default" },
                         { "key": "caps:escape", "label": "Escape" },
@@ -294,11 +300,13 @@ Item {
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Swap Alt and Super"
+                    highlightId: "key_remaps_swap"
                     checked: page.pickFrom([page.swapId]) === page.swapId
                     onToggled: (v) => page.setOption([page.swapId], v ? page.swapId : "")
                 }
                 ChoiceRow {
                     width: Math.min(parent.width, 460); label: "Compose key"
+                    highlightId: "key_remaps_compose"
                     options: [
                         { "key": "", "label": "Off" },
                         { "key": "compose:ralt", "label": "Right Alt" },
@@ -310,6 +318,7 @@ Item {
                 SettingField {
                     width: Math.min(parent.width, 460); label: "Extra options"
                     fieldWidth: 240
+                    highlightId: "key_remaps_extra"
                     placeholder: "raw xkb options, comma-separated\u2026"
                     value: page.extraOptions()
                     onCommitted: (v) => page.setExtra(v)
@@ -348,40 +357,47 @@ Item {
                 title: "POINTER"
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Sensitivity"
+                    highlightId: "pointer_sensitivity"
                     from: -1; to: 1; step: 0.05; decimals: 2
                     value: store.sensitivity
                     onModified: (v) => store.edit("sensitivity", v)
                 }
                 ChoiceRow {
                     width: Math.min(parent.width, 460); label: "Follow mouse"
+                    highlightId: "pointer_follow"
                     options: [{ "key": "0", "label": "Off" }, { "key": "1", "label": "Normal" }, { "key": "2", "label": "Loose" }]
                     current: String(store.followMouse)
                     onChosen: (k) => store.edit("followMouse", parseInt(k))
                 }
                 ChoiceRow {
                     width: Math.min(parent.width, 460); label: "Acceleration"
+                    highlightId: "pointer_accel"
                     options: [{ "key": "", "label": "Default" }, { "key": "flat", "label": "Flat" }, { "key": "adaptive", "label": "Adaptive" }]
                     current: store.accelProfile
                     onChosen: (k) => store.edit("accelProfile", k)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Left-handed buttons"
+                    highlightId: "pointer_left_handed"
                     checked: store.leftHanded
                     onToggled: (v) => store.edit("leftHanded", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Natural scroll"
+                    highlightId: "pointer_natural_scroll"
                     checked: store.mouseNaturalScroll
                     onToggled: (v) => store.edit("mouseNaturalScroll", v)
                 }
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Scroll speed"
+                    highlightId: "pointer_scroll_speed"
                     from: 0.2; to: 3; step: 0.1; decimals: 1
                     value: store.mouseScrollFactor
                     onModified: (v) => store.edit("mouseScrollFactor", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Middle-click pastes"
+                    highlightId: "pointer_middle_click"
                     checked: store.middleClickPaste
                     onToggled: (v) => store.edit("middleClickPaste", v)
                 }
@@ -392,48 +408,57 @@ Item {
                 title: "TOUCHPAD"
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Natural scroll"
+                    highlightId: "touchpad_natural_scroll"
                     checked: store.naturalScroll
                     onToggled: (v) => store.edit("naturalScroll", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Tap to click"
+                    highlightId: "touchpad_tap_click"
                     checked: store.tapToClick
                     onToggled: (v) => store.edit("tapToClick", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Tap and drag"
+                    highlightId: "touchpad_tap_drag"
                     checked: store.tapAndDrag
                     onToggled: (v) => store.edit("tapAndDrag", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Disable while typing"
+                    highlightId: "touchpad_dwt"
                     checked: store.disableWhileTyping
                     onToggled: (v) => store.edit("disableWhileTyping", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Click by finger count"
+                    highlightId: "touchpad_clickfinger"
                     checked: store.clickfinger
                     onToggled: (v) => store.edit("clickfinger", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Emulate middle click"
+                    highlightId: "touchpad_middle_emulation"
                     checked: store.middleEmulation
                     onToggled: (v) => store.edit("middleEmulation", v)
                 }
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Scroll speed"
+                    highlightId: "touchpad_scroll_speed"
                     from: 0.2; to: 3; step: 0.1; decimals: 1
                     value: store.touchScrollFactor
                     onModified: (v) => store.edit("touchScrollFactor", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Swipe between workspaces"
+                    highlightId: "touchpad_swipe_enable"
                     checked: store.workspaceSwipe
                     onToggled: (v) => store.edit("workspaceSwipe", v)
                 }
                 ChoiceRow {
                     width: Math.min(parent.width, 460); label: "Swipe fingers"
                     visible: store.workspaceSwipe
+                    highlightId: "touchpad_swipe_fingers"
                     options: [{ "key": "3", "label": "3" }, { "key": "4", "label": "4" }]
                     current: String(store.swipeFingers)
                     onChosen: (k) => store.edit("swipeFingers", parseInt(k, 10))
@@ -441,18 +466,21 @@ Item {
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Natural swipe direction"
                     visible: store.workspaceSwipe
+                    highlightId: "touchpad_swipe_natural"
                     checked: store.swipeInvert
                     onToggled: (v) => store.edit("swipeInvert", v)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Swipe past the last workspace to add one"
                     visible: store.workspaceSwipe
+                    highlightId: "touchpad_swipe_create"
                     checked: store.swipeCreateNew
                     onToggled: (v) => store.edit("swipeCreateNew", v)
                 }
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Swipe distance"
                     visible: store.workspaceSwipe
+                    highlightId: "touchpad_swipe_distance"
                     from: 100; to: 600; step: 20; decimals: 0
                     value: store.swipeDistance
                     onModified: (v) => store.edit("swipeDistance", v)
@@ -464,11 +492,13 @@ Item {
                 title: "KEY REPEAT"
                 NumberField {
                     width: Math.min(parent.width, 460); label: "Repeat rate"; unit: "/s"
+                    highlightId: "key_repeat_rate"
                     from: 1; to: 100; value: store.repeatRate
                     onModified: (v) => store.edit("repeatRate", v)
                 }
                 NumberField {
                     width: Math.min(parent.width, 460); label: "Repeat delay"; unit: "ms"
+                    highlightId: "key_repeat_delay"
                     from: 100; to: 2000; step: 50; value: store.repeatDelay
                     onModified: (v) => store.edit("repeatDelay", v)
                 }
@@ -484,6 +514,7 @@ Item {
                 title: "CAMERA"
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Flip webcam 180°"
+                    highlightId: "camera"
                     checked: page.flipDraft
                     onToggled: (v) => page.flipDraft = v
                 }

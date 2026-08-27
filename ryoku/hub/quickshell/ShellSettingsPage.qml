@@ -556,11 +556,13 @@ Item {
                     title: "SHAPE"
                     ToggleRow {
                         width: parent.width; label: "Enable frame"
+                        highlightId: "frame_enable"
                         checked: draft.frameEnabled
                         onToggled: (v) => page.edit("frameEnabled", v)
                     }
                     NumberField {
                         width: parent.width; label: "Border thickness"; unit: "px"
+                        highlightId: "frame_border"
                         from: 24; to: 140; value: draft.frameBorder
                         onModified: (v) => page.edit("frameBorder", v)
                     }
@@ -576,16 +578,19 @@ Item {
                     title: "NOTIFICATIONS"
                     NumberField {
                         width: parent.width; label: "OSD & toast corner"; unit: "px"
+                        highlightId: "frame_osd_corner"
                         from: 0; to: 40; value: draft.osdRadius
                         onModified: (v) => page.edit("osdRadius", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Opacity"; percent: true
+                        highlightId: "frame_osd_opacity"
                         from: 0.2; to: 1; step: 0.01; value: draft.osdOpacity
                         onModified: (v) => page.edit("osdOpacity", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Show Caps/Num/Scroll Lock OSD"
+                        highlightId: "frame_osd_lockkeys"
                         checked: draft.lockKeyOsdEnabled
                         onToggled: (v) => page.edit("lockKeyOsdEnabled", v)
                     }
@@ -610,16 +615,19 @@ Item {
                     title: "ROUNDNESS"
                     NumberField {
                         width: parent.width; label: "Inner roundness"; unit: "px"
+                        highlightId: "global_inner_roundness"
                         from: 0; to: 24; value: draft.roundness
                         onModified: (v) => page.edit("roundness", v)
                     }
                     NumberField {
                         width: parent.width; label: "Frame corner"; unit: "px"
+                        highlightId: "global_frame_corner"
                         from: 0; to: 60; value: draft.frameRadius
                         onModified: (v) => page.edit("frameRadius", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Edge melt"
+                        highlightId: "global_edge_melt"
                         from: 1; to: 60; step: 1; decimals: 0; value: draft.frameSmoothing
                         onModified: (v) => page.edit("frameSmoothing", v)
                     }
@@ -630,11 +638,13 @@ Item {
                     title: "SHADOW"
                     SliderRow {
                         width: parent.width; label: "Strength"; percent: true
+                        highlightId: "global_shadow_strength"
                         from: 0; to: 1; step: 0.01; value: draft.shadowStrength
                         onModified: (v) => page.edit("shadowStrength", v)
                     }
                     NumberField {
                         width: parent.width; label: "Size"; unit: "px"
+                        highlightId: "global_shadow_size"
                         from: 0; to: 80; value: draft.shadowSize
                         onModified: (v) => page.edit("shadowSize", v)
                     }
@@ -685,6 +695,7 @@ Item {
                     }
                     SettingField {
                         width: parent.width; label: "Name"
+                        highlightId: "global_brand_name"
                         fieldWidth: 200
                         placeholder: "Ryoku"
                         value: draft.name
@@ -692,12 +703,14 @@ Item {
                     }
                     SettingField {
                         width: parent.width; label: "Text mark"
+                        highlightId: "global_brand_textmark"
                         fieldWidth: 200
                         placeholder: "\u529b"
                         value: draft.markText
                         onCommitted: (v) => page.edit("markText", v)
                     }
                     Row {
+                        id: brandLogoRow
                         width: parent.width
                         spacing: 12
                         Text {
@@ -725,8 +738,10 @@ Item {
                             onClicked: page.edit("markImage", "")
                         }
                     }
+                    HighlightFlash { target: brandLogoRow; highlightId: "global_brand_logo" }
                     ToggleRow {
                         width: parent.width; label: "Tint image to accent"
+                        highlightId: "global_brand_tint"
                         checked: draft.markTint
                         onToggled: (v) => page.edit("markTint", v)
                     }
@@ -750,11 +765,13 @@ Item {
                     title: "SURFACE"
                     ColorField {
                         width: parent.width; label: "Colour"
+                        highlightId: "global_surface_colour"
                         value: draft.surfaceColor
                         onModified: (v) => page.edit("surfaceColor", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Opacity"; percent: true
+                        highlightId: "global_surface_opacity"
                         from: 0.2; to: 1; step: 0.01; value: draft.frameOpacity
                         onModified: (v) => page.edit("frameOpacity", v)
                     }
@@ -765,6 +782,7 @@ Item {
                     title: "TEXT"
                     Dropdown {
                         width: parent.width; label: "Font"
+                        highlightId: "global_text_font"
                         fieldWidth: 200
                         options: page.fontOptions
                         current: draft.fontFamily
@@ -772,6 +790,7 @@ Item {
                     }
                     SliderRow {
                         width: parent.width; label: "Size"; percent: true
+                        highlightId: "global_text_size"
                         from: 0.7; to: 1.6; step: 0.05; value: draft.fontScale
                         onModified: (v) => page.edit("fontScale", v)
                     }
@@ -796,11 +815,13 @@ Item {
                     title: "BAR"
                     ToggleRow {
                         width: parent.width; label: "Enable bar"
+                        highlightId: "bar_enable"
                         checked: draft.barEnabled
                         onToggled: (v) => page.edit("barEnabled", v)
                     }
                     ChoiceRow {
                         width: parent.width; label: "Position"
+                        highlightId: "bar_position"
                         options: [
                             { "key": "top", "label": "Top" },
                             { "key": "bottom", "label": "Bottom" },
@@ -810,6 +831,7 @@ Item {
                     }
                     Dropdown {
                         width: parent.width; label: "Style"
+                        highlightId: "bar_style"
                         fieldWidth: 170
                         options: [
                             { "key": "noctalia", "label": "Noctalia", "hint": "pill · dot" },
@@ -828,6 +850,7 @@ Item {
                     }
                     NumberField {
                         width: parent.width; label: "Thickness"; unit: "px"
+                        highlightId: "bar_thickness"
                         from: 18; to: 48; value: draft.barHeight
                         onModified: (v) => page.edit("barHeight", v)
                     }
@@ -852,55 +875,65 @@ Item {
                     title: "CONTENT"
                     ToggleRow {
                         width: parent.width; label: "Focused window title"
+                        highlightId: "bar_content_title"
                         checked: draft.barShowTitle
                         onToggled: (v) => page.edit("barShowTitle", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Now playing"
+                        highlightId: "bar_content_media"
                         checked: draft.barShowMedia
                         onToggled: (v) => page.edit("barShowMedia", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Network speed"
+                        highlightId: "bar_content_netspeed"
                         visible: ["noctalia", "nacre", "inir", "aurora", "angel"].indexOf(draft.barStyle) >= 0
                         checked: draft.barShowNetSpeed
                         onToggled: (v) => page.edit("barShowNetSpeed", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "System stats (CPU/RAM/temp)"
+                        highlightId: "bar_content_stats"
                         visible: draft.barStyle === "noctalia"
                         checked: draft.barShowStats
                         onToggled: (v) => page.edit("barShowStats", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Agent usage (Claude Code)"
+                        highlightId: "bar_content_agent"
                         visible: ["noctalia", "nacre", "inir", "aurora", "angel"].indexOf(draft.barStyle) >= 0
                         checked: draft.barShowAgentUsage
                         onToggled: (v) => page.edit("barShowAgentUsage", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Status glyphs (network, battery, inbox)"
+                        highlightId: "bar_content_status"
                         checked: draft.barShowStatus
                         onToggled: (v) => page.edit("barShowStatus", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Weather"
+                        highlightId: "bar_content_weather"
                         visible: draft.barStyle !== "delos"
                         checked: draft.barShowWeather
                         onToggled: (v) => page.edit("barShowWeather", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Display"
+                        highlightId: "bar_content_display"
                         checked: draft.barShowDisplay
                         onToggled: (v) => page.edit("barShowDisplay", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Only occupied workspaces"
+                        highlightId: "bar_content_occupied"
                         checked: draft.barOccupiedWorkspaces
                         onToggled: (v) => page.edit("barOccupiedWorkspaces", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Per-window workspace icons"
+                        highlightId: "bar_content_workspaceicons"
                         visible: ["noctalia", "triptych", "nacre", "inir", "aurora", "angel", "delos"].indexOf(draft.barStyle) >= 0
                         checked: draft.barWorkspaceIcons
                         onToggled: (v) => page.edit("barWorkspaceIcons", v)
@@ -911,8 +944,10 @@ Item {
                     width: parent.width
                     visible: draft.barStyle === "delos"
                     title: "ISLAND"
+                    highlightId: "bar_island_modules"
                     NumberField {
                         width: parent.width; label: "Roundness"; unit: "px"
+                        highlightId: "bar_island_roundness"
                         from: 0; to: 40; value: draft.islandRadius
                         onModified: (v) => page.edit("islandRadius", v)
                     }
@@ -944,10 +979,11 @@ Item {
                     title: "LEFT \u00b7 FEATURES"
                     ToggleRow {
                         width: parent.width; label: "Enable left sidebar"
+                        highlightId: "sidebar_left_enable"
                         checked: draft.sidebarLeftEnabled
                         onToggled: (v) => page.edit("sidebarLeftEnabled", v)
                     }
-                    ToggleRow { width: parent.width; label: "Stash"; checked: (draft.sidebarLeftPanes || []).indexOf("stash") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarLeftPanes", "stash", v) }
+                    ToggleRow { width: parent.width; label: "Stash"; highlightId: "sidebar_left_stash"; checked: (draft.sidebarLeftPanes || []).indexOf("stash") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarLeftPanes", "stash", v) }
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -964,6 +1000,7 @@ Item {
                     title: "BEHAVIOUR"
                     ToggleRow {
                         width: parent.width; label: "Open on hover"
+                        highlightId: "sidebar_behaviour_hover"
                         checked: draft.sidebarClickless
                         onToggled: (v) => page.edit("sidebarClickless", v)
                     }
@@ -979,14 +1016,15 @@ Item {
                     title: "RIGHT \u00b7 SYSTEM"
                     ToggleRow {
                         width: parent.width; label: "Enable right sidebar"
+                        highlightId: "sidebar_right_enable"
                         checked: draft.sidebarRightEnabled
                         onToggled: (v) => page.edit("sidebarRightEnabled", v)
                     }
-                    ToggleRow { width: parent.width; label: "Notifications"; checked: (draft.sidebarRightPanes || []).indexOf("notifications") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "notifications", v) }
-                    ToggleRow { width: parent.width; label: "Calendar"; checked: (draft.sidebarRightPanes || []).indexOf("calendar") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "calendar", v) }
-                    ToggleRow { width: parent.width; label: "Media"; checked: (draft.sidebarRightPanes || []).indexOf("media") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "media", v) }
-                    ToggleRow { width: parent.width; label: "Weather"; checked: (draft.sidebarRightPanes || []).indexOf("weather") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "weather", v) }
-                    ToggleRow { width: parent.width; label: "Recording"; checked: (draft.sidebarRightPanes || []).indexOf("recording") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "recording", v) }
+                    ToggleRow { width: parent.width; label: "Notifications"; highlightId: "sidebar_right_notifications"; checked: (draft.sidebarRightPanes || []).indexOf("notifications") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "notifications", v) }
+                    ToggleRow { width: parent.width; label: "Calendar"; highlightId: "sidebar_right_calendar"; checked: (draft.sidebarRightPanes || []).indexOf("calendar") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "calendar", v) }
+                    ToggleRow { width: parent.width; label: "Media"; highlightId: "sidebar_right_media"; checked: (draft.sidebarRightPanes || []).indexOf("media") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "media", v) }
+                    ToggleRow { width: parent.width; label: "Weather"; highlightId: "sidebar_right_weather"; checked: (draft.sidebarRightPanes || []).indexOf("weather") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "weather", v) }
+                    ToggleRow { width: parent.width; label: "Recording"; highlightId: "sidebar_right_recording"; checked: (draft.sidebarRightPanes || []).indexOf("recording") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarRightPanes", "recording", v) }
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -1001,6 +1039,7 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "QUICK TOGGLES"
+                    highlightId: "sidebar_quick_toggles"
                     ToggleRow { width: parent.width; label: "Wi-Fi"; checked: (draft.sidebarToggles || []).indexOf("wifi") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "wifi", v) }
                     ToggleRow { width: parent.width; label: "Bluetooth"; checked: (draft.sidebarToggles || []).indexOf("bluetooth") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "bluetooth", v) }
                     ToggleRow { width: parent.width; label: "Mic"; checked: (draft.sidebarToggles || []).indexOf("mic") >= 0; onToggled: (v) => page.toggleSidebarPane("sidebarToggles", "mic", v) }
@@ -1026,11 +1065,13 @@ Item {
                     title: "SIZE"
                     NumberField {
                         width: parent.width; label: "Width"; unit: "px"
+                        highlightId: "sidebar_size_width"
                         from: 240; to: 520; value: draft.sidebarWidth
                         onModified: (v) => page.edit("sidebarWidth", v)
                     }
                     NumberField {
                         width: parent.width; label: "Corner hotspot"; unit: "px"
+                        highlightId: "sidebar_size_hotspot"
                         from: 16; to: 80; value: draft.sidebarCornerSize
                         onModified: (v) => page.edit("sidebarCornerSize", v)
                     }
@@ -1099,6 +1140,7 @@ Item {
                 title: "STYLE"
                 ChoiceRow {
                     width: parent.width; label: "Style"
+                    highlightId: "viz_style"
                     options: [{ "key": "bars", "label": "Bars" }, { "key": "dots", "label": "Dots" }, { "key": "line", "label": "Monitor" }, { "key": "wave", "label": "Wave" }, { "key": "segments", "label": "Segments" }, { "key": "radial", "label": "Radial" }, { "key": "circle", "label": "Circle" }]
                     current: draft.style
                     onChosen: (k) => page.edit("style", k)
@@ -1120,18 +1162,21 @@ Item {
                         title: "LAYOUT"
                         ChoiceRow {
                             width: parent.width; label: "Position"
+                            highlightId: "viz_layout_position"
                             options: [{ "key": "bottom", "label": "Bottom" }, { "key": "top", "label": "Top" }, { "key": "center", "label": "Centre" }]
                             current: draft.position
                             onChosen: (k) => page.edit("position", k)
                         }
                         ChoiceRow {
                             width: parent.width; label: "Shape"
+                            highlightId: "viz_layout_shape"
                             options: [{ "key": "rounded", "label": "Rounded" }, { "key": "flat", "label": "Flat" }]
                             current: draft.shape
                             onChosen: (k) => page.edit("shape", k)
                         }
                         ToggleRow {
                             width: parent.width; label: "Mirror"
+                            highlightId: "viz_layout_mirror"
                             checked: draft.mirror
                             onToggled: (v) => page.edit("mirror", v)
                         }
@@ -1142,21 +1187,25 @@ Item {
                         title: "SPECTRUM"
                         ToggleRow {
                             width: parent.width; label: "Enabled"
+                            highlightId: "viz_spectrum_enabled"
                             checked: draft.enabled
                             onToggled: (v) => page.edit("enabled", v)
                         }
                         NumberField {
                             width: parent.width; label: "Bars"
+                            highlightId: "viz_spectrum_bars"
                             from: 16; to: 128; step: 4; value: draft.bars
                             onModified: (v) => page.edit("bars", v)
                         }
                         NumberField {
                             width: parent.width; label: "Segments"
+                            highlightId: "viz_spectrum_segments"
                             from: 4; to: 16; value: draft.segments
                             onModified: (v) => page.edit("segments", v)
                         }
                         ToggleRow {
                             width: parent.width; label: "Peak caps"
+                            highlightId: "viz_spectrum_peaks"
                             checked: draft.peaks
                             onToggled: (v) => page.edit("peaks", v)
                         }
@@ -1172,11 +1221,13 @@ Item {
                         title: "SIZE"
                         SliderRow {
                             width: parent.width; label: "Height"; percent: true
+                            highlightId: "viz_size_height"
                             from: 0.1; to: 0.6; step: 0.01; value: draft.height
                             onModified: (v) => page.edit("height", v)
                         }
                         SliderRow {
                             width: parent.width; label: "Bar width"; percent: true
+                            highlightId: "viz_size_barwidth"
                             from: 0.2; to: 1; step: 0.01; value: draft.thickness
                             onModified: (v) => page.edit("thickness", v)
                         }
@@ -1187,11 +1238,13 @@ Item {
                         title: "GLOW"
                         SliderRow {
                             width: parent.width; label: "Bloom"; percent: true
+                            highlightId: "viz_glow_bloom"
                             from: 0; to: 1; step: 0.01; value: draft.bloom
                             onModified: (v) => page.edit("bloom", v)
                         }
                         SliderRow {
                             width: parent.width; label: "Reflection"; percent: true
+                            highlightId: "viz_glow_reflection"
                             from: 0; to: 0.3; step: 0.01; value: draft.reflection
                             onModified: (v) => page.edit("reflection", v)
                         }
@@ -1202,11 +1255,13 @@ Item {
                         title: "FEEL"
                         SliderRow {
                             width: parent.width; label: "Smoothing"; percent: true
+                            highlightId: "viz_feel_smoothing"
                             from: 0; to: 1; step: 0.01; value: draft.smoothing
                             onModified: (v) => page.edit("smoothing", v)
                         }
                         SliderRow {
                             width: parent.width; label: "Sensitivity"; percent: true
+                            highlightId: "viz_feel_sensitivity"
                             from: 0.5; to: 2; step: 0.01; value: draft.gain
                             onModified: (v) => page.edit("gain", v)
                         }
@@ -1217,12 +1272,14 @@ Item {
                         title: "MOTION"
                         ChoiceRow {
                             width: parent.width; label: "Frame rate"
+                            highlightId: "viz_motion_framerate"
                             options: [{ "key": "30", "label": "30" }, { "key": "45", "label": "45" }, { "key": "60", "label": "60" }]
                             current: String(draft.fps)
                             onChosen: (k) => page.edit("fps", parseInt(k))
                         }
                         ToggleRow {
                             width: parent.width; label: "Adaptive quality"
+                            highlightId: "viz_motion_adaptive"
                             checked: draft.adaptive
                             onToggled: (v) => page.edit("adaptive", v)
                         }
@@ -1233,6 +1290,7 @@ Item {
                         title: "AT REST"
                         ToggleRow {
                             width: parent.width; label: "Idle wave"
+                            highlightId: "viz_at_rest_idle"
                             checked: draft.idleWave
                             onToggled: (v) => page.edit("idleWave", v)
                         }

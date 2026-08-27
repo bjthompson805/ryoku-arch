@@ -233,6 +233,7 @@ Item {
                     NumberField {
                         width: parent.width; label: "Corner radius"; unit: "px"
                         from: 0; to: 28; value: draft.radius
+                        highlightId: "shape_corner_radius"
                         onModified: (v) => page.edit("radius", v)
                     }
                 }
@@ -243,6 +244,7 @@ Item {
                     SliderRow {
                         width: parent.width; label: "Blur"
                         from: 0; to: 30; step: 1; decimals: 0; value: draft.bgBlur
+                        highlightId: "background_blur"
                         onModified: (v) => page.edit("bgBlur", v)
                     }
                     Text {
@@ -267,16 +269,19 @@ Item {
                             { "key": "F", "label": "\u00b0F" }
                         ]
                         current: draft.weatherUnit
+                        highlightId: "home_card_weather_units"
                         onChosen: (k) => page.edit("weatherUnit", k)
                     }
                     ToggleRow {
                         width: parent.width; label: "Show weather"
                         checked: draft.showWeather
+                        highlightId: "home_card_show_weather"
                         onToggled: (v) => page.edit("showWeather", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Show greeting"
                         checked: draft.showGreeting
+                        highlightId: "home_card_show_greeting"
                         onToggled: (v) => page.edit("showGreeting", v)
                     }
                 }
@@ -433,6 +438,7 @@ Item {
                     SliderRow {
                         width: parent.width; label: "Strength"; percent: true
                         from: 0; to: 1; step: 0.01; value: draft.heroStrength
+                        highlightId: "backdrop_strength"
                         onModified: (v) => page.edit("heroStrength", v)
                     }
                 }
