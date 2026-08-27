@@ -56,8 +56,10 @@ Item {
     onInitialTabChanged: if (page.initialTab.length > 0) page.group = page.initialTab
     Component.onCompleted: if (page.initialTab.length > 0) page.group = page.initialTab
     // emitted by a GeneralLinkSection's button, which jumps to General for a
-    // setting that used to live on this page but is shell-wide now.
-    signal navigate(string section)
+    // setting that used to live on this page but is shell-wide now. highlight
+    // is the target SettingSection/row's highlightId there, so the link also
+    // flashes it instead of just landing on the page.
+    signal navigate(string section, string highlight)
 
     // a settings section that's just an explanation + a jump-to-General
     // button, for a control that moved off this page since it isn't owned by
@@ -65,6 +67,7 @@ Item {
     component GeneralLinkSection: SettingSection {
         id: gls
         property string note: ""
+        property string highlight: ""
         Row {
             width: parent.width
             spacing: 12
@@ -82,7 +85,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 label: "Open General"
                 icon: "compass"
-                onClicked: page.navigate("general")
+                onClicked: page.navigate("general", gls.highlight)
             }
         }
     }
@@ -426,15 +429,17 @@ Item {
                     SettingSection {
                         width: parent.width
                         title: "WIDGET"
-                        ToggleRow { width: parent.width; label: "Enabled"; checked: draft.clockEnabled; onToggled: (v) => page.edit("clockEnabled", v) }
+                        ToggleRow { width: parent.width; label: "Enabled"; highlightId: "clock_widget_enabled"; checked: draft.clockEnabled; onToggled: (v) => page.edit("clockEnabled", v) }
                         Dropdown {
                             width: parent.width; label: "Face"
+                            highlightId: "clock_widget_face"
                             options: [{ "key": "digital", "label": "Digital" }, { "key": "minimal", "label": "Minimal" }, { "key": "analog", "label": "Analog" }, { "key": "flip", "label": "Flip" }, { "key": "rings", "label": "Rings" }]
                             current: draft.clockDesign
                             onChosen: (k) => page.edit("clockDesign", k)
                         }
                         ChoiceRow {
                             width: parent.width; label: "Accent"
+                            highlightId: "clock_widget_accent"
                             options: [{ "key": "wallust", "label": "Wallust" }, { "key": "brand", "label": "Brand" }, { "key": "mono", "label": "Mono" }]
                             current: draft.clockAccent
                             onChosen: (k) => page.edit("clockAccent", k)
@@ -445,14 +450,16 @@ Item {
                         width: parent.width
                         title: "FORMAT"
                         note: "Show seconds is shared desktop-wide, on General: the bar and this widget both follow it."
+                        highlight: "time_seconds"
                     }
 
                     SettingSection {
                         width: parent.width
                         title: "DATE"
-                        ToggleRow { width: parent.width; label: "Show date"; checked: draft.dateShow; onToggled: (v) => page.edit("dateShow", v) }
+                        ToggleRow { width: parent.width; label: "Show date"; highlightId: "clock_date_show"; checked: draft.dateShow; onToggled: (v) => page.edit("dateShow", v) }
                         ChoiceRow {
                             width: parent.width; label: "Date style"
+                            highlightId: "clock_date_style"
                             options: [{ "key": "inline", "label": "Inline" }, { "key": "badge", "label": "Badge" }, { "key": "stacked", "label": "Stacked" }]
                             current: draft.dateDesign
                             onChosen: (k) => page.edit("dateDesign", k)
@@ -467,24 +474,25 @@ Item {
                     SettingSection {
                         width: parent.width
                         title: "SIZE & SHAPE"
-                        SliderRow { width: parent.width; label: "Size"; from: 0.5; to: 2.5; step: 0.05; decimals: 2; value: draft.clockScale; onModified: (v) => page.edit("clockScale", v) }
+                        SliderRow { width: parent.width; label: "Size"; highlightId: "clock_size_scale"; from: 0.5; to: 2.5; step: 0.05; decimals: 2; value: draft.clockScale; onModified: (v) => page.edit("clockScale", v) }
                         ChoiceRow {
                             width: parent.width; label: "Background"
+                            highlightId: "clock_size_bg"
                             options: [{ "key": "none", "label": "None" }, { "key": "card", "label": "Card" }, { "key": "glass", "label": "Glass" }]
                             current: draft.clockBg
                             onChosen: (k) => page.edit("clockBg", k)
                         }
-                        NumberField { visible: draft.clockBg !== "none"; width: parent.width; label: "Corner radius"; unit: "px"; from: 0; to: 60; value: draft.clockRadius; onModified: (v) => page.edit("clockRadius", v) }
-                        SliderRow { width: parent.width; label: "Opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.clockOpacity; onModified: (v) => page.edit("clockOpacity", v) }
+                        NumberField { visible: draft.clockBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "clock_size_radius"; unit: "px"; from: 0; to: 60; value: draft.clockRadius; onModified: (v) => page.edit("clockRadius", v) }
+                        SliderRow { width: parent.width; label: "Opacity"; highlightId: "clock_size_opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.clockOpacity; onModified: (v) => page.edit("clockOpacity", v) }
                     }
 
                     SettingSection {
                         width: parent.width
                         title: "PLACEMENT"
-                        Dropdown { width: parent.width; label: "Anchor"; options: page.anchorOptions; current: draft.clockAnchor; onChosen: (k) => page.edit("clockAnchor", k) }
-                        NumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "X"; unit: "px"; from: 0; to: 5000; value: draft.clockX; onModified: (v) => page.edit("clockX", v) }
-                        NumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "Y"; unit: "px"; from: 0; to: 5000; value: draft.clockY; onModified: (v) => page.edit("clockY", v) }
-                        ToggleRow { width: parent.width; label: "Lock on desktop"; checked: draft.clockLocked; onToggled: (v) => page.edit("clockLocked", v) }
+                        Dropdown { width: parent.width; label: "Anchor"; highlightId: "clock_placement_anchor"; options: page.anchorOptions; current: draft.clockAnchor; onChosen: (k) => page.edit("clockAnchor", k) }
+                        NumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "X"; highlightId: "clock_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.clockX; onModified: (v) => page.edit("clockX", v) }
+                        NumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "Y"; highlightId: "clock_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.clockY; onModified: (v) => page.edit("clockY", v) }
+                        ToggleRow { width: parent.width; label: "Lock on desktop"; highlightId: "clock_placement_lock"; checked: draft.clockLocked; onToggled: (v) => page.edit("clockLocked", v) }
                     }
                 }
             }
@@ -554,15 +562,18 @@ Item {
                     GeneralLinkSection {
                         width: parent.width
                         title: "LOCATION"
+                        highlightId: "weather_location"
                         note: "Shared desktop-wide, on General: the bar, sidebar, and this widget all follow it."
+                        highlight: "general_weather_location"
                     }
 
                     SettingSection {
                         width: parent.width
                         title: "WIDGET"
-                        ToggleRow { width: parent.width; label: "Enabled"; checked: draft.weatherEnabled; onToggled: (v) => page.edit("weatherEnabled", v) }
+                        ToggleRow { width: parent.width; label: "Enabled"; highlightId: "weather_widget_enabled"; checked: draft.weatherEnabled; onToggled: (v) => page.edit("weatherEnabled", v) }
                         ChoiceRow {
                             width: parent.width; label: "Design"
+                            highlightId: "weather_widget_design"
                             options: [{ "key": "card", "label": "Card" }, { "key": "minimal", "label": "Minimal" }, { "key": "strip", "label": "Strip" }]
                             current: draft.weatherDesign
                             onChosen: (k) => page.edit("weatherDesign", k)
@@ -574,17 +585,19 @@ Item {
                         title: "READOUT"
                         ChoiceRow {
                             width: parent.width; label: "Unit"
+                            highlightId: "weather_readout_unit"
                             options: [{ "key": "C", "label": "\u00b0C" }, { "key": "F", "label": "\u00b0F" }]
                             current: draft.weatherUnit
                             onChosen: (k) => page.edit("weatherUnit", k)
                         }
                         ChoiceRow {
                             width: parent.width; label: "Forecast"
+                            highlightId: "weather_readout_scope"
                             options: [{ "key": "today", "label": "Today" }, { "key": "week", "label": "Week" }]
                             current: draft.weatherScope
                             onChosen: (k) => page.edit("weatherScope", k)
                         }
-                        ToggleRow { width: parent.width; label: "Live animations"; checked: draft.weatherAnimate; onToggled: (v) => page.edit("weatherAnimate", v) }
+                        ToggleRow { width: parent.width; label: "Live animations"; highlightId: "weather_readout_animate"; checked: draft.weatherAnimate; onToggled: (v) => page.edit("weatherAnimate", v) }
                     }
                 }
 
@@ -595,24 +608,25 @@ Item {
                     SettingSection {
                         width: parent.width
                         title: "SIZE & SHAPE"
-                        SliderRow { width: parent.width; label: "Size"; from: 0.5; to: 2.5; step: 0.05; decimals: 2; value: draft.weatherScale; onModified: (v) => page.edit("weatherScale", v) }
+                        SliderRow { width: parent.width; label: "Size"; highlightId: "weather_size_scale"; from: 0.5; to: 2.5; step: 0.05; decimals: 2; value: draft.weatherScale; onModified: (v) => page.edit("weatherScale", v) }
                         ChoiceRow {
                             width: parent.width; label: "Background"
+                            highlightId: "weather_size_bg"
                             options: [{ "key": "none", "label": "None" }, { "key": "card", "label": "Card" }, { "key": "glass", "label": "Glass" }]
                             current: draft.weatherBg
                             onChosen: (k) => page.edit("weatherBg", k)
                         }
-                        NumberField { visible: draft.weatherBg !== "none"; width: parent.width; label: "Corner radius"; unit: "px"; from: 0; to: 60; value: draft.weatherRadius; onModified: (v) => page.edit("weatherRadius", v) }
-                        SliderRow { width: parent.width; label: "Opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.weatherOpacity; onModified: (v) => page.edit("weatherOpacity", v) }
+                        NumberField { visible: draft.weatherBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "weather_size_radius"; unit: "px"; from: 0; to: 60; value: draft.weatherRadius; onModified: (v) => page.edit("weatherRadius", v) }
+                        SliderRow { width: parent.width; label: "Opacity"; highlightId: "weather_size_opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.weatherOpacity; onModified: (v) => page.edit("weatherOpacity", v) }
                     }
 
                     SettingSection {
                         width: parent.width
                         title: "PLACEMENT"
-                        Dropdown { width: parent.width; label: "Anchor"; options: page.anchorOptions; current: draft.weatherAnchor; onChosen: (k) => page.edit("weatherAnchor", k) }
-                        NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "X"; unit: "px"; from: 0; to: 5000; value: draft.weatherX; onModified: (v) => page.edit("weatherX", v) }
-                        NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "Y"; unit: "px"; from: 0; to: 5000; value: draft.weatherY; onModified: (v) => page.edit("weatherY", v) }
-                        ToggleRow { width: parent.width; label: "Lock on desktop"; checked: draft.weatherLocked; onToggled: (v) => page.edit("weatherLocked", v) }
+                        Dropdown { width: parent.width; label: "Anchor"; highlightId: "weather_placement_anchor"; options: page.anchorOptions; current: draft.weatherAnchor; onChosen: (k) => page.edit("weatherAnchor", k) }
+                        NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "X"; highlightId: "weather_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.weatherX; onModified: (v) => page.edit("weatherX", v) }
+                        NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "Y"; highlightId: "weather_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.weatherY; onModified: (v) => page.edit("weatherY", v) }
+                        ToggleRow { width: parent.width; label: "Lock on desktop"; highlightId: "weather_placement_lock"; checked: draft.weatherLocked; onToggled: (v) => page.edit("weatherLocked", v) }
                     }
                 }
             }
@@ -690,15 +704,17 @@ Item {
                     SettingSection {
                         width: parent.width
                         title: "WIDGET"
-                        ToggleRow { width: parent.width; label: "Enabled"; checked: draft.calEnabled; onToggled: (v) => page.edit("calEnabled", v) }
+                        ToggleRow { width: parent.width; label: "Enabled"; highlightId: "cal_widget_enabled"; checked: draft.calEnabled; onToggled: (v) => page.edit("calEnabled", v) }
                         Dropdown {
                             width: parent.width; label: "Design"
+                            highlightId: "cal_widget_design"
                             options: [{ "key": "month", "label": "Month" }, { "key": "minimal", "label": "Minimal" }, { "key": "agenda", "label": "Agenda" }, { "key": "week", "label": "Week" }, { "key": "heat", "label": "Heatmap" }]
                             current: draft.calDesign
                             onChosen: (k) => page.edit("calDesign", k)
                         }
                         ChoiceRow {
                             width: parent.width; label: "Accent"
+                            highlightId: "cal_widget_accent"
                             options: [{ "key": "wallust", "label": "Wallust" }, { "key": "brand", "label": "Brand" }, { "key": "mono", "label": "Mono" }]
                             current: draft.calAccent
                             onChosen: (k) => page.edit("calAccent", k)
@@ -710,6 +726,7 @@ Item {
                         title: "WEEK"
                         ChoiceRow {
                             width: parent.width; label: "Starts on"
+                            highlightId: "cal_week"
                             options: [{ "key": "mon", "label": "Monday" }, { "key": "sun", "label": "Sunday" }]
                             current: draft.calWeekStart
                             onChosen: (k) => page.edit("calWeekStart", k)
@@ -724,24 +741,25 @@ Item {
                     SettingSection {
                         width: parent.width
                         title: "SIZE & SHAPE"
-                        SliderRow { width: parent.width; label: "Size"; from: 0.5; to: 2.5; step: 0.05; decimals: 2; value: draft.calScale; onModified: (v) => page.edit("calScale", v) }
+                        SliderRow { width: parent.width; label: "Size"; highlightId: "cal_size_scale"; from: 0.5; to: 2.5; step: 0.05; decimals: 2; value: draft.calScale; onModified: (v) => page.edit("calScale", v) }
                         ChoiceRow {
                             width: parent.width; label: "Background"
+                            highlightId: "cal_size_bg"
                             options: [{ "key": "none", "label": "None" }, { "key": "card", "label": "Card" }, { "key": "glass", "label": "Glass" }]
                             current: draft.calBg
                             onChosen: (k) => page.edit("calBg", k)
                         }
-                        NumberField { visible: draft.calBg !== "none"; width: parent.width; label: "Corner radius"; unit: "px"; from: 0; to: 60; value: draft.calRadius; onModified: (v) => page.edit("calRadius", v) }
-                        SliderRow { width: parent.width; label: "Opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.calOpacity; onModified: (v) => page.edit("calOpacity", v) }
+                        NumberField { visible: draft.calBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "cal_size_radius"; unit: "px"; from: 0; to: 60; value: draft.calRadius; onModified: (v) => page.edit("calRadius", v) }
+                        SliderRow { width: parent.width; label: "Opacity"; highlightId: "cal_size_opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.calOpacity; onModified: (v) => page.edit("calOpacity", v) }
                     }
 
                     SettingSection {
                         width: parent.width
                         title: "PLACEMENT"
-                        Dropdown { width: parent.width; label: "Anchor"; options: page.anchorOptions; current: draft.calAnchor; onChosen: (k) => page.edit("calAnchor", k) }
-                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "X"; unit: "px"; from: 0; to: 5000; value: draft.calX; onModified: (v) => page.edit("calX", v) }
-                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "Y"; unit: "px"; from: 0; to: 5000; value: draft.calY; onModified: (v) => page.edit("calY", v) }
-                        ToggleRow { width: parent.width; label: "Lock on desktop"; checked: draft.calLocked; onToggled: (v) => page.edit("calLocked", v) }
+                        Dropdown { width: parent.width; label: "Anchor"; highlightId: "cal_placement_anchor"; options: page.anchorOptions; current: draft.calAnchor; onChosen: (k) => page.edit("calAnchor", k) }
+                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "X"; highlightId: "cal_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.calX; onModified: (v) => page.edit("calX", v) }
+                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "Y"; highlightId: "cal_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.calY; onModified: (v) => page.edit("calY", v) }
+                        ToggleRow { width: parent.width; label: "Lock on desktop"; highlightId: "cal_placement_lock"; checked: draft.calLocked; onToggled: (v) => page.edit("calLocked", v) }
                     }
                 }
             }

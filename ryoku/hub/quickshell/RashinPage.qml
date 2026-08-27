@@ -248,6 +248,7 @@ Item {
                     enabled: page.installed
                     label: "Start Rashin with the desktop and keep the dashboard available"
                     checked: page.daemonEnabled
+                    highlightId: "enable"
                     onToggled: c => {
                         page.daemonEnabled = c;
                         page.setEnabled(c);

@@ -262,6 +262,7 @@ Item {
                 ToggleRow {
                     width: Math.min(parent.width, 460)
                     label: "Voice typing"
+                    highlightId: "dictation"
                     checked: page.voiceOn
                     // switch off any time; switch on only once there's a model to use.
                     enabled: page.voiceOn || page.usable
@@ -284,6 +285,7 @@ Item {
             SettingSection {
                 width: parent.width
                 title: "ENGINE & MODEL"
+                highlightId: "engine_model"
 
                 Column {
                     width: parent.width
@@ -401,6 +403,7 @@ Item {
                 width: parent.width
                 visible: page.needsKey
                 title: "API KEY"
+                highlightId: "api_key"
 
                 Text {
                     width: parent.width
@@ -467,6 +470,7 @@ Item {
             SettingSection {
                 width: parent.width
                 title: "PACKAGE"
+                highlightId: "package"
 
                 Text {
                     width: parent.width

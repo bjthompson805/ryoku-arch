@@ -371,6 +371,10 @@ Item {
                 ToggleRow {
                     width: parent.width
                     label: "Enabled"
+                    // fixed, single-instance panel bound to whichever addon
+                    // is selected -- not a per-item repeat, valid highlight
+                    // target.
+                    highlightId: "addon_enabled"
                     checked: page.sel.placement && page.sel.placement.enabled === true
                     onToggled: (v) => page.place(page.sel.id, "enabled", v ? "true" : "false")
                 }
@@ -379,6 +383,7 @@ Item {
                     width: parent.width
                     visible: (page.sel.manifest && page.sel.manifest.hosts && page.sel.manifest.hosts.length > 1) || false
                     label: "Show as"
+                    highlightId: "addon_show_as"
                     options: ((page.sel.manifest && page.sel.manifest.hosts) || []).map(function (h) {
                         return { "key": h, "label": h === "framePopout" ? "Frame popout" : h === "desktopWidget" ? "Desktop widget" : h };
                     })

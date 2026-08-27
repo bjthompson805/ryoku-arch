@@ -3,6 +3,7 @@ singleton Updates Updates.qml
 singleton SysInfo SysInfo.qml
 singleton Wallust Wallust.qml
 singleton Config Config.qml
+singleton HubHighlight HubHighlight.qml
 singleton Devices Devices.qml
 singleton WebcamPrefs WebcamPrefs.qml
 singleton BluetoothLink BluetoothLink.qml

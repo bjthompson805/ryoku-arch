@@ -133,6 +133,7 @@ Item {
                 width: 56
                 label: ""
                 checked: page.adapterOn
+                highlightId: "bluetooth_toggle"
                 onToggled: (v) => BluetoothLink.setAdapterEnabled(v)
             }
         }

@@ -11,11 +11,16 @@ Item {
     property string label: ""
     property var options: []     // [{ key, label }]
     property string current: ""
+    // shared with a searchIndex.js entry's `highlight` field -- see
+    // HighlightFlash.qml.
+    property string highlightId: ""
 
     signal chosen(string key)
 
     implicitWidth: 320
     implicitHeight: 38
+
+    HighlightFlash { target: row; highlightId: row.highlightId }
 
     Text {
         anchors.left: parent.left

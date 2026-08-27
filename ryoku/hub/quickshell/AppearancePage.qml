@@ -263,22 +263,26 @@ Item {
                     NumberField {
                         width: parent.width; label: "Corner radius"; unit: "px"
                         from: 0; to: 30; value: store.rounding
+                        highlightId: "look_shape_radius"
                         onModified: (v) => store.edit("rounding", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Corner softness"
                         from: 2; to: 8; step: 0.5; decimals: 1; value: store.roundingPower
+                        highlightId: "look_shape_softness"
                         onModified: (v) => store.edit("roundingPower", v)
                     }
                     NumberField {
                         width: parent.width; label: "Border thickness"; unit: "px"
                         from: 0; to: 12; value: store.borderSize
+                        highlightId: "look_shape_border"
                         onModified: (v) => store.edit("borderSize", v)
                     }
                     ChoiceRow {
                         width: parent.width; label: "Tiling layout"
                         options: [{ "key": "dwindle", "label": "Dwindle" }, { "key": "master", "label": "Master" }, { "key": "scrolling", "label": "Scrolling" }]
                         current: store.layout
+                        highlightId: "look_shape_layout"
                         onChosen: (k) => store.edit("layout", k)
                     }
                     SliderRow {
@@ -286,12 +290,14 @@ Item {
                         from: 0.1; to: 1; step: 0.05
                         value: store.plugins.hyprscrolling.columnWidth
                         visible: store.layout === "scrolling"
+                        highlightId: "look_shape_column_width"
                         onModified: (v) => store.editPlugin("hyprscrolling", "columnWidth", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Scroll to follow focus"
                         checked: store.plugins.hyprscrolling.followFocus
                         visible: store.layout === "scrolling"
+                        highlightId: "look_shape_follow_focus"
                         onToggled: (v) => store.editPlugin("hyprscrolling", "followFocus", v)
                     }
                 }
@@ -302,11 +308,13 @@ Item {
                     NumberField {
                         width: parent.width; label: "Inner (between windows)"; unit: "px"
                         from: 0; to: 40; value: store.gapsIn
+                        highlightId: "look_gaps_inner"
                         onModified: (v) => store.edit("gapsIn", v)
                     }
                     NumberField {
                         width: parent.width; label: "Outer (screen edge)"; unit: "px"
                         from: 0; to: 60; value: store.gapsOut
+                        highlightId: "look_gaps_outer"
                         onModified: (v) => store.edit("gapsOut", v)
                     }
                 }
@@ -317,11 +325,13 @@ Item {
                     ToggleRow {
                         width: parent.width; label: "Drag to resize at window edges"
                         checked: store.resizeOnBorder
+                        highlightId: "look_behaviour_resize"
                         onToggled: (v) => store.edit("resizeOnBorder", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Snap floating windows"
                         checked: store.snapEnabled
+                        highlightId: "look_behaviour_snap"
                         onToggled: (v) => store.edit("snapEnabled", v)
                     }
                 }
@@ -332,30 +342,35 @@ Item {
                     ToggleRow {
                         width: parent.width; label: "Window title bars"
                         checked: store.plugins.hyprbars.enabled
+                        highlightId: "look_titlebars_enable"
                         onToggled: (v) => store.editPlugin("hyprbars", "enabled", v)
                     }
                     NumberField {
                         width: parent.width; label: "Bar height"; unit: "px"
                         from: 12; to: 48; value: store.plugins.hyprbars.height
                         visible: store.plugins.hyprbars.enabled
+                        highlightId: "look_titlebars_height"
                         onModified: (v) => store.editPlugin("hyprbars", "height", v)
                     }
                     NumberField {
                         width: parent.width; label: "Title text size"; unit: "px"
                         from: 8; to: 20; value: store.plugins.hyprbars.textSize
                         visible: store.plugins.hyprbars.enabled
+                        highlightId: "look_titlebars_text_size"
                         onModified: (v) => store.editPlugin("hyprbars", "textSize", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Blur the bar"
                         checked: store.plugins.hyprbars.blur
                         visible: store.plugins.hyprbars.enabled
+                        highlightId: "look_titlebars_blur"
                         onToggled: (v) => store.editPlugin("hyprbars", "blur", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Close and maximise buttons"
                         checked: store.plugins.hyprbars.buttons
                         visible: store.plugins.hyprbars.enabled
+                        highlightId: "look_titlebars_buttons"
                         onToggled: (v) => store.editPlugin("hyprbars", "buttons", v)
                     }
                     Text {
@@ -380,22 +395,26 @@ Item {
                     SliderRow {
                         width: parent.width; label: "Active"; percent: true
                         from: 0.4; to: 1; step: 0.01; value: store.activeOpacity
+                        highlightId: "look_opacity_active"
                         onModified: (v) => store.edit("activeOpacity", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Inactive"; percent: true
                         from: 0.4; to: 1; step: 0.01; value: store.inactiveOpacity
+                        highlightId: "look_opacity_inactive"
                         onModified: (v) => store.edit("inactiveOpacity", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Dim inactive windows"
                         checked: store.dimInactive
+                        highlightId: "look_opacity_dim"
                         onToggled: (v) => store.edit("dimInactive", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Dim strength"; percent: true
                         from: 0; to: 1; step: 0.05; value: store.dimStrength
                         visible: store.dimInactive
+                        highlightId: "look_opacity_dim_strength"
                         onModified: (v) => store.edit("dimStrength", v)
                     }
                 }
@@ -406,31 +425,37 @@ Item {
                     ToggleRow {
                         width: parent.width; label: "Enabled"
                         checked: store.blurEnabled
+                        highlightId: "look_blur_enabled"
                         onToggled: (v) => store.edit("blurEnabled", v)
                     }
                     NumberField {
                         width: parent.width; label: "Size"; unit: "px"
                         from: 0; to: 20; value: store.blurSize
+                        highlightId: "look_blur_size"
                         onModified: (v) => store.edit("blurSize", v)
                     }
                     NumberField {
                         width: parent.width; label: "Passes"
                         from: 1; to: 6; value: store.blurPasses
+                        highlightId: "look_blur_passes"
                         onModified: (v) => store.edit("blurPasses", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "X-ray (blur shows the wallpaper)"
                         checked: store.blurXray
+                        highlightId: "look_blur_xray"
                         onToggled: (v) => store.edit("blurXray", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Vibrancy"
                         from: 0; to: 0.5; step: 0.01; decimals: 2; value: store.blurVibrancy
+                        highlightId: "look_blur_vibrancy"
                         onModified: (v) => store.edit("blurVibrancy", v)
                     }
                     SliderRow {
                         width: parent.width; label: "Noise"
                         from: 0; to: 0.1; step: 0.005; decimals: 3; value: store.blurNoise
+                        highlightId: "look_blur_noise"
                         onModified: (v) => store.edit("blurNoise", v)
                     }
                 }
@@ -441,27 +466,32 @@ Item {
                     ToggleRow {
                         width: parent.width; label: "Window shadows"
                         checked: store.shadowEnabled
+                        highlightId: "look_depth_shadows"
                         onToggled: (v) => store.edit("shadowEnabled", v)
                     }
                     NumberField {
                         width: parent.width; label: "Shadow range"; unit: "px"
                         from: 0; to: 60; value: store.shadowRange
+                        highlightId: "look_depth_shadow_range"
                         onModified: (v) => store.edit("shadowRange", v)
                     }
                     NumberField {
                         width: parent.width; label: "Shadow sharpness"
                         from: 1; to: 4; value: store.shadowPower
+                        highlightId: "look_depth_shadow_sharpness"
                         onModified: (v) => store.edit("shadowPower", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Animations"
                         checked: store.animations
+                        highlightId: "look_depth_animations"
                         onToggled: (v) => store.edit("animations", v)
                     }
                     ToggleRow {
                         width: parent.width; label: "Wobbly windows"
                         checked: store.wobblyWindows
                         visible: store.animations
+                        highlightId: "look_depth_wobbly"
                         onToggled: (v) => store.edit("wobblyWindows", v)
                     }
                     ChoiceRow {
@@ -469,6 +499,7 @@ Item {
                         options: [{ "key": "pop", "label": "Pop" }, { "key": "slide", "label": "Slide" }, { "key": "gnomed", "label": "Gnome" }]
                         current: store.windowStyle
                         visible: store.animations
+                        highlightId: "look_depth_open_close"
                         onChosen: (k) => store.edit("windowStyle", k)
                     }
                 }
@@ -479,20 +510,24 @@ Item {
                     ToggleRow {
                         width: parent.width; label: "Glow behind windows"
                         checked: store.glowEnabled
+                        highlightId: "look_glow_enabled"
                         onToggled: (v) => store.edit("glowEnabled", v)
                     }
                     NumberField {
                         width: parent.width; label: "Range"; unit: "px"
                         from: 4; to: 60; value: store.glowRange
                         visible: store.glowEnabled
+                        highlightId: "look_glow_range"
                         onModified: (v) => store.edit("glowRange", v)
                     }
                     ColorField {
+                        id: glowColorField
                         width: parent.width; label: "Colour"
                         value: store.glowColor
                         visible: store.glowEnabled
                         onModified: (v) => store.edit("glowColor", v)
                     }
+                    HighlightFlash { target: glowColorField; highlightId: "look_glow_colour" }
                 }
 
                 SettingSection {
@@ -501,6 +536,7 @@ Item {
                     ToggleRow {
                         width: parent.width; label: "Liquid glass windows"
                         checked: store.plugins.hyprglass.enabled
+                        highlightId: "look_glass_enabled"
                         onToggled: (v) => store.editPlugin("hyprglass", "enabled", v)
                     }
                     ChoiceRow {
@@ -508,6 +544,7 @@ Item {
                         options: [{ "key": "clear", "label": "Clear" }, { "key": "subtle", "label": "Subtle" }, { "key": "high_contrast", "label": "Contrast" }, { "key": "glass", "label": "Glass" }]
                         current: store.plugins.hyprglass.preset
                         visible: store.plugins.hyprglass.enabled
+                        highlightId: "look_glass_preset"
                         onChosen: (k) => store.editPlugin("hyprglass", "preset", k)
                     }
                     SliderRow {
@@ -515,6 +552,7 @@ Item {
                         from: 0; to: 5; step: 0.1; decimals: 1
                         value: store.plugins.hyprglass.blurStrength
                         visible: store.plugins.hyprglass.enabled
+                        highlightId: "look_glass_blur_strength"
                         onModified: (v) => store.editPlugin("hyprglass", "blurStrength", v)
                     }
                     SliderRow {
@@ -522,6 +560,7 @@ Item {
                         from: 0; to: 1; step: 0.05
                         value: store.plugins.hyprglass.opacity
                         visible: store.plugins.hyprglass.enabled
+                        highlightId: "look_glass_opacity"
                         onModified: (v) => store.editPlugin("hyprglass", "opacity", v)
                     }
                     Text {
@@ -559,15 +598,19 @@ Item {
                 visible: page.scheme !== "follow"
                 title: "FIXED COLOURS"
                 ColorField {
+                    id: activeBorderField
                     width: parent.width; label: "Active window"
                     value: store.activeBorder
                     onModified: (v) => store.edit("activeBorder", v)
                 }
+                HighlightFlash { target: activeBorderField; highlightId: "borders_colours_active" }
                 ColorField {
+                    id: inactiveBorderField
                     width: parent.width; label: "Inactive window"
                     value: store.inactiveBorder
                     onModified: (v) => store.edit("inactiveBorder", v)
                 }
+                HighlightFlash { target: inactiveBorderField; highlightId: "borders_colours_inactive" }
             }
 
             SettingSection {
@@ -576,12 +619,14 @@ Item {
                 ToggleRow {
                     width: parent.width; label: "Rotating gradient border"
                     checked: store.animatedBorder
+                    highlightId: "borders_animated_enable"
                     onToggled: (v) => store.edit("animatedBorder", v)
                 }
                 SliderRow {
                     width: parent.width; label: "Rotation speed"
                     from: 1; to: 10; step: 1; decimals: 0; value: store.borderAngleSpeed
                     visible: store.animatedBorder
+                    highlightId: "borders_animated_speed"
                     onModified: (v) => store.edit("borderAngleSpeed", v)
                 }
                 Text {
@@ -600,6 +645,7 @@ Item {
                 ToggleRow {
                     width: parent.width; label: "Image border around windows"
                     checked: store.plugins.imgborders.enabled
+                    highlightId: "borders_image_enable"
                     onToggled: (v) => store.editPlugin("imgborders", "enabled", v)
                 }
                 Row {
@@ -628,12 +674,14 @@ Item {
                     from: 0.5; to: 3; step: 0.1; decimals: 1
                     value: store.plugins.imgborders.scale
                     visible: store.plugins.imgborders.enabled
+                    highlightId: "borders_image_scale"
                     onModified: (v) => store.editPlugin("imgborders", "scale", v)
                 }
                 ToggleRow {
                     width: parent.width; label: "Smooth scaling"
                     checked: store.plugins.imgborders.smooth
                     visible: store.plugins.imgborders.enabled
+                    highlightId: "borders_image_smooth"
                     onToggled: (v) => store.editPlugin("imgborders", "smooth", v)
                 }
                 Text {
@@ -663,16 +711,19 @@ Item {
                     options: page.cursorThemes
                     current: store.cursorTheme
                     placeholder: store.cursorTheme
+                    highlightId: "cursor_theme_select"
                     onChosen: (k) => store.edit("cursorTheme", k)
                 }
                 NumberField {
                     width: Math.min(parent.width, 460); label: "Size"; unit: "px"
                     from: 12; to: 64; step: 4; value: store.cursorSize
+                    highlightId: "cursor_theme_size"
                     onModified: (v) => store.edit("cursorSize", v)
                 }
                 NumberField {
                     width: Math.min(parent.width, 460); label: "Hide after idle"; unit: "s"
                     from: 0; to: 30; value: store.cursorInactiveTimeout
+                    highlightId: "cursor_theme_idle"
                     onModified: (v) => store.edit("cursorInactiveTimeout", v)
                 }
                 Text {
@@ -686,6 +737,7 @@ Item {
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Hide while typing"
                     checked: store.cursorHideOnKeyPress
+                    highlightId: "cursor_theme_hide_typing"
                     onToggled: (v) => store.edit("cursorHideOnKeyPress", v)
                 }
                 Text {
@@ -704,6 +756,7 @@ Item {
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Realistic cursor motion"
                     checked: store.plugins.dynamicCursors.enabled
+                    highlightId: "cursor_motion_enable"
                     onToggled: (v) => store.editPlugin("dynamicCursors", "enabled", v)
                 }
                 ChoiceRow {
@@ -711,12 +764,14 @@ Item {
                     options: [{ "key": "rotate", "label": "Rotate" }, { "key": "tilt", "label": "Tilt" }, { "key": "stretch", "label": "Stretch" }]
                     current: store.plugins.dynamicCursors.mode
                     visible: store.plugins.dynamicCursors.enabled
+                    highlightId: "cursor_motion_style"
                     onChosen: (k) => store.editPlugin("dynamicCursors", "mode", k)
                 }
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Shake to find (magnify)"
                     checked: store.plugins.dynamicCursors.shake
                     visible: store.plugins.dynamicCursors.enabled
+                    highlightId: "cursor_motion_shake"
                     onToggled: (v) => store.editPlugin("dynamicCursors", "shake", v)
                 }
                 Text {
@@ -744,6 +799,7 @@ Item {
                     label: "Colours"
                     options: [{ "key": "follow", "label": "Follow wallpaper" }, { "key": "light", "label": "Light" }, { "key": "dark", "label": "Dark" }]
                     current: page.scheme
+                    highlightId: "wallpaper_palette"
                     onChosen: (k) => page.setScheme(k)
                 }
                 Text {
@@ -840,6 +896,7 @@ Item {
                     width: Math.min(parent.width, 460); label: "Brightness"; percent: true
                     from: 0.05; to: 1; step: 0.01
                     value: Devices.panelBrightness < 0 ? 1 : Devices.panelBrightness / 100
+                    highlightId: "comfort_backlight"
                     onModified: (v) => Devices.setPanelBrightness(Math.round(v * 100))
                 }
             }
@@ -850,6 +907,7 @@ Item {
                     width: Math.min(parent.width, 460); label: "Saturation"; percent: true
                     from: 0; to: 1; step: 0.01
                     value: Vibrance.vibrance / 100
+                    highlightId: "comfort_vibrance"
                     onModified: (v) => page.setVibrance(Math.round(v * 100))
                 }
                 Text {
@@ -867,12 +925,14 @@ Item {
                 ToggleRow {
                     width: Math.min(parent.width, 460); label: "Warm the screen"
                     checked: page.nightOn
+                    highlightId: "comfort_night_enable"
                     onToggled: (v) => page.setNight(v)
                 }
                 SliderRow {
                     width: Math.min(parent.width, 460); label: "Temperature"
                     from: 2500; to: 6500; step: 100; decimals: 0
                     value: page.nightTemp
+                    highlightId: "comfort_night_temp"
                     onModified: (v) => page.setNightTemp(Math.round(v))
                 }
                 Text {

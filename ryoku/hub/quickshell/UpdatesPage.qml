@@ -211,6 +211,8 @@ Item {
                     anchors.topMargin: 2
                     spacing: 9
 
+                    HighlightFlash { target: autoCol; highlightId: "auto_update_checks" }
+
                     Text {
                         anchors.right: parent.right
                         text: "AUTOMATIC CHECKS"

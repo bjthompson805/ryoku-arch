@@ -8,11 +8,16 @@ Item {
 
     property string label: ""
     property bool checked: false
+    // shared with a searchIndex.js entry's `highlight` field -- see
+    // HighlightFlash.qml.
+    property string highlightId: ""
 
     signal toggled(bool checked)
 
     implicitWidth: 320
     implicitHeight: 38
+
+    HighlightFlash { target: row; highlightId: row.highlightId }
 
     // a locked toggle (e.g. voice typing before a model is downloaded) reads dim.
     opacity: row.enabled ? 1.0 : 0.45
