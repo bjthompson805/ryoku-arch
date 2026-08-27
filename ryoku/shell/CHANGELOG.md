@@ -2,7 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+- **Deploying the shell no longer temporarily removes the live Quickshell
+  configuration tree.** The complete replacement is staged first; a live deploy
+  stops the watcher before swapping that tree, then starts the daemon against
+  the new configuration.
+
 ### Added
+- **The pill bar's AI-agent module now has a Codex tab.** Selecting Claude or
+  Codex switches the bar percentage and its popout together; Codex reads its
+  subscription windows through the local app-server and summarizes native
+  session tokens by day and model. The selected agent is kept in local shell
+  state and restored after a restart or reboot.
 - **Launcher: an "@" prefix tunes a live lofi radio.** `@` lists the stations
   — Lofi Girl and Chillhop Radio (YouTube 24/7 streams), SomaFM Groove Salad
   and Fluid (plain Icecast) — `@lofi` puts Lofi Girl on air, `@stop` (or the

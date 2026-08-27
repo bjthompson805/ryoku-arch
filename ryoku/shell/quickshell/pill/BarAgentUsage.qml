@@ -2,9 +2,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "Singletons"
 
-// Claude Code rate-limit readout for the bar: a sparkle glyph + the session
-// (5-hour) percentage, off the AgentUsage singleton -- the window that
-// actually throttles you turn to turn, unlike the slower-moving weekly one.
+// Selected-agent rate-limit readout for the bar: a sparkle glyph + the
+// current provider's primary-window percentage, off AgentUsage.
 // warn-tinted past 80%, same threshold BarStats/SysStats use. icon/text sized
 // to match the battery readout in BarStatus (status.glyphPx + 1, 9.5). keeps
 // the poller awake while shown. click opens the usage popout.

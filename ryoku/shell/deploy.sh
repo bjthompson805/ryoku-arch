@@ -24,10 +24,8 @@ cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
 bindir="$HOME/.local/bin"
 say() { printf '  %s\n' "$*"; }
 
-restart_shell() {
+stop_shell() {
   local shell=$bindir/ryoku-shell
-  local log="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-shell.log"
-
   [[ -x $shell ]] || return 0
   "$shell" quit >/dev/null 2>&1 || true
   for _ in {1..20}; do
@@ -48,6 +46,13 @@ restart_shell() {
   # next live switch. the restarted daemon relaunches it from state.
   pkill -x ryoku-livewall >/dev/null 2>&1 || true
   sleep 0.2
+}
+
+restart_shell() {
+  local shell=$bindir/ryoku-shell
+  local log="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-shell.log"
+
+  stop_shell
 
   mkdir -p "$(dirname -- "$log")"
   if command -v setsid >/dev/null 2>&1; then
@@ -193,15 +198,17 @@ say "installed Ryoku.PluginKit -> $qmldir/Ryoku/PluginKit"
 # ~/.config/quickshell/<name>. -L dereferences symlinks (e.g. the shared
 # Spawn.qml/SpawnCore.qml under ryoku/shared/quickshell/, symlinked into every
 # root's Singletons/ dir) into real files, since a relative symlink target
-# computed from the repo's layout would not resolve once deployed here.
-say "installing quickshell components -> $cfg/quickshell"
-rm -rf "$cfg/quickshell"
-mkdir -p "$cfg/quickshell"
-cp -aL "$here/quickshell/." "$cfg/quickshell/"
+# computed from the repo's layout would not resolve once deployed here. Build
+# the complete tree aside first: removing the live tree makes Quickshell reload
+# a missing shell.qml, after which its supervisor may not get a chance to recover.
+qstaging="$cfg/quickshell.staging.$$"
+rm -rf "$qstaging"
+mkdir -p "$qstaging"
+cp -aL "$here/quickshell/." "$qstaging/"
 
 # Ryoku Hub's quickshell config (qs -c hub), kept beside the shell's components.
-mkdir -p "$cfg/quickshell/hub"
-cp -aL "$here/../hub/quickshell/." "$cfg/quickshell/hub/"
+mkdir -p "$qstaging/hub"
+cp -aL "$here/../hub/quickshell/." "$qstaging/hub/"
 
 # First-party GUI apps: each ryoku/apps/<name>/quickshell ships as qs -c <name>,
 # launched from a keybind and a .desktop entry. Drop in a new app dir and it ships.
@@ -209,8 +216,8 @@ appshare="${XDG_DATA_HOME:-$HOME/.local/share}"
 for appdir in "$here"/../apps/*/; do
   [[ -d "${appdir}quickshell" ]] || continue
   appname="$(basename "$appdir")"
-  mkdir -p "$cfg/quickshell/$appname"
-  cp -aL "${appdir}quickshell/." "$cfg/quickshell/$appname/"
+  mkdir -p "$qstaging/$appname"
+  cp -aL "${appdir}quickshell/." "$qstaging/$appname/"
   for b in "${appdir}bin/"*; do [[ -f "$b" ]] && install -m755 "$b" "$bindir/$(basename "$b")"; done
   # an app may carry Go helper(s): a subdir with a go.mod builds to a bin named
   # for the module (ryovm/fetch -> ryovm-fetch). keeps "drop in an app dir" true.
@@ -227,6 +234,20 @@ for appdir in "$here"/../apps/*/; do
   install -Dm644 "$icon" "$appshare/icons/hicolor/scalable/apps/$appname.svg"
   say "installed app $appname -> $cfg/quickshell/$appname"
 done
+
+if (( hypr_live && reload )); then
+  # Stop the watcher before replacing its root. A rename keeps the deployed
+  # tree coherent, and the later restart launches only against the new files.
+  stop_shell
+fi
+if [[ -d $cfg/quickshell ]]; then
+  qbackup="$cfg/quickshell.previous.$$"
+  rm -rf "$qbackup"
+  mv "$cfg/quickshell" "$qbackup"
+fi
+mv "$qstaging" "$cfg/quickshell"
+[[ -n "${qbackup:-}" ]] && rm -rf "$qbackup"
+say "installed quickshell components -> $cfg/quickshell"
 
 # Ryoku Hub's own launcher entry + icon (the ryoku brand mark — Hub has no
 # bespoke app icon of its own, unlike ryovm/ryowalls).

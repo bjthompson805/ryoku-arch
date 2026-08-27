@@ -4,12 +4,9 @@ import QtQuick
 import ".."
 import "../Singletons"
 
-// agent usage popout content: Claude Code's rate limits (session/weekly, with
-// a live reset countdown) plus a token-by-day strip and token-by-model
-// breakdown from the local transcript scan -- the same three sections
-// Omarchy's agent-usage panel shows, behind the bar's agent-usage module. a
-// bare transparent Item -- the Popout blob behind it IS the surface; this
-// panel only reports its implicit size. pointer-driven, no keyboard focus.
+// Agent usage popout content: provider limits, token history, and a source
+// switcher. The Popout blob behind it is the surface; this panel only reports
+// its implicit size.
 Item {
     id: root
 
@@ -104,6 +101,36 @@ Item {
         font.weight: Font.DemiBold
         font.capitalization: Font.AllUppercase
         font.letterSpacing: 1.4 * root.s
+    }
+
+    component ProviderTab: Rectangle {
+        id: providerTab
+        property string provider: ""
+        property string label: ""
+        readonly property bool selected: AgentUsage.provider === provider
+
+        width: (parent ? parent.width : 0) / 2 - 3 * root.s
+        height: 24 * root.s
+        color: providerTab.selected ? Qt.alpha(Theme.verm, 0.18) : Qt.alpha(Theme.bright, 0.05)
+        border.width: 1
+        border.color: providerTab.selected ? Theme.verm : Theme.hair
+
+        Text {
+            anchors.centerIn: parent
+            text: providerTab.label
+            color: providerTab.selected ? Theme.cream : Theme.dim
+            font.family: Theme.font
+            font.pixelSize: 9.5 * root.s
+            font.weight: providerTab.selected ? Font.DemiBold : Font.Medium
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: 1.2 * root.s
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: AgentUsage.selectProvider(providerTab.provider)
+        }
     }
 
     // one rate-limit window: eyebrow label + hero percent, a thin meter bar,
@@ -310,7 +337,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "CLAUDE CODE"
+                    text: AgentUsage.providerName.toUpperCase()
                     color: Theme.subtle
                     font.family: Theme.font
                     font.pixelSize: 10 * root.s
@@ -363,6 +390,14 @@ Item {
             }
         }
 
+        Row {
+            width: parent.width
+            spacing: 6 * root.s
+
+            ProviderTab { provider: "claude"; label: "Claude" }
+            ProviderTab { provider: "codex"; label: "Codex" }
+        }
+
         Text {
             visible: text.length > 0
             width: parent.width
@@ -381,13 +416,13 @@ Item {
 
             SectionHeader { text: "LIMITS" }
             LimitRow {
-                label: "Session (5-hour)"
+                label: AgentUsage.sessionLabel
                 percent: AgentUsage.sessionPercent
                 resetAtMs: AgentUsage.sessionResetsAtMs
                 warn: AgentUsage.sessionPercent > 80
             }
             LimitRow {
-                label: "Weekly (7-day)"
+                label: AgentUsage.weeklyLabel
                 percent: AgentUsage.weeklyPercent
                 resetAtMs: AgentUsage.weeklyResetsAtMs
                 warn: AgentUsage.weeklyPercent > 80
@@ -454,7 +489,7 @@ Item {
                     width: modelSection.width
                     name: modelData.name
                     total: modelData.total
-                    share: modelData.total / Math.max(1, AgentUsage.modelUsage[0].total)
+                    share: modelData.total / Math.max(1, AgentUsage.modelUsage.length > 0 ? AgentUsage.modelUsage[0].total : 1)
                 }
             }
         }

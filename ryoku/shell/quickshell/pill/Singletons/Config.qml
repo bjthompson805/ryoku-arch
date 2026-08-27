@@ -58,7 +58,7 @@ Singleton {
     // volume in the status cluster (panel backlight, vibrance, any external
     // ddc monitor) -- everywhere barShowStatus appears. named "display" rather
     // than "brightness" since it covers more than just the backlight level.
-    // barShowAgentUsage gates the Claude Code usage readout, same reach as
+    // barShowAgentUsage gates the AI-agent usage readout, same reach as
     // barShowStats (noctalia/nacre/flat).
     property alias barEnabled:            adapter.barEnabled
     property alias barPosition:           adapter.barPosition
