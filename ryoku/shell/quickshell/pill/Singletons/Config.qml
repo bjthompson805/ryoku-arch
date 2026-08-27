@@ -257,6 +257,15 @@ Singleton {
 
     // general.json owns clock24h and weatherLocation/weatherUnit (Desktop ->
     // General settings write them); read only.
+    //
+    // generalReady flips once this FileView's async load settles (success or
+    // failure): weatherLocation reads "" until then regardless of blockLoading
+    // (that flag only forces a synchronous wait on an explicit text()/data()
+    // call, not on the JsonAdapter's own property population), which is
+    // indistinguishable from a deliberately-blank (auto/IP) location -- pill's
+    // Weather.qml checks this before treating an empty weatherLocation as final.
+    property bool generalReady: false
+
     FileView {
         id: generalFile
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/general.json"
@@ -264,6 +273,8 @@ Singleton {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
+        onLoaded: root.generalReady = true
+        onLoadFailed: root.generalReady = true
         JsonAdapter {
             id: generalAdapter
             property bool clock24h: true

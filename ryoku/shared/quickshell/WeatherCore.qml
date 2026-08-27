@@ -67,6 +67,12 @@ Singleton {
     property real lon: 0
     property bool located: false
 
+    // true while an IP lookup or (pill's override) a geocode is in flight.
+    // resolveLocation() queues instead of overlapping requests -- see
+    // pill/Singletons/Weather.qml's header comment for the race this closes.
+    property bool locating: false
+    property bool pendingLocate: false
+
     // the unit a fetch was requested in, so applyForecast formats with the SAME
     // unit the data came back in even if the setting changed mid-request; a unit
     // change while a fetch is in flight queues one more via pendingFetch.
@@ -108,6 +114,10 @@ Singleton {
     // Weather.qml overrides this to try an explicit configured location
     // (geocoded) first, falling back to _geolocateByIp() for the rest.
     function resolveLocation() {
+        if (root.locating) {
+            root.pendingLocate = true;
+            return;
+        }
         var c = Model.parseJson(locCache.text());
         if (c && typeof c.lat === "number" && typeof c.lon === "number") {
             root.city = c.city || "";
@@ -133,7 +143,20 @@ Singleton {
     // QML, only through an exposed function call. ----------------------------
 
     function _geolocateByIp() {
+        root.locating = true;
         ipProc.running = true;
+    }
+
+    // common end-of-request hook for both ipProc and (pill's override's) geoProc --
+    // called unconditionally, success or failure, so a queued resolveLocation()
+    // (from a config change that arrived mid-request) always gets its turn instead
+    // of racing the in-flight request and possibly overwriting its result.
+    function _locateFinished() {
+        root.locating = false;
+        if (root.pendingLocate) {
+            root.pendingLocate = false;
+            root.resolveLocation();
+        }
     }
 
     function _readLocFile() {
@@ -187,6 +210,7 @@ Singleton {
                     root.writeLoc();
                     root.fetchWeather();
                 }
+                root._locateFinished();
             }
         }
     }
