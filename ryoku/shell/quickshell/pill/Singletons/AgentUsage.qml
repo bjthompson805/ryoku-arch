@@ -13,8 +13,8 @@ Singleton {
     property string provider: "claude"
     readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku"
 
-    readonly property var source: provider === "codex" ? codex : claude
-    readonly property string providerName: provider === "codex" ? "Codex" : "Claude Code"
+    readonly property var source: provider === "gemini" ? gemini : (provider === "codex" ? codex : claude)
+    readonly property string providerName: provider === "gemini" ? "Gemini" : (provider === "codex" ? "Codex" : "Claude Code")
     readonly property string sessionLabel: source.sessionLabel
     readonly property string weeklyLabel: source.weeklyLabel
     readonly property bool available: source.available
@@ -34,14 +34,16 @@ Singleton {
 
     ClaudeUsage { id: claude }
     CodexUsage { id: codex }
+    GeminiUsage { id: gemini }
 
     function _syncActive() {
         claude.active = root.active && root.provider === "claude";
         codex.active = root.active && root.provider === "codex";
+        gemini.active = root.active && root.provider === "gemini";
     }
 
     function selectProvider(name) {
-        if (name !== "claude" && name !== "codex")
+        if (name !== "claude" && name !== "codex" && name !== "gemini")
             return;
         if (root.provider !== name) {
             root.provider = name;
@@ -71,7 +73,7 @@ Singleton {
     onProviderChanged: root._syncActive()
     Component.onCompleted: {
         var saved = selectedProviderFile.text().trim();
-        if (saved === "claude" || saved === "codex")
+        if (saved === "claude" || saved === "codex" || saved === "gemini")
             root.provider = saved;
         root._syncActive();
     }

@@ -54,7 +54,7 @@ var entries = [
     { section: "shell", tab: "bar", label: "Now playing (bar)", highlight: "bar_content_media", keywords: ["media", "music", "now playing", "bar"] },
     { section: "shell", tab: "bar", label: "Network speed (bar)", highlight: "bar_content_netspeed", keywords: ["network", "speed", "wifi", "bar", "bandwidth"] },
     { section: "shell", tab: "bar", label: "System stats (bar)", highlight: "bar_content_stats", keywords: ["cpu", "ram", "memory", "temp", "temperature", "stats", "bar"] },
-    { section: "shell", tab: "bar", label: "Agent usage (bar)", highlight: "bar_content_agent", keywords: ["claude", "agent", "usage", "ai", "bar"] },
+    { section: "shell", tab: "bar", label: "Agent usage (bar)", highlight: "bar_content_agent", keywords: ["claude", "codex", "gemini", "antigravity", "agent", "usage", "ai", "bar"] },
     { section: "shell", tab: "bar", label: "Status glyphs", highlight: "bar_content_status", keywords: ["status", "network", "battery", "inbox", "icons", "bar"] },
     { section: "shell", tab: "bar", label: "Weather (bar)", highlight: "bar_content_weather", keywords: ["weather", "bar", "temperature", "condition"] },
     { section: "shell", tab: "bar", label: "Display (bar)", highlight: "bar_content_display", keywords: ["display", "brightness", "backlight", "vibrance", "bar"] },

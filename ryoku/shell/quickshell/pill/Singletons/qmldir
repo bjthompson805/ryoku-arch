@@ -39,3 +39,5 @@ singleton Session Session.qml
 singleton AgentUsage AgentUsage.qml
 ClaudeUsage ClaudeUsage.qml
 CodexUsage CodexUsage.qml
+GeminiUsage GeminiUsage.qml
+

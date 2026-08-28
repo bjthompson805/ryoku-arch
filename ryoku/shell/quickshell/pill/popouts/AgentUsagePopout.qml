@@ -109,7 +109,7 @@ Item {
         property string label: ""
         readonly property bool selected: AgentUsage.provider === provider
 
-        width: (parent ? parent.width : 0) / 2 - 3 * root.s
+        width: (parent ? (parent.width - 12 * root.s) / 3 : 0)
         height: 24 * root.s
         color: providerTab.selected ? Qt.alpha(Theme.verm, 0.18) : Qt.alpha(Theme.bright, 0.05)
         border.width: 1
@@ -396,6 +396,7 @@ Item {
 
             ProviderTab { provider: "claude"; label: "Claude" }
             ProviderTab { provider: "codex"; label: "Codex" }
+            ProviderTab { provider: "gemini"; label: "Gemini" }
         }
 
         Text {
