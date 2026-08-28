@@ -3,8 +3,9 @@ import Quickshell
 import Quickshell.Io
 
 // Gemini / Antigravity usage source for the bar's agent-usage readout.
-// Estimates session (5-hour) and weekly (7-day) token consumption, limits, and
-// model breakdown by scanning local Antigravity CLI transcripts in ~/.gemini/antigravity-cli.
+// Probes the official Antigravity CLI `/usage` figures for exact server-side
+// session (5-hour) and weekly (7-day) rate-limit percentages and reset countdowns,
+// while scanning local transcripts for the token-by-day and token-by-model breakdown.
 Item {
     id: root
     visible: false
@@ -35,31 +36,40 @@ Item {
     readonly property int manualCooldownMs: 5000
     property real lastAttemptMs: 0
     property real lastLocalStatsMs: 0
-    readonly property bool refreshing: scanProc.running
+    readonly property bool refreshing: probeProc.running || scanProc.running
 
     function refresh() {
-        root._refreshUsage(false);
+        root._refreshLimits(false);
+        root._refreshLocalStats();
     }
 
     function refreshNow() {
-        root._refreshUsage(true);
+        root._refreshLimits(true);
+        root._refreshLocalStats();
     }
 
     function refreshIfStale() {
         var now = Date.now();
         if (now - root.lastCheckedMs >= 120000)
-            root._refreshUsage(false);
+            root._refreshLimits(false);
+        if (now - root.lastLocalStatsMs >= 900000)
+            root._refreshLocalStats();
     }
 
-    function _refreshUsage(force) {
-        if (scanProc.running)
+    function _refreshLimits(force) {
+        if (probeProc.running)
             return;
         var now = Date.now();
         var floor = force ? root.manualCooldownMs : root.minRetryIntervalMs;
         if (now - root.lastAttemptMs < floor)
             return;
         root.lastAttemptMs = now;
-        scanProc.running = true;
+        probeProc.running = true;
+    }
+
+    function _refreshLocalStats() {
+        if (!scanProc.running)
+            scanProc.running = true;
     }
 
     function formatTokenCount(n) {
@@ -76,6 +86,27 @@ Item {
         return String(id);
     }
 
+    function _applyLimits(r) {
+        root.lastCheckedMs = Date.now();
+        root.planLabel = r.planLabel || "Pro";
+        root.sessionPercent = r.sessionPercent || 0;
+        root.weeklyPercent = r.weeklyPercent || 0;
+        root.sessionResetsAtMs = r.sessionResetsAtMs !== undefined ? r.sessionResetsAtMs : -1;
+        root.weeklyResetsAtMs = r.weeklyResetsAtMs !== undefined ? r.weeklyResetsAtMs : -1;
+        root.available = true;
+        root.everHadLimits = true;
+        root.lastProbeFailed = false;
+        root.lastUpdatedMs = root.lastCheckedMs;
+        root._writeCache();
+    }
+
+    function _applyLimitsError(message) {
+        root.available = root.everHadLimits;
+        root.lastProbeFailed = true;
+        root.lastCheckedMs = Date.now();
+        root.authHelpText = message || "Couldn't reach Antigravity usage endpoint.";
+    }
+
     function _recentDateStrings() {
         var out = [];
         var now = new Date();
@@ -86,47 +117,22 @@ Item {
         return out;
     }
 
-    function _applyUsage(r) {
-        root.lastCheckedMs = Date.now();
-        if (!r || !r.hasData) {
-            root.available = root.everHadLimits;
-            root.lastProbeFailed = true;
-            root.authHelpText = "Run `agy` to start Antigravity sessions.";
-            return;
-        }
-
-        root.planLabel = r.planLabel || "Pro";
-        root.sessionPercent = r.sessionPercent || 0;
-        root.weeklyPercent = r.weeklyPercent || 0;
-        root.sessionResetsAtMs = r.sessionResetsAtMs !== undefined ? r.sessionResetsAtMs : -1;
-        root.weeklyResetsAtMs = r.weeklyResetsAtMs !== undefined ? r.weeklyResetsAtMs : -1;
-        root.available = true;
-        root.everHadLimits = true;
-        root.lastProbeFailed = false;
-        root.lastUpdatedMs = root.lastCheckedMs;
-
+    function _applyLocalStats(byDay, byModel) {
         var dates = root._recentDateStrings();
         var days = [];
         for (var i = 0; i < dates.length; i++)
-            days.push({ date: dates[i], tokens: Number((r.byDay || {})[dates[i]] || 0) });
+            days.push({ date: dates[i], tokens: Number((byDay || {})[dates[i]] || 0) });
         root.recentDays = days;
 
         var models = [];
-        for (var id in (r.byModel || {}))
-            models.push({ id: id, name: root.friendlyModelName(id), total: Number(r.byModel[id] || 0) });
+        for (var id in (byModel || {}))
+            models.push({ id: id, name: root.friendlyModelName(id), total: Number(byModel[id] || 0) });
         models.sort(function(a, b) { return b.total - a.total; });
         root.modelUsage = models.slice(0, 4);
 
         root.localStatsAvailable = true;
-        root.lastLocalStatsMs = root.lastCheckedMs;
+        root.lastLocalStatsMs = Date.now();
         root._writeCache();
-    }
-
-    function _applyUsageError(message) {
-        root.available = root.everHadLimits;
-        root.lastProbeFailed = true;
-        root.lastCheckedMs = Date.now();
-        root.authHelpText = message || "Couldn't read Antigravity session data.";
     }
 
     function _writeCache() {
@@ -178,56 +184,86 @@ Item {
         printErrors: false
     }
 
+    // Rate-limit probe: reads official server quotas via `agy --print "/usage"`
     Process {
-        id: scanProc
+        id: probeProc
         command: ["bash", "-c",
             "dir=\"$0\"\n" +
             "plan=\"${GEMINI_PLAN:-${GOOGLE_AI_PLAN:-}}\"\n" +
             "if [ -z \"$plan\" ] && [ -f \"$dir/settings.json\" ]; then\n" +
-            "  plan=$(jq -r '.plan // .tier // empty' \"$dir/settings.json\" 2>/dev/null)\n" +
+            "    plan=$(jq -r '.plan // .tier // empty' \"$dir/settings.json\" 2>/dev/null)\n" +
             "fi\n" +
             "if [ -z \"$plan\" ] && [ -f \"$dir/cache/onboarding.json\" ]; then\n" +
-            "  if [ \"$(jq -r '.enterpriseOnboardingComplete // false' \"$dir/cache/onboarding.json\" 2>/dev/null)\" = \"true\" ]; then\n" +
-            "    plan=\"Enterprise\"\n" +
-            "  fi\n" +
+            "    if [ \"$(jq -r '.enterpriseOnboardingComplete // false' \"$dir/cache/onboarding.json\" 2>/dev/null)\" = \"true\" ]; then\n" +
+            "        plan=\"Enterprise\"\n" +
+            "    fi\n" +
             "fi\n" +
-            "now_s=$(date +%s)\n" +
-            "five_h_ago_s=$((now_s - 18000))\n" +
-            "seven_d_ago_s=$((now_s - 604800))\n" +
-            "find \"$dir/brain\" -type f -name 'transcript*.jsonl' -mtime -8 -print0 2>/dev/null" +
+            "if [ -z \"$plan\" ]; then\n" +
+            "    plan=\"Pro\"\n" +
+            "fi\n" +
+            "output=$(agy --print \"/usage\" 2>/dev/null)\n" +
+            "if [ -z \"$output\" ]; then\n" +
+            "    echo '{\"success\": false}'\n" +
+            "    exit 0\n" +
+            "fi\n" +
+            "echo \"$output\" | python3 -c '\n" +
+            "import sys, re, json\n" +
+            "text = sys.stdin.read()\n" +
+            "res = {\"success\": False, \"planLabel\": sys.argv[1], \"sessionPercent\": 0, \"weeklyPercent\": 0, \"sessionResetsAtMs\": -1, \"weeklyResetsAtMs\": -1}\n" +
+            "for line in text.splitlines():\n" +
+            "    m = re.search(r\"Gemini Models\\s+(Weekly Limit Remaining|Five Hour Limit Remaining)\\s+(\\d+)%\\s+(\\S+)\", line)\n" +
+            "    if m:\n" +
+            "        res[\"success\"] = True\n" +
+            "        limit_type, remaining_pct, reset_time = m.groups()\n" +
+            "        used_pct = max(0, min(100, 100 - int(remaining_pct)))\n" +
+            "        try:\n" +
+            "            from datetime import datetime\n" +
+            "            reset_ts = int(datetime.fromisoformat(reset_time.replace(\"Z\", \"+00:00\")).timestamp() * 1000)\n" +
+            "        except Exception: reset_ts = -1\n" +
+            "        if \"Five Hour\" in limit_type:\n" +
+            "            res[\"sessionPercent\"] = used_pct\n" +
+            "            res[\"sessionResetsAtMs\"] = reset_ts\n" +
+            "        elif \"Weekly\" in limit_type:\n" +
+            "            res[\"weeklyPercent\"] = used_pct\n" +
+            "            res[\"weeklyResetsAtMs\"] = reset_ts\n" +
+            "print(json.dumps(res))\n" +
+            "' \"$plan\"",
+            root.geminiHome
+        ]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var r = JSON.parse(this.text);
+                    if (r && r.success) {
+                        root._applyLimits(r);
+                    } else {
+                        root._applyLimitsError("Run `agy` to see usage.");
+                    }
+                } catch (e) {
+                    root._applyLimitsError("Couldn't parse Antigravity limits.");
+                }
+            }
+        }
+    }
+
+    // Local transcript scan: tokens by day & tokens by model
+    Process {
+        id: scanProc
+        command: ["bash", "-c",
+            "find \"$0/brain\" -type f -name 'transcript*.jsonl' -mtime -8 -print0 2>/dev/null" +
             " | xargs -0 -r cat 2>/dev/null" +
             " | jq -c 'select(.created_at != null and (.type == \"PLANNER_RESPONSE\" or .type == \"USER_INPUT\" or .type == \"GENERIC\")) | {" +
             "     day: (.created_at[0:10])," +
-            "     ts: (.created_at | fromdateiso8601? // 0)," +
             "     type: .type," +
             "     model: \"Gemini 3.7 Flash\"," +
             "     tokens: (((((.content // \"\") | length) + ((.thinking // \"\") | length)) / 3.8 | floor) + (if .type == \"PLANNER_RESPONSE\" then 500 else 0 end))" +
             "   }' 2>/dev/null" +
-            " | jq -s --argjson now \"$now_s\" --argjson five_h \"$five_h_ago_s\" --argjson seven_d \"$seven_d_ago_s\" --arg plan \"$plan\" '" +
+            " | jq -s '" +
             "   (if length == 0 then [] else . end) as $rows |" +
             "   ($rows | map(select(.tokens > 0))) as $valid |" +
-            "   ($valid | map(select(.ts >= $five_h))) as $s5h |" +
-            "   ($valid | map(select(.ts >= $seven_d))) as $s7d |" +
-            "   ($s5h | map(.tokens) | add // 0) as $sessionTokens |" +
-            "   ($s7d | map(.tokens) | add // 0) as $weeklyTokens |" +
-            "   ($s5h | map(.ts) | min // null) as $min5h |" +
-            "   ($s7d | map(.ts) | min // null) as $min7d |" +
-            "   (if ($plan | length) > 0 then $plan elif ($valid | any((.model // \"\") | test(\"ultra\"; \"i\"))) then \"Ultra\" else \"Pro\" end) as $resolvedPlan |" +
-            "   (if $resolvedPlan == \"Ultra\" then {s: 2000000, w: 20000000}" +
-            "    elif $resolvedPlan == \"Enterprise\" then {s: 5000000, w: 50000000}" +
-            "    elif $resolvedPlan == \"Free\" then {s: 100000, w: 1000000}" +
-            "    else {s: 500000, w: 5000000} end) as $cap |" +
             "   {" +
             "     byDay: ($valid | group_by(.day) | map({key: .[0].day, value: (map(.tokens) | add)}) | from_entries)," +
-            "     byModel: ($valid | group_by(.model) | map({key: .[0].model, value: (map(.tokens) | add)}) | from_entries)," +
-            "     sessionTokens: $sessionTokens," +
-            "     weeklyTokens: $weeklyTokens," +
-            "     sessionPercent: ([($sessionTokens / ($cap.s / 100)) | round, 100] | min)," +
-            "     weeklyPercent: ([($weeklyTokens / ($cap.w / 100)) | round, 100] | min)," +
-            "     sessionResetsAtMs: (if $min5h != null then (($min5h + 18000) * 1000) else -1 end)," +
-            "     weeklyResetsAtMs: (if $min7d != null then (($min7d + 604800) * 1000) else -1 end)," +
-            "     planLabel: $resolvedPlan," +
-            "     hasData: ($valid | length > 0)" +
+            "     byModel: ($valid | group_by(.model) | map({key: .[0].model, value: (map(.tokens) | add)}) | from_entries)" +
             "   }'",
             root.geminiHome
         ]
@@ -235,16 +271,23 @@ Item {
             onStreamFinished: {
                 try {
                     var r = JSON.parse(this.text);
-                    root._applyUsage(r);
-                } catch (e) {
-                    root._applyUsageError("Couldn't parse Antigravity session data.");
-                }
+                    root._applyLocalStats(r.byDay, r.byModel);
+                } catch (e) {}
             }
         }
     }
 
+    // Rate-limit probe polls every 2 minutes
     Timer {
         interval: 120000
+        repeat: true
+        running: root.active
+        onTriggered: root.refreshIfStale()
+    }
+
+    // Local transcript scan polls every 15 minutes
+    Timer {
+        interval: 900000
         repeat: true
         running: root.active
         onTriggered: root.refreshIfStale()
