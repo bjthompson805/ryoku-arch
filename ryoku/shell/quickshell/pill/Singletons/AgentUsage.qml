@@ -13,8 +13,8 @@ Singleton {
     property string provider: "claude"
     readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/ryoku"
 
-    readonly property var source: provider === "gemini" ? gemini : (provider === "codex" ? codex : claude)
-    readonly property string providerName: provider === "gemini" ? "Gemini" : (provider === "codex" ? "Codex" : "Claude Code")
+    readonly property var source: (provider === "antigravity" || provider === "gemini") ? antigravity : (provider === "codex" ? codex : claude)
+    readonly property string providerName: (provider === "antigravity" || provider === "gemini") ? "Antigravity" : (provider === "codex" ? "Codex" : "Claude Code")
     readonly property string sessionLabel: source.sessionLabel
     readonly property string weeklyLabel: source.weeklyLabel
     readonly property bool available: source.available
@@ -32,22 +32,29 @@ Singleton {
     readonly property var recentDays: source.recentDays
     readonly property var modelUsage: source.modelUsage
 
+    readonly property string antigravityModelGroup: antigravity.modelGroup
+
     ClaudeUsage { id: claude }
     CodexUsage { id: codex }
-    GeminiUsage { id: gemini }
+    AntigravityUsage { id: antigravity }
+
+    function selectAntigravityModelGroup(group) {
+        antigravity.selectModelGroup(group);
+    }
 
     function _syncActive() {
         claude.active = root.active && root.provider === "claude";
         codex.active = root.active && root.provider === "codex";
-        gemini.active = root.active && root.provider === "gemini";
+        antigravity.active = root.active && (root.provider === "antigravity" || root.provider === "gemini");
     }
 
     function selectProvider(name) {
-        if (name !== "claude" && name !== "codex" && name !== "gemini")
+        var p = name === "gemini" ? "antigravity" : name;
+        if (p !== "claude" && p !== "codex" && p !== "antigravity")
             return;
-        if (root.provider !== name) {
-            root.provider = name;
-            selectedProviderFile.setText(name);
+        if (root.provider !== p) {
+            root.provider = p;
+            selectedProviderFile.setText(p);
         }
         if (root.active)
             root.source.refreshIfStale();
@@ -73,7 +80,9 @@ Singleton {
     onProviderChanged: root._syncActive()
     Component.onCompleted: {
         var saved = selectedProviderFile.text().trim();
-        if (saved === "claude" || saved === "codex" || saved === "gemini")
+        if (saved === "gemini")
+            saved = "antigravity";
+        if (saved === "claude" || saved === "codex" || saved === "antigravity")
             root.provider = saved;
         root._syncActive();
     }

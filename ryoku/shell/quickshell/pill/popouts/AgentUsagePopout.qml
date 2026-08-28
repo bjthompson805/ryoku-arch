@@ -396,7 +396,63 @@ Item {
 
             ProviderTab { provider: "claude"; label: "Claude" }
             ProviderTab { provider: "codex"; label: "Codex" }
-            ProviderTab { provider: "gemini"; label: "Gemini" }
+            ProviderTab { provider: "antigravity"; label: "AGY" }
+        }
+
+        Row {
+            visible: AgentUsage.provider === "antigravity"
+            width: parent.width
+            spacing: 6 * root.s
+
+            Rectangle {
+                id: subTabGemini
+                readonly property bool selected: AgentUsage.antigravityModelGroup !== "claude_gpt"
+                width: (parent.width - 6 * root.s) / 2
+                height: 22 * root.s
+                color: selected ? Qt.alpha(Theme.verm, 0.18) : Qt.alpha(Theme.bright, 0.04)
+                border.width: 1
+                border.color: selected ? Theme.verm : Theme.hair
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Gemini Models"
+                    color: subTabGemini.selected ? Theme.cream : Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 9 * root.s
+                    font.weight: subTabGemini.selected ? Font.DemiBold : Font.Medium
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: AgentUsage.selectAntigravityModelGroup("gemini")
+                }
+            }
+
+            Rectangle {
+                id: subTabPartner
+                readonly property bool selected: AgentUsage.antigravityModelGroup === "claude_gpt"
+                width: (parent.width - 6 * root.s) / 2
+                height: 22 * root.s
+                color: selected ? Qt.alpha(Theme.verm, 0.18) : Qt.alpha(Theme.bright, 0.04)
+                border.width: 1
+                border.color: selected ? Theme.verm : Theme.hair
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Claude & GPT"
+                    color: subTabPartner.selected ? Theme.cream : Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 9 * root.s
+                    font.weight: subTabPartner.selected ? Font.DemiBold : Font.Medium
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: AgentUsage.selectAntigravityModelGroup("claude_gpt")
+                }
+            }
         }
 
         Text {

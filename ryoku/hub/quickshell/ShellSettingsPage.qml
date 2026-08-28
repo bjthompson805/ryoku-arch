@@ -900,7 +900,7 @@ Item {
                         onToggled: (v) => page.edit("barShowStats", v)
                     }
                     ToggleRow {
-                        width: parent.width; label: "Agent usage (Claude, Codex, Gemini)"
+                        width: parent.width; label: "Agent usage (Claude, Codex, Antigravity)"
                         highlightId: "bar_content_agent"
                         visible: ["noctalia", "nacre", "inir", "aurora", "angel"].indexOf(draft.barStyle) >= 0
                         checked: draft.barShowAgentUsage

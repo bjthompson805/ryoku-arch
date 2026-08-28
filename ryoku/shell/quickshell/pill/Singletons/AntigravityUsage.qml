@@ -2,10 +2,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Gemini / Antigravity usage source for the bar's agent-usage readout.
+// Antigravity (AGY) usage source for the bar's agent-usage readout.
 // Probes the official Antigravity CLI `/usage` figures for exact server-side
-// session (5-hour) and weekly (7-day) rate-limit percentages and reset countdowns,
-// while scanning local transcripts for the token-by-day and token-by-model breakdown.
+// rate-limit percentages and reset countdowns across two separate quota pools:
+// 1) Gemini Models (first-party)
+// 2) Claude & GPT models (partner models)
+// Also scans local transcripts for token-by-day and token-by-model breakdown.
 Item {
     id: root
     visible: false
@@ -20,12 +22,27 @@ Item {
     property real lastCheckedMs: 0
     property real lastUpdatedMs: 0
     property string planLabel: "Pro"
+
+    property string modelGroup: "gemini" // "gemini" | "claude_gpt"
+
     readonly property string sessionLabel: "Session (5-hour)"
     readonly property string weeklyLabel: "Weekly (7-day)"
-    property int sessionPercent: 0
-    property int weeklyPercent: 0
-    property real sessionResetsAtMs: -1
-    property real weeklyResetsAtMs: -1
+
+    property int geminiSessionPercent: 0
+    property int geminiWeeklyPercent: 0
+    property real geminiSessionResetsAtMs: -1
+    property real geminiWeeklyResetsAtMs: -1
+
+    property int claudeGptSessionPercent: 0
+    property int claudeGptWeeklyPercent: 0
+    property real claudeGptSessionResetsAtMs: -1
+    property real claudeGptWeeklyResetsAtMs: -1
+
+    readonly property int sessionPercent: modelGroup === "claude_gpt" ? claudeGptSessionPercent : geminiSessionPercent
+    readonly property int weeklyPercent: modelGroup === "claude_gpt" ? claudeGptWeeklyPercent : geminiWeeklyPercent
+    readonly property real sessionResetsAtMs: modelGroup === "claude_gpt" ? claudeGptSessionResetsAtMs : geminiSessionResetsAtMs
+    readonly property real weeklyResetsAtMs: modelGroup === "claude_gpt" ? claudeGptWeeklyResetsAtMs : geminiWeeklyResetsAtMs
+
     property string authHelpText: "Run `agy` to start Antigravity sessions."
 
     property bool localStatsAvailable: false
@@ -37,6 +54,15 @@ Item {
     property real lastAttemptMs: 0
     property real lastLocalStatsMs: 0
     readonly property bool refreshing: probeProc.running || scanProc.running
+
+    function selectModelGroup(group) {
+        if (group !== "gemini" && group !== "claude_gpt")
+            return;
+        if (root.modelGroup !== group) {
+            root.modelGroup = group;
+            root._writeCache();
+        }
+    }
 
     function refresh() {
         root._refreshLimits(false);
@@ -89,10 +115,21 @@ Item {
     function _applyLimits(r) {
         root.lastCheckedMs = Date.now();
         root.planLabel = r.planLabel || "Pro";
-        root.sessionPercent = r.sessionPercent || 0;
-        root.weeklyPercent = r.weeklyPercent || 0;
-        root.sessionResetsAtMs = r.sessionResetsAtMs !== undefined ? r.sessionResetsAtMs : -1;
-        root.weeklyResetsAtMs = r.weeklyResetsAtMs !== undefined ? r.weeklyResetsAtMs : -1;
+
+        if (r.gemini) {
+            root.geminiSessionPercent = r.gemini.sessionPercent || 0;
+            root.geminiWeeklyPercent = r.gemini.weeklyPercent || 0;
+            root.geminiSessionResetsAtMs = r.gemini.sessionResetsAtMs !== undefined ? r.gemini.sessionResetsAtMs : -1;
+            root.geminiWeeklyResetsAtMs = r.gemini.weeklyResetsAtMs !== undefined ? r.gemini.weeklyResetsAtMs : -1;
+        }
+
+        if (r.claudeGpt) {
+            root.claudeGptSessionPercent = r.claudeGpt.sessionPercent || 0;
+            root.claudeGptWeeklyPercent = r.claudeGpt.weeklyPercent || 0;
+            root.claudeGptSessionResetsAtMs = r.claudeGpt.sessionResetsAtMs !== undefined ? r.claudeGpt.sessionResetsAtMs : -1;
+            root.claudeGptWeeklyResetsAtMs = r.claudeGpt.weeklyResetsAtMs !== undefined ? r.claudeGpt.weeklyResetsAtMs : -1;
+        }
+
         root.available = true;
         root.everHadLimits = true;
         root.lastProbeFailed = false;
@@ -138,10 +175,15 @@ Item {
     function _writeCache() {
         cacheFile.setText(JSON.stringify({
             planLabel: root.planLabel,
-            sessionPercent: root.sessionPercent,
-            weeklyPercent: root.weeklyPercent,
-            sessionResetsAtMs: root.sessionResetsAtMs,
-            weeklyResetsAtMs: root.weeklyResetsAtMs,
+            modelGroup: root.modelGroup,
+            geminiSessionPercent: root.geminiSessionPercent,
+            geminiWeeklyPercent: root.geminiWeeklyPercent,
+            geminiSessionResetsAtMs: root.geminiSessionResetsAtMs,
+            geminiWeeklyResetsAtMs: root.geminiWeeklyResetsAtMs,
+            claudeGptSessionPercent: root.claudeGptSessionPercent,
+            claudeGptWeeklyPercent: root.claudeGptWeeklyPercent,
+            claudeGptSessionResetsAtMs: root.claudeGptSessionResetsAtMs,
+            claudeGptWeeklyResetsAtMs: root.claudeGptWeeklyResetsAtMs,
             lastUpdatedMs: root.lastUpdatedMs,
             recentDays: root.recentDays,
             modelUsage: root.modelUsage
@@ -152,12 +194,17 @@ Item {
         try {
             var c = JSON.parse(cacheFile.text());
             root.planLabel = c.planLabel || "Pro";
-            root.sessionPercent = c.sessionPercent || 0;
-            root.weeklyPercent = c.weeklyPercent || 0;
-            root.sessionResetsAtMs = c.sessionResetsAtMs === undefined ? -1 : c.sessionResetsAtMs;
-            root.weeklyResetsAtMs = c.weeklyResetsAtMs === undefined ? -1 : c.weeklyResetsAtMs;
+            root.modelGroup = c.modelGroup === "claude_gpt" ? "claude_gpt" : "gemini";
+            root.geminiSessionPercent = c.geminiSessionPercent || 0;
+            root.geminiWeeklyPercent = c.geminiWeeklyPercent || 0;
+            root.geminiSessionResetsAtMs = c.geminiSessionResetsAtMs === undefined ? -1 : c.geminiSessionResetsAtMs;
+            root.geminiWeeklyResetsAtMs = c.geminiWeeklyResetsAtMs === undefined ? -1 : c.geminiWeeklyResetsAtMs;
+            root.claudeGptSessionPercent = c.claudeGptSessionPercent || 0;
+            root.claudeGptWeeklyPercent = c.claudeGptWeeklyPercent || 0;
+            root.claudeGptSessionResetsAtMs = c.claudeGptSessionResetsAtMs === undefined ? -1 : c.claudeGptSessionResetsAtMs;
+            root.claudeGptWeeklyResetsAtMs = c.claudeGptWeeklyResetsAtMs === undefined ? -1 : c.claudeGptWeeklyResetsAtMs;
             root.lastUpdatedMs = c.lastUpdatedMs || 0;
-            if (c.sessionPercent !== undefined || c.weeklyPercent !== undefined) {
+            if (c.geminiSessionPercent !== undefined || c.claudeGptSessionPercent !== undefined) {
                 root.available = true;
                 root.everHadLimits = true;
             }
@@ -179,7 +226,7 @@ Item {
 
     FileView {
         id: cacheFile
-        path: root.stateDir + "/agent-usage-gemini.json"
+        path: root.stateDir + "/agent-usage-antigravity.json"
         blockLoading: true
         printErrors: false
     }
@@ -209,23 +256,24 @@ Item {
             "echo \"$output\" | python3 -c '\n" +
             "import sys, re, json\n" +
             "text = sys.stdin.read()\n" +
-            "res = {\"success\": False, \"planLabel\": sys.argv[1], \"sessionPercent\": 0, \"weeklyPercent\": 0, \"sessionResetsAtMs\": -1, \"weeklyResetsAtMs\": -1}\n" +
+            "res = {\"success\": False, \"planLabel\": sys.argv[1], \"gemini\": {\"sessionPercent\": 0, \"weeklyPercent\": 0, \"sessionResetsAtMs\": -1, \"weeklyResetsAtMs\": -1}, \"claudeGpt\": {\"sessionPercent\": 0, \"weeklyPercent\": 0, \"sessionResetsAtMs\": -1, \"weeklyResetsAtMs\": -1}}\n" +
             "for line in text.splitlines():\n" +
-            "    m = re.search(r\"Gemini Models\\s+(Weekly Limit Remaining|Five Hour Limit Remaining)\\s+(\\d+)%\\s+(\\S+)\", line)\n" +
+            "    m = re.search(r\"(Gemini Models|Claude and GPT models)\\s+(Weekly Limit Remaining|Five Hour Limit Remaining)\\s+(\\d+)%\\s+(\\S+)\", line)\n" +
             "    if m:\n" +
             "        res[\"success\"] = True\n" +
-            "        limit_type, remaining_pct, reset_time = m.groups()\n" +
+            "        model_group, limit_type, remaining_pct, reset_time = m.groups()\n" +
             "        used_pct = max(0, min(100, 100 - int(remaining_pct)))\n" +
             "        try:\n" +
             "            from datetime import datetime\n" +
             "            reset_ts = int(datetime.fromisoformat(reset_time.replace(\"Z\", \"+00:00\")).timestamp() * 1000)\n" +
             "        except Exception: reset_ts = -1\n" +
+            "        target = res[\"gemini\"] if \"Gemini\" in model_group else res[\"claudeGpt\"]\n" +
             "        if \"Five Hour\" in limit_type:\n" +
-            "            res[\"sessionPercent\"] = used_pct\n" +
-            "            res[\"sessionResetsAtMs\"] = reset_ts\n" +
+            "            target[\"sessionPercent\"] = used_pct\n" +
+            "            target[\"sessionResetsAtMs\"] = reset_ts\n" +
             "        elif \"Weekly\" in limit_type:\n" +
-            "            res[\"weeklyPercent\"] = used_pct\n" +
-            "            res[\"weeklyResetsAtMs\"] = reset_ts\n" +
+            "            target[\"weeklyPercent\"] = used_pct\n" +
+            "            target[\"weeklyResetsAtMs\"] = reset_ts\n" +
             "print(json.dumps(res))\n" +
             "' \"$plan\"",
             root.geminiHome
