@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Fixed
+- **OSD popups (Caps/Num/Scroll Lock, backlight, volume) now display over
+  fullscreen windows.** Removed fullscreen suppression on the overlay layer
+  window so passive OSD notifications remain visible in fullscreen.
 - **Deploying the shell no longer temporarily removes the live Quickshell
   configuration tree.** The complete replacement is staged first; a live deploy
   stops the watcher before swapping that tree, then starts the daemon against

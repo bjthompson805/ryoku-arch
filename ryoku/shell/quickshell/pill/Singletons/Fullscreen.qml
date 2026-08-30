@@ -15,9 +15,9 @@ import Quickshell.Hyprland
 // resync yields nothing and only the focused monitor ever learns a window went
 // fullscreen. On a single panel focused and active coincide and it looks fine;
 // on a second monitor the frame and bar stay drawn over the fullscreen window.
-// Probe j/workspaces ourselves and key it by workspace id; the pill and the OSD
-// look up their monitor's active workspace here instead of trusting the
-// resync-derived property.
+// Probe j/workspaces ourselves and key it by workspace id; the pill looks up
+// its monitor's active workspace here instead of trusting the resync-derived
+// property.
 Singleton {
     id: root
 

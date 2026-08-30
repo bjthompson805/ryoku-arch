@@ -3,14 +3,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Hyprland
 import "Singletons"
 
-// Volume / brightness OSD in its own small layer window, top-centre just
+// Volume / brightness / lock keys OSD in its own small layer window, top-centre just
 // below the bar. Re-homed from the floating pill: the Osd component still
-// drives its own flashing on volume/brightness change (via Pipewire), so this
-// window only maps while it flashes. Click-through, never takes focus, never
-// reserves space.
+// drives its own flashing on volume/brightness/lock key changes (via Pipewire,
+// Devices, and LockKeys), so this window only maps while it flashes. Click-through,
+// never takes focus, never reserves space, and displays over fullscreen windows.
 PanelWindow {
     id: win
 
@@ -25,17 +24,6 @@ PanelWindow {
     readonly property real frameLip: Math.max(0, Config.frameBorder - 50)
     readonly property real barVisibleH: frameLip + Config.barHeight * s
     readonly property real topInset: (barTop ? barVisibleH : frameLip) + 12 * s
-
-    // this monitor's visible workspace holds a fullscreen window: the whole
-    // shell hides then, so the OSD stays down too (suppressed clears its
-    // flashing). shares the hyprctl-backed Fullscreen map with the pill.
-    readonly property bool monFullscreen: {
-        var mons = Hyprland.monitors.values;
-        for (var i = 0; i < mons.length; i++)
-            if (mons[i].name === (modelData ? modelData.name : ""))
-                return mons[i].activeWorkspace ? (Fullscreen.byWs[mons[i].activeWorkspace.id] === true) : false;
-        return false;
-    }
 
     screen: modelData
     visible: osd.flashing
@@ -72,7 +60,6 @@ PanelWindow {
         anchors.leftMargin: 18 * win.s
         anchors.rightMargin: 18 * win.s
         s: win.s
-        suppressed: win.monFullscreen
     }
 
     // click-through: the OSD is a passive readout, never eats a press.
