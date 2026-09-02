@@ -26,7 +26,7 @@ hl.bind(mod .. " + Return",    hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + E",         hl.dsp.exec_cmd("nautilus"))
 hl.bind(mod .. " + B",         hl.dsp.exec_cmd("chromium"))
 hl.bind(mod .. " + ALT + C",   hl.dsp.exec_cmd("kcalc"))                       -- calculator (KCalc)
-hl.bind(mod .. " + ALT + N",   hl.dsp.exec_cmd("markdown-writer"))             -- markdown/RST viewer + writer
+hl.bind(mod .. " + ALT + N",   hl.dsp.exec_cmd("markdown-writer"))             -- Notepad (markdown-writer)
 hl.bind(mod .. " + N",         hl.dsp.exec_cmd("kitty -e nvim"))                -- neovim
 hl.bind(mod .. " + ALT + E",   hl.dsp.exec_cmd("kitty -e yazi"))               -- yazi file manager
 
