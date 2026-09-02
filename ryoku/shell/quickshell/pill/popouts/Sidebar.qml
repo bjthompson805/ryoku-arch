@@ -29,9 +29,9 @@ Item {
     property string pane: ""
     signal paneSelected(string key)
 
-    // the outer Profile/Stash tab, local to this sidebar (not persisted --
-    // it always opens back on Profile, the showcase tab).
-    property string topTab: "profile"
+    // the outer Profile/Stash tab, local to this sidebar (persisted via
+    // Config.sidebarLeftTab).
+    property string topTab: Config.sidebarLeftTab
 
     // true while a file drag is over the drop-accepting Stash pane, so the
     // shell can keep the sidebar open through a drag mid-grab.
@@ -95,7 +95,12 @@ Item {
             visible: tt.sel
         }
         HoverHandler { id: ttHov; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: root.topTab = tt.key }
+        TapHandler {
+            onTapped: {
+                Config.sidebarLeftTab = tt.key
+                Config.persist()
+            }
+        }
     }
 
     // ── header: the Profile / Stash tab strip ────────────────────────────

@@ -91,6 +91,7 @@ Singleton {
     // which panes each shows and their order; sidebarClickless opens on hover
     // (else click); sidebarWidth / sidebarCornerSize size the panel + corner.
     property alias sidebarLeftEnabled:  adapter.sidebarLeftEnabled
+    property alias sidebarLeftTab:      adapter.sidebarLeftTab
     property alias sidebarRightEnabled: adapter.sidebarRightEnabled
     property alias sidebarLeftPanes:    adapter.sidebarLeftPanes
     property alias sidebarRightPanes:   adapter.sidebarRightPanes
@@ -201,6 +202,7 @@ Singleton {
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
             property bool sidebarLeftEnabled: true
+            property string sidebarLeftTab: "profile"
             property bool sidebarRightEnabled: true
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]

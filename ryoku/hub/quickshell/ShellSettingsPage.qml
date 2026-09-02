@@ -24,7 +24,7 @@ Item {
         "barShowTitle", "barShowMedia", "barShowStatus", "barShowStats", "barShowNetSpeed", "barShowWeather", "barShowDisplay", "barShowAgentUsage", "barOccupiedWorkspaces", "barWorkspaceIcons",
         "islandEdge", "islandAlong", "islandHidden", "islandModules", "islandRadius",
         "fontFamily", "fontScale",
-        "sidebarLeftEnabled", "sidebarRightEnabled", "sidebarLeftPanes", "sidebarRightPanes",
+        "sidebarLeftEnabled", "sidebarLeftTab", "sidebarRightEnabled", "sidebarLeftPanes", "sidebarRightPanes",
         "sidebarClickless", "sidebarWidth", "sidebarCornerSize", "sidebarToggles"
     ]
     readonly property var vizKeys: [
@@ -97,7 +97,7 @@ Item {
         "barShowTitle": true, "barShowMedia": true, "barShowStatus": true, "barShowStats": true, "barShowNetSpeed": true, "barShowWeather": true, "barShowDisplay": true, "barShowAgentUsage": true, "barOccupiedWorkspaces": true, "barWorkspaceIcons": false,
         "islandEdge": "top", "islandAlong": -1, "islandHidden": false, "islandModules": ["workspaces", "clock", "date", "media"], "islandRadius": 17,
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
-        "sidebarLeftEnabled": true, "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
+        "sidebarLeftEnabled": true, "sidebarLeftTab": "profile", "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
         "sidebarClickless": true, "sidebarWidth": 340, "sidebarCornerSize": 34,
         "sidebarToggles": ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"],
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
@@ -157,6 +157,7 @@ Item {
         property string fontFamily: "JetBrainsMono Nerd Font"
         property real fontScale: 1.3
         property bool sidebarLeftEnabled: true
+        property string sidebarLeftTab: "profile"
         property bool sidebarRightEnabled: true
         property var sidebarLeftPanes: ["stash"]
         property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]
@@ -384,6 +385,7 @@ Item {
             property string fontFamily: "JetBrainsMono Nerd Font"
             property real fontScale: 1.3
             property bool sidebarLeftEnabled: true
+            property string sidebarLeftTab: "profile"
             property bool sidebarRightEnabled: true
             property var sidebarLeftPanes: ["stash"]
             property var sidebarRightPanes: ["notifications", "calendar", "media", "weather", "recording"]

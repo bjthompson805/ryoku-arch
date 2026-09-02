@@ -333,11 +333,19 @@ ShellRoot {
         function bluetooth(mon: string): void { root.togglePopout(mon, "bluetooth"); }
         function batteryPopout(mon: string): void { root.togglePopout(mon, "battery"); }
         function clipboard(mon: string): void { root.togglePopout(mon, "clipboard"); }
-        function stash(mon: string): void { root.sidebarLeftPane = "stash"; root.popoutMon = mon; root.popout = "sidebarLeft"; }
+        function stash(mon: string): void {
+            Config.sidebarLeftTab = "stash";
+            Config.persist();
+            root.sidebarLeftPane = "stash";
+            root.popoutMon = mon;
+            root.popout = "sidebarLeft";
+        }
         // stash-send <file>: open the left sidebar's stash pane and jump straight
         // to its LocalSend picker, so the file manager can hand a file to the send
         // flow. sets the popout directly (not toggle) so it never closes it.
         function stashSend(mon: string, file: string): void {
+            Config.sidebarLeftTab = "stash";
+            Config.persist();
             root.sidebarLeftPane = "stash";
             root.popoutMon = mon;
             root.popout = "sidebarLeft";
@@ -397,6 +405,7 @@ ShellRoot {
         case "toolkit": case "utilities":
             root.togglePopout(mon, "sidebarLeft"); return true;
         case "stash":
+            Config.sidebarLeftTab = "stash"; Config.persist();
             root.sidebarLeftPane = "stash"; root.popoutMon = mon; root.popout = "sidebarLeft"; return true;
         case "batteryPopout":
             root.togglePopout(mon, "battery"); return true;
@@ -568,7 +577,11 @@ ShellRoot {
             readonly property real leftEdgeStripW: 12
             readonly property bool leftDragActive: overlay.sidebarLeftOn && !overlay.monFullscreen &&
                 (leftEdgeDrop.containsDrag || sidebarLeftContent.dragActive)
-            onLeftDragActiveChanged: if (overlay.leftDragActive) root.sidebarLeftPane = "stash"
+            onLeftDragActiveChanged: if (overlay.leftDragActive) {
+                Config.sidebarLeftTab = "stash";
+                Config.persist();
+                root.sidebarLeftPane = "stash";
+            }
 
             // touch edge-swipe: a finger dragging in from the very left/right
             // edge opens that sidebar, for touchscreens with no mouse. wider
