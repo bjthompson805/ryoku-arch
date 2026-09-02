@@ -14,7 +14,7 @@ Column {
             { "combo": "Super + Return", "desc": "A terminal" },
             { "combo": "Super + ,",      "desc": "Ryoku Settings" },
             { "combo": "Super + Tab",    "desc": "Overview \u2014 every workspace at a glance" },
-            { "combo": "Super + D",      "desc": "Features sidebar \u2014 stash & tools" },
+            { "combo": "Super + D",      "desc": "Left sidebar \u2014 profile & tools" },
             { "combo": "Super + Q",      "desc": "Close the focused window" }
         ]
 

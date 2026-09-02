@@ -976,7 +976,7 @@ Item {
 
                 SettingSection {
                     width: parent.width
-                    title: "LEFT \u00b7 FEATURES"
+                    title: "LEFT \u00b7 STASH"
                     ToggleRow {
                         width: parent.width; label: "Enable left sidebar"
                         highlightId: "sidebar_left_enable"

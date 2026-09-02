@@ -6,8 +6,8 @@ import ".."
 import "../Singletons"
 
 // the LEFT sidebar's content, tabbed: PROFILE (the system specimen tile +
-// dossier, a static twin of the Hub Profile page) and FEATURES (the stash
-// board + future add-ons, unchanged -- SidebarFeatures.qml embedded wholesale
+// dossier, a static twin of the Hub Profile page) and STASH (the stash
+// board + future add-ons, unchanged -- SidebarStash.qml embedded wholesale
 // with its own eyebrow suppressed, since this tab strip already names it). a
 // bare, transparent Item -- the shell Popout's blob behind it IS the surface
 // and owns the melt/reveal; this panel just fills it. `open` gates the live
@@ -23,19 +23,19 @@ Item {
     property real topInset: 20 * s
     property real botInset: 20 * s
 
-    // Features' own enabled pane keys + current pane (unchanged contract,
-    // passed straight through to the embedded SidebarFeatures).
+    // Stash' own enabled pane keys + current pane (unchanged contract,
+    // passed straight through to the embedded SidebarStash).
     property var panes: []
     property string pane: ""
     signal paneSelected(string key)
 
-    // the outer Profile/Features tab, local to this sidebar (not persisted --
+    // the outer Profile/Stash tab, local to this sidebar (not persisted --
     // it always opens back on Profile, the showcase tab).
     property string topTab: "profile"
 
-    // true while a file drag is over the drop-accepting Features pane, so the
+    // true while a file drag is over the drop-accepting Stash pane, so the
     // shell can keep the sidebar open through a drag mid-grab.
-    readonly property bool dragActive: featuresPane.dragActive && root.topTab === "features"
+    readonly property bool dragActive: stashPane.dragActive && root.topTab === "stash"
 
     anchors.fill: parent
     implicitWidth: 340 * s
@@ -63,8 +63,8 @@ Item {
     }
 
     // outer tab: a mono uppercase label with an underline accent, the same
-    // idiom as SidebarFeatures' glyph tabs but labelled (there are only two,
-    // and "Profile"/"Features" read better as words than icons).
+    // idiom as SidebarStash' glyph tabs but labelled (there are only two,
+    // and "Profile"/"Stash" read better as words than icons).
     component TopTab: Item {
         id: tt
         property string label: ""
@@ -98,7 +98,7 @@ Item {
         TapHandler { onTapped: root.topTab = tt.key }
     }
 
-    // ── header: the Profile / Features tab strip ────────────────────────────
+    // ── header: the Profile / Stash tab strip ────────────────────────────
     Row {
         id: topTabs
         anchors.top: parent.top
@@ -110,7 +110,7 @@ Item {
         spacing: 22 * root.s
 
         TopTab { label: "Profile"; key: "profile" }
-        TopTab { label: "Features"; key: "features" }
+        TopTab { label: "Stash"; key: "stash" }
     }
 
     Divider {
@@ -162,16 +162,16 @@ Item {
             }
         }
 
-        // ── features: the stash board + future add-ons, embedded as-is ─────
-        SidebarFeatures {
-            id: featuresPane
+        // ── stash: the stash board + future add-ons, embedded as-is ─────
+        SidebarStash {
+            id: stashPane
             anchors.fill: parent
-            visible: root.topTab === "features"
+            visible: root.topTab === "stash"
             s: root.s
             topInset: 0
             botInset: 0
             showHeader: false
-            open: root.open && root.topTab === "features"
+            open: root.open && root.topTab === "stash"
             panes: root.panes
             pane: root.pane
             onPaneSelected: (k) => root.paneSelected(k)

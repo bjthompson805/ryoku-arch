@@ -4,7 +4,7 @@ import QtQuick
 import ".."
 import "../Singletons"
 
-// the LEFT sidebar's content: FEATURES. a compact eyebrow header over a
+// the LEFT sidebar's content: STASH. a compact eyebrow header over a
 // data-driven tab rail whose enabled panes come from `panes` (Config-driven,
 // display order honoured), each tab swapping the lower content between the Stash
 // file board, the screen-capture Tools strip, and a Clipboard placeholder. a
@@ -27,8 +27,8 @@ Item {
     property var panes: []
     property string pane: ""
     signal paneSelected(string key)
-    // false when hosted under the outer Profile/Features tab strip (Sidebar.qml),
-    // whose own header already names this pane -- skips the redundant "Features"
+    // false when hosted under the outer Profile/Stash tab strip (Sidebar.qml),
+    // whose own header already names this pane -- skips the redundant "Stash"
     // eyebrow so the tab content starts right at the tab rail.
     property bool showHeader: true
 
@@ -39,7 +39,7 @@ Item {
     anchors.fill: parent
     implicitWidth: 340 * s
 
-    // the feature catalog: every pane this side knows how to show, keyed. tabs
+    // the pane catalog: every pane this side knows how to show, keyed. tabs
     // are the enabled `panes` mapped over it -- unknown keys dropped, order kept.
     readonly property var catalog: [
         { "key": "stash", "glyph": "inventory_2" }
@@ -100,7 +100,7 @@ Item {
         TapHandler { onTapped: root.paneSelected(tb.key) }
     }
 
-    // ── header: the Features eyebrow, clock-free ───────────────────────────
+    // ── header: the Stash eyebrow, clock-free ───────────────────────────
     Column {
         id: head
         anchors.top: parent.top
@@ -114,7 +114,7 @@ Item {
         height: root.showHeader ? implicitHeight : 0
         clip: true
 
-        Eyebrow { label: "Features"; s: root.s }
+        Eyebrow { label: "Stash"; s: root.s }
     }
 
     // ── tab rail: swap the content pane below ───────────────────────────────
@@ -168,17 +168,9 @@ Item {
             anchors.fill: parent
             visible: root.effectivePane === "stash"
 
-            MicroLabel {
-                id: stashLbl
-                anchors.top: parent.top
-                anchors.left: parent.left
-                label: "Stash"
-                s: root.s
-            }
             DeckStash {
                 id: deckStash
-                anchors.top: stashLbl.bottom
-                anchors.topMargin: 12 * root.s
+                anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom

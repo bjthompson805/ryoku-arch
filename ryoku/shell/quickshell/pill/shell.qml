@@ -343,7 +343,7 @@ ShellRoot {
             root.popout = "sidebarLeft";
             Stash.openSendPicker(file);
         }
-        // deck-era names, repointed to the left features sidebar (Super+D binds
+        // deck-era names, repointed to the left stash sidebar (Super+D binds
         // and the file manager still call these).
         function toolkit(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
         function utilities(mon: string): void { root.togglePopout(mon, "sidebarLeft"); }
@@ -1366,7 +1366,7 @@ ShellRoot {
                     }
                 }
 
-                // LEFT sidebar (Features): a corner hotspot at the top-left plus
+                // LEFT sidebar (Stash): a corner hotspot at the top-left plus
                 // the panel that melts out of the left edge. the corner carries
                 // only a HoverHandler (clickless) so a bar click falls through; a
                 // deliberate hover arms it, or a click when clickless is off.
