@@ -4,10 +4,10 @@ import Quickshell
 import Quickshell.Io
 
 // live system vitals for the Nacre bar's stats module: CPU% from /proc/stat
-// deltas, RAM% from /proc/meminfo, temperature from a /sys thermal zone. all
-// kernel-native, no per-tick subprocess (the zone path is resolved once). the
-// poller runs only while `active` (a visible BarStats sets it), and keeps a
-// short history for the resources popout sparklines.
+// deltas, RAM% from /proc/meminfo, temperature from a /sys thermal zone, disk
+// usage from `df`. all kernel-native except the disk poll (the zone path is
+// resolved once). the poller runs only while `active` (a visible BarStats
+// sets it), and keeps a short history for the resources popout sparklines.
 Singleton {
     id: root
 
@@ -16,6 +16,16 @@ Singleton {
     property int mem: 0
     property int temp: 0
     property bool tempAvailable: false
+    // disk usage barely moves, so it's reported as a plain snapshot rather
+    // than a tracked history like the other metrics.
+    property int disk: 0
+    property bool diskAvailable: false
+    property string diskUsed: ""
+    property string diskTotal: ""
+
+    // per-core CPU% (0-indexed, in /proc/stat order). empty until the first
+    // sample lands.
+    property var cpuPerCore: []
 
     readonly property int histLen: 60
     property var cpuHistory: []
@@ -25,6 +35,9 @@ Singleton {
     // previous /proc/stat aggregate sample, for the busy-fraction delta.
     property real _prevIdle: 0
     property real _prevTotal: 0
+    // previous per-core samples, indexed the same as cpuPerCore.
+    property var _prevIdlePerCore: []
+    property var _prevTotalPerCore: []
     property string _tempPath: ""
 
     function _push(arr, v) {
@@ -48,29 +61,66 @@ Singleton {
         }
     }
 
+    Timer {
+        // disk usage barely moves tick to tick; polling it at the CPU/mem
+        // rate would just be a subprocess spawned for nothing.
+        interval: 10000
+        repeat: true
+        running: root.active
+        triggeredOnStart: true
+        onTriggered: diskProc.running = true
+    }
+
+    // busy-fraction delta shared by the aggregate line and each per-core line.
+    function _busyPct(f, prevIdle, prevTotal) {
+        var idle = Number(f[4]) + Number(f[5]);
+        var total = 0;
+        for (var i = 1; i < f.length; i++)
+            total += Number(f[i]);
+        var dIdle = idle - prevIdle;
+        var dTotal = total - prevTotal;
+        var hadPrev = prevTotal > 0;
+        return { idle: idle, total: total, pct: (hadPrev && dTotal > 0) ? Math.max(0, Math.min(100, Math.round(100 * (1 - dIdle / dTotal)))) : -1 };
+    }
+
     FileView {
         id: statFile
         path: "/proc/stat"
         blockLoading: true
         printErrors: false
         onLoaded: {
-            var line = statFile.text().split("\n")[0];
-            var f = line.trim().split(/\s+/);
+            var lines = statFile.text().split("\n");
+
+            var f = lines[0].trim().split(/\s+/);
             if (f.length < 8 || f[0] !== "cpu")
                 return;
-            var idle = Number(f[4]) + Number(f[5]);
-            var total = 0;
-            for (var i = 1; i < f.length; i++)
-                total += Number(f[i]);
-            var dIdle = idle - root._prevIdle;
-            var dTotal = total - root._prevTotal;
-            var hadPrev = root._prevTotal > 0;
-            root._prevIdle = idle;
-            root._prevTotal = total;
-            if (hadPrev && dTotal > 0) {
-                root.cpu = Math.max(0, Math.min(100, Math.round(100 * (1 - dIdle / dTotal))));
+            var agg = root._busyPct(f, root._prevIdle, root._prevTotal);
+            root._prevIdle = agg.idle;
+            root._prevTotal = agg.total;
+            if (agg.pct >= 0) {
+                root.cpu = agg.pct;
                 root.cpuHistory = root._push(root.cpuHistory, root.cpu);
             }
+
+            var cores = [];
+            var prevIdles = root._prevIdlePerCore.slice();
+            var prevTotals = root._prevTotalPerCore.slice();
+            var nextIdles = [];
+            var nextTotals = [];
+            for (var li = 1; li < lines.length; li++) {
+                var cf = lines[li].trim().split(/\s+/);
+                if (cf.length < 8 || !/^cpu\d+$/.test(cf[0]))
+                    break;
+                var idx = cores.length;
+                var core = root._busyPct(cf, prevIdles[idx] || 0, prevTotals[idx] || 0);
+                nextIdles.push(core.idle);
+                nextTotals.push(core.total);
+                cores.push(core.pct >= 0 ? core.pct : (root.cpuPerCore[idx] !== undefined ? root.cpuPerCore[idx] : 0));
+            }
+            root._prevIdlePerCore = nextIdles;
+            root._prevTotalPerCore = nextTotals;
+            if (cores.length > 0)
+                root.cpuPerCore = cores;
         }
     }
 
@@ -121,6 +171,27 @@ Singleton {
                 root.tempHistory = root._push(root.tempHistory, root.temp);
             } else {
                 root.tempAvailable = false;
+            }
+        }
+    }
+
+    // usage of the filesystem backing the home dir (covers the common
+    // separate-/home-partition case without hardcoding a mountpoint).
+    Process {
+        id: diskProc
+        command: ["sh", "-c", "df -h --output=pcent,used,size \"$HOME\" | tail -1"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var f = (this.text || "").trim().split(/\s+/);
+                var v = f.length === 3 ? Number(f[0].replace("%", "")) : NaN;
+                if (!isNaN(v)) {
+                    root.disk = Math.max(0, Math.min(100, v));
+                    root.diskUsed = f[1];
+                    root.diskTotal = f[2];
+                    root.diskAvailable = true;
+                } else {
+                    root.diskAvailable = false;
+                }
             }
         }
     }

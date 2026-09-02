@@ -93,6 +93,105 @@ Item {
         }
     }
 
+    // one core: index caption over a small usage bar, warn-tinted like the
+    // other metrics past the same 85% threshold.
+    component CoreCell: Column {
+        id: cell
+        property int index: 0
+        property int pct: 0
+        readonly property bool warn: cell.pct > 85
+        width: (parent.width - 3 * 6 * root.s) / 4
+        spacing: 3 * root.s
+
+        Text {
+            text: "C" + cell.index
+            color: Theme.dim
+            font.family: Theme.mono
+            font.pixelSize: 8 * root.s
+            font.weight: Font.DemiBold
+        }
+        Rectangle {
+            width: parent.width
+            height: 5 * root.s
+            radius: height / 2
+            color: Theme.hair
+            Rectangle {
+                width: parent.width * Math.min(1, cell.pct / 100)
+                height: parent.height
+                radius: parent.radius
+                color: cell.warn ? Theme.vermLit : Theme.verm
+            }
+        }
+        Text {
+            text: cell.pct + "%"
+            color: cell.warn ? Theme.vermLit : Theme.subtle
+            font.family: Theme.font
+            font.pixelSize: 8.5 * root.s
+            font.weight: Font.Medium
+            font.features: ({ "tnum": 1 })
+        }
+    }
+
+    // disk usage: a plain snapshot rather than a history sparkline (the
+    // number barely moves), so it gets a single static fill bar plus a
+    // used/total caption instead of the ticking Metric treatment.
+    component DiskStat: Column {
+        id: disk
+        width: parent ? parent.width : 0
+        spacing: 6 * root.s
+
+        Item {
+            width: parent.width
+            height: dLabel.implicitHeight
+            Text {
+                id: dLabel
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: "DISK"
+                color: Theme.subtle
+                font.family: Theme.mono
+                font.pixelSize: 9 * root.s
+                font.weight: Font.DemiBold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 1.2 * root.s
+            }
+            Text {
+                anchors.right: parent.right
+                anchors.baseline: dLabel.baseline
+                text: SysStats.disk + "%"
+                color: SysStats.disk > 90 ? Theme.vermLit : Theme.cream
+                font.family: Theme.font
+                font.pixelSize: 14 * root.s
+                font.weight: Font.DemiBold
+                font.features: ({ "tnum": 1 })
+            }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 5 * root.s
+            radius: height / 2
+            color: Theme.hair
+            Rectangle {
+                width: parent.width * Math.min(1, SysStats.disk / 100)
+                height: parent.height
+                radius: parent.radius
+                color: SysStats.disk > 90 ? Theme.vermLit : Theme.verm
+            }
+        }
+
+        Text {
+            visible: SysStats.diskUsed.length > 0
+            anchors.right: parent.right
+            text: SysStats.diskUsed + " / " + SysStats.diskTotal
+            color: Theme.dim
+            font.family: Theme.font
+            font.pixelSize: 9 * root.s
+            font.weight: Font.Medium
+            font.features: ({ "tnum": 1 })
+        }
+    }
+
     // top processes by CPU, one row each: tabular percent + command.
     component ProcRow: Item {
         id: procRow
@@ -157,6 +256,26 @@ Item {
         }
 
         Metric { label: "CPU"; value: SysStats.cpu + "%"; series: SysStats.cpuHistory; warn: SysStats.cpu > 85 }
+
+        Grid {
+            id: coreGrid
+            visible: SysStats.cpuPerCore.length > 0
+            width: parent.width
+            columns: 4
+            columnSpacing: 6 * root.s
+            rowSpacing: 8 * root.s
+
+            Repeater {
+                model: SysStats.cpuPerCore
+                delegate: CoreCell {
+                    required property int index
+                    required property int modelData
+                    index: index
+                    pct: modelData
+                }
+            }
+        }
+
         Metric { label: "Memory"; value: SysStats.mem + "%"; series: SysStats.memHistory; warn: SysStats.mem > 90 }
         Metric {
             visible: SysStats.tempAvailable
@@ -165,6 +284,7 @@ Item {
             series: SysStats.tempHistory
             warn: SysStats.temp > 80
         }
+        DiskStat { visible: SysStats.diskAvailable }
 
         Divider {}
 
@@ -198,7 +318,10 @@ Item {
     // sample the top processes only while the popout is mounted and open.
     Process {
         id: psProc
-        command: ["sh", "-c", "ps -eo pcpu,comm --sort=-pcpu --no-headers | head -5"]
+        // a freshly-forked process's %cpu (ps's own busy-since-start / age-since-
+        // start ratio) is unstable while its age is near zero, so the sampler
+        // routinely samples *itself* pegged near 100%. drop its own sh/ps pair.
+        command: ["sh", "-c", "ps -eo pcpu,comm --sort=-pcpu --no-headers | grep -Ev '^ *[0-9.]+ (ps|sh)$' | head -5"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var out = [];
