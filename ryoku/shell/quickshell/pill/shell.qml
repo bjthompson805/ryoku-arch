@@ -1489,7 +1489,7 @@ ShellRoot {
                     openW: overlay.sidebarW
                     openH: overlay.height
 
-                    SidebarFeatures {
+                    Sidebar {
                         id: sidebarLeftContent
                         s: overlay.s
                         topInset: overlay.sidebarTopGap

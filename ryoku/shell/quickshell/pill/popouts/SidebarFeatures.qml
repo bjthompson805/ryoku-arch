@@ -27,6 +27,10 @@ Item {
     property var panes: []
     property string pane: ""
     signal paneSelected(string key)
+    // false when hosted under the outer Profile/Features tab strip (Sidebar.qml),
+    // whose own header already names this pane -- skips the redundant "Features"
+    // eyebrow so the tab content starts right at the tab rail.
+    property bool showHeader: true
 
     // true while a file drag is over the drop-accepting pane (the stash board),
     // so the shell can keep the sidebar open through a drag mid-grab.
@@ -106,6 +110,9 @@ Item {
         anchors.leftMargin: 18 * root.s
         anchors.rightMargin: 18 * root.s
         spacing: 14 * root.s
+        visible: root.showHeader
+        height: root.showHeader ? implicitHeight : 0
+        clip: true
 
         Eyebrow { label: "Features"; s: root.s }
     }
