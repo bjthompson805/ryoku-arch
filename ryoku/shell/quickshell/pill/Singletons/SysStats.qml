@@ -16,6 +16,10 @@ Singleton {
     property int mem: 0
     property int temp: 0
     property bool tempAvailable: false
+    property int npu: 0
+    property bool npuAvailable: false
+    property int gpu: 0
+    property bool gpuAvailable: false
     // disk usage barely moves, so it's reported as a plain snapshot rather
     // than a tracked history like the other metrics.
     property int disk: 0
@@ -31,6 +35,8 @@ Singleton {
     property var cpuHistory: []
     property var memHistory: []
     property var tempHistory: []
+    property var npuHistory: []
+    property var gpuHistory: []
 
     // previous /proc/stat aggregate sample, for the busy-fraction delta.
     property real _prevIdle: 0
@@ -39,6 +45,27 @@ Singleton {
     property var _prevIdlePerCore: []
     property var _prevTotalPerCore: []
     property string _tempPath: ""
+    property string _npuPath: ""
+    // cumulative busy-microseconds counter, sampled against wall-clock time
+    // since it isn't a simple idle/total ratio like /proc/stat.
+    property real _prevNpuBusyUs: -1
+    property real _prevNpuTs: 0
+
+    // GPU vendor/driver detected once at startup: "nvidia" (nvidia-smi, no
+    // fdinfo support in the proprietary driver), "amdgpu" or "intel-xe" or
+    // "intel-i915" (all three read the kernel's standard DRM fdinfo engine
+    // counters -- one mechanism covers every non-nvidia driver), or "none".
+    // _gpuPdev is the matching card's PCI address, used to filter fdinfo.
+    property string _gpuBackend: ""
+    property string _gpuPdev: ""
+    // per-engine busy% for the popout's engine-bar row, e.g. [{name:"rcs",
+    // pct:12}, ...]. empty when the backend has no per-engine breakdown.
+    property var gpuEngines: []
+    // previous fdinfo sample, keyed by engine name, for the delta calc.
+    property var _prevEngineCyclesBusy: ({})
+    property var _prevEngineCyclesTotal: ({})
+    property var _prevEngineNs: ({})
+    property real _prevEngineWallMs: 0
 
     function _push(arr, v) {
         var a = arr.slice();
@@ -58,6 +85,8 @@ Singleton {
             memFile.reload();
             if (root._tempPath.length > 0)
                 tempFile.reload();
+            if (root._npuPath.length > 0)
+                npuFile.reload();
         }
     }
 
@@ -171,6 +200,209 @@ Singleton {
                 root.tempHistory = root._push(root.tempHistory, root.temp);
             } else {
                 root.tempAvailable = false;
+            }
+        }
+    }
+
+    // resolve the NPU's busy-time counter once (its PCI address isn't fixed
+    // across machines), then poll it.
+    Process {
+        id: npuResolve
+        running: root.active && root._npuPath.length === 0
+        command: ["sh", "-c", "find /sys/devices -maxdepth 5 -name npu_busy_time_us 2>/dev/null | head -1"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var p = (this.text || "").trim();
+                if (p.length > 0)
+                    root._npuPath = p;
+            }
+        }
+    }
+
+    FileView {
+        id: npuFile
+        path: root._npuPath
+        blockLoading: true
+        printErrors: false
+        onLoaded: {
+            var busy = Number((npuFile.text() || "").trim());
+            var now = Date.now();
+            if (root._prevNpuTs > 0) {
+                var dBusyUs = busy - root._prevNpuBusyUs;
+                var dtUs = (now - root._prevNpuTs) * 1000;
+                if (dtUs > 0) {
+                    root.npu = Math.max(0, Math.min(100, Math.round(100 * dBusyUs / dtUs)));
+                    root.npuHistory = root._push(root.npuHistory, root.npu);
+                }
+            }
+            root._prevNpuBusyUs = busy;
+            root._prevNpuTs = now;
+            root.npuAvailable = true;
+        }
+    }
+
+    // preferred display order for known engine names (render/3D first, then
+    // compute, then copy/blit, then video); anything unrecognized sorts
+    // after these, alphabetically.
+    readonly property var _enginePriority: ({
+        rcs: 0, gfx: 0, render: 0, "3d": 0,
+        ccs: 1, compute: 1, comp: 1,
+        bcs: 2, dma: 2, copy: 2, blit: 2,
+        vcs: 3, dec: 3, decode: 3,
+        vecs: 4, enc: 4, encode: 4, jpeg: 4
+    })
+
+    function _engineRank(name) {
+        var r = root._enginePriority[name.toLowerCase()];
+        return r !== undefined ? r : 99;
+    }
+
+    // detect the GPU once: prefer nvidia-smi (the proprietary driver has no
+    // fdinfo engine stats), else find whichever non-nvidia card is actually
+    // bound to a driver and record its PCI address for the fdinfo scan
+    // below -- that scan is the single mechanism covering amdgpu, xe, and
+    // i915 alike, since all three publish the kernel's standard DRM fdinfo
+    // engine counters.
+    Process {
+        id: gpuResolve
+        running: root.active && root._gpuBackend.length === 0
+        command: ["sh", "-c",
+            "if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits >/dev/null 2>&1; then echo nvidia; exit 0; fi; " +
+            "intel_drv=; intel_pdev=; amd_pdev=; " +
+            "for d in /sys/class/drm/card*/device; do " +
+            "drv=$(readlink -f \"$d/driver\" 2>/dev/null); " +
+            "pdev=$(basename \"$(readlink -f \"$d\")\" 2>/dev/null); " +
+            "case \"$drv\" in " +
+            "*/amdgpu) amd_pdev=\"$pdev\";; " +
+            "*/xe) intel_drv=xe; intel_pdev=\"$pdev\";; " +
+            "*/i915) intel_drv=i915; intel_pdev=\"$pdev\";; " +
+            "esac; " +
+            "done; " +
+            "if [ -n \"$amd_pdev\" ]; then echo \"amdgpu $amd_pdev\"; exit 0; fi; " +
+            "if [ \"$intel_drv\" = xe ]; then echo \"intel-xe $intel_pdev\"; exit 0; fi; " +
+            "if [ \"$intel_drv\" = i915 ]; then echo \"intel-i915 $intel_pdev\"; exit 0; fi; " +
+            "echo none"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var parts = (this.text || "").trim().split(/\s+/);
+                root._gpuBackend = parts[0] || "none";
+                if (parts[1])
+                    root._gpuPdev = parts[1];
+            }
+        }
+    }
+
+    Timer {
+        interval: 3000
+        repeat: true
+        running: root.active && root._gpuBackend.length > 0 && root._gpuBackend !== "none"
+        triggeredOnStart: true
+        onTriggered: {
+            if (root._gpuBackend === "nvidia")
+                gpuNvidiaProc.running = true;
+            else if (root._gpuPdev.length > 0)
+                gpuEngineProc.running = true;
+        }
+    }
+
+    Process {
+        id: gpuNvidiaProc
+        // SM (general compute/3D), memory controller, video encoder, video
+        // decoder -- nvidia-smi's own engine-ish breakdown, since the
+        // proprietary driver doesn't publish DRM fdinfo engine stats.
+        command: ["sh", "-c", "nvidia-smi --query-gpu=utilization.gpu,utilization.memory,utilization.encoder,utilization.decoder --format=csv,noheader,nounits | head -1"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var parts = (this.text || "").trim().split(",").map(function (s) { return Number(s.trim()); });
+                if (parts.length === 4 && parts.every(function (n) { return !isNaN(n); })) {
+                    var names = ["sm", "mem", "enc", "dec"];
+                    root.gpuEngines = names.map(function (n, i) {
+                        return { name: n, pct: Math.max(0, Math.min(100, Math.round(parts[i]))) };
+                    });
+                    root.gpu = root.gpuEngines[0].pct;
+                    root.gpuHistory = root._push(root.gpuHistory, root.gpu);
+                    root.gpuAvailable = true;
+                } else {
+                    root.gpuAvailable = false;
+                }
+            }
+        }
+    }
+
+    // per-engine busy%, read from the kernel's standard DRM fdinfo interface
+    // (Documentation/gpu/drm-usage-stats.rst) rather than any vendor tool --
+    // same mechanism for amdgpu, xe, and i915. every readable fd's fdinfo is
+    // scanned (unreadable/vanished ones are skipped rather than aborting the
+    // whole scan, since fds constantly open and close), entries are kept
+    // only for the fd whose "drm-pdev" matches our card, and both counter
+    // styles the kernel uses are handled: cycle-based (xe: drm-cycles-<eng>
+    // busy over drm-total-cycles-<eng> elapsed, same denominator for every
+    // client) and nanosecond-based (amdgpu, older i915: drm-engine-<eng>
+    // cumulative busy ns, divided by wall-clock time between samples).
+    Process {
+        id: gpuEngineProc
+        command: root._gpuPdev.length > 0 ? ["sh", "-c", `PDEV='${root._gpuPdev}'
+{ for f in /proc/[0-9]*/fdinfo/*; do [ -r "$f" ] || continue; echo '@@@'; cat "$f" 2>/dev/null; done; } | awk -v want="$PDEV" '
+/^@@@$/ { ok=0; next }
+/^drm-pdev:/ { ok = ($2==want) }
+ok && $1 ~ /^drm-total-cycles-/ { key=$1; sub(/^drm-total-cycles-/,"",key); sub(/:$/,"",key); total[key]=$2 }
+ok && $1 ~ /^drm-cycles-/ { key=$1; sub(/^drm-cycles-/,"",key); sub(/:$/,"",key); busy[key]+=$2 }
+ok && $1 ~ /^drm-engine-/ { key=$1; sub(/^drm-engine-/,"",key); sub(/:$/,"",key); busyns[key]+=$2 }
+END {
+  for (k in total) print "C", k, busy[k]+0, total[k]+0
+  for (k in busyns) print "N", k, busyns[k]+0
+}
+'`] : ["true"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var now = Date.now();
+                var curCyclesBusy = {}, curCyclesTotal = {}, curNs = {};
+                (this.text || "").split("\n").forEach(function (ln) {
+                    var p = ln.trim().split(/\s+/);
+                    if (p[0] === "C" && p.length === 4) {
+                        curCyclesBusy[p[1]] = Number(p[2]);
+                        curCyclesTotal[p[1]] = Number(p[3]);
+                    } else if (p[0] === "N" && p.length === 3) {
+                        curNs[p[1]] = Number(p[2]);
+                    }
+                });
+
+                var engines = [];
+                var prevBusy = root._prevEngineCyclesBusy;
+                var prevTotal = root._prevEngineCyclesTotal;
+                for (var k in curCyclesTotal) {
+                    var dTotal = curCyclesTotal[k] - (prevTotal[k] || 0);
+                    var dBusy = curCyclesBusy[k] - (prevBusy[k] || 0);
+                    var pct = (prevTotal[k] !== undefined && dTotal > 0) ? Math.max(0, Math.min(100, Math.round(100 * dBusy / dTotal))) : 0;
+                    engines.push({ name: k, pct: pct });
+                }
+
+                var prevNs = root._prevEngineNs;
+                var hadPrevWall = root._prevEngineWallMs > 0;
+                var dtNs = hadPrevWall ? (now - root._prevEngineWallMs) * 1e6 : 0;
+                for (var k2 in curNs) {
+                    var dNs = curNs[k2] - (prevNs[k2] || 0);
+                    var pct2 = (hadPrevWall && dtNs > 0) ? Math.max(0, Math.min(100, Math.round(100 * dNs / dtNs))) : 0;
+                    engines.push({ name: k2, pct: pct2 });
+                }
+
+                root._prevEngineCyclesBusy = curCyclesBusy;
+                root._prevEngineCyclesTotal = curCyclesTotal;
+                root._prevEngineNs = curNs;
+                root._prevEngineWallMs = now;
+
+                if (engines.length > 0) {
+                    engines.sort(function (a, b) {
+                        var ra = root._engineRank(a.name), rb = root._engineRank(b.name);
+                        return ra !== rb ? ra - rb : (a.name < b.name ? -1 : 1);
+                    });
+                    root.gpuEngines = engines;
+                    root.gpu = Math.max.apply(null, engines.map(function (e) { return e.pct; }));
+                    root.gpuHistory = root._push(root.gpuHistory, root.gpu);
+                    root.gpuAvailable = true;
+                } else {
+                    root.gpuAvailable = false;
+                }
             }
         }
     }

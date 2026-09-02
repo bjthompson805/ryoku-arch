@@ -132,6 +132,47 @@ Item {
         }
     }
 
+    // one GPU engine: short name caption over a small usage bar, same
+    // warn-tinted styling as CoreCell. width is assigned externally by the
+    // engine row so the whole set fits one line regardless of engine count.
+    component EngineCell: Column {
+        id: ecell
+        property string name: ""
+        property int pct: 0
+        readonly property bool warn: ecell.pct > 85
+        spacing: 3 * root.s
+
+        Text {
+            width: parent.width
+            text: ecell.name.toUpperCase()
+            color: Theme.dim
+            font.family: Theme.mono
+            font.pixelSize: 7.5 * root.s
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
+        }
+        Rectangle {
+            width: parent.width
+            height: 5 * root.s
+            radius: height / 2
+            color: Theme.hair
+            Rectangle {
+                width: parent.width * Math.min(1, ecell.pct / 100)
+                height: parent.height
+                radius: parent.radius
+                color: ecell.warn ? Theme.vermLit : Theme.verm
+            }
+        }
+        Text {
+            text: ecell.pct + "%"
+            color: ecell.warn ? Theme.vermLit : Theme.subtle
+            font.family: Theme.font
+            font.pixelSize: 8 * root.s
+            font.weight: Font.Medium
+            font.features: ({ "tnum": 1 })
+        }
+    }
+
     // disk usage: a plain snapshot rather than a history sparkline (the
     // number barely moves), so it gets a single static fill bar plus a
     // used/total caption instead of the ticking Metric treatment.
@@ -268,14 +309,45 @@ Item {
             Repeater {
                 model: SysStats.cpuPerCore
                 delegate: CoreCell {
-                    required property int index
+                    required index
                     required property int modelData
-                    index: index
                     pct: modelData
                 }
             }
         }
 
+        Metric {
+            visible: SysStats.gpuAvailable
+            label: "GPU"
+            value: SysStats.gpu + "%"
+            series: SysStats.gpuHistory
+            warn: SysStats.gpu > 85
+        }
+
+        Row {
+            id: engineRow
+            visible: SysStats.gpuEngines.length > 0
+            width: parent.width
+            spacing: 6 * root.s
+
+            Repeater {
+                model: SysStats.gpuEngines
+                delegate: EngineCell {
+                    required property var modelData
+                    width: (engineRow.width - (SysStats.gpuEngines.length - 1) * engineRow.spacing) / Math.max(1, SysStats.gpuEngines.length)
+                    name: modelData.name
+                    pct: modelData.pct
+                }
+            }
+        }
+
+        Metric {
+            visible: SysStats.npuAvailable
+            label: "NPU"
+            value: SysStats.npu + "%"
+            series: SysStats.npuHistory
+            warn: SysStats.npu > 85
+        }
         Metric { label: "Memory"; value: SysStats.mem + "%"; series: SysStats.memHistory; warn: SysStats.mem > 90 }
         Metric {
             visible: SysStats.tempAvailable
