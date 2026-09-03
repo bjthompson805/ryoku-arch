@@ -94,6 +94,11 @@ Item {
         "contrast": { d: "M20 12a8 8 0 1 0-16 0a8 8 0 1 0 16 0", d2: "M12 4A8 8 0 0 1 12 20Z", fill: false },
         "pencil": { d: "M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z", fill: false },
         "add": { d: "M12 5v14 M5 12h14", fill: false },
+        "external-link": { d: "M9 6H6a1.5 1.5 0 0 0-1.5 1.5v10.5A1.5 1.5 0 0 0 6 19.5h10.5A1.5 1.5 0 0 0 18 18v-3 M13 4h7v7 M20 4l-9.5 9.5", fill: false },
+        // undock: one square pulling free of another -- "this piece is
+        // coming loose," picked over external-link (read as "open web
+        // page") for the popout undock button.
+        "undock": { d: "M5 8h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z M11 3h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z", fill: false },
         "airplane": { d: "M12 2L13 8.5L21 15L21 16.6L13 13.2L13 18.3L16.3 20.6L16.3 21.6L12 20.3L7.7 21.6L7.7 20.6L11 18.3L11 13.2L3 16.6L3 15L11 8.5Z", fill: true },
         // Windows' tablet-mode glyph: a landscape screen (stroked) with a
         // hand -- one continuous tapered silhouette, fingertip narrowing out

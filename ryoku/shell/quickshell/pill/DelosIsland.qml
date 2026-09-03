@@ -3,97 +3,51 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import Ryoku.Blobs
 import Quickshell.Hyprland
 import "Singletons"
 
 // the delos bar: the whole bar collapsed into one floating island in the
-// frame's blob field. it is the recorder island (RecordHud) generalised and
-// always live -- fused to a frame edge at rest, grab it to pull it off and it
-// and a frame bump reach for each other and merge like two drops, let go and it
-// drifts to the nearest edge, on a side edge it turns vertical, tap the grip to
-// tuck it to a nub that hovering the edge pops back. it carries the modules the
-// user picks (Config.islandModules, in order); power is not one of them, it
-// opens on Super+Esc. it seeds its dock from Config and writes it back, and
-// publishes its live edge + thickness to IslandDock so the window reserve
-// follows it. nothing snaps.
+// frame's blob field. fused to a frame edge at rest, drag the grip to pull it
+// off; a frame bump reaches for it as it nears an edge; let go and it drifts
+// back. tap the grip to tuck to a nub that hovering pops back out. carries the
+// modules from Config.islandModules; publishes its live dock state to IslandDock
+// so the window reserve follows it. Nothing snaps.
+//
+// Floating geometry, drag, and blob logic live in FloatingIsland.
 Item {
     id: hud
 
     required property var group
     property real s: 1
     property bool active: true
+    property real radius: Config.islandRadius * s
+    property real smoothing: 30
+    // delos never pre-thickens an edge (the island is the bar).
+    property real barBand: 0
+    property string barEdge: ""
 
-    // 12h hour for the vertical clock module: Qt's "h" token only reads as
-    // 12-hour when an AP/A token sits in the same format call, so the split
-    // digit needs the value computed rather than formatted.
+    // 12h hour for the vertical clock module.
     function hh12(d) {
         var h = d.getHours() % 12;
         if (h === 0) h = 12;
         return (h < 10 ? "0" : "") + h;
     }
-    property real radius: Config.islandRadius * s
-    property real smoothing: 30
-    // delos never pre-thickens an edge (the island is the bar), so every lip is
-    // just the frame border.
-    property real barBand: 0
-    property string barEdge: ""
 
-    // module inputs the same way Bar.qml feeds its clusters.
     readonly property int activeWsId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
     required property var trayWindow
 
-    // a module was tapped / hovered: shell.qml grows the popout from the
-    // island's docked edge at `along`.
     signal popoutRequested(string name)
     signal hoverPopoutRequested(string name, bool hovered)
 
-    readonly property int moveDur: 560
-    readonly property int meltDur: 620
-    readonly property int mergeDur: 1700
-
     anchors.fill: parent
 
-    readonly property real baseLip: Math.max(0, Config.frameBorder - 50)
-    function lipFor(e) { return hud.baseLip + (e === hud.barEdge ? hud.barBand : 0); }
-    readonly property real lipT: hud.lipFor("top")
-    readonly property real lipB: hud.lipFor("bottom")
-    readonly property real lipL: hud.lipFor("left")
-    readonly property real lipR: hud.lipFor("right")
-
-    property string dockEdge: "top"
-    property real alongPx: 0
-    property bool placed: false
-    readonly property bool dragging: dragH.active
     property bool hidden: false
+    // keep island.hidden in sync so FloatingIsland's nub/trigger logic reads it.
+    Binding { target: island; property: "hidden"; value: hud.hidden }
 
-    onWidthChanged: hud.reposition()
-    onHeightChanged: hud.reposition()
-    // seed the dock from Config on first layout: edge, hidden, and the saved
-    // along (else centre on the edge).
-    function reposition() {
-        if (hud.placed || hud.width <= 0)
-            return;
-        hud.dockEdge = Config.islandEdge;
-        hud.hidden = Config.islandHidden;
-        hud.alongPx = Config.islandAlong >= 0 ? Config.islandAlong
-            : (hud.vertical ? (hud.height - hud.bodyH) / 2 : (hud.width - hud.bodyW) / 2);
-        hud.nearEdge = hud.dockEdge;
-        hud.px = hud.dockX;
-        hud.py = hud.dockY;
-        hud.placed = true;
-    }
-    // write the dock back so it survives a restart.
-    function persistDock() {
-        Config.islandEdge = hud.dockEdge;
-        Config.islandAlong = hud.alongPx;
-        Config.islandHidden = hud.hidden;
-        Config.persist();
-    }
-
-    // --- reveal + melt: 0 in the border, 1 fully out, a small nub when hidden.
+    // --- reveal + melt -------------------------------------------------------
     property bool revealHeld: false
-    readonly property bool revealed: bodyHov.hovered || edgeHov.hovered
+    readonly property bool revealed: island.bodyHovered || island.nubRevealed
     readonly property bool tucked: hud.hidden && !hud.revealHeld
     onRevealedChanged: {
         if (hud.revealed) { revealGrace.stop(); hud.revealHeld = true; }
@@ -104,190 +58,118 @@ Item {
     readonly property real nubProg: 0.14
     readonly property real wantProg: !hud.active ? 0 : ((!hud.hidden || hud.revealHeld) ? 1 : hud.nubProg)
     property real prog: hud.wantProg
-    Behavior on prog { NumberAnimation { duration: hud.meltDur; easing.type: Easing.InOutCubic } }
+    Behavior on prog { NumberAnimation { duration: island.meltDur; easing.type: Easing.InOutCubic } }
     readonly property bool live: hud.active && hud.prog > 0.002
     visible: hud.live
 
-    // --- orientation: vertical on a side edge; content fades out, flips at the
-    // bottom of the dip, fades back.
-    // orientation follows the docked edge, and does not flip mid-drag: the grip
-    // is the sole drag handle, so reflowing the layout under the pointer would
-    // drop the grab. the island keeps its shape while held and reorients on
-    // release (cross-faded), once the dock edge is known.
-    readonly property bool vertical: hud.dragging ? hud.layoutVertical : (hud.dockEdge === "left" || hud.dockEdge === "right")
-    property bool layoutVertical: false
-    property real reorientFade: 1
-    Behavior on reorientFade { NumberAnimation { duration: 300; easing.type: Easing.InOutCubic } }
-    onVerticalChanged: hud.reorientFade = (hud.layoutVertical === hud.vertical) ? 1 : 0
-    onReorientFadeChanged: {
-        if (hud.reorientFade <= 0.02 && hud.layoutVertical !== hud.vertical) {
-            hud.layoutVertical = hud.vertical;
-            hud.reorientFade = 1;
-        }
-    }
-    Component.onCompleted: hud.layoutVertical = hud.vertical
+    Binding { target: island; property: "prog"; value: hud.prog }
+    Binding { target: island; property: "live"; value: hud.live }
 
-    property real bodyW: grid.implicitWidth + 22 * hud.s
-    property real bodyH: grid.implicitHeight + 13 * hud.s
-    Behavior on bodyW { NumberAnimation { duration: hud.moveDur; easing.type: Easing.InOutCubic } }
-    Behavior on bodyH { NumberAnimation { duration: hud.moveDur; easing.type: Easing.InOutCubic } }
+    // --- geometry re-exports for shell.qml's input mask ----------------------
+    readonly property alias hudX:     island.hudX
+    readonly property alias hudY:     island.hudY
+    readonly property alias hudW:     island.hudW
+    readonly property alias hudH:     island.hudH
+    // delos has whole-edge trigger while tucked; override the strip here.
+    readonly property real trigX: island.dockEdge === "right"  ? (island.width  - island.trigDepth)
+                                : island.dockEdge === "left"   ? 0
+                                : (island.tucked ? 0 : (island.dockX - island.trigPad))
+    readonly property real trigY: island.dockEdge === "bottom" ? (island.height - island.trigDepth)
+                                : island.dockEdge === "top"    ? 0
+                                : (island.tucked ? 0 : (island.dockY - island.trigPad))
+    readonly property real trigW: (island.dockEdge === "left" || island.dockEdge === "right") ? island.trigDepth
+                                : (island.tucked ? island.width  : (island.hudW + 2 * island.trigPad))
+    readonly property real trigH: (island.dockEdge === "top"  || island.dockEdge === "bottom") ? island.trigDepth
+                                : (island.tucked ? island.height : (island.hudH + 2 * island.trigPad))
+    readonly property alias dragging: island.dragging
 
-    readonly property real dockX: hud.dockEdge === "left" ? hud.lipL
-        : hud.dockEdge === "right" ? (hud.width - hud.lipR - hud.bodyW)
-        : Math.max(hud.lipL, Math.min(hud.width - hud.lipR - hud.bodyW, hud.alongPx))
-    readonly property real dockY: hud.dockEdge === "top" ? hud.lipT
-        : hud.dockEdge === "bottom" ? (hud.height - hud.lipB - hud.bodyH)
-        : Math.max(hud.lipT, Math.min(hud.height - hud.lipB - hud.bodyH, hud.alongPx))
-    property real px: 0
-    property real py: 0
-    Behavior on px { enabled: !hud.dragging; NumberAnimation { duration: hud.mergeDur; easing.type: Easing.InOutCubic } }
-    Behavior on py { enabled: !hud.dragging; NumberAnimation { duration: hud.mergeDur; easing.type: Easing.InOutCubic } }
-    Binding { target: hud; property: "px"; value: hud.dockX; when: !hud.dragging; restoreMode: Binding.RestoreNone }
-    Binding { target: hud; property: "py"; value: hud.dockY; when: !hud.dragging; restoreMode: Binding.RestoreNone }
-    onPxChanged: hud.settleEdge()
-    onPyChanged: hud.settleEdge()
-
-    // --- publish live dock state to the window reserve (a separate window).
-    readonly property real fullExtent: (hud.dockEdge === "left" || hud.dockEdge === "right") ? hud.bodyW : hud.bodyH
-    // reserve tracks the tucked state, not the transient hover-reveal, so a
-    // window never jumps when you flick the cursor to a hidden island.
-    readonly property real reserveThickness: hud.lipFor(hud.dockEdge) + (hud.hidden ? hud.fullExtent * hud.nubProg : hud.fullExtent)
-    readonly property real alongCentre: (hud.dockEdge === "left" || hud.dockEdge === "right") ? (hud.py + hud.bodyH / 2) : (hud.px + hud.bodyW / 2)
-    Binding { target: IslandDock; property: "active"; value: hud.active }
-    Binding { target: IslandDock; property: "edge"; value: hud.dockEdge }
+    // --- publish live dock state to IslandDock reserve -----------------------
+    readonly property real fullExtent: (island.dockEdge === "left" || island.dockEdge === "right") ? island.bodyW : island.bodyH
+    readonly property real reserveThickness: island.lipFor(island.dockEdge) + (hud.hidden ? hud.fullExtent * hud.nubProg : hud.fullExtent)
+    readonly property real alongCentre: (island.dockEdge === "left" || island.dockEdge === "right") ? (island.py + island.bodyH / 2) : (island.px + island.bodyW / 2)
+    Binding { target: IslandDock; property: "active";    value: hud.active }
+    Binding { target: IslandDock; property: "edge";      value: island.dockEdge }
     Binding { target: IslandDock; property: "thickness"; value: hud.active ? hud.reserveThickness : 0 }
-    Binding { target: IslandDock; property: "along"; value: hud.alongCentre }
-    Binding { target: IslandDock; property: "hidden"; value: hud.hidden }
+    Binding { target: IslandDock; property: "along";     value: hud.alongCentre }
+    Binding { target: IslandDock; property: "hidden";    value: hud.hidden }
 
-    // input-mask rects: the body while out, the edge strip so a hidden nub can
-    // be hovered back. shell.qml unions both.
-    readonly property real hudX: hud.px
-    readonly property real hudY: hud.py
-    readonly property real hudW: hud.bodyW
-    readonly property real hudH: hud.bodyH
-    readonly property real trigReach: hud.tucked ? 46 * hud.s : 18 * hud.s
-    readonly property real trigPad: hud.tucked ? 44 * hud.s : 0
-    readonly property real trigDepth: hud.lipFor(hud.dockEdge) + hud.trigReach
-    readonly property real trigX: hud.dockEdge === "right" ? (hud.width - hud.trigDepth)
-        : hud.dockEdge === "left" ? 0
-        : (hud.tucked ? 0 : (hud.dockX - hud.trigPad))
-    readonly property real trigY: hud.dockEdge === "bottom" ? (hud.height - hud.trigDepth)
-        : hud.dockEdge === "top" ? 0
-        : (hud.tucked ? 0 : (hud.dockY - hud.trigPad))
-    // tucked: the whole docked edge is the peek zone, so the cursor reaching
-    // that edge anywhere pops the nub back; open: a tight strip around it.
-    readonly property real trigW: (hud.dockEdge === "left" || hud.dockEdge === "right") ? hud.trigDepth
-        : (hud.tucked ? hud.width : (hud.bodyW + 2 * hud.trigPad))
-    readonly property real trigH: (hud.dockEdge === "top" || hud.dockEdge === "bottom") ? hud.trigDepth
-        : (hud.tucked ? hud.height : (hud.bodyH + 2 * hud.trigPad))
-
-    readonly property real gapT: hud.py - hud.lipT
-    readonly property real gapB: (hud.height - hud.lipB) - (hud.py + hud.bodyH)
-    readonly property real gapL: hud.px - hud.lipL
-    readonly property real gapR: (hud.width - hud.lipR) - (hud.px + hud.bodyW)
-    function gapOf(e) { return e === "top" ? hud.gapT : e === "bottom" ? hud.gapB : e === "left" ? hud.gapL : hud.gapR; }
-    readonly property string rawNearEdge: {
-        var m = Math.min(hud.gapT, hud.gapB, hud.gapL, hud.gapR);
-        return m === hud.gapT ? "top" : m === hud.gapB ? "bottom" : m === hud.gapL ? "left" : "right";
+    // write dock position back so it survives a restart.
+    function persistDock() {
+        Config.islandEdge   = island.dockEdge;
+        Config.islandAlong  = island.alongPx;
+        Config.islandHidden = hud.hidden;
+        Config.persist();
     }
-    property string nearEdge: "top"
-    function settleEdge() {
-        if (hud.rawNearEdge === hud.nearEdge)
-            return;
-        if (hud.gapOf(hud.rawNearEdge) < hud.gapOf(hud.nearEdge) - 30 * hud.s)
-            hud.nearEdge = hud.rawNearEdge;
+
+    // --- FloatingIsland (all geometry, drag, blobs) --------------------------
+    FloatingIsland {
+        id: island
+        group: hud.group
+        s: hud.s
+        radius: hud.radius
+        smoothing: hud.smoothing
+        barEdge: hud.barEdge
+        barBand: hud.barBand
+        dockEdge: "top"
+        dragEnabled: true
+
+        // delos orientation does not flip mid-drag: keep layoutVertical during drag
+        // so a grab at the threshold never reflowing the content under the pointer.
+        vertical: island.dragging ? island.layoutVertical : (island.dockEdge === "left" || island.dockEdge === "right")
+
+        // body size driven from grid content, animated.
+        property real _targetW: grid.implicitWidth  + 22 * hud.s
+        property real _targetH: grid.implicitHeight + 13 * hud.s
+        Behavior on _targetW { NumberAnimation { duration: island.moveDur; easing.type: Easing.InOutCubic } }
+        Behavior on _targetH { NumberAnimation { duration: island.moveDur; easing.type: Easing.InOutCubic } }
+        Binding { target: island; property: "bodyW"; value: island._targetW }
+        Binding { target: island; property: "bodyH"; value: island._targetH }
+
+        // seed dock from Config on first layout (overrides FloatingIsland.reposition).
+        Component.onCompleted: {
+            island.dockEdge = Config.islandEdge;
+            hud.hidden      = Config.islandHidden;
+            island.nearEdge = island.dockEdge;
+        }
+        onWidthChanged: {
+            if (island.placed || island.width <= 0)
+                return;
+            island.alongPx = Config.islandAlong >= 0 ? Config.islandAlong
+                : (island.vertical ? (island.height - island.bodyH) / 2 : (island.width - island.bodyW) / 2);
+            island.px = island.dockX;
+            island.py = island.dockY;
+            island.placed = true;
+        }
+        onHeightChanged: {
+            if (island.placed || island.width <= 0)
+                return;
+            island.alongPx = Config.islandAlong >= 0 ? Config.islandAlong
+                : (island.vertical ? (island.height - island.bodyH) / 2 : (island.width - island.bodyW) / 2);
+            island.px = island.dockX;
+            island.py = island.dockY;
+            island.placed = true;
+        }
+
+        onDragReleased: (_e) => hud.persistDock()
     }
-    readonly property real nearGap: Math.max(0, hud.gapOf(hud.nearEdge))
-    readonly property real nearLip: hud.lipFor(hud.nearEdge)
-    readonly property real threshold: 90 * hud.s
-    readonly property real approach: Math.max(0, Math.min(1, 1 - hud.nearGap / hud.threshold))
-    readonly property real pull: hud.approach * hud.approach
-    readonly property real islandReach: (hud.nearGap / 2 + hud.nearLip + hud.smoothing) * hud.pull
-    readonly property real bumpReach: (hud.nearGap / 2 + hud.smoothing) * hud.pull
-    readonly property real extT: hud.nearEdge === "top" ? hud.islandReach : 0
-    readonly property real extB: hud.nearEdge === "bottom" ? hud.islandReach : 0
-    readonly property real extL: hud.nearEdge === "left" ? hud.islandReach : 0
-    readonly property real extR: hud.nearEdge === "right" ? hud.islandReach : 0
 
-    readonly property bool vDock: hud.dockEdge === "left" || hud.dockEdge === "right"
-    readonly property real faceW: hud.vDock ? hud.bodyW * hud.prog : hud.bodyW
-    readonly property real faceH: hud.vDock ? hud.bodyH : hud.bodyH * hud.prog
-    readonly property real faceX: hud.dockEdge === "right" ? (hud.px + hud.bodyW - hud.faceW) : hud.px
-    readonly property real faceY: hud.dockEdge === "bottom" ? (hud.py + hud.bodyH - hud.faceH) : hud.py
+    onHiddenChanged: hud.persistDock()
 
-    readonly property bool bumpVert: hud.nearEdge === "top" || hud.nearEdge === "bottom"
-    readonly property real bumpLen: hud.bumpReach + hud.nearLip + hud.smoothing
-    readonly property real bumpX: hud.nearEdge === "right" ? (hud.width - hud.lipR - hud.bumpReach)
-        : hud.nearEdge === "left" ? -hud.smoothing
-        : hud.px
-    readonly property real bumpY: hud.nearEdge === "bottom" ? (hud.height - hud.lipB - hud.bumpReach)
-        : hud.nearEdge === "top" ? -hud.smoothing
-        : hud.py
-
+    // --- module components ---------------------------------------------------
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
-    BlobRect {
-        id: bodyBlob
-        group: hud.live ? hud.group : null
-        stiffness: 110
-        damping: 15
-        deformScale: 0.00003
-        x: hud.faceX - hud.extL
-        y: hud.faceY - hud.extT
-        implicitWidth: hud.faceW + hud.extL + hud.extR
-        implicitHeight: hud.faceH + hud.extT + hud.extB
-        topLeftRadius: (hud.extT > 0 || hud.extL > 0) ? 0 : hud.radius
-        topRightRadius: (hud.extT > 0 || hud.extR > 0) ? 0 : hud.radius
-        bottomLeftRadius: (hud.extB > 0 || hud.extL > 0) ? 0 : hud.radius
-        bottomRightRadius: (hud.extB > 0 || hud.extR > 0) ? 0 : hud.radius
-    }
-
-    BlobRect {
-        id: frameBump
-        group: (hud.live && hud.nearGap > 2 && hud.bumpReach > 0.5) ? hud.group : null
-        stiffness: 110
-        damping: 15
-        deformScale: 0.00003
-        x: hud.bumpX
-        y: hud.bumpY
-        implicitWidth: hud.bumpVert ? hud.bodyW : hud.bumpLen
-        implicitHeight: hud.bumpVert ? hud.bumpLen : hud.bodyH
-        topLeftRadius: (hud.nearEdge === "top" || hud.nearEdge === "left") ? 0 : hud.radius
-        topRightRadius: (hud.nearEdge === "top" || hud.nearEdge === "right") ? 0 : hud.radius
-        bottomLeftRadius: (hud.nearEdge === "bottom" || hud.nearEdge === "left") ? 0 : hud.radius
-        bottomRightRadius: (hud.nearEdge === "bottom" || hud.nearEdge === "right") ? 0 : hud.radius
-    }
-
-    // edge strip: hovering here pops a hidden nub back out.
-    Item {
-        x: hud.trigX
-        y: hud.trigY
-        width: hud.trigW
-        height: hud.trigH
-        HoverHandler { id: edgeHov }
-    }
-
-    // module components, chosen by id from Config.islandModules.
-    // display-only: the island shows the workspace but does not switch on a
-    // click or scroll (that is what a stray grab was doing). Super+N switches.
-    Component { id: wsComp; BarWorkspaces { s: hud.s; activeWsId: hud.activeWsId; vertical: hud.layoutVertical; enabled: false } }
+    Component { id: wsComp; BarWorkspaces { s: hud.s; activeWsId: hud.activeWsId; vertical: island.layoutVertical; enabled: false } }
     Component {
         id: clockComp
         Grid {
-            columns: hud.layoutVertical ? 1 : 2
+            columns: island.layoutVertical ? 1 : 2
             rowSpacing: 2 * hud.s
             columnSpacing: 7 * hud.s
             horizontalItemAlignment: Grid.AlignHCenter
             verticalItemAlignment: Grid.AlignVCenter
-            // the red sun: Delos's signature, the one always-fixed accent.
-            Rectangle {
-                width: 7 * hud.s
-                height: 7 * hud.s
-                radius: width / 2
-                color: Theme.sun
-            }
+            Rectangle { width: 7 * hud.s; height: 7 * hud.s; radius: width / 2; color: Theme.sun }
             Text {
-                text: hud.layoutVertical
+                text: island.layoutVertical
                     ? (Config.clock24h ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH") : hud.hh12(clock.date))
                         + "\n" + clock.date.toLocaleTimeString(Qt.locale("en_US"), "mm")
                     : (Config.clock24h ? clock.date.toLocaleTimeString(Qt.locale("en_US"), "HH:mm") : clock.date.toLocaleTimeString(Qt.locale("en_US"), "h:mm AP"))
@@ -306,20 +188,14 @@ Item {
     Component {
         id: dateComp
         Grid {
-            columns: hud.layoutVertical ? 1 : 2
+            columns: island.layoutVertical ? 1 : 2
             rowSpacing: 2 * hud.s
             columnSpacing: 6 * hud.s
             horizontalItemAlignment: Grid.AlignHCenter
             verticalItemAlignment: Grid.AlignVCenter
-            // engraved hairline tick, editorial.
-            Rectangle {
-                visible: !hud.layoutVertical
-                width: Math.max(1, hud.s)
-                height: 11 * hud.s
-                color: Theme.hair
-            }
+            Rectangle { visible: !island.layoutVertical; width: Math.max(1, hud.s); height: 11 * hud.s; color: Theme.hair }
             Text {
-                text: hud.layoutVertical
+                text: island.layoutVertical
                     ? (clock.date.toLocaleDateString(Qt.locale("en_US"), "ddd") + "\n" + clock.date.toLocaleDateString(Qt.locale("en_US"), "d") + "\n" + clock.date.toLocaleDateString(Qt.locale("en_US"), "MMM")).toUpperCase()
                     : clock.date.toLocaleDateString(Qt.locale("en_US"), "ddd d MMM").toUpperCase()
                 horizontalAlignment: Text.AlignHCenter
@@ -337,49 +213,49 @@ Item {
         id: mediaComp
         Item {
             visible: Media.present
-            implicitWidth: hud.layoutVertical ? vIcon.implicitWidth : (Media.present ? med.implicitWidth : 0)
-            implicitHeight: hud.layoutVertical ? vIcon.implicitHeight : med.implicitHeight
-            BarMedia { id: med; s: hud.s; visible: !hud.layoutVertical }
-            MaterialIcon {
-                id: vIcon
-                anchors.centerIn: parent
-                visible: hud.layoutVertical
-                text: "music_note"
-                color: Theme.cream
-                font.pixelSize: 15 * hud.s
-            }
+            implicitWidth:  island.layoutVertical ? vIcon.implicitWidth  : (Media.present ? med.implicitWidth  : 0)
+            implicitHeight: island.layoutVertical ? vIcon.implicitHeight : med.implicitHeight
+            BarMedia { id: med; s: hud.s; visible: !island.layoutVertical }
+            MaterialIcon { id: vIcon; anchors.centerIn: parent; visible: island.layoutVertical; text: "music_note"; color: Theme.cream; font.pixelSize: 15 * hud.s }
             HoverHandler { id: medHov; onHoveredChanged: hud.hoverPopoutRequested("media", medHov.hovered) }
             TapHandler { onTapped: Media.toggle() }
             onVisibleChanged: if (!visible) hud.hoverPopoutRequested("media", false)
         }
     }
-    Component { id: titleComp; BarTitle { s: hud.s; maxWidth: 220 * hud.s; label: Config.barShowTitle && ToplevelManager.activeToplevel ? (ToplevelManager.activeToplevel.title || "") : ""; iconSource: Config.barShowTitle && ToplevelManager.activeToplevel ? Apps.iconForClass(ToplevelManager.activeToplevel.appId) : ""; onRequestPopout: (name, center) => hud.popoutRequested(name) } }
-    Component { id: statusComp; BarStatus { s: hud.s; vertical: hud.layoutVertical; onRequestPopout: (name, center) => hud.popoutRequested(name) } }
-    Component { id: trayComp; BarTray { s: hud.s; vertical: hud.layoutVertical; trayWindow: hud.trayWindow; menuEdgeY: hud.py + hud.bodyH } }
+    Component { id: titleComp;  BarTitle  { s: hud.s; maxWidth: 220 * hud.s; label: Config.barShowTitle && ToplevelManager.activeToplevel ? (ToplevelManager.activeToplevel.title || "") : ""; iconSource: Config.barShowTitle && ToplevelManager.activeToplevel ? Apps.iconForClass(ToplevelManager.activeToplevel.appId) : ""; onRequestPopout: (name, center) => hud.popoutRequested(name) } }
+    Component { id: statusComp; BarStatus  { s: hud.s; vertical: island.layoutVertical; onRequestPopout: (name, center) => hud.popoutRequested(name) } }
+    Component { id: trayComp;   BarTray    { s: hud.s; vertical: island.layoutVertical; trayWindow: hud.trayWindow; menuEdgeY: island.py + island.bodyH } }
 
+    // --- content item --------------------------------------------------------
     Item {
         id: content
-        x: hud.px
-        y: hud.py
-        width: hud.bodyW
-        height: hud.bodyH
-        opacity: hud.reorientFade * Math.max(0, Math.min(1, (hud.prog - 0.6) / 0.35))
-        transform: Matrix4x4 { matrix: bodyBlob.deformMatrix }
+        x: island.px
+        y: island.py
+        width: island.bodyW
+        height: island.bodyH
+        opacity: island.reorientFade * Math.max(0, Math.min(1, (hud.prog - 0.6) / 0.35))
+        transform: Matrix4x4 { matrix: island.deformMatrix }
         HoverHandler { id: bodyHov }
+
+        // the grip reflows with orientation/module changes -- track its real
+        // position so the drag hitbox (in FloatingIsland) stays under it.
+        Binding { target: island; property: "handleX"; value: grid.x + gripItem.x }
+        Binding { target: island; property: "handleY"; value: grid.y + gripItem.y }
+        Binding { target: island; property: "handleW"; value: gripItem.width }
+        Binding { target: island; property: "handleH"; value: gripItem.height }
 
         Grid {
             id: grid
             anchors.centerIn: parent
-            columns: hud.layoutVertical ? 1 : 99
+            columns: island.layoutVertical ? 1 : 99
             rowSpacing: 8 * hud.s
             columnSpacing: 12 * hud.s
             horizontalItemAlignment: Grid.AlignHCenter
             verticalItemAlignment: Grid.AlignVCenter
 
-            // grip: the only drag handle. drag it to move the island; a tap
-            // tucks it to a nub. the rest of the island stays free, so modules
-            // keep their taps, hovers, and wheels (the audio scroll included).
+            // grip: only drag handle; tap tucks to nub.
             Item {
+                id: gripItem
                 width: 14 * hud.s
                 height: 16 * hud.s
                 Grid {
@@ -398,36 +274,6 @@ Item {
                     }
                 }
                 HoverHandler { id: gripHov; cursorShape: Qt.SizeAllCursor }
-                DragHandler {
-                    id: dragH
-                    target: null
-                    dragThreshold: 8
-                    cursorShape: Qt.SizeAllCursor
-                    property real sx: 0
-                    property real sy: 0
-                    property real ax: 0
-                    property real ay: 0
-                    onActiveChanged: {
-                        if (dragH.active) {
-                            dragH.sx = hud.px;
-                            dragH.sy = hud.py;
-                            dragH.ax = dragH.centroid.scenePosition.x;
-                            dragH.ay = dragH.centroid.scenePosition.y;
-                        } else {
-                            var e = hud.rawNearEdge;
-                            hud.nearEdge = e;
-                            hud.alongPx = (e === "top" || e === "bottom") ? hud.px : hud.py;
-                            hud.dockEdge = e;
-                            hud.persistDock();
-                        }
-                    }
-                    onCentroidChanged: {
-                        if (!dragH.active)
-                            return;
-                        hud.px = Math.max(hud.lipL, Math.min(hud.width - hud.lipR - hud.bodyW, dragH.sx + (dragH.centroid.scenePosition.x - dragH.ax)));
-                        hud.py = Math.max(hud.lipT, Math.min(hud.height - hud.lipB - hud.bodyH, dragH.sy + (dragH.centroid.scenePosition.y - dragH.ay)));
-                    }
-                }
                 TapHandler { onTapped: hud.hidden = !hud.hidden }
             }
 
@@ -435,26 +281,24 @@ Item {
                 model: Config.islandModules
                 Loader {
                     required property var modelData
-                    enabled: !hud.dragging
+                    enabled: !island.dragging
                     sourceComponent: modelData === "workspaces" ? wsComp
-                        : modelData === "clock" ? clockComp
-                        : modelData === "date" ? dateComp
-                        : modelData === "media" ? mediaComp
-                        : modelData === "title" ? titleComp
+                        : modelData === "clock"  ? clockComp
+                        : modelData === "date"   ? dateComp
+                        : modelData === "media"  ? mediaComp
+                        : modelData === "title"  ? titleComp
                         : modelData === "status" ? statusComp
-                        : modelData === "tray" ? trayComp
+                        : modelData === "tray"   ? trayComp
                         : null
                 }
             }
         }
     }
 
-    onHiddenChanged: hud.persistDock()
-
-    // tucked cue: a dot on the nub so a hidden island reads as tucked, not gone.
+    // tucked cue dot.
     Rectangle {
-        readonly property real cx: hud.faceX + hud.faceW / 2
-        readonly property real cy: hud.faceY + hud.faceH / 2
+        readonly property real cx: island.faceX + island.faceW / 2
+        readonly property real cy: island.faceY + island.faceH / 2
         width: 7 * hud.s
         height: 7 * hud.s
         radius: width / 2

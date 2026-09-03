@@ -600,6 +600,22 @@ ShellRoot {
                 && root.kbPopouts.indexOf(root.popout) >= 0
             readonly property bool modal: kbPopout
 
+            // true once any undockable popout on this monitor has detached
+            // into a floating island. A floating popout is meant to coexist
+            // with using the rest of the desktop (like RecordHud/DelosIsland,
+            // which never grab at all) rather than stay modal -- so the
+            // click-away focus grab below must not hold onto input just
+            // because root.popout is still set for bookkeeping (re-dock,
+            // masking). Without this, hovering a sidebar corner elsewhere on
+            // screen stopped registering until an unrelated click cleared
+            // the grab.
+            readonly property bool anyPopoutFloating: mixerPop.floating || powerPop.floating
+                || networkPop.floating || batteryPop.floating || displayPop.floating
+                || webcamBridgePop.floating || resourcesPop.floating || weatherPop.floating
+                || netSpeedPop.floating || agentUsagePop.floating || windowInfoPop.floating
+                || bluetoothPop.floating || calendarPop.floating || mediaPop.floating
+                || clipboardPop.floating || inboxPop.floating
+
             // true when this monitor's visible workspace holds a fullscreen
             // window. Fullscreen owns the id -> fullscreen map (hyprctl-backed,
             // fork-proof); the monitor -> active workspace hop stays event-driven.
@@ -632,7 +648,13 @@ ShellRoot {
             // mid-drag; losing the region there kills the grab and the island
             // snaps home while the button is still held.
             mask: monFullscreen ? hiddenRegion
-                : ((modal || recHud.dragging || delosIsland.dragging) ? fullRegion : barRegion)
+                : ((modal || recHud.dragging || delosIsland.dragging
+                    || mixerPop.floatDragging || powerPop.floatDragging || networkPop.floatDragging
+                    || batteryPop.floatDragging || displayPop.floatDragging || webcamBridgePop.floatDragging
+                    || resourcesPop.floatDragging || weatherPop.floatDragging || netSpeedPop.floatDragging
+                    || agentUsagePop.floatDragging || windowInfoPop.floatDragging || bluetoothPop.floatDragging
+                    || calendarPop.floatDragging || mediaPop.floatDragging || clipboardPop.floatDragging
+                    || inboxPop.floatDragging) ? fullRegion : barRegion)
 
             // the bar band's input strip, per edge.
             readonly property real barMaskX: barRight ? width - barVisibleH : 0
@@ -668,27 +690,46 @@ ShellRoot {
                 height: (Config.barEnabled && !overlay.delos) ? overlay.barMaskH : 0
                 Region { x: mixerPop.triggerX; y: mixerPop.triggerY; width: mixerPop.triggerW; height: mixerPop.triggerH }
                 Region { x: mixerPop.maskX; y: mixerPop.maskY; width: mixerPop.maskW; height: mixerPop.maskH }
+                Region { x: mixerPop.floatHudX; y: mixerPop.floatHudY; width: mixerPop.floatHudW; height: mixerPop.floatHudH }
                 Region { x: powerPop.triggerX; y: powerPop.triggerY; width: powerPop.triggerW; height: powerPop.triggerH }
                 Region { x: powerPop.maskX; y: powerPop.maskY; width: powerPop.maskW; height: powerPop.maskH }
+                Region { x: powerPop.floatHudX; y: powerPop.floatHudY; width: powerPop.floatHudW; height: powerPop.floatHudH }
                 Region { x: networkPop.maskX; y: networkPop.maskY; width: networkPop.maskW; height: networkPop.maskH }
+                Region { x: networkPop.floatHudX; y: networkPop.floatHudY; width: networkPop.floatHudW; height: networkPop.floatHudH }
                 Region { x: batteryPop.maskX; y: batteryPop.maskY; width: batteryPop.maskW; height: batteryPop.maskH }
+                Region { x: batteryPop.floatHudX; y: batteryPop.floatHudY; width: batteryPop.floatHudW; height: batteryPop.floatHudH }
                 Region { x: displayPop.maskX; y: displayPop.maskY; width: displayPop.maskW; height: displayPop.maskH }
+                Region { x: displayPop.floatHudX; y: displayPop.floatHudY; width: displayPop.floatHudW; height: displayPop.floatHudH }
                 Region { x: bluetoothPop.maskX; y: bluetoothPop.maskY; width: bluetoothPop.maskW; height: bluetoothPop.maskH }
+                Region { x: bluetoothPop.floatHudX; y: bluetoothPop.floatHudY; width: bluetoothPop.floatHudW; height: bluetoothPop.floatHudH }
                 Region { x: windowInfoPop.maskX; y: windowInfoPop.maskY; width: windowInfoPop.maskW; height: windowInfoPop.maskH }
+                Region { x: windowInfoPop.floatHudX; y: windowInfoPop.floatHudY; width: windowInfoPop.floatHudW; height: windowInfoPop.floatHudH }
                 Region { x: calendarPop.maskX; y: calendarPop.maskY; width: calendarPop.maskW; height: calendarPop.maskH }
+                Region { x: calendarPop.floatHudX; y: calendarPop.floatHudY; width: calendarPop.floatHudW; height: calendarPop.floatHudH }
                 Region { x: clipboardPop.maskX; y: clipboardPop.maskY; width: clipboardPop.maskW; height: clipboardPop.maskH }
+                Region { x: clipboardPop.floatHudX; y: clipboardPop.floatHudY; width: clipboardPop.floatHudW; height: clipboardPop.floatHudH }
                 Region { x: linkPop.maskX; y: linkPop.maskY; width: linkPop.maskW; height: linkPop.maskH }
                 Region { x: inboxPop.maskX; y: inboxPop.maskY; width: inboxPop.maskW; height: inboxPop.maskH }
+                Region { x: inboxPop.floatHudX; y: inboxPop.floatHudY; width: inboxPop.floatHudW; height: inboxPop.floatHudH }
                 Region { x: voicePop.maskX; y: voicePop.maskY; width: voicePop.maskW; height: voicePop.maskH }
                 Region { x: keyringPop.maskX; y: keyringPop.maskY; width: keyringPop.maskW; height: keyringPop.maskH }
                 Region { x: workspacesPop.maskX; y: workspacesPop.maskY; width: workspacesPop.maskW; height: workspacesPop.maskH }
                 Region { x: mediaPop.maskX; y: mediaPop.maskY; width: mediaPop.maskW; height: mediaPop.maskH }
+                Region { x: mediaPop.floatHudX; y: mediaPop.floatHudY; width: mediaPop.floatHudW; height: mediaPop.floatHudH }
                 Region { x: toastPop.maskX; y: toastPop.maskY; width: toastPop.maskW; height: toastPop.maskH }
-                // the only one of the compact right-side popouts (net-speed,
-                // weather, resources) with an actual click target in its body
-                // (the manual refresh button) -- those others are pure
-                // display, so they never needed a mask entry; this one does.
+                // the compact right-side popouts (net-speed, weather,
+                // resources, agent-usage) used to be pure display with no
+                // mask entry needed, but now all carry an undock button.
+                Region { x: netSpeedPop.maskX; y: netSpeedPop.maskY; width: netSpeedPop.maskW; height: netSpeedPop.maskH }
+                Region { x: netSpeedPop.floatHudX; y: netSpeedPop.floatHudY; width: netSpeedPop.floatHudW; height: netSpeedPop.floatHudH }
+                Region { x: weatherPop.maskX; y: weatherPop.maskY; width: weatherPop.maskW; height: weatherPop.maskH }
+                Region { x: weatherPop.floatHudX; y: weatherPop.floatHudY; width: weatherPop.floatHudW; height: weatherPop.floatHudH }
+                Region { x: resourcesPop.maskX; y: resourcesPop.maskY; width: resourcesPop.maskW; height: resourcesPop.maskH }
+                Region { x: resourcesPop.floatHudX; y: resourcesPop.floatHudY; width: resourcesPop.floatHudW; height: resourcesPop.floatHudH }
+                Region { x: webcamBridgePop.maskX; y: webcamBridgePop.maskY; width: webcamBridgePop.maskW; height: webcamBridgePop.maskH }
+                Region { x: webcamBridgePop.floatHudX; y: webcamBridgePop.floatHudY; width: webcamBridgePop.floatHudW; height: webcamBridgePop.floatHudH }
                 Region { x: agentUsagePop.maskX; y: agentUsagePop.maskY; width: agentUsagePop.maskW; height: agentUsagePop.maskH }
+                Region { x: agentUsagePop.floatHudX; y: agentUsagePop.floatHudY; width: agentUsagePop.floatHudW; height: agentUsagePop.floatHudH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
                 Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
@@ -853,7 +894,7 @@ ShellRoot {
                 // hovering that icon opens the mixer at its centre; on a
                 // top/bottom or absent bar it stays the left-centre frame
                 // feature on the thin lip.
-                Popout {
+                UndockablePopout {
                     id: mixerPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -867,18 +908,28 @@ ShellRoot {
                     pinned: root.popout === "mixer" && root.popoutMon === overlay.modelData.name
                     openW: mixerContent.implicitWidth
                     openH: mixerContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     Mixer {
                         id: mixerContent
                         s: overlay.s
                         open: mixerPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        Mixer {
+                            s: overlay.s
+                            open: mixerPop.floating
+                        }
+                    }
                 }
 
                 // power popout: on a side bar it grows from the bar's inner
                 // edge right at the power button; else the right-centre frame
                 // feature.
-                Popout {
+                UndockablePopout {
                     id: powerPop
                     group: blobGroup
                     frameThickness: overlay.delos ? overlay.frameTopVisible : overlay.barVisibleH
@@ -893,6 +944,9 @@ ShellRoot {
                     pinned: root.popout === "power" && root.popoutMon === overlay.modelData.name
                     openW: powerContent.implicitWidth
                     openH: powerContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     PowerPanel {
                         id: powerContent
@@ -900,7 +954,15 @@ ShellRoot {
                         open: powerPop.prog > 0.5
                         heroTopLeftRadius: powerPop.contentTopLeftRadius
                         heroTopRightRadius: powerPop.contentTopRightRadius
-                        onCloseRequested: root.popout = ""
+                        onCloseRequested: { powerPop.floating = false; root.popout = ""; }
+                    }
+
+                    floatingContent: Component {
+                        PowerPanel {
+                            s: overlay.s
+                            open: powerPop.floating
+                            onCloseRequested: { powerPop.floating = false; root.popout = ""; }
+                        }
                     }
                 }
 
@@ -908,7 +970,7 @@ ShellRoot {
                 // cluster icon -- hovering the icon opens it at the icon's centre,
                 // fused to the bar like the mixer. the deep surfaces (Link,
                 // battery) stay the click target for the full view.
-                Popout {
+                UndockablePopout {
                     id: networkPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -922,15 +984,25 @@ ShellRoot {
                     pinned: root.popout === "network" && root.popoutMon === overlay.modelData.name
                     openW: netContent.implicitWidth
                     openH: netContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     NetworkPopout {
                         id: netContent
                         s: overlay.s
                         open: networkPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        NetworkPopout {
+                            s: overlay.s
+                            open: networkPop.floating
+                        }
+                    }
                 }
 
-                Popout {
+                UndockablePopout {
                     id: batteryPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -944,18 +1016,28 @@ ShellRoot {
                     pinned: root.popout === "battery" && root.popoutMon === overlay.modelData.name
                     openW: batContent.implicitWidth
                     openH: batContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     BatteryPopout {
                         id: batContent
                         s: overlay.s
                         open: batteryPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        BatteryPopout {
+                            s: overlay.s
+                            open: batteryPop.floating
+                        }
+                    }
                 }
 
                 // display popout: opened from the bar's display module (next
                 // to volume) -- laptop panel backlight, screen vibrance, and
                 // any external ddc monitor's brightness.
-                Popout {
+                UndockablePopout {
                     id: displayPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -969,18 +1051,28 @@ ShellRoot {
                     pinned: root.popout === "display" && root.popoutMon === overlay.modelData.name
                     openW: displayContent.implicitWidth
                     openH: displayContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     DisplayPopout {
                         id: displayContent
                         s: overlay.s
                         open: displayPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        DisplayPopout {
+                            s: overlay.s
+                            open: displayPop.floating
+                        }
+                    }
                 }
 
                 // webcam-bridge popout: opened from BarStatus.qml's bridge
                 // icon, which only shows while the non-UVC libcamera bridge
                 // is up -- explains what it is and reports its live status.
-                Popout {
+                UndockablePopout {
                     id: webcamBridgePop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -994,17 +1086,27 @@ ShellRoot {
                     pinned: root.popout === "webcamBridge" && root.popoutMon === overlay.modelData.name
                     openW: webcamBridgeContent.implicitWidth
                     openH: webcamBridgeContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     WebcamBridgePopout {
                         id: webcamBridgeContent
                         s: overlay.s
                         open: webcamBridgePop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        WebcamBridgePopout {
+                            s: overlay.s
+                            open: webcamBridgePop.floating
+                        }
+                    }
                 }
 
                 // resources popout: opened from the Nacre stats module, the CPU /
                 // memory / temp readout grows from the bar edge at the module.
-                Popout {
+                UndockablePopout {
                     id: resourcesPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1018,18 +1120,28 @@ ShellRoot {
                     pinned: root.popout === "resources" && root.popoutMon === overlay.modelData.name
                     openW: resContent.implicitWidth
                     openH: resContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     ResourcesPopout {
                         id: resContent
                         s: overlay.s
                         open: resourcesPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        ResourcesPopout {
+                            s: overlay.s
+                            open: resourcesPop.floating
+                        }
+                    }
                 }
 
                 // weather popout: opened from the bar's weather module, the
                 // current reading + hourly strip + daily forecast grows from
                 // the bar edge at the module.
-                Popout {
+                UndockablePopout {
                     id: weatherPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1043,17 +1155,27 @@ ShellRoot {
                     pinned: root.popout === "weather" && root.popoutMon === overlay.modelData.name
                     openW: wxContent.implicitWidth
                     openH: wxContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     WeatherPopout {
                         id: wxContent
                         s: overlay.s
                         open: weatherPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        WeatherPopout {
+                            s: overlay.s
+                            open: weatherPop.floating
+                        }
+                    }
                 }
 
                 // net-speed popout: opened from the bar's net-speed module, the
                 // download / upload readout grows from the bar edge at the module.
-                Popout {
+                UndockablePopout {
                     id: netSpeedPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1067,18 +1189,28 @@ ShellRoot {
                     pinned: root.popout === "netspeed" && root.popoutMon === overlay.modelData.name
                     openW: netSpeedContent.implicitWidth
                     openH: netSpeedContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     NetSpeedPopout {
                         id: netSpeedContent
                         s: overlay.s
                         open: netSpeedPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        NetSpeedPopout {
+                            s: overlay.s
+                            open: netSpeedPop.floating
+                        }
+                    }
                 }
 
                 // agent-usage popout: opened from the bar's agent-usage module,
                 // Claude Code's session/weekly rate-limit percentages grow from
                 // the bar edge at the module.
-                Popout {
+                UndockablePopout {
                     id: agentUsagePop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1092,18 +1224,28 @@ ShellRoot {
                     pinned: root.popout === "agentusage" && root.popoutMon === overlay.modelData.name
                     openW: agentUsageContent.implicitWidth
                     openH: agentUsageContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     AgentUsagePopout {
                         id: agentUsageContent
                         s: overlay.s
                         open: agentUsagePop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        AgentUsagePopout {
+                            s: overlay.s
+                            open: agentUsagePop.floating
+                        }
+                    }
                 }
 
                 // window-info popout: opened from the bar's title module, the
                 // focused window's class/workspace/geometry and the process
                 // behind it grow from the bar edge at the title.
-                Popout {
+                UndockablePopout {
                     id: windowInfoPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1117,15 +1259,25 @@ ShellRoot {
                     pinned: root.popout === "windowinfo" && root.popoutMon === overlay.modelData.name
                     openW: windowInfoContent.implicitWidth
                     openH: windowInfoContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     WindowInfoPopout {
                         id: windowInfoContent
                         s: overlay.s
                         open: windowInfoPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        WindowInfoPopout {
+                            s: overlay.s
+                            open: windowInfoPop.floating
+                        }
+                    }
                 }
 
-                Popout {
+                UndockablePopout {
                     id: bluetoothPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1139,17 +1291,27 @@ ShellRoot {
                     pinned: root.popout === "bluetooth" && root.popoutMon === overlay.modelData.name
                     openW: btContent.implicitWidth
                     openH: btContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     BluetoothPopout {
                         id: btContent
                         s: overlay.s
                         open: bluetoothPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        BluetoothPopout {
+                            s: overlay.s
+                            open: bluetoothPop.floating
+                        }
+                    }
                 }
 
                 // calendar popout: opened from the clock module on the bar, the
                 // month calendar grows from the bar edge at the clock.
-                Popout {
+                UndockablePopout {
                     id: calendarPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1163,11 +1325,21 @@ ShellRoot {
                     pinned: root.popout === "calendar" && root.popoutMon === overlay.modelData.name
                     openW: calContent.implicitWidth
                     openH: calContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     CalendarPopout {
                         id: calContent
                         s: overlay.s
                         open: calendarPop.prog > 0.5
+                    }
+
+                    floatingContent: Component {
+                        CalendarPopout {
+                            s: overlay.s
+                            open: calendarPop.floating
+                        }
                     }
                 }
 
@@ -1175,7 +1347,7 @@ ShellRoot {
                 // compact transport (elapsed line + prev/play/next) from the bar
                 // edge at the module; the body's hover latch keeps it open for
                 // the buttons. gated off while a clicked popout is up.
-                Popout {
+                UndockablePopout {
                     id: mediaPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1186,21 +1358,30 @@ ShellRoot {
                     closeDelay: 140  // hover-intent: crossing the border rim never flickers it shut
                     alongCenter: root.hoverPopoutCenter
                     s: overlay.s
-                    active: !overlay.monFullscreen && root.popout === ""
+                    active: !overlay.monFullscreen && (root.popout === "" || overlay.anyPopoutFloating)
                     triggerHovered: root.hoverPopout === "media" && root.hoverPopoutMon === overlay.modelData.name
                     openW: mediaContent.implicitWidth
                     openH: mediaContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
 
                     MediaPopout {
                         id: mediaContent
                         s: overlay.s
                         open: mediaPop.prog > 0.5
                     }
+
+                    floatingContent: Component {
+                        MediaPopout {
+                            s: overlay.s
+                            open: mediaPop.floating
+                        }
+                    }
                 }
 
                 // clipboard popout: Super+V grows the clipboard search/history
                 // from the bar edge. a keyboard popout (see kbPopouts).
-                Popout {
+                UndockablePopout {
                     id: clipboardPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1214,12 +1395,23 @@ ShellRoot {
                     pinned: root.popout === "clipboard" && root.popoutMon === overlay.modelData.name
                     openW: clipContent.implicitWidth
                     openH: clipContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     ClipboardPopout {
                         id: clipContent
                         s: overlay.s
                         open: clipboardPop.prog > 0.5
-                        onCloseRequested: root.popout = ""
+                        onCloseRequested: { clipboardPop.floating = false; root.popout = ""; }
+                    }
+
+                    floatingContent: Component {
+                        ClipboardPopout {
+                            s: overlay.s
+                            open: clipboardPop.floating
+                            onCloseRequested: { clipboardPop.floating = false; root.popout = ""; }
+                        }
                     }
                 }
 
@@ -1250,7 +1442,7 @@ ShellRoot {
 
                 // inbox popout: the notification centre (the bell), from the bar
                 // edge. pointer-only, dismisses via the focus grab.
-                Popout {
+                UndockablePopout {
                     id: inboxPop
                     group: blobGroup
                     frameThickness: overlay.barVisibleH
@@ -1264,12 +1456,23 @@ ShellRoot {
                     pinned: root.popout === "inbox" && root.popoutMon === overlay.modelData.name
                     openW: inboxContent.implicitWidth
                     openH: inboxContent.implicitHeight
+                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
+                    barBand: overlay.barBand
+                    onCloseRequested: root.popout = ""
 
                     InboxPopout {
                         id: inboxContent
                         s: overlay.s
                         open: inboxPop.prog > 0.5
-                        onCloseRequested: root.popout = ""
+                        onCloseRequested: { inboxPop.floating = false; root.popout = ""; }
+                    }
+
+                    floatingContent: Component {
+                        InboxPopout {
+                            s: overlay.s
+                            open: inboxPop.floating
+                            onCloseRequested: { inboxPop.floating = false; root.popout = ""; }
+                        }
                     }
                 }
 
@@ -1288,7 +1491,7 @@ ShellRoot {
                     align: "end"
                     hoverOpen: false
                     s: overlay.s
-                    active: Config.barEnabled && !overlay.monFullscreen && root.popout === ""
+                    active: Config.barEnabled && !overlay.monFullscreen && (root.popout === "" || overlay.anyPopoutFloating)
                     pinned: Notifs.popups.length > 0
                     openW: toastContent.implicitWidth
                     openH: toastContent.implicitHeight
@@ -1494,7 +1697,7 @@ ShellRoot {
                     hoverOpen: false
                     closeDelay: 300
                     s: overlay.s
-                    active: overlay.sidebarLeftOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarLeft")
+                    active: overlay.sidebarLeftOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarLeft" || overlay.anyPopoutFloating)
                     triggerHovered: (Config.sidebarClickless && sidebarLeftCorner.armed) || overlay.leftDragActive
                     extraHold: sidebarLeftBarGapHH.hovered
                     pinned: root.popout === "sidebarLeft" && root.popoutMon === overlay.modelData.name
@@ -1585,7 +1788,7 @@ ShellRoot {
                     hoverOpen: false
                     closeDelay: 300
                     s: overlay.s
-                    active: overlay.sidebarRightOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarRight")
+                    active: overlay.sidebarRightOn && !overlay.monFullscreen && (root.popout === "" || root.popout === "sidebarRight" || overlay.anyPopoutFloating)
                     triggerHovered: Config.sidebarClickless && sidebarRightCorner.armed
                     extraHold: sidebarRightBarGapHH.hovered
                     pinned: root.popout === "sidebarRight" && root.popoutMon === overlay.modelData.name
@@ -1607,7 +1810,7 @@ ShellRoot {
                 }
 
                 HyprlandFocusGrab {
-                    active: root.popout !== "" && root.popoutMon === overlay.modelData.name && !overlay.kbPopout && root.popout !== "voice"
+                    active: root.popout !== "" && root.popoutMon === overlay.modelData.name && !overlay.kbPopout && root.popout !== "voice" && !overlay.anyPopoutFloating
                     windows: [overlay]
                     onCleared: if (root.popoutMon === overlay.modelData.name) root.popout = ""
                 }
