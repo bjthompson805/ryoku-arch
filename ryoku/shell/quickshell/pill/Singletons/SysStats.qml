@@ -26,6 +26,28 @@ Singleton {
     property bool diskAvailable: false
     property string diskUsed: ""
     property string diskTotal: ""
+    // disk read/write throughput, bytes/sec, sampled on the same cadence as
+    // CPU/mem (unlike the usage snapshot above, I/O rate moves fast enough
+    // that a 10s poll would miss most of it).
+    property int diskReadRate: 0
+    property int diskWriteRate: 0
+    property bool diskIOAvailable: false
+    // bar-fill reference for the read/write rate bars in the popout: rates
+    // rarely sustain past this, so it reads as "mostly full" under real load
+    // without needing a proper adaptive scale.
+    readonly property real diskIOMaxBps: 150 * 1024 * 1024
+    property string _diskDev: ""
+    property real _prevDiskReadSectors: -1
+    property real _prevDiskWriteSectors: -1
+    property real _prevDiskIOTs: 0
+
+    function fmtRate(bps) {
+        if (bps < 1024)
+            return bps + " B/s";
+        if (bps < 1024 * 1024)
+            return (bps / 1024).toFixed(1) + " KB/s";
+        return (bps / 1024 / 1024).toFixed(1) + " MB/s";
+    }
 
     // per-core CPU% (0-indexed, in /proc/stat order). empty until the first
     // sample lands.
@@ -87,6 +109,8 @@ Singleton {
                 tempFile.reload();
             if (root._npuPath.length > 0)
                 npuFile.reload();
+            if (root._diskDev.length > 0)
+                diskStatFile.reload();
         }
     }
 
@@ -416,6 +440,54 @@ END {
                     root.gpuAvailable = false;
                 }
             }
+        }
+    }
+
+    // resolve the whole-disk block device backing the home partition once
+    // (lsblk maps a partition like nvme0n1p2 back to its parent nvme0n1,
+    // since /sys/block/<dev>/stat only exists for whole disks; a device
+    // that's already a whole disk has no pkname, so fall back to its own
+    // basename).
+    Process {
+        id: diskDevResolve
+        running: root.active && root._diskDev.length === 0
+        command: ["sh", "-c",
+            "src=$(df --output=source \"$HOME\" 2>/dev/null | tail -1); " +
+            "base=$(basename \"$src\"); " +
+            "pk=$(lsblk -no pkname \"$src\" 2>/dev/null); " +
+            "echo \"${pk:-$base}\""]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var d = (this.text || "").trim();
+                if (d.length > 0)
+                    root._diskDev = d;
+            }
+        }
+    }
+
+    FileView {
+        id: diskStatFile
+        path: root._diskDev.length > 0 ? "/sys/block/" + root._diskDev + "/stat" : ""
+        blockLoading: true
+        printErrors: false
+        onLoaded: {
+            var f = diskStatFile.text().trim().split(/\s+/);
+            if (f.length < 8)
+                return;
+            var readSectors = Number(f[2]);
+            var writeSectors = Number(f[6]);
+            var now = Date.now();
+            if (root._prevDiskIOTs > 0) {
+                var dt = (now - root._prevDiskIOTs) / 1000;
+                if (dt > 0) {
+                    root.diskReadRate = Math.max(0, Math.round((readSectors - root._prevDiskReadSectors) * 512 / dt));
+                    root.diskWriteRate = Math.max(0, Math.round((writeSectors - root._prevDiskWriteSectors) * 512 / dt));
+                    root.diskIOAvailable = true;
+                }
+            }
+            root._prevDiskReadSectors = readSectors;
+            root._prevDiskWriteSectors = writeSectors;
+            root._prevDiskIOTs = now;
         }
     }
 

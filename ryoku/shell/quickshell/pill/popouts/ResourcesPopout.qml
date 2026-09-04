@@ -173,6 +173,49 @@ Item {
         }
     }
 
+    // one disk I/O rate: short name caption over a small usage bar, same
+    // styling as EngineCell but fed a pre-formatted rate string and a
+    // fill fraction instead of a raw percent (throughput has no natural
+    // 0-100 scale).
+    component RateCell: Column {
+        id: rcell
+        property string name: ""
+        property string valueText: ""
+        property real frac: 0
+        width: parent ? parent.width : 0
+        spacing: 3 * root.s
+
+        Text {
+            width: parent.width
+            text: rcell.name
+            color: Theme.dim
+            font.family: Theme.mono
+            font.pixelSize: 7.5 * root.s
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
+        }
+        Rectangle {
+            width: parent.width
+            height: 5 * root.s
+            radius: height / 2
+            color: Theme.hair
+            Rectangle {
+                width: parent.width * Math.min(1, rcell.frac)
+                height: parent.height
+                radius: parent.radius
+                color: Theme.verm
+            }
+        }
+        Text {
+            text: rcell.valueText
+            color: Theme.subtle
+            font.family: Theme.font
+            font.pixelSize: 8 * root.s
+            font.weight: Font.Medium
+            font.features: ({ "tnum": 1 })
+        }
+    }
+
     // disk usage: a plain snapshot rather than a history sparkline (the
     // number barely moves), so it gets a single static fill bar plus a
     // used/total caption instead of the ticking Metric treatment.
@@ -230,6 +273,26 @@ Item {
             font.pixelSize: 9 * root.s
             font.weight: Font.Medium
             font.features: ({ "tnum": 1 })
+        }
+
+        Row {
+            id: ioRow
+            visible: SysStats.diskIOAvailable
+            width: parent.width
+            spacing: 6 * root.s
+
+            RateCell {
+                width: (ioRow.width - ioRow.spacing) / 2
+                name: "READ"
+                valueText: SysStats.fmtRate(SysStats.diskReadRate)
+                frac: SysStats.diskReadRate / SysStats.diskIOMaxBps
+            }
+            RateCell {
+                width: (ioRow.width - ioRow.spacing) / 2
+                name: "WRITE"
+                valueText: SysStats.fmtRate(SysStats.diskWriteRate)
+                frac: SysStats.diskWriteRate / SysStats.diskIOMaxBps
+            }
         }
     }
 
