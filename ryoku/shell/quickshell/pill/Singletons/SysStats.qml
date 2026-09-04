@@ -341,9 +341,21 @@ Singleton {
     // cumulative busy ns, divided by wall-clock time between samples).
     Process {
         id: gpuEngineProc
-        command: root._gpuPdev.length > 0 ? ["sh", "-c", `PDEV='${root._gpuPdev}'
-{ for f in /proc/[0-9]*/fdinfo/*; do [ -r "$f" ] || continue; echo '@@@'; cat "$f" 2>/dev/null; done; } | awk -v want="$PDEV" '
-/^@@@$/ { ok=0; next }
+        // one awk process reads every fdinfo file directly (no per-file fork);
+        // that took ~1.6s of CPU per 3s cycle when this looped a `cat` per
+        // file instead (~1300 forks). BEGINFILE/ERRNO/nextfile (gawk) skips a
+        // file that vanishes mid-scan the same way the old `[ -r "$f" ]` did,
+        // since fds constantly open and close.
+        //
+        // the `;` after PDEV=... is load-bearing: `PDEV=x awk -v want="$PDEV"`
+        // (no `;`) is a single simple command, and POSIX expands every word on
+        // it -- including "$PDEV" in that same -v argument -- against the
+        // shell's variables *before* the prefix assignment takes effect, so
+        // $PDEV expands empty there even though awk's own env does get PDEV.
+        // Splitting into two statements makes the assignment land first.
+        command: root._gpuPdev.length > 0 ? ["sh", "-c", `PDEV='${root._gpuPdev}'; awk -v want="$PDEV" '
+BEGINFILE { if (ERRNO != "") nextfile }
+FNR==1 { ok=0 }
 /^drm-pdev:/ { ok = ($2==want) }
 ok && $1 ~ /^drm-total-cycles-/ { key=$1; sub(/^drm-total-cycles-/,"",key); sub(/:$/,"",key); total[key]=$2 }
 ok && $1 ~ /^drm-cycles-/ { key=$1; sub(/^drm-cycles-/,"",key); sub(/:$/,"",key); busy[key]+=$2 }
@@ -352,7 +364,7 @@ END {
   for (k in total) print "C", k, busy[k]+0, total[k]+0
   for (k in busyns) print "N", k, busyns[k]+0
 }
-'`] : ["true"]
+' /proc/[0-9]*/fdinfo/* 2>/dev/null`] : ["true"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var now = Date.now();
