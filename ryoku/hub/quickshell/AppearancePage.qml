@@ -260,7 +260,7 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "SHAPE"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Corner radius"; unit: "px"
                         from: 0; to: 30; value: store.rounding
                         highlightId: "look_shape_radius"
@@ -272,7 +272,7 @@ Item {
                         highlightId: "look_shape_softness"
                         onModified: (v) => store.edit("roundingPower", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Border thickness"; unit: "px"
                         from: 0; to: 12; value: store.borderSize
                         highlightId: "look_shape_border"
@@ -305,13 +305,13 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "GAPS"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Inner (between windows)"; unit: "px"
                         from: 0; to: 40; value: store.gapsIn
                         highlightId: "look_gaps_inner"
                         onModified: (v) => store.edit("gapsIn", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Outer (screen edge)"; unit: "px"
                         from: 0; to: 60; value: store.gapsOut
                         highlightId: "look_gaps_outer"
@@ -345,14 +345,14 @@ Item {
                         highlightId: "look_titlebars_enable"
                         onToggled: (v) => store.editPlugin("hyprbars", "enabled", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Bar height"; unit: "px"
                         from: 12; to: 48; value: store.plugins.hyprbars.height
                         visible: store.plugins.hyprbars.enabled
                         highlightId: "look_titlebars_height"
                         onModified: (v) => store.editPlugin("hyprbars", "height", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Title text size"; unit: "px"
                         from: 8; to: 20; value: store.plugins.hyprbars.textSize
                         visible: store.plugins.hyprbars.enabled
@@ -428,13 +428,13 @@ Item {
                         highlightId: "look_blur_enabled"
                         onToggled: (v) => store.edit("blurEnabled", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Size"; unit: "px"
                         from: 0; to: 20; value: store.blurSize
                         highlightId: "look_blur_size"
                         onModified: (v) => store.edit("blurSize", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Passes"
                         from: 1; to: 6; value: store.blurPasses
                         highlightId: "look_blur_passes"
@@ -469,13 +469,13 @@ Item {
                         highlightId: "look_depth_shadows"
                         onToggled: (v) => store.edit("shadowEnabled", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Shadow range"; unit: "px"
                         from: 0; to: 60; value: store.shadowRange
                         highlightId: "look_depth_shadow_range"
                         onModified: (v) => store.edit("shadowRange", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Shadow sharpness"
                         from: 1; to: 4; value: store.shadowPower
                         highlightId: "look_depth_shadow_sharpness"
@@ -513,7 +513,7 @@ Item {
                         highlightId: "look_glow_enabled"
                         onToggled: (v) => store.edit("glowEnabled", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Range"; unit: "px"
                         from: 4; to: 60; value: store.glowRange
                         visible: store.glowEnabled
@@ -714,13 +714,13 @@ Item {
                     highlightId: "cursor_theme_select"
                     onChosen: (k) => store.edit("cursorTheme", k)
                 }
-                NumberField {
+                HighlightableNumberField {
                     width: Math.min(parent.width, 460); label: "Size"; unit: "px"
                     from: 12; to: 64; step: 4; value: store.cursorSize
                     highlightId: "cursor_theme_size"
                     onModified: (v) => store.edit("cursorSize", v)
                 }
-                NumberField {
+                HighlightableNumberField {
                     width: Math.min(parent.width, 460); label: "Hide after idle"; unit: "s"
                     from: 0; to: 30; value: store.cursorInactiveTimeout
                     highlightId: "cursor_theme_idle"

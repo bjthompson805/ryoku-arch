@@ -230,7 +230,7 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "SHAPE"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Corner radius"; unit: "px"
                         from: 0; to: 28; value: draft.radius
                         highlightId: "shape_corner_radius"

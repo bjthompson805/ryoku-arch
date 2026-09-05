@@ -458,6 +458,7 @@ Item {
                         id: coresField
                         width: Math.min(parent.width, 460)
                         enabled: !pane.running
+                        debounce: true
                         label: "CPU cores"
                         from: 1; to: 32; step: 1
                         value: pane.vm && pane.vm.cores !== "auto" ? (parseInt(pane.vm.cores) || Vm.settings.defaultCores) : Vm.settings.defaultCores
@@ -468,6 +469,7 @@ Item {
                         id: ramField
                         width: Math.min(parent.width, 460)
                         enabled: !pane.running
+                        debounce: true
                         label: "Memory"
                         unit: "GB"
                         from: 1; to: 128; step: 1
@@ -482,21 +484,32 @@ Item {
                         tabTo: diskField.focusTarget
                         onModified: (v) => Vm.setConfig(pane.name, "ram", Math.round(v) + "G")
                     }
-                    // disk: the real footprint and an explicit grow (reclaim lives
-                    // in the danger zone with the other destructive actions).
+                    // disk: before first boot the size is just a conf number (no
+                    // real image yet, so it's freely editable, shrink included);
+                    // once quickemu has created the image, it's the real footprint
+                    // and an explicit grow-only control (reclaim lives in the
+                    // danger zone with the other destructive actions).
                     Column {
+                        id: diskSection
+                        readonly property bool diskInstalled: pane.det && pane.det.installed === true
                         width: parent.width
                         spacing: 8
-                        visible: pane.det && pane.det.installed
                         Row {
                             width: parent.width
                             spacing: 9
                             SubLabel { anchors.verticalCenter: parent.verticalCenter; text: "Disk" }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
+                                visible: diskSection.diskInstalled
                                 text: (pane.vm ? Vm.human(pane.vm.diskUsed || 0) : "0") + " used"
                                     + (pane.vm && pane.vm.disk ? "  \u00b7  " + pane.vm.disk + " cap" : "")
                                 color: Theme.cream; font.family: Theme.mono; font.pixelSize: 12
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: !diskSection.diskInstalled
+                                text: "not created yet"
+                                color: Theme.dim; font.family: Theme.mono; font.pixelSize: 12
                             }
                         }
                         Row {
@@ -504,7 +517,7 @@ Item {
                             spacing: 10
                             NumberField {
                                 id: diskField
-                                width: Math.min(parent.width - growBtn.width - 10, 360)
+                                width: Math.min(parent.width - diskBtn.width - 10, 360)
                                 enabled: !pane.running
                                 label: "Disk size"
                                 unit: "GB"
@@ -514,19 +527,29 @@ Item {
                                 onModified: (v) => pane.diskTarget = Math.round(v)
                             }
                             HubButton {
-                                id: growBtn
+                                id: diskBtn
                                 anchors.verticalCenter: parent.verticalCenter
-                                label: "Grow"
+                                label: diskSection.diskInstalled ? "Grow" : "Set"
                                 icon: "disk"
                                 primary: true
-                                enabled: !pane.running && !Vm.busy && pane.diskTarget > pane.capGb
-                                onClicked: Vm.resizeDisk(pane.name, pane.diskTarget + "G")
+                                enabled: !pane.running && !Vm.busy && (diskSection.diskInstalled
+                                    ? pane.diskTarget > pane.capGb
+                                    : pane.diskTarget !== pane.capGb)
+                                onClicked: {
+                                    diskField.commit();
+                                    if (diskSection.diskInstalled)
+                                        Vm.resizeDisk(pane.name, pane.diskTarget + "G");
+                                    else
+                                        Vm.setConfig(pane.name, "disk_size", pane.diskTarget + "G");
+                                }
                             }
                         }
                         Text {
                             width: parent.width
                             wrapMode: Text.WordWrap
-                            text: "Grow only; the guest extends its partition afterwards."
+                            text: diskSection.diskInstalled
+                                ? "Grow only; the guest extends its partition afterwards."
+                                : "The size quickemu creates the disk at on first boot. Freely adjustable \u2014 including shrinking \u2014 until then; grow-only afterwards."
                             color: Theme.dim; font.family: Theme.font; font.pixelSize: 11
                         }
                     }

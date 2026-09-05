@@ -16,10 +16,11 @@ Item {
     property string vmName: ""
     property string isoPath: ""
     property string guest: "linux"
+    property int diskSize: 64
 
     readonly property bool valid: dlg.vmName.trim().length > 0 && dlg.isoPath.trim().length > 0
 
-    function reset() { dlg.vmName = ""; dlg.isoPath = ""; dlg.guest = "linux"; }
+    function reset() { dlg.vmName = ""; dlg.isoPath = ""; dlg.guest = "linux"; dlg.diskSize = 64; }
 
     visible: opacity > 0
     opacity: open ? 1 : 0
@@ -181,6 +182,27 @@ Item {
                 }
             }
 
+            // disk size: fixed at creation until first boot, then grow-only.
+            Column {
+                width: parent.width
+                spacing: 7
+                NumberField {
+                    id: diskField
+                    width: parent.width
+                    label: "Disk size"
+                    unit: "GB"
+                    from: 1; to: 2048; step: 8
+                    value: dlg.diskSize
+                    onModified: (v) => dlg.diskSize = Math.round(v)
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: "Choose carefully: once the machine boots, the disk can only grow, never shrink."
+                    color: Theme.dim; font.family: Theme.font; font.pixelSize: 11
+                }
+            }
+
             Row {
                 spacing: 10
                 HubButton {
@@ -189,7 +211,8 @@ Item {
                     label: "Create"
                     enabled: dlg.valid && !Vm.busy
                     onClicked: {
-                        Vm.importVm(dlg.vmName.trim(), dlg.isoPath.trim(), dlg.guest, dlg.guest);
+                        diskField.commit();
+                        Vm.importVm(dlg.vmName.trim(), dlg.isoPath.trim(), dlg.guest, dlg.guest, dlg.diskSize);
                         dlg.reset();
                         dlg.closed();
                     }

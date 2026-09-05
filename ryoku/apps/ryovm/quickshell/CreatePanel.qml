@@ -13,6 +13,8 @@ Item {
     readonly property var os: Vm.selectedOs
     property string release: ""
     property string edition: ""
+    property bool customDisk: false
+    property int diskSize: 64
 
     readonly property var editions: {
         if (!pane.os || !pane.release)
@@ -31,6 +33,8 @@ Item {
             if (!dev.test(r[i])) { pick = r[i]; break; }
         pane.release = pick.length > 0 ? pick : (r.length > 0 ? r[r.length - 1] : "");
         pane._resetEdition();
+        pane.customDisk = false;
+        pane.diskSize = 64;
     }
     onReleaseChanged: pane._resetEdition()
     function _resetEdition() {
@@ -246,6 +250,41 @@ Item {
                     }
                 }
 
+                Column {
+                    width: parent.width
+                    spacing: 8
+                    Row {
+                        spacing: 10
+                        Toggle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            on: pane.customDisk
+                            onToggled: (v) => pane.customDisk = v
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: pane.customDisk ? "Custom disk size" : "Disk size: quickget's default"
+                            color: Theme.cream; font.family: Theme.font; font.pixelSize: 13; font.weight: Font.Medium
+                        }
+                    }
+                    NumberField {
+                        id: diskField
+                        visible: pane.customDisk
+                        width: parent.width
+                        label: "Disk size"
+                        unit: "GB"
+                        from: 1; to: 2048; step: 8
+                        value: pane.diskSize
+                        onModified: (v) => pane.diskSize = Math.round(v)
+                    }
+                    Text {
+                        visible: pane.customDisk
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Choose carefully: once the machine boots, the disk can only grow, never shrink."
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: 11
+                    }
+                }
+
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
@@ -267,7 +306,10 @@ Item {
                 icon: "download"
                 label: "Create machine"
                 enabled: pane.release.length > 0
-                onClicked: Vm.createVm(pane.os.os, pane.release, pane.edition)
+                onClicked: {
+                    diskField.commit();
+                    Vm.createVm(pane.os.os, pane.release, pane.edition, pane.customDisk ? pane.diskSize : 0);
+                }
             }
         }
     }

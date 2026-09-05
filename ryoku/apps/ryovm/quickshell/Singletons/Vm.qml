@@ -266,7 +266,7 @@ Singleton {
     }
     // instant reuses the create streaming pipeline (same download/config/done
     // JSON), so the download bar and "created" hand-off work unchanged.
-    function instant(os, name, disposable, tools, pkgs) {
+    function instant(os, name, disposable, tools, pkgs, diskGb) {
         if (downloading) return;
         downloading = true;
         dlName = name && name.length > 0 ? name : os + "-instant";
@@ -277,6 +277,7 @@ Singleton {
         if (disposable === true) cmd.push("--disposable");
         if (tools && tools.length > 0) cmd.push("--tools=" + tools);
         if (pkgs && pkgs.length > 0) cmd.push("--pkgs=" + pkgs);
+        if (diskGb && diskGb > 0) cmd.push("--disk=" + diskGb + "G");
         createProc.command = cmd;
         createProc.running = true;
     }
@@ -284,7 +285,7 @@ Singleton {
     // create downloads the image in-app with a live bar (the Go fetcher streams
     // JSON), so progress shows in the window and Cancel actually stops it -- no
     // detached terminal that can't report being closed.
-    function createVm(os, release, edition) {
+    function createVm(os, release, edition, diskGb) {
         if (downloading)
             return;
         downloading = true;
@@ -295,7 +296,9 @@ Singleton {
         dlIndeterminate = false;
         dlLog = "";
         status = "Downloading " + os;
-        createProc.command = ["ryovm", "create", os, release].concat(edition ? [edition] : []);
+        var cmd = ["ryovm", "create", os, release].concat(edition ? [edition] : []);
+        if (diskGb && diskGb > 0) cmd.push(diskGb + "G");
+        createProc.command = cmd;
         createProc.running = true;
     }
     // setting running=false sends SIGTERM, which the engine traps to kill the
@@ -337,10 +340,10 @@ Singleton {
     signal created(string name)
     // a VM from any local ISO, off-catalogue (full QEMU reach). os is the logo
     // slug (defaults to the guest type, so windows/macos/android still get marks).
-    function importVm(name, iso, guest, os) {
+    function importVm(name, iso, guest, os, diskGb) {
         busy = true;
         status = "Creating " + name;
-        runProc.exec(["ryovm", "import", name, iso, guest || "linux", os || guest || "linux"]);
+        runProc.exec(["ryovm", "import", name, iso, guest || "linux", os || guest || "linux", (diskGb && diskGb > 0 ? diskGb : 64) + "G"]);
     }
 
     function _group(rows) {

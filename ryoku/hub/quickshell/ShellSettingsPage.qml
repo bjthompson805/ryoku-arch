@@ -562,7 +562,7 @@ Item {
                         checked: draft.frameEnabled
                         onToggled: (v) => page.edit("frameEnabled", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Border thickness"; unit: "px"
                         highlightId: "frame_border"
                         from: 24; to: 140; value: draft.frameBorder
@@ -578,7 +578,7 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "NOTIFICATIONS"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "OSD & toast corner"; unit: "px"
                         highlightId: "frame_osd_corner"
                         from: 0; to: 40; value: draft.osdRadius
@@ -615,13 +615,13 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "ROUNDNESS"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Inner roundness"; unit: "px"
                         highlightId: "global_inner_roundness"
                         from: 0; to: 24; value: draft.roundness
                         onModified: (v) => page.edit("roundness", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Frame corner"; unit: "px"
                         highlightId: "global_frame_corner"
                         from: 0; to: 60; value: draft.frameRadius
@@ -644,7 +644,7 @@ Item {
                         from: 0; to: 1; step: 0.01; value: draft.shadowStrength
                         onModified: (v) => page.edit("shadowStrength", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Size"; unit: "px"
                         highlightId: "global_shadow_size"
                         from: 0; to: 80; value: draft.shadowSize
@@ -850,7 +850,7 @@ Item {
                         current: draft.barStyle
                         onChosen: (k) => page.edit("barStyle", k)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Thickness"; unit: "px"
                         highlightId: "bar_thickness"
                         from: 18; to: 48; value: draft.barHeight
@@ -947,7 +947,7 @@ Item {
                     visible: draft.barStyle === "delos"
                     title: "ISLAND"
                     highlightId: "bar_island_modules"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Roundness"; unit: "px"
                         highlightId: "bar_island_roundness"
                         from: 0; to: 40; value: draft.islandRadius
@@ -1065,13 +1065,13 @@ Item {
                 SettingSection {
                     width: parent.width
                     title: "SIZE"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Width"; unit: "px"
                         highlightId: "sidebar_size_width"
                         from: 240; to: 520; value: draft.sidebarWidth
                         onModified: (v) => page.edit("sidebarWidth", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Corner hotspot"; unit: "px"
                         highlightId: "sidebar_size_hotspot"
                         from: 16; to: 80; value: draft.sidebarCornerSize
@@ -1193,13 +1193,13 @@ Item {
                             checked: draft.enabled
                             onToggled: (v) => page.edit("enabled", v)
                         }
-                        NumberField {
+                        HighlightableNumberField {
                             width: parent.width; label: "Bars"
                             highlightId: "viz_spectrum_bars"
                             from: 16; to: 128; step: 4; value: draft.bars
                             onModified: (v) => page.edit("bars", v)
                         }
-                        NumberField {
+                        HighlightableNumberField {
                             width: parent.width; label: "Segments"
                             highlightId: "viz_spectrum_segments"
                             from: 4; to: 16; value: draft.segments

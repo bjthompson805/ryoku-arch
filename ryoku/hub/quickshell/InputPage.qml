@@ -490,13 +490,13 @@ Item {
             SettingSection {
                 width: parent.width
                 title: "KEY REPEAT"
-                NumberField {
+                HighlightableNumberField {
                     width: Math.min(parent.width, 460); label: "Repeat rate"; unit: "/s"
                     highlightId: "key_repeat_rate"
                     from: 1; to: 100; value: store.repeatRate
                     onModified: (v) => store.edit("repeatRate", v)
                 }
-                NumberField {
+                HighlightableNumberField {
                     width: Math.min(parent.width, 460); label: "Repeat delay"; unit: "ms"
                     highlightId: "key_repeat_delay"
                     from: 100; to: 2000; step: 50; value: store.repeatDelay

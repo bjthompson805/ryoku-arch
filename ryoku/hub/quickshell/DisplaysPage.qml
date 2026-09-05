@@ -465,7 +465,7 @@ Item {
                         current: { void page.tick; return page.sel ? page.sel.mode : ""; }
                         onChosen: (k) => page.setMode(page.selected, k)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Scale"
                         from: 0.5; to: 3; step: 0.25; decimals: 2
                         highlightId: "display_scale"
@@ -500,14 +500,14 @@ Item {
                     width: parent.width
                     visible: !!page.sel
                     title: "POSITION"
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "X"; unit: "px"
                         from: 0; to: 20000; step: 10
                         highlightId: "display_position_x"
                         value: { void page.tick; return page.sel ? page.sel.x : 0; }
                         onModified: (v) => page.setField(page.selected, "x", v)
                     }
-                    NumberField {
+                    HighlightableNumberField {
                         width: parent.width; label: "Y"; unit: "px"
                         from: 0; to: 20000; step: 10
                         highlightId: "display_position_y"

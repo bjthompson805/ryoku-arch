@@ -482,7 +482,7 @@ Item {
                             current: draft.clockBg
                             onChosen: (k) => page.edit("clockBg", k)
                         }
-                        NumberField { visible: draft.clockBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "clock_size_radius"; unit: "px"; from: 0; to: 60; value: draft.clockRadius; onModified: (v) => page.edit("clockRadius", v) }
+                        HighlightableNumberField { visible: draft.clockBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "clock_size_radius"; unit: "px"; from: 0; to: 60; value: draft.clockRadius; onModified: (v) => page.edit("clockRadius", v) }
                         SliderRow { width: parent.width; label: "Opacity"; highlightId: "clock_size_opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.clockOpacity; onModified: (v) => page.edit("clockOpacity", v) }
                     }
 
@@ -490,8 +490,8 @@ Item {
                         width: parent.width
                         title: "PLACEMENT"
                         Dropdown { width: parent.width; label: "Anchor"; highlightId: "clock_placement_anchor"; options: page.anchorOptions; current: draft.clockAnchor; onChosen: (k) => page.edit("clockAnchor", k) }
-                        NumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "X"; highlightId: "clock_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.clockX; onModified: (v) => page.edit("clockX", v) }
-                        NumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "Y"; highlightId: "clock_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.clockY; onModified: (v) => page.edit("clockY", v) }
+                        HighlightableNumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "X"; highlightId: "clock_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.clockX; onModified: (v) => page.edit("clockX", v) }
+                        HighlightableNumberField { visible: draft.clockAnchor === "free"; width: parent.width; label: "Y"; highlightId: "clock_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.clockY; onModified: (v) => page.edit("clockY", v) }
                         ToggleRow { width: parent.width; label: "Lock on desktop"; highlightId: "clock_placement_lock"; checked: draft.clockLocked; onToggled: (v) => page.edit("clockLocked", v) }
                     }
                 }
@@ -616,7 +616,7 @@ Item {
                             current: draft.weatherBg
                             onChosen: (k) => page.edit("weatherBg", k)
                         }
-                        NumberField { visible: draft.weatherBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "weather_size_radius"; unit: "px"; from: 0; to: 60; value: draft.weatherRadius; onModified: (v) => page.edit("weatherRadius", v) }
+                        HighlightableNumberField { visible: draft.weatherBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "weather_size_radius"; unit: "px"; from: 0; to: 60; value: draft.weatherRadius; onModified: (v) => page.edit("weatherRadius", v) }
                         SliderRow { width: parent.width; label: "Opacity"; highlightId: "weather_size_opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.weatherOpacity; onModified: (v) => page.edit("weatherOpacity", v) }
                     }
 
@@ -624,8 +624,8 @@ Item {
                         width: parent.width
                         title: "PLACEMENT"
                         Dropdown { width: parent.width; label: "Anchor"; highlightId: "weather_placement_anchor"; options: page.anchorOptions; current: draft.weatherAnchor; onChosen: (k) => page.edit("weatherAnchor", k) }
-                        NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "X"; highlightId: "weather_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.weatherX; onModified: (v) => page.edit("weatherX", v) }
-                        NumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "Y"; highlightId: "weather_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.weatherY; onModified: (v) => page.edit("weatherY", v) }
+                        HighlightableNumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "X"; highlightId: "weather_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.weatherX; onModified: (v) => page.edit("weatherX", v) }
+                        HighlightableNumberField { visible: draft.weatherAnchor === "free"; width: parent.width; label: "Y"; highlightId: "weather_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.weatherY; onModified: (v) => page.edit("weatherY", v) }
                         ToggleRow { width: parent.width; label: "Lock on desktop"; highlightId: "weather_placement_lock"; checked: draft.weatherLocked; onToggled: (v) => page.edit("weatherLocked", v) }
                     }
                 }
@@ -749,7 +749,7 @@ Item {
                             current: draft.calBg
                             onChosen: (k) => page.edit("calBg", k)
                         }
-                        NumberField { visible: draft.calBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "cal_size_radius"; unit: "px"; from: 0; to: 60; value: draft.calRadius; onModified: (v) => page.edit("calRadius", v) }
+                        HighlightableNumberField { visible: draft.calBg !== "none"; width: parent.width; label: "Corner radius"; highlightId: "cal_size_radius"; unit: "px"; from: 0; to: 60; value: draft.calRadius; onModified: (v) => page.edit("calRadius", v) }
                         SliderRow { width: parent.width; label: "Opacity"; highlightId: "cal_size_opacity"; percent: true; from: 0.2; to: 1; step: 0.01; value: draft.calOpacity; onModified: (v) => page.edit("calOpacity", v) }
                     }
 
@@ -757,8 +757,8 @@ Item {
                         width: parent.width
                         title: "PLACEMENT"
                         Dropdown { width: parent.width; label: "Anchor"; highlightId: "cal_placement_anchor"; options: page.anchorOptions; current: draft.calAnchor; onChosen: (k) => page.edit("calAnchor", k) }
-                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "X"; highlightId: "cal_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.calX; onModified: (v) => page.edit("calX", v) }
-                        NumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "Y"; highlightId: "cal_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.calY; onModified: (v) => page.edit("calY", v) }
+                        HighlightableNumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "X"; highlightId: "cal_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.calX; onModified: (v) => page.edit("calX", v) }
+                        HighlightableNumberField { visible: draft.calAnchor === "free"; width: parent.width; label: "Y"; highlightId: "cal_placement_position"; unit: "px"; from: 0; to: 5000; value: draft.calY; onModified: (v) => page.edit("calY", v) }
                         ToggleRow { width: parent.width; label: "Lock on desktop"; highlightId: "cal_placement_lock"; checked: draft.calLocked; onToggled: (v) => page.edit("calLocked", v) }
                     }
                 }

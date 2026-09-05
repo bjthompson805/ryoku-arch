@@ -12,10 +12,11 @@
 #   catalog [--refresh]              quickget OS catalogue (cached)
 #   list                             local VMs + live run state
 #   get <name>                       one VM: config + state + snapshots
-#   create <os> <release> [edition]  quickget download+config (streams progress)
-#   instant <os> [name] [--disposable] a prebuilt cloud image, ryoku/ryoku burn account, no installer
+#   create <os> <release> [edition] [size]  quickget download+config (streams progress);
+#                                     size (e.g. 64G) overrides quickget's tuned default
+#   instant <os> [name] [--disposable] [--disk=SIZE] a prebuilt cloud image, ryoku/ryoku burn account, no installer
 #   cloud-catalog                    the curated cloud-image list (JSON)
-#   import <name> <iso> [guest]      a VM from any ISO (full QEMU, off-catalogue)
+#   import <name> <iso> [guest] [os] [size]  a VM from any ISO (full QEMU, off-catalogue)
 #   launch <name> [window|spice|headless]   start detached
 #   console <name>                   open the SPICE viewer for a running VM
 #   stop <name>                      power off
@@ -45,6 +46,12 @@ conf_get() { sed -n -E "/^$2=/{s/^$2=\"?([^\"]*)\"?\$/\1/p;q}" "$1" 2>/dev/null;
 # import stamp `ryovm_os`; quickemu ignores the unknown key. Empty when unknown
 # (a hand-rolled conf), so the UI falls back to a generic glyph.
 os_slug() { conf_get "$1" ryovm_os; }
+
+# overwrite (or append) disk_size in a freshly-written conf, e.g. to replace
+# quickget's own tuned default with the size the user picked at create time.
+stamp_disk_size() { # $1 = conf, $2 = size (e.g. 64G)
+	if grep -qE '^disk_size=' "$1"; then sed -i -E "s|^disk_size=.*|disk_size=\"$2\"|" "$1"; else echo "disk_size=\"$2\"" >>"$1"; fi
+}
 
 # resolve a VM's runtime triplet from its conf: the on-disk name, its dir, and
 # the absolute disk image. quickget writes relative disk paths, so the dir is
@@ -278,7 +285,16 @@ emit() { printf '%s\n' "$1"; }
 
 cmd_create() {
 	have quickget || { emit '{"phase":"error","message":"quickget is not installed"}'; exit 1; }
-	local os="${1:-}" release="${2:-}" edition="${3:-}"
+	# a disk override looks like 64G/4096M; anything else is os/release/edition,
+	# in that positional order, so a caller who wants an edition but no override
+	# doesn't need to pass a placeholder.
+	local os="" release="" edition="" disk="" a
+	for a in "$@"; do
+		case "$a" in
+			[0-9]*[GgMm]) disk="$a" ;;
+			*) if [ -z "$os" ]; then os="$a"; elif [ -z "$release" ]; then release="$a"; else edition="$a"; fi ;;
+		esac
+	done
 	[ -n "$os" ] && [ -n "$release" ] || { emit '{"phase":"error","message":"create needs <os> <release> [edition]"}'; exit 1; }
 	mkdir -p "$vms_dir"; cd "$vms_dir"
 	local name="$os-$release"; [ -n "$edition" ] && name="$name-$edition"
@@ -310,6 +326,7 @@ cmd_create() {
 				[ "$crc" -eq 0 ] || { rm -rf "$stage"; emit '{"phase":"error","message":"could not write the VM config"}'; exit 1; }
 				rm -rf "$stage"
 				grep -q '^ryovm_os=' "$vms_dir/$name.conf" 2>/dev/null || echo "ryovm_os=\"$os\"" >>"$vms_dir/$name.conf"
+				[ -n "$disk" ] && stamp_disk_size "$vms_dir/$name.conf" "$disk"
 				emit "{\"phase\":\"done\",\"name\":\"$name\"}"
 				return 0 ;;
 		esac
@@ -336,6 +353,7 @@ cmd_create() {
 		[ -e "$c" ] || continue
 		case "$before" in *"$c"*) continue ;; esac
 		grep -q '^ryovm_os=' "$c" || echo "ryovm_os=\"$os\"" >>"$c"
+		[ -n "$disk" ] && stamp_disk_size "$c" "$disk"
 		made="$(basename "$c" .conf)"
 	done
 	local g="" mi=""
@@ -387,7 +405,7 @@ virtio_win_iso() {
 }
 
 cmd_import() {
-	local name="${1:?import needs a name}" iso="${2:?import needs an ISO path}" guest="${3:-linux}" os="${4:-}"
+	local name="${1:?import needs a name}" iso="${2:?import needs an ISO path}" guest="${3:-linux}" os="${4:-}" disk="${5:-64G}"
 	[ -f "$iso" ] || die "ISO not found: $iso"
 	mkdir -p "$vms_dir"
 	local conf="$vms_dir/$name.conf"
@@ -396,7 +414,7 @@ cmd_import() {
 		echo "guest_os=\"$guest\""
 		echo "disk_img=\"$name/disk.qcow2\""
 		echo "iso=\"$iso\""
-		echo "disk_size=\"64G\""
+		echo "disk_size=\"$disk\""
 		# the guest type doubles as the logo slug when no catalogue OS is given
 		# (windows/macos/android all have brand icons; linux falls back to a glyph).
 		echo "ryovm_os=\"${os:-$guest}\""
@@ -655,13 +673,14 @@ iso_build() { # $1 = out.iso, $2.. = files
 have_iso_builder() { have genisoimage || have xorriso || have mkisofs; }
 
 cmd_instant() {
-	local os="" name="" disposable="" sealme="" tools="" extra="" a
+	local os="" name="" disposable="" sealme="" tools="" extra="" disk="32G" a
 	for a in "$@"; do
 		case "$a" in
 			--disposable) disposable=1 ;;
 			--sealed)     sealme=1 ;;
 			--tools=*)    tools="${a#--tools=}" ;;
 			--pkgs=*)     extra="${a#--pkgs=}" ;;
+			--disk=*)     disk="${a#--disk=}" ;;
 			*) [ -z "$os" ] && os="$a" || name="$a" ;;
 		esac
 	done
@@ -702,7 +721,7 @@ cmd_instant() {
 	local sub="$vms_dir/$name"; mkdir -p "$sub"
 	# a thin copy-on-write overlay over the read-only cached base, grown to a
 	# usable size (cloud-init's growpart expands the rootfs on first boot).
-	qemu-img create -f qcow2 -F qcow2 -b "$base" "$sub/disk.qcow2" 32G >/dev/null 2>&1 \
+	qemu-img create -f qcow2 -F qcow2 -b "$base" "$sub/disk.qcow2" "$disk" >/dev/null 2>&1 \
 		|| { rm -rf "$sub"; emit '{"phase":"error","message":"could not create the disk overlay"}'; exit 1; }
 	write_seed "$sub" "$name" "$want_sudo" "$os" "$tools" "$extra" \
 		|| { rm -rf "$sub"; emit '{"phase":"error","message":"could not build the cloud-init seed"}'; exit 1; }

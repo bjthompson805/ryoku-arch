@@ -14,6 +14,7 @@ Item {
 
     property var os: null              // a cloudList entry
     property bool disposableRun: true  // instant machines default to burn
+    property int diskSize: 32          // cloud images start thin; grows on first boot
 
     // curated toolset chips; clip (OSC 52 host-clipboard) is always baked, spice
     // adds the console clipboard. heavy tools (docker/podman) reinstall on every
@@ -172,6 +173,26 @@ Item {
 
                 Column {
                     width: parent.width
+                    spacing: 7
+                    NumberField {
+                        id: diskField
+                        width: parent.width
+                        label: "Disk size"
+                        unit: "GB"
+                        from: 1; to: 2048; step: 8
+                        value: pane.diskSize
+                        onModified: (v) => pane.diskSize = Math.round(v)
+                    }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "Choose carefully: once the machine boots, the disk can only grow, never shrink."
+                        color: Theme.dim; font.family: Theme.font; font.pixelSize: 11
+                    }
+                }
+
+                Column {
+                    width: parent.width
                     spacing: 10
                     Eyebrow { text: "Tools baked in on first boot" }
                     Flow {
@@ -246,7 +267,10 @@ Item {
                     icon: "play"
                     label: pane.disposableRun ? "Create · burn" : "Create machine"
                     enabled: pane.os !== null && Vm.caps.quickemu === true
-                    onClicked: Vm.instant(pane.os.os, "", pane.disposableRun, pane.picked.join(","), Vm.settings.extraPkgs || "")
+                    onClicked: {
+                        diskField.commit();
+                        Vm.instant(pane.os.os, "", pane.disposableRun, pane.picked.join(","), Vm.settings.extraPkgs || "", pane.diskSize);
+                    }
                 }
 
                 Item { width: 1; height: 6 }

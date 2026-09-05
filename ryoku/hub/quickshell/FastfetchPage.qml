@@ -457,19 +457,19 @@ Item {
                         width: parent.width
                         spacing: 22
                         visible: page.model.logo.kind === "image" || page.model.logo.kind === "ascii"
-                        NumberField {
+                        HighlightableNumberField {
                             label: "Width"; unit: "col"
                             from: 0; to: 80; value: page.model.logo.width
                             highlightId: "emblem_width"
                             onModified: (v) => page.setLogo("width", v)
                         }
-                        NumberField {
+                        HighlightableNumberField {
                             label: "Height"; unit: "col"
                             from: 0; to: 60; value: page.model.logo.height
                             highlightId: "emblem_height"
                             onModified: (v) => page.setLogo("height", v)
                         }
-                        NumberField {
+                        HighlightableNumberField {
                             label: "Pad"; unit: "col"
                             from: 0; to: 20; value: page.model.logo.padding
                             highlightId: "emblem_padding"
