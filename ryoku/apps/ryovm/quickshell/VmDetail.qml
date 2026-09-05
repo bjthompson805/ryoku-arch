@@ -455,14 +455,17 @@ Item {
                         color: Theme.dim; font.family: Theme.font; font.pixelSize: 11
                     }
                     NumberField {
+                        id: coresField
                         width: Math.min(parent.width, 460)
                         enabled: !pane.running
                         label: "CPU cores"
                         from: 1; to: 32; step: 1
                         value: pane.vm && pane.vm.cores !== "auto" ? (parseInt(pane.vm.cores) || Vm.settings.defaultCores) : Vm.settings.defaultCores
+                        tabTo: ramField.focusTarget
                         onModified: (v) => Vm.setConfig(pane.name, "cpu_cores", Math.round(v))
                     }
                     NumberField {
+                        id: ramField
                         width: Math.min(parent.width, 460)
                         enabled: !pane.running
                         label: "Memory"
@@ -475,6 +478,8 @@ Item {
                             var n = parseFloat(r);
                             return r.indexOf("M") >= 0 ? Math.max(1, Math.round(n / 1024)) : (n || Vm.settings.defaultRam);
                         }
+                        backtabTo: coresField.focusTarget
+                        tabTo: diskField.focusTarget
                         onModified: (v) => Vm.setConfig(pane.name, "ram", Math.round(v) + "G")
                     }
                     // disk: the real footprint and an explicit grow (reclaim lives
@@ -498,10 +503,12 @@ Item {
                             width: parent.width
                             spacing: 10
                             NumberField {
+                                id: diskField
                                 width: Math.min(parent.width - growBtn.width - 10, 360)
                                 enabled: !pane.running
                                 label: "Disk size"
                                 unit: "GB"
+                                backtabTo: ramField.focusTarget
                                 from: 1; to: 2048; step: 8
                                 value: pane.diskTarget
                                 onModified: (v) => pane.diskTarget = Math.round(v)

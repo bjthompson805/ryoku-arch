@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "."
 import Quickshell
 import "Singletons"
 
@@ -290,13 +291,6 @@ Rectangle {
                 width: 10; height: 10
                 color: Theme.ember
                 antialiasing: false
-                SequentialAnimation on visible {
-                    loops: Animation.Infinite
-                    PropertyAction { value: true }
-                    PauseAnimation { duration: 500 }
-                    PropertyAction { value: false }
-                    PauseAnimation { duration: 500 }
-                }
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter

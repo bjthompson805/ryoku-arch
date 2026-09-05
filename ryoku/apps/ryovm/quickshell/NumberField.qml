@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "."
 import "Singletons"
 
 // precise numeric control: label + steppers with manual entry. for exact values
@@ -15,6 +16,14 @@ Item {
     property real to: 100
     property real step: 1
     property int decimals: 0
+
+    // Tab/Shift+Tab chaining: a bare TextInput has no built-in focus-chain
+    // participation (unlike Controls' TextField), so a consumer stacking
+    // several NumberFields wires them explicitly -- set tabTo/backtabTo to a
+    // sibling field's focusTarget.
+    property Item tabTo: null
+    property Item backtabTo: null
+    readonly property alias focusTarget: input
 
     signal modified(real value)
 
@@ -113,6 +122,8 @@ Item {
                 anchors.rightMargin: root.unit !== "" ? 24 : 0
                 horizontalAlignment: TextInput.AlignHCenter
                 verticalAlignment: TextInput.AlignVCenter
+                KeyNavigation.tab: root.tabTo
+                KeyNavigation.backtab: root.backtabTo
                 text: root.shown.toFixed(root.decimals)
                 color: Theme.bright
                 font.family: Theme.mono

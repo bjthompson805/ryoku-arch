@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "."
 import Quickshell
 import Quickshell.Io
 import "Singletons"
@@ -113,6 +114,7 @@ Item {
                         font.pixelSize: 13
                         clip: true
                         selectByMouse: true
+                        KeyNavigation.tab: isoIn
                         text: dlg.vmName
                         // a conf filename: no spaces or slashes.
                         onTextEdited: dlg.vmName = text.replace(/[\/\s]+/g, "-")
@@ -149,6 +151,7 @@ Item {
                             font.pixelSize: 12
                             clip: true
                             selectByMouse: true
+                            KeyNavigation.backtab: nameIn
                             text: dlg.isoPath
                             onTextEdited: dlg.isoPath = text
                             Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: isoIn.text.length === 0; text: "/path/to/os.iso"; color: Theme.faint; font: isoIn.font }

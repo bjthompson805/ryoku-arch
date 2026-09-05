@@ -196,11 +196,15 @@ package() {
   install -d "$cfg/hypr"
   cp -a "$_repo/ryoku/hyprland/." "$cfg/hypr/"
 
-  # Quickshell desktop components, Hub's config nested under hub/.
+  # Quickshell desktop components, Hub's config nested under hub/. -L
+  # dereferences symlinks (e.g. the shared Spawn.qml/SpawnCore.qml/TapHandler.qml
+  # etc. under ryoku/shared/quickshell/) into real files, since a relative
+  # symlink target computed from the repo's layout would not resolve once
+  # flattened into $cfg (matches deploy.sh's same staging step).
   install -d "$cfg/quickshell"
-  cp -a "$_repo/ryoku/shell/quickshell/." "$cfg/quickshell/"
+  cp -aL "$_repo/ryoku/shell/quickshell/." "$cfg/quickshell/"
   install -d "$cfg/quickshell/hub"
-  cp -a "$_repo/ryoku/hub/quickshell/." "$cfg/quickshell/hub/"
+  cp -aL "$_repo/ryoku/hub/quickshell/." "$cfg/quickshell/hub/"
 
   # First-party GUI apps: a Quickshell app (ryowalls, ryovm) ships its
   # quickshell/ tree as qs -c <name>; a compiled app (ryomotion) has a
@@ -214,7 +218,9 @@ package() {
     appname="$(basename "$appdir")"
     if [ "$has_qs" = 1 ]; then
       install -d "$cfg/quickshell/$appname"
-      cp -a "${appdir}quickshell/." "$cfg/quickshell/$appname/"
+      # -L: see the shell/hub copies above -- an app's shared-file symlinks
+      # need to land as real files too.
+      cp -aL "${appdir}quickshell/." "$cfg/quickshell/$appname/"
     fi
     if [ "$has_cmake" = 1 ]; then
       # compiled Qt app: build to a binary named for the app dir.

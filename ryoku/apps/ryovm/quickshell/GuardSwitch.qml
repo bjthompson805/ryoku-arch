@@ -1,4 +1,5 @@
 import QtQuick
+import "."
 import "Singletons"
 
 // A guarded destructive switch: the verb lives under a flip-up cover plate,

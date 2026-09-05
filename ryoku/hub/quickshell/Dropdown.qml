@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "."
 import QtQuick.Controls
 import "Singletons"
 
@@ -153,15 +154,7 @@ Item {
                 }
 
                 HoverHandler { id: optHov; cursorShape: Qt.PointingHandCursor }
-                // TapHandler's default gesturePolicy (DragThreshold) takes only a
-                // passive grab, which by Qt's own design does not stop the same
-                // press from also reaching a handler on whatever this popup is
-                // floating over (QTBUG-87815 et al.; confirmed here -- selecting
-                // an option positioned over Thickness's stepper also bumped it).
-                // ReleaseWithinBounds takes an exclusive grab so a tap here can't
-                // leak through to a control underneath.
                 TapHandler {
-                    gesturePolicy: TapHandler.ReleaseWithinBounds
                     onTapped: {
                         root.chosen(opt.n.key);
                         popup.close();

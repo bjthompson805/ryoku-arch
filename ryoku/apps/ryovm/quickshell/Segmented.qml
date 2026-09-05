@@ -1,4 +1,5 @@
 import QtQuick
+import "."
 import "Singletons"
 
 // Single-select segmented control: butt-joined sharp segments on a recessed

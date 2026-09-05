@@ -10,7 +10,7 @@ set -euo pipefail
 api="https://wallhaven.cc/api/v1"
 dest="$HOME/Pictures/Wallpapers"
 key="${WALLHAVEN_API_KEY:-}"
-ua="Mozilla/5.0"
+ua="Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
 
 # where the live wallpaper is recorded; the enhance worker checks it before
 # swapping a crisp version onto the desktop, so a job that finishes after the
@@ -121,8 +121,55 @@ vid_poster_map() {
 	' _
 }
 
-# downloads land as-is now; enhancing is an explicit, on-demand action.
-finish() { printf '%s\n' "$1"; }
+# valid_media proves a downloaded file is decodable media, not an HTML error
+# page or a Git LFS pointer (a few hundred bytes of ASCII) that curl fetched
+# with a 200 and exit 0. Images go through `identify`, clips through ffprobe.
+valid_media() {
+	local f="$1" ext
+	[ -s "$f" ] || return 1
+	ext="$(printf '%s' "${f##*.}" | tr '[:upper:]' '[:lower:]')"
+	case "$ext" in
+	mp4 | webm | mkv | mov)
+		command -v ffprobe >/dev/null 2>&1 || return 0
+		ffprobe -v error -select_streams v:0 -show_entries stream=codec_type \
+			-of csv=p=0 "$f" 2>/dev/null | grep -q video
+		;;
+	*)
+		identify "${f}[0]" >/dev/null 2>&1
+		;;
+	esac
+}
+
+# finish prints the saved path for the UI, but first proves the download is real
+# media: a fetch that got an error page or an LFS pointer still exits 0 and
+# leaves a .png the catalog cannot thumbnail and the picker silently drops (the
+# "my saved wallpaper never shows up" report). A bad file is removed and finish
+# fails, so the UI reports "Download failed" instead of saving poison.
+finish() {
+	if ! valid_media "$1"; then
+		rm -f "$1"
+		echo "ryowalls: discarded a corrupt download (not decodable media): $1" >&2
+		return 1
+	fi
+	printf '%s\n' "$1"
+}
+
+# A killed enhance (Quickshell SIGTERMs the engine when the ryowalls window
+# closes) must never leave waifu2x/ffmpeg hammering the GPU with nothing on
+# screen, nor a multi-GB frame dump in /tmp. Track the current heavy child and
+# the workdir, and reap both when the engine is signalled or exits. The heavy
+# steps run backgrounded + waited so a signal interrupts the wait and this runs
+# (bash defers a trap until a foreground command returns, so a foreground worker
+# would outlive the parent and orphan onto the GPU).
+_enh_child=""
+_enh_workdir=""
+_enh_reap() {
+	if [ -n "$_enh_child" ] && kill -0 "$_enh_child" 2>/dev/null; then
+		pkill -TERM -P "$_enh_child" 2>/dev/null || true
+		kill -TERM "$_enh_child" 2>/dev/null || true
+	fi
+	[ -n "$_enh_workdir" ] && rm -rf "$_enh_workdir" 2>/dev/null || true
+}
 
 # enhance an image in place on the GPU: waifu2x doubles the resolution and
 # denoises. 4k sources are already sharp, so skip them (minutes of GPU, no gain).
@@ -133,7 +180,7 @@ enhance_image() {
 	# [0]: probe the first frame only — on an animated webp/gif a bare %h prints
 	# every frame's height concatenated ("12001200"), which would both misread a
 	# 1080p wallpaper as past-4K and put that nonsense number in the verdict.
-	h="$(identify -format '%h' "$f[0]" 2>/dev/null || echo 0)"
+	h="$(identify -format '%h' "${f}[0]" 2>/dev/null || echo 0)"
 	case "$h" in '' | *[!0-9]*) h=0 ;; esac
 	[ "$h" -gt 0 ] || { enh_write "$f" error; enh_verdict error image 0 0 "" read; return 1; }
 	if [ "$h" -ge 2160 ]; then enh_write "$f" "sharp"; enh_verdict sharp image "$h" 2160; return 2; fi
@@ -143,7 +190,11 @@ enhance_image() {
 	read -ra gpus <<<"$(w2x_order)"
 	for gpu in "${gpus[@]}"; do
 		rm -f "$tmp"
-		waifu2x-ncnn-vulkan -i "$f" -o "$tmp" -s 2 -n 2 -g "$gpu" -m "$w2x_model" >/dev/null 2>&1 || continue
+		# backgrounded + waited so a SIGTERM (window closed) reaps the worker
+		# through the trap instead of orphaning it on the GPU.
+		waifu2x-ncnn-vulkan -i "$f" -o "$tmp" -s 2 -n 2 -g "$gpu" -m "$w2x_model" >/dev/null 2>&1 &
+		_enh_child=$!
+		wait "$_enh_child" || continue
 		if [ -s "$tmp" ] && sane_img "$tmp"; then
 			mv -f "$tmp" "$f"
 			printf '%s' "$gpu" >"$w2x_gpu_pref" 2>/dev/null || true
@@ -160,7 +211,7 @@ enhance_image() {
 # foreground so the UI can track the phase and frame count; only swaps the crisp
 # clip onto the desktop if it is still the live wallpaper when it lands.
 enhance_video() {
-	local f="$1" d fps w cap total wpid gpu out chk ok gpus
+	local f="$1" d fps w cap total gpu out chk ok gpus
 	command -v ffmpeg >/dev/null 2>&1 || { enh_write "$f" error; enh_verdict error video 0 0 "" tools; return 1; }
 	command -v waifu2x-ncnn-vulkan >/dev/null 2>&1 || { enh_write "$f" unsupported; enh_verdict unsupported video; return 3; }
 	enh_write "$f" probe
@@ -175,11 +226,14 @@ enhance_video() {
 	fps="$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$f" 2>/dev/null | head -1 || true)"
 	[ -n "$fps" ] && [ "$fps" != "0/0" ] || fps=30
 	d="$(mktemp -d)" || { enh_write "$f" error; enh_verdict error video 0 0 "" io; return 1; }
+	_enh_workdir="$d"
 	mkdir -p "$d/in" "$d/out"
+	# backgrounded + waited so a close reaps ffmpeg via the trap instead of
+	# running the whole extract to completion off-screen.
 	enh_write "$f" extract
-	if ! ffmpeg -y -i "$f" -qscale:v 1 -qmin 1 -qmax 1 -vsync 0 "$d/in/%08d.png" >/dev/null 2>&1; then
-		rm -rf "$d"; enh_write "$f" error; enh_verdict error video 0 0 "" read; return 1
-	fi
+	ffmpeg -y -i "$f" -qscale:v 1 -qmin 1 -qmax 1 -vsync 0 "$d/in/%08d.png" >/dev/null 2>&1 &
+	_enh_child=$!
+	wait "$_enh_child" || { rm -rf "$d"; enh_write "$f" error; enh_verdict error video 0 0 "" read; return 1; }
 	total="$(find "$d/in" -name '*.png' | wc -l)"
 	[ "${total:-0}" -gt 0 ] || { rm -rf "$d"; enh_write "$f" error; enh_verdict error video 0 0 "" read; return 1; }
 	# try each GPU on the real clip and validate a middle frame: a hybrid dGPU can
@@ -193,12 +247,12 @@ enhance_video() {
 		rm -rf "$d/out"; mkdir -p "$d/out"
 		enh_write "$f" enhance 0 "$total"
 		waifu2x-ncnn-vulkan -i "$d/in" -o "$d/out" -s 2 -n 2 -g "$gpu" -m "$w2x_model" >/dev/null 2>&1 &
-		wpid=$!
-		while kill -0 "$wpid" 2>/dev/null; do
+		_enh_child=$!
+		while kill -0 "$_enh_child" 2>/dev/null; do
 			enh_write "$f" enhance "$(find "$d/out" -name '*.png' 2>/dev/null | wc -l)" "$total"
 			sleep 1
 		done
-		wait "$wpid" || continue
+		wait "$_enh_child" || continue
 		chk="$(printf '%08d' "$(( total / 2 > 0 ? total / 2 : 1 ))")"
 		if [ -s "$d/out/$chk.png" ] && sane_img "$d/out/$chk.png"; then
 			printf '%s' "$gpu" >"$w2x_gpu_pref" 2>/dev/null || true
@@ -207,7 +261,10 @@ enhance_video() {
 	done
 	[ -n "$ok" ] || { rm -rf "$d"; enh_write "$f" error; enh_verdict error video 0 0 "" gpu; return 1; }
 	enh_write "$f" assemble "$total" "$total"
-	if ! ffmpeg -y -framerate "$fps" -i "$d/out/%08d.png" -i "$f" -map 0:v:0 -map 1:a:0? -c:a copy -c:v libx264 -pix_fmt yuv420p -movflags +faststart "$d/final.mp4" >/dev/null 2>&1; then
+	# assemble backgrounded + waited too, so a close during encode reaps ffmpeg.
+	ffmpeg -y -framerate "$fps" -i "$d/out/%08d.png" -i "$f" -map 0:v:0 -map 1:a:0? -c:a copy -c:v libx264 -pix_fmt yuv420p -movflags +faststart "$d/final.mp4" >/dev/null 2>&1 &
+	_enh_child=$!
+	if ! wait "$_enh_child"; then
 		rm -rf "$d"; enh_write "$f" error; enh_verdict error video 0 0 "" assemble; return 1
 	fi
 	# non-destructive: waifu2x output is H.264, so write a correctly-named .mp4
@@ -414,9 +471,11 @@ motionbgs-search)
 	mb="https://motionbgs.com"
 	if [ -n "$query" ]; then
 		q2="$(printf '%s' "$query" | tr '[:upper:] ' '[:lower:]-')"
-		path="/tag:$q2/"; [ "$page" -gt 1 ] && path="/tag:$q2/$page"
+		path="/tag:$q2/"; [ "$page" -gt 1 ] && path="/tag:$q2/$page/"
 	else
-		path="/"; [ "$page" -gt 1 ] && path="/$page"
+		# motionbgs paginates only via a trailing-slash path (/2/, /3/, ...); the
+		# slashless /2 404s (curl 22) and ?page= is ignored (silently page 1).
+		path="/"; [ "$page" -gt 1 ] && path="/$page/"
 	fi
 	html="$(curl -fsSL -A "$ua" -e "$mb/" "$mb$path")"
 	# posters look like /i/c/{WxH}/media/{id}/{name}[.{res}].jpg. Take the media id
@@ -463,6 +522,8 @@ library-list)
 	auth=(); [ -n "$tok" ] && auth=(-H "Authorization: Bearer $tok")
 	[ -z "$branch" ] && branch="$(curl -fsSL -A "$ua" "${auth[@]}" "https://api.github.com/repos/$repo" 2>/dev/null | jq -r '.default_branch // "main"')"
 	rawb="https://raw.githubusercontent.com/$repo/$branch"
+	# Git-LFS files serve a tiny pointer from raw; their bytes live on the media host.
+	mediab="https://media.githubusercontent.com/media/$repo/$branch"
 	cache="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/ryowalls"; mkdir -p "$cache"
 	ck="$cache/tree-$(printf '%s' "$repo@$branch" | tr -c '[:alnum:]' '_').json"
 	# cache the tree for an hour so paging/searching does not re-hit the API.
@@ -476,18 +537,22 @@ library-list)
 	if [ -n "$regp" ]; then
 		curl -fsSL -A "$ua" "$rawb/$regp" 2>/dev/null | jq -c --arg rawb "$rawb" --arg q "$ql" --arg type "$ltype" --argjson from "$from" --argjson to "$to" '
 			def abs(p): if (p|test("^https?://")) then p else ($rawb + "/" + p) end;
+			def tproxy(u): if u == "" then "" else "https://wsrv.nl/?url=" + (u | sub("^https?://";"")) + "&w=480&output=webp&q=80" end;
 			[ .wallpapers[]?
 			  | select($type != "images")
 			  | select($q == "" or (.name|ascii_downcase|contains($q)) or (any((.tags // [])[]; ascii_downcase|contains($q))))
-			  | { id: .id, kind: "video", thumb: abs(.poster), video: abs(.video), dl: abs(.video), resolution: "", name: .name } ]
+			  | { id: .id, kind: "video", thumb: tproxy(abs(.poster)), video: abs(.video), dl: abs(.video), resolution: "", name: .name } ]
 			| .[$from:$to][]'
 		exit 0
 	fi
 	# a repo can hold videos (item dir = clip + sibling poster) AND standalone image
 	# wallpapers. Emit both with a kind, filtered by --type (all | live | images).
-	jq -c --arg rawb "$rawb" --arg sub "$subpath" --arg q "$ql" --arg type "$ltype" --argjson from "$from" --argjson to "$to" '
+	jq -c --arg rawb "$rawb" --arg mediab "$mediab" --arg sub "$subpath" --arg q "$ql" --arg type "$ltype" --argjson from "$from" --argjson to "$to" '
 		def enc: split("/") | map(@uri) | join("/");
 		def humanize: sub("-[0-9]+$";"") | gsub("[-_]";" ");
+		def tproxy(u): if u == "" then "" else "https://wsrv.nl/?url=" + (u | sub("^https?://";"")) + "&w=480&output=webp&q=80" end;
+		(reduce (.tree[]? | select(.type=="blob" and (.size // 1e9) < 1024) | .path) as $p ({}; .[$p]=true)) as $lfs
+		| def host($p): if $lfs[$p] then $mediab else $rawb end;
 		[.tree[].path] as $all
 		| ($all | map(select($sub == "" or startswith($sub)))) as $scoped
 		| ($scoped | map(select(test("\\.(mp4|webm|mkv|mov)$";"i")))) as $vids
@@ -509,7 +574,7 @@ library-list)
 		| map(select($type=="all" or ($type=="live" and .kind=="video") or ($type=="images" and .kind=="image")))
 		| map(select($q=="" or (.path|ascii_downcase|contains($q))))
 		| .[$from:$to][]
-		| { id:.path, kind:.kind, thumb:(if .thumb=="" then "" else ($rawb+"/"+(.thumb|enc)) end), video:(if .kind=="video" then ($rawb+"/"+(.media|enc)) else "" end), dl:($rawb+"/"+(.media|enc)), resolution:"", name:.name }' "$ck"
+		| { id:.path, kind:.kind, thumb:tproxy(if .thumb=="" then "" else (host(.thumb)+"/"+(.thumb|enc)) end), large:(if .thumb=="" then "" else (host(.thumb)+"/"+(.thumb|enc)) end), video:(if .kind=="video" then (host(.media)+"/"+(.media|enc)) else "" end), dl:(host(.media)+"/"+(.media|enc)), resolution:"", name:.name }' "$ck"
 	;;
 library-download)
 	# Full-quality download on Save. Videos land in livewalls, images in
@@ -590,6 +655,18 @@ enhance)
 	# desktop swap on the file still being live, so a late finish can't yank an
 	# old wallpaper back.
 	f="${1:?path required}"
+	# reap the GPU/ffmpeg worker and the frame dump if the engine is killed
+	# (Quickshell SIGTERMs it when the ryowalls window closes) or exits, so an
+	# interrupted enhance never keeps churning invisibly or leaks a /tmp dump.
+	trap '_enh_reap; exit 143' TERM
+	trap '_enh_reap; exit 130' INT
+	trap '_enh_reap; exit 129' HUP
+	trap '_enh_reap' EXIT
+	# keep the desktop responsive while the enhance grinds: idle IO for the frame
+	# dump and the lowest CPU priority for the ffmpeg / waifu2x helper threads, so
+	# the extract and encode do not fight the compositor for cores.
+	renice -n 19 $$ >/dev/null 2>&1 || true
+	ionice -c 3 -p $$ >/dev/null 2>&1 || true
 	ext="$(printf '%s' "${f##*.}" | tr '[:upper:]' '[:lower:]')"
 	case "$ext" in
 	mp4 | webm | mkv | mov) enhance_video "$f" ;;

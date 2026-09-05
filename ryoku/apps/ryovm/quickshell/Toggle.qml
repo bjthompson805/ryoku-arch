@@ -1,4 +1,5 @@
 import QtQuick
+import "."
 import "Singletons"
 
 // A hardware slide switch: a recessed slot with a square knob that snaps

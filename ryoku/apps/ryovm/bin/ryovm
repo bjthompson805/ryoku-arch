@@ -305,7 +305,9 @@ cmd_create() {
 				local rc=0; wait "$child" || rc=$?; child=""
 				[ "$rc" -eq 0 ] || { rm -rf "$stage"; emit '{"phase":"error","message":"download failed"}'; exit 1; }
 				emit '{"phase":"config"}'
-				quickget --create-config "$name" "$stage/$base" >/dev/null 2>&1 || { rm -rf "$stage"; emit '{"phase":"error","message":"could not write the VM config"}'; exit 1; }
+				quickget --create-config "$name" "$stage/$base" >/dev/null 2>&1 & child=$!
+				local crc=0; wait "$child" || crc=$?; child=""
+				[ "$crc" -eq 0 ] || { rm -rf "$stage"; emit '{"phase":"error","message":"could not write the VM config"}'; exit 1; }
 				rm -rf "$stage"
 				grep -q '^ryovm_os=' "$vms_dir/$name.conf" 2>/dev/null || echo "ryovm_os=\"$os\"" >>"$vms_dir/$name.conf"
 				emit "{\"phase\":\"done\",\"name\":\"$name\"}"
@@ -324,7 +326,7 @@ cmd_create() {
 	setsid quickget "$os" "$release" ${edition:+"$edition"} >"$logf" 2>&1 & child=$!
 	tail --pid="$child" -n +1 -f "$logf" 2>/dev/null | while IFS= read -r line; do
 		[ -n "$line" ] && emit "$(jq -cn --arg l "$line" '{phase:"log",line:$l}')"
-	done
+	done || true
 	local rc=0; wait "$child" 2>/dev/null || rc=$?; child=""
 	local lastline; lastline="$(tail -n1 "$logf" 2>/dev/null | tr -d '\r' || true)"
 	rm -f "$logf"
@@ -336,6 +338,27 @@ cmd_create() {
 		grep -q '^ryovm_os=' "$c" || echo "ryovm_os=\"$os\"" >>"$c"
 		made="$(basename "$c" .conf)"
 	done
+	local g="" mi=""
+	# a made config whose ISO never landed is a blocked or failed download
+	# (Microsoft IP-gates Windows); clear the shell and report the real cause,
+	# whatever quickget's exit code claimed, so the yard never lists a dead machine.
+	if [ -n "$made" ]; then
+		g="$(conf_get "$vms_dir/$made.conf" guest_os)"
+		mi="$(conf_get "$vms_dir/$made.conf" iso)"
+		case "$mi" in ""|/*) : ;; *) mi="$vms_dir/$mi" ;; esac
+		if [ -n "$mi" ] && [ ! -f "$mi" ]; then
+			# never rm a dir that holds a real disk; a blocked download has none.
+			ls "${vms_dir:?}/${made:?}/"*.qcow2 >/dev/null 2>&1 || rm -rf "${vms_dir:?}/${made:?}"
+			rm -f "${vms_dir:?}/${made:?}.conf"
+			case "$g" in
+				windows|windows-server)
+					emit '{"phase":"error","message":"Windows downloads are blocked by Microsoft on this network.\nDownload the ISO from microsoft.com/software-download in a browser, then use Load ISO: drivers, TPM and Secure Boot are configured for you."}' ;;
+				*)
+					emit '{"phase":"error","message":"The install media did not download.\nTry again, or build from a local ISO with Load ISO."}' ;;
+			esac
+			exit 1
+		fi
+	fi
 	if [ "$rc" -eq 0 ] && [ -n "$made" ]; then
 		emit "{\"phase\":\"done\",\"name\":\"$made\"}"
 	else
@@ -703,7 +726,11 @@ cmd_template() {
 	# flatten the distro-base + this VM's deltas into one standalone qcow2, then
 	# freeze it read-only: every spawn overlays this file, and a mutable base
 	# would corrupt its children the moment the source booted again.
-	qemu-img convert -O qcow2 "$vm_disk" "$out.part" || die "could not build the template"
+	local child=""
+	trap 'set +e; [ -n "$child" ] && kill -TERM "$child" 2>/dev/null; wait "$child" 2>/dev/null; rm -f "$out.part"; exit 130' TERM INT
+	qemu-img convert -O qcow2 "$vm_disk" "$out.part" & child=$!
+	wait "$child" || { child=""; rm -f "$out.part"; trap - TERM INT; die "could not build the template"; }
+	child=""; trap - TERM INT
 	mv "$out.part" "$out"; chmod 0444 "$out"
 	jq -cn --arg os "$(conf_get "$conf" ryovm_os)" --arg tools "$(conf_get "$conf" ryovm_tools)" \
 		--arg base "$out" '{os:$os,tools:$tools,base:$base}' >"$(templatesDir)/$tpl.json"
@@ -786,6 +813,26 @@ cmd_launch() {
 	esac
 	vm_paths "$conf"
 	vm_running "$vm_pid" && die "$vm_name is already running"
+	# an uninstalled machine boots from its ISO; if that download never finished,
+	# quickemu aborts with a raw qemu "Could not open" line. Say it plainly.
+	local isoref diskref
+	isoref="$(conf_get "$conf" iso)"; diskref="$(conf_get "$conf" disk_img)"
+	if [ -n "$isoref" ]; then
+		case "$isoref" in /*) : ;; *) isoref="$vms_dir/$isoref" ;; esac
+		case "$diskref" in ""|/*) : ;; *) diskref="$vms_dir/$diskref" ;; esac
+		{ [ -f "$isoref" ] || { [ -n "$diskref" ] && [ -f "$diskref" ]; }; } \
+			|| die "$vm_name has no install media: its ISO never finished downloading. Re-create the machine, or import an ISO from disk."
+	fi
+	# quickemu sources the conf after parsing --display, so the conf's display=
+	# overrides the flag; sync the requested mode into the conf first, else a
+	# headless or spice launch silently opens the conf's window instead.
+	if ! grep -qxE "display=\"$display\"" "$conf"; then
+		if grep -qE '^display=' "$conf"; then
+			sed -i -E "s|^display=.*|display=\"$display\"|" "$conf"
+		else
+			printf 'display="%s"\n' "$display" >>"$conf"
+		fi
+	fi
 	cd "$vms_dir"
 	local log="$vm_subdir/$vm_name.launch.log"
 	mkdir -p "$vm_subdir"
@@ -886,12 +933,16 @@ cmd_config() {
 	esac
 	vm_paths "$conf"
 	vm_running "$vm_pid" && die "stop $vm_name before changing its configuration"
-	if grep -qE "^$key=" "$conf"; then
+	if [ "$val" = "auto" ] || [ -z "$val" ]; then
+		sed -i -E "/^$key=/d" "$conf"
+		echo "cleared $key on $vm_name"
+	elif grep -qE "^$key=" "$conf"; then
 		sed -i -E "s|^$key=.*|$key=\"$val\"|" "$conf"
+		echo "set $key=$val on $vm_name"
 	else
 		echo "$key=\"$val\"" >>"$conf"
+		echo "set $key=$val on $vm_name"
 	fi
-	echo "set $key=$val on $vm_name"
 }
 
 # ---- snapshot --------------------------------------------------------------

@@ -18,6 +18,11 @@ Singleton {
     // ---- library ------------------------------------------------------------
     property var vms: []
     property bool vmsLoading
+    // only the first fetch is "loading" -- the 5s poll re-runs `ryovm list`
+    // forever, and briefly flipping this true/false every cycle flashed the
+    // empty-state icon/text and hid Open Catalog for an instant, at random
+    // relative to wherever the user was looking.
+    property bool vmsEverLoaded: false
     property string selectedName: ""
     property var detail: null            // full `get` of the selected VM
     property string pendingSelect: ""    // select this VM after the next reload (post-rename)
@@ -380,6 +385,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 root.vmsLoading = false;
+                root.vmsEverLoaded = true;
                 // identical payload = nothing happened: keep the same model
                 // object so the library never rebuilds (a fresh array every
                 // 5s poll tore down every card and replayed their entrance).
@@ -408,7 +414,7 @@ Singleton {
                 } catch (e) { root.vms = []; }
             }
         }
-        onStarted: root.vmsLoading = true
+        onStarted: if (!root.vmsEverLoaded) root.vmsLoading = true
     }
     Process {
         id: getProc

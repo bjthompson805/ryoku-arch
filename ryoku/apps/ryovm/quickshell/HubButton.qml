@@ -1,4 +1,5 @@
 import QtQuick
+import "."
 import "Singletons"
 
 // Carbon action chip with a mono caps label, matching Ryoku Settings. primary =

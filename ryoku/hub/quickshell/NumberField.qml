@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "."
 import "Singletons"
 
 // precise numeric control: label + steppers with manual entry. for exact pixel
@@ -74,10 +75,7 @@ Item {
             }
 
             HoverHandler { id: hov; cursorShape: Qt.PointingHandCursor }
-            // exclusive grab (see Dropdown.qml's option TapHandler for why):
-            // this is a real button and shouldn't also fire from a tap some
-            // floating popup elsewhere claims on top of it.
-            TapHandler { id: tap; gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: root.bump(key.dir) }
+            TapHandler { id: tap; onTapped: root.bump(key.dir) }
             Timer {
                 interval: 90; repeat: true
                 running: tap.pressed

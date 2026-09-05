@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "."
 import Quickshell
 import "Singletons"
 
@@ -97,18 +98,22 @@ Item {
             // defaults.
             Text { text: "New machine defaults"; color: Theme.subtle; font.family: Theme.mono; font.pixelSize: 10; font.letterSpacing: 2; font.weight: Font.DemiBold; font.capitalization: Font.AllUppercase }
             NumberField {
+                id: coresField
                 width: parent.width
                 label: "CPU cores"
                 from: 1; to: 32; step: 1
                 value: Vm.settings.defaultCores
+                tabTo: ramField.focusTarget
                 onModified: (v) => { Vm.settings.defaultCores = Math.round(v); Vm.saveSettings(); }
             }
             NumberField {
+                id: ramField
                 width: parent.width
                 label: "Memory"
                 unit: "GB"
                 from: 1; to: 128; step: 1
                 value: Vm.settings.defaultRam
+                backtabTo: coresField.focusTarget
                 onModified: (v) => { Vm.settings.defaultRam = Math.round(v); Vm.saveSettings(); }
             }
 
