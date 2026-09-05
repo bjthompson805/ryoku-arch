@@ -368,6 +368,24 @@ cmd_create() {
 }
 
 # ---- import (any ISO, off-catalogue, full control) -------------------------
+# the shared VirtIO Windows driver ISO (disk/net/balloon drivers for the
+# virtio-blk system disk quickemu attaches): fetched once into the images
+# cache and reused by every Windows import, the same file quickget's own
+# Windows path downloads per-VM.
+virtio_win_iso() {
+	local cache; cache="$(imagesDir)/virtio-win.iso"
+	[ -s "$cache" ] && { printf '%s' "$cache"; return 0; }
+	mkdir -p "$(imagesDir)"
+	echo "Downloading VirtIO drivers (~850M, one-time)..." >&2
+	if have ryovm-fetch; then
+		ryovm-fetch "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso" "$cache.part" >&2 || return 1
+	else
+		curl -fL --retry 3 -o "$cache.part" "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso" || return 1
+	fi
+	mv "$cache.part" "$cache"
+	printf '%s' "$cache"
+}
+
 cmd_import() {
 	local name="${1:?import needs a name}" iso="${2:?import needs an ISO path}" guest="${3:-linux}" os="${4:-}"
 	[ -f "$iso" ] || die "ISO not found: $iso"
@@ -382,6 +400,18 @@ cmd_import() {
 		# the guest type doubles as the logo slug when no catalogue OS is given
 		# (windows/macos/android all have brand icons; linux falls back to a glyph).
 		echo "ryovm_os=\"${os:-$guest}\""
+		# Windows 11 refuses to install without a vTPM + Secure Boot; quickemu
+		# defaults both off, so a manually-imported ISO needs them stamped here
+		# the same way quickget stamps them for the in-app Windows download path.
+		# It also needs the VirtIO driver ISO attached as a second CD-ROM, or
+		# Setup's disk picker is empty: stock Windows media has no driver for
+		# quickemu's virtio-blk system disk.
+		case "$guest" in
+			windows|windows-server)
+				echo 'tpm="on"'; echo 'secureboot="on"'
+				local vdrv; vdrv="$(virtio_win_iso)" && [ -n "$vdrv" ] && echo "fixed_iso=\"$vdrv\""
+				;;
+		esac
 	} >"$conf"
 	echo "Created $conf"
 }
