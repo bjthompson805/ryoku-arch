@@ -54,12 +54,13 @@ screen_cap() {
 	printf '%s' "$w"
 }
 
-# waifu2x picks the highest-scored Vulkan GPU by default; on a hybrid laptop that
-# is the dGPU, which here fails vkCreateDevice when suspended AND intermittently
-# emits all-black frames under PRIME (a clean probe, then garbage on the real
-# run). A small probe cannot catch that, so the enhance instead runs each GPU on
-# the actual clip, validates the output, and keeps the first that is not black;
-# the last good GPU is remembered so the reliable one is tried first next time.
+# waifu2x runs on the discrete GPU first: a dGPU has its own VRAM, so enhancing
+# does not starve the shared memory the integrated GPU (and the compositor) run
+# on -- an enhance forced onto the iGPU visibly kills desktop performance. The
+# dGPU can still be flaky on a hybrid laptop (vkCreateDevice fails when the card
+# is suspended, and it intermittently emits all-black frames under PRIME), so
+# every run still validates its output and falls back to the next GPU, keeping
+# the first that is not black; the last good GPU is remembered as a fallback hint.
 w2x_model="/usr/share/waifu2x-ncnn-vulkan/models-cunet"
 
 # sane_img: succeed only when an image has real content, not the near-black /
@@ -75,12 +76,43 @@ sane_img() {
 	[ -n "$m" ] && [ -n "$s" ] && awk -v m="$m" -v s="$s" 'BEGIN{exit !(m>0.02 && s>0.01)}'
 }
 w2x_gpu_pref="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-w2x-gpu"
-# w2x_order: GPU indices to attempt, last-known-good first (persisted after a
-# clean run) then every index.
+w2x_disc_file="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-w2x-discrete"
+# w2x_discrete: the ncnn index of the discrete GPU, detected once and cached.
+# ncnn's Vulkan enumeration order is not fixed (index 0 is not always the dGPU),
+# so read it from waifu2x's own device banner -- the same indices -g uses -- and
+# take the first device whose name is not an integrated GPU. Cached as an index
+# or -1 (none found); the probe is a 64x64 op that only runs on a cold cache.
+w2x_discrete() {
+	local cached tmp name disc idx
+	cached="$(cat "$w2x_disc_file" 2>/dev/null || true)"
+	case "$cached" in 0 | 1 | 2 | 3) printf '%s' "$cached"; return ;; -1) return ;; esac
+	command -v waifu2x-ncnn-vulkan >/dev/null 2>&1 || return
+	tmp="$(mktemp -d)" || return
+	magick -size 64x64 xc:gray "$tmp/in.png" >/dev/null 2>&1 || : >"$tmp/in.png"
+	disc=-1
+	while IFS= read -r name; do
+		idx="${name%% *}"; name="${name#* }"
+		case "$name" in
+		*[Ii]ntel* | *[Ii]ris* | *UHD* | *[Rr]adeon*[Gg]raphics* | *[Ll]lvmpipe* | *[Ss]wiftshader* | *[Mm]ali* | *[Aa]dreno*) ;;
+		*) disc="$idx"; break ;;
+		esac
+	done < <(waifu2x-ncnn-vulkan -i "$tmp/in.png" -o "$tmp/out.png" -s 2 -n 0 -m "$w2x_model" 2>&1 | grep -oE '\[[0-9]+ [^]]+\]' | sed -E 's/^\[([0-9]+) (.*)\]$/\1 \2/' | sort -u)
+	rm -rf "$tmp"
+	printf '%s' "$disc" >"$w2x_disc_file" 2>/dev/null || true
+	case "$disc" in 0 | 1 | 2 | 3) printf '%s' "$disc" ;; esac
+}
+# w2x_order: GPU indices to attempt -- the discrete GPU first, then the last-known
+# -good, then every index, de-duplicated so the preferred/reliable one leads.
 w2x_order() {
-	local p
+	local disc p out i
+	disc="$(w2x_discrete)"
 	p="$(cat "$w2x_gpu_pref" 2>/dev/null || true)"
-	case "$p" in 0 | 1 | 2 | 3) printf '%s 0 1 2 3' "$p" ;; *) printf '0 1 2 3' ;; esac
+	out=""
+	for i in "$disc" "$p" 0 1 2 3; do
+		case "$i" in 0 | 1 | 2 | 3) ;; *) continue ;; esac
+		case " $out " in *" $i "*) ;; *) out="$out $i" ;; esac
+	done
+	printf '%s' "${out# }"
 }
 
 # real dimensions for a batch of local clips: newline-separated paths in,
@@ -406,10 +438,12 @@ palette)
 	XDG_CACHE_HOME="$tmp/cache" wallust "${wargs[@]}"
 	;;
 moewalls-search)
-	# Anime / aesthetic live wallpapers from moewalls.com. No API, but it runs
-	# WordPress, so its wp-json feed lists posts with a poster (featuredmedia); the
-	# looping preview.webm derives straight from that poster's path, no per-post
-	# fetch. No query browses the anime category. Same item shape as `search`.
+	# Anime / aesthetic live wallpapers from moewalls.com. Its wp-json API is
+	# Cloudflare-403'd now, so scrape the server-rendered listing (still 200):
+	# each post card carries a poster (/uploads/YYYY/MM/BASE-thumb-WxH.jpg), the
+	# post link, its title and a resolutions-WxH class; the looping preview.webm
+	# derives from the poster path (/uploads/preview/YYYY/BASE-preview.webm). No
+	# query browses the anime category. Same item shape as `search`.
 	query=""; page=1
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -419,36 +453,80 @@ moewalls-search)
 		*) shift ;;
 		esac
 	done
-	mw="https://moewalls.com/wp-json/wp/v2/posts"
-	params=(-G "$mw" --data-urlencode "per_page=24" --data-urlencode "page=$page" --data-urlencode "_embed=1")
+	mw="https://moewalls.com"
 	if [ -n "$query" ]; then
-		params+=(--data-urlencode "search=$query")
+		q="$(jq -rn --arg q "$query" '$q|@uri')"
+		if [ "$page" -gt 1 ]; then url="$mw/page/$page/?s=$q"; else url="$mw/?s=$q"; fi
+	elif [ "$page" -gt 1 ]; then
+		url="$mw/anime/page/$page/"
 	else
-		params+=(--data-urlencode "categories=18") # anime
+		url="$mw/anime/"
 	fi
-	resp="$(curl -fsSL -A "$ua" "${params[@]}")"
-	# poster: /uploads/YYYY/MM/BASE-thumb.jpg -> preview: /uploads/preview/YYYY/BASE-preview.webm
-	# resolution stays empty: previews range from 720p to 1440p and dual-wide, and
-	# neither the URL nor the poster metadata says which — a hardcoded label made
-	# enhance look broken ("Already sharp" on a clip the grid had promised was 720p).
-	jq -c '.[]
-		| (._embedded["wp:featuredmedia"][0].source_url // "") as $thumb
-		| ($thumb | sub("/uploads/(?<y>[0-9]{4})/[0-9]{2}/(?<b>[^/]+)-thumb\\.(jpe?g|png)"; "/uploads/preview/\(.y)/\(.b)-preview.webm")) as $vid
-		| ($vid | if . != $thumb then . else "" end) as $webm
-		| {
-			id: (.id|tostring),
-			thumb: $thumb,
-			video: $webm,
-			dl: $webm,
-			resolution: "",
-			name: (.title.rendered | gsub(" Live Wallpaper$"; "")),
-			moewalls_url: .link
-		}' <<<"$resp"
+	# a same-origin Referer; the listing pages serve 200 where the API does not.
+	html="$(curl -fsSL -A "$ua" -e "$mw/" "$url")"
+	# one card per line (split on the article boundary), keep those with a poster.
+	items="$(printf '%s' "$html" | tr '\n' ' ' | sed -E 's/<article /\n<article /g' \
+		| grep -F 'g1-frame' \
+		| while IFS= read -r card; do
+			src="$(printf '%s' "$card" | grep -oE 'src="https://moewalls\.com/wp-content/uploads/[0-9]{4}/[0-9]{2}/[^"]*-thumb-[0-9]+x[0-9]+\.(jpe?g|png)"' | head -1 | sed -E 's/^src="//; s/"$//')"
+			[ -n "$src" ] || continue
+			href="$(printf '%s' "$card" | grep -oE 'class="g1-frame" href="https://moewalls\.com/[^"]*"' | head -1 | sed -E 's/.*href="//; s/"$//')"
+			title="$(printf '%s' "$card" | grep -oE '<a title="[^"]*" class="g1-frame"' | head -1 | sed -E 's/^<a title="//; s/" class="g1-frame"$//')"
+			res="$(printf '%s' "$card" | grep -oE 'resolutions-[0-9]+x[0-9]+' | head -1 | sed -E 's/resolutions-//')"
+			rel="${src#*/uploads/}"          # YYYY/MM/BASE-thumb-WxH.jpg
+			y="${rel%%/*}"                   # YYYY
+			base="${rel##*/}"; base="${base%-thumb-*}"  # BASE slug
+			webm="$mw/wp-content/uploads/preview/$y/$base-preview.webm"
+			if [ -n "$title" ]; then name="${title% Live Wallpaper}"; else name="$(printf '%s' "$base" | tr '-' ' ')"; fi
+			jq -cn --arg id "$base" --arg thumb "$src" --arg webm "$webm" \
+				--arg res "$res" --arg name "$name" --arg url "${href:-}" \
+				'{id:$id, thumb:$thumb, video:$webm, dl:$webm, resolution:$res, name:$name, moewalls_url:$url}'
+		done)"
+	# QML's Image loader sends no User-Agent, which Cloudflare 403s, so the grid
+	# cannot fetch the poster itself. Cache each poster here (browser UA + Referer)
+	# and hand the tile a local file path; the webm still streams remotely. Cap the
+	# parallelism so a page's worth of posters never bursts into a Cloudflare rate
+	# 403 (which read as "NO SIGNAL" across the whole grid).
+	cache="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/ryowalls/moewalls-thumbs"; mkdir -p "$cache"
+	while read -r u; do
+		f="$cache/${u##*/}"
+		if [ ! -s "$f" ]; then
+			curl -fsSL -A "$ua" -e "$mw/" "$u" -o "$f" 2>/dev/null &
+			while [ "$(jobs -rp | wc -l)" -ge 4 ]; do wait -n || true; done
+		fi
+	done < <(printf '%s\n' "$items" | jq -r '.thumb | select(length > 0)' | sort -u)
+	wait || true
+	printf '%s\n' "$items" | while IFS= read -r row; do
+		[ -n "$row" ] || continue
+		u="$(jq -r '.thumb' <<<"$row")"; f="$cache/${u##*/}"
+		if [ -n "$u" ] && [ -s "$f" ]; then
+			jq -c --arg f "file://$f" '.thumb = $f' <<<"$row"
+		else
+			printf '%s\n' "$row"
+		fi
+	done
 	;;
 moewalls-download)
-	# Save a moewalls preview.webm into livewalls so the switcher picks it up too.
-	id="${1:?id required}"; url="${2:?url required}"
+	# Save the full-resolution master, not the lightweight loop preview. The real
+	# file sits behind the site's download button, whose target is an obfuscated
+	# token (the anchor's data-url) that only appears on the post page and is
+	# redeemed by go.moewalls.com/download.php. Scrape that token from the post URL
+	# and pull the master mp4; fall back to the preview webm if the page shape moves.
+	id="${1:?id required}"; url="${2:?url required}"; post="${3:-}"
 	dest="$HOME/Pictures/livewalls"; mkdir -p "$dest"
+	token=""
+	if [ -n "$post" ]; then
+		page="$(curl -fsSL -A "$ua" "$post" 2>/dev/null || true)"
+		tag="$(printf '%s' "$page" | grep -oE '<a[^>]*id="moe-download"[^>]*>' || true)"
+		token="$(printf '%s' "$tag" | grep -oE 'data-url="[^"]*"' | sed -E 's/data-url="([^"]*)"/\1/' || true)"
+	fi
+	if [ -n "$token" ]; then
+		out="$dest/moewalls-$id.mp4"
+		if curl -fsSL -A "$ua" -e "$post" "https://go.moewalls.com/download.php?video=$token" -o "$out"; then
+			finish "$out"; exit 0
+		fi
+		rm -f "$out"
+	fi
 	ext="${url##*.}"; [ "${#ext}" -gt 5 ] && ext="webm"
 	out="$dest/moewalls-$id.$ext"
 	curl -fsSL -A "$ua" "$url" -o "$out"
