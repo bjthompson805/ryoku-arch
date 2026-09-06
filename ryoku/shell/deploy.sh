@@ -90,7 +90,7 @@ say "installed $bindir/ryoku-shell"
 
 # The launcher's "@" radio engine: it lives with the hyprland leaf scripts
 # (packaged into /usr/bin by ryoku-desktop), but the launcher calls it by bare
-# name — a dev deploy must put it on PATH too or a repo-ahead launcher points
+# name: a dev deploy must put it on PATH too or a repo-ahead launcher points
 # at a script the installed package does not ship yet.
 install -m755 "$here/../hyprland/scripts/ryoku-cmd-radio" "$bindir/ryoku-cmd-radio"
 say "installed $bindir/ryoku-cmd-radio"
@@ -235,6 +235,35 @@ for appdir in "$here"/../apps/*/; do
   say "installed app $appname -> $cfg/quickshell/$appname"
 done
 
+# CLI helper apps built with CMake (no quickshell UI of their own, so they
+# don't go through the loop above -- e.g. ryospice, ryovm's SPICE viewer).
+# Built out-of-tree into a persistent cache dir (fast incremental rebuilds
+# across repeat deploys, and never a build/ directory left inside the repo);
+# only the resulting executable(s) get installed. A missing build dependency
+# (e.g. no gtk4-dev on this machine) warns and skips that app rather than
+# failing the whole deploy -- these are optional viewers, not core shell.
+cmake_build_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/deploy-cmake"
+for cmakedir in "$here"/../apps/*/; do
+  [[ -f "${cmakedir}CMakeLists.txt" ]] || continue
+  appname="$(basename "$cmakedir")"
+  say "building $appname"
+  cbuild="$cmake_build_cache/$appname"
+  mkdir -p "$cbuild"
+  if cmake -S "$cmakedir" -B "$cbuild" -DCMAKE_BUILD_TYPE=Release >/dev/null 2>&1 \
+      && cmake --build "$cbuild" -j"$(nproc)" >/dev/null 2>&1; then
+    installed=0
+    for exe in "$cbuild"/*; do
+      [[ -f "$exe" && -x "$exe" ]] || continue
+      install -m755 "$exe" "$bindir/$(basename "$exe")"
+      say "installed $bindir/$(basename "$exe")"
+      installed=1
+    done
+    (( installed )) || say "WARNING: $appname built but produced no executable to install"
+  else
+    say "WARNING: $appname failed to build (missing dependencies?); skipping install"
+  fi
+done
+
 if (( hypr_live && reload )); then
   # Stop the watcher before replacing its root. A rename keeps the deployed
   # tree coherent, and the later restart launches only against the new files.
@@ -249,7 +278,7 @@ mv "$qstaging" "$cfg/quickshell"
 [[ -n "${qbackup:-}" ]] && rm -rf "$qbackup"
 say "installed quickshell components -> $cfg/quickshell"
 
-# Ryoku Hub's own launcher entry + icon (the ryoku brand mark — Hub has no
+# Ryoku Hub's own launcher entry + icon (the ryoku brand mark: Hub has no
 # bespoke app icon of its own, unlike ryovm/ryowalls).
 install -Dm644 "$here/../hub/hub.desktop" "$appshare/applications/ryoku-hub.desktop"
 install -Dm644 "$here/../assets/brand/logo-mark.svg" "$appshare/icons/hicolor/scalable/apps/ryoku-hub.svg"
