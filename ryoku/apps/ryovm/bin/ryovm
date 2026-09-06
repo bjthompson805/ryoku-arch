@@ -86,14 +86,20 @@ port_of() { # $1 = ports file, $2 = name (ssh|spice)
 # the SPICE endpoint from a ports file, as the app reads it: a bare number for a
 # TCP port (headless / remote), or "unix:<path>" for a local socket (windowed
 # SPICE, quickemu's default). Empty when the VM exposes no SPICE.
-spice_target() { # $1 = ports file, $2 = vm subdir
+#
+# quickemu writes a relative unix path as "<vmname>/<vmname>.sock" -- relative
+# to $vms_dir (its cwd when it started, see cmd_launch's `cd "$vms_dir"`), NOT
+# relative to that VM's own subdir (which IS $vms_dir/<vmname>): joining it
+# against the subdir doubles the VM name into
+# .../vms/<vmname>/<vmname>/<vmname>.sock, a path nothing ever created.
+spice_target() { # $1 = ports file (the $2 vm-subdir param this took is unused now)
 	[ -r "$1" ] || return 0
 	local tcp unix
 	tcp="$(sed -n -E '/^spice,/{s/^spice,([0-9]+).*/\1/p;q}' "$1")"
 	[ -n "$tcp" ] && { printf '%s' "$tcp"; return 0; }
 	unix="$(sed -n -E '/^unix,/{s/^unix,(.*)/\1/p;q}' "$1")"
 	if [ -n "$unix" ]; then
-		case "$unix" in /*) printf 'unix:%s' "$unix" ;; *) printf 'unix:%s/%s' "$2" "$unix" ;; esac
+		case "$unix" in /*) printf 'unix:%s' "$unix" ;; *) printf 'unix:%s/%s' "$vms_dir" "$unix" ;; esac
 	fi
 }
 
@@ -196,7 +202,7 @@ cmd_list() {
 		running=false; vm_running "$vm_pid" && running=true
 		ssh=""; spice=""
 		if [ "$running" = true ]; then
-			ssh="$(port_of "$vm_ports" ssh)"; spice="$(spice_target "$vm_ports" "$vm_subdir")"
+			ssh="$(port_of "$vm_ports" ssh)"; spice="$(spice_target "$vm_ports")"
 		fi
 		disposable=false; [ "$running" = true ] && [ -e "$vm_subdir/$vm_name.disposable" ] && disposable=true
 		sealed=false; [ "$(conf_get "$conf" ryovm_sealed)" = "1" ] && [ -e "$vm_disk" ] && sealed=true
@@ -233,7 +239,7 @@ cmd_get() {
 	running=false; vm_running "$vm_pid" && running=true
 	local ssh="" spice=""
 	if [ "$running" = true ]; then
-		ssh="$(port_of "$vm_ports" ssh)"; spice="$(spice_target "$vm_ports" "$vm_subdir")"
+		ssh="$(port_of "$vm_ports" ssh)"; spice="$(spice_target "$vm_ports")"
 	fi
 	snaps="$(snaps_json "$vm_disk")"
 	# is anything actually answering on the forwarded ssh port? slirp accepts
@@ -952,7 +958,7 @@ cmd_console() {
 	local conf; conf="$(conf_path "$1")"
 	vm_paths "$conf"
 	vm_running "$vm_pid" || die "$vm_name is not running"
-	local spice; spice="$(spice_target "$vm_ports" "$vm_subdir")"
+	local spice; spice="$(spice_target "$vm_ports")"
 	[ -n "$spice" ] || die "$vm_name has no SPICE console; relaunch it in SPICE or Headless mode"
 	# ryovm_viewer picks Ryospice vs. spicy when both map to display="spice";
 	# unset (a VM created before this field existed) defaults to Ryospice,
