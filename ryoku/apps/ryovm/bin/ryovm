@@ -17,7 +17,7 @@
 #   instant <os> [name] [--disposable] [--disk=SIZE] a prebuilt cloud image, ryoku/ryoku burn account, no installer
 #   cloud-catalog                    the curated cloud-image list (JSON)
 #   import <name> <iso> [guest] [os] [size]  a VM from any ISO (full QEMU, off-catalogue)
-#   launch <name> [window|spice|headless]   start detached
+#   launch <name> [ryospice|window|spice|headless]   start detached
 #   console <name>                   open the SPICE viewer for a running VM
 #   stop <name>                      power off
 #   config <name> <key> <value>     edit one scalar conf key
@@ -133,7 +133,7 @@ cmd_caps() {
 	qg=$(have quickget && echo true || echo false)
 	qemu=$(have qemu-system-x86_64 && echo true || echo false)
 	kvm=$([ -e /dev/kvm ] && [ -r /dev/kvm ] && echo true || echo false)
-	spice=$( { have spicy || have remote-viewer; } && echo true || echo false)
+	spice=$( { have ryospice || have spicy || have remote-viewer; } && echo true || echo false)
 	[ "$qe" = true ] && ver="$(quickemu --version 2>/dev/null | sed -n 1p || true)"
 	local ready=false
 	[ "$qe" = true ] && [ "$qemu" = true ] && [ "$kvm" = true ] && ready=true
@@ -184,10 +184,11 @@ cmd_list() {
 	for conf in "$vms_dir"/*.conf; do
 		[ -e "$conf" ] || continue
 		vm_paths "$conf"
-		local guest os disp cores ram disk used running ssh spice disposable sealed tpm sb uefi
+		local guest os disp viewer cores ram disk used running ssh spice disposable sealed tpm sb uefi
 		guest="$(conf_get "$conf" guest_os)"
 		os="$(os_slug "$conf")"
 		disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="gtk"
+		viewer="$(conf_get "$conf" ryovm_viewer)"
 		cores="$(conf_get "$conf" cpu_cores)"
 		ram="$(conf_get "$conf" ram)"
 		disk="$(conf_get "$conf" disk_size)"
@@ -205,13 +206,13 @@ cmd_list() {
 		uefi=true; [ "$(conf_get "$conf" boot)" = "legacy" ] && uefi=false
 		[ $first -eq 1 ] && first=0 || printf ','
 		jq -cn --arg name "$vm_name" --arg guest "${guest:-linux}" --arg os "${os:-}" \
-			--arg display "$disp" --arg cores "${cores:-auto}" --arg ram "${ram:-auto}" \
+			--arg display "$disp" --arg viewer "${viewer:-}" --arg cores "${cores:-auto}" --arg ram "${ram:-auto}" \
 			--arg disk "${disk:-}" --argjson used "$used" --argjson running "$running" \
 			--arg ssh "${ssh:-}" --arg spice "${spice:-}" \
 			--argjson disposable "$disposable" --argjson sealed "$sealed" \
 			--argjson tpm "$tpm" --argjson secureboot "$sb" --argjson uefi "$uefi" \
 			--argjson exists "$([ -e "$vm_disk" ] && echo true || echo false)" \
-			'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$exists,ssh:$ssh,spice:$spice,disposable:$disposable,sealed:$sealed,tpm:$tpm,secureboot:$secureboot,uefi:$uefi}'
+			'{name:$name,guest:$guest,os:$os,display:$display,viewer:$viewer,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$exists,ssh:$ssh,spice:$spice,disposable:$disposable,sealed:$sealed,tpm:$tpm,secureboot:$secureboot,uefi:$uefi}'
 	done
 	printf ']\n'
 }
@@ -220,10 +221,11 @@ cmd_list() {
 cmd_get() {
 	local conf; conf="$(conf_path "$1")"
 	vm_paths "$conf"
-	local guest os disp cores ram disk used running snaps="[]" disposable sealed tpm sb uefi
+	local guest os disp viewer cores ram disk used running snaps="[]" disposable sealed tpm sb uefi
 	guest="$(conf_get "$conf" guest_os)"
 	os="$(os_slug "$conf")"
 	disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="gtk"
+	viewer="$(conf_get "$conf" ryovm_viewer)"
 	cores="$(conf_get "$conf" cpu_cores)"
 	ram="$(conf_get "$conf" ram)"
 	disk="$(conf_get "$conf" disk_size)"
@@ -253,6 +255,7 @@ cmd_get() {
 	local suser; suser="$(conf_get "$conf" ryovm_ssh_user)"
 	[ -n "$suser" ] || suser="${SUDO_USER:-$USER}"
 	jq -cn --arg name "$vm_name" --arg guest "${guest:-linux}" --arg os "${os:-}" --arg display "$disp" \
+		--arg viewer "${viewer:-}" \
 		--arg cores "${cores:-auto}" --arg ram "${ram:-auto}" --arg disk "${disk:-}" --argjson used "$used" \
 		--argjson running "$running" --arg ssh "${ssh:-}" --arg spice "${spice:-}" \
 		--argjson installed "$([ -e "$vm_disk" ] && echo true || echo false)" \
@@ -260,7 +263,7 @@ cmd_get() {
 		--argjson tpm "$tpm" --argjson secureboot "$sb" --argjson uefi "$uefi" \
 		--argjson sshready "$ssh_ready" --arg sshuser "$suser" \
 		--argjson snapshots "$snaps" --arg conf "$conf" --arg dir "$vm_subdir" \
-		'{name:$name,guest:$guest,os:$os,display:$display,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$installed,ssh:$ssh,spice:$spice,disposable:$disposable,sealed:$sealed,tpm:$tpm,secureboot:$secureboot,uefi:$uefi,sshReady:$sshready,sshUser:$sshuser,snapshots:$snapshots,conf:$conf,dir:$dir}'
+		'{name:$name,guest:$guest,os:$os,display:$display,viewer:$viewer,cores:$cores,ram:$ram,disk:$disk,diskUsed:$used,running:$running,installed:$installed,ssh:$ssh,spice:$spice,disposable:$disposable,sealed:$sealed,tpm:$tpm,secureboot:$secureboot,uefi:$uefi,sshReady:$sshready,sshUser:$sshuser,snapshots:$snapshots,conf:$conf,dir:$dir}'
 }
 
 # ---- create (catalogue OS, in-app download with live progress) --------------
@@ -845,7 +848,11 @@ cmd_spawn() {
 
 # ---- launch ----------------------------------------------------------------
 # Detach so the engine returns at once and the VM (and any viewer) outlives it.
-# display: window (gtk) | spice (spicy viewer + clipboard) | headless (none).
+# display: ryospice (GTK4 viewer, zero-copy GL, default) | window (gtk) |
+# spice (spicy viewer + clipboard) | headless (none). ryospice and spice both
+# run the guest on display="spice" under the hood -- see the ryovm_viewer
+# conf field (synced below) for how console/cmd_launch pick the actual
+# viewer binary between the two.
 # --disposable runs the session on quickemu's --status-quo (qemu -snapshot):
 # every disk write lands in a temp overlay and burns up at power-off, so a
 # sealed machine boots identical every time. A marker file beside the pid lets
@@ -853,13 +860,14 @@ cmd_spawn() {
 cmd_launch() {
 	require_engine
 	local conf; conf="$(conf_path "$1")"
-	local mode="${2:-window}" display disposable=""
+	local mode="${2:-ryospice}" display disposable="" viewer_bin=""
 	[ "${3:-}" = "--disposable" ] && disposable=1
 	case "$mode" in
+		ryospice) display="spice"; viewer_bin="ryospice" ;;
 		window)   display="gtk" ;;
-		spice)    display="spice" ;;
+		spice)    display="spice"; viewer_bin="spicy" ;;
 		headless) display="none" ;;
-		*) die "launch display must be window|spice|headless" ;;
+		*) die "launch display must be ryospice|window|spice|headless" ;;
 	esac
 	vm_paths "$conf"
 	vm_running "$vm_pid" && die "$vm_name is already running"
@@ -883,14 +891,27 @@ cmd_launch() {
 			printf 'display="%s"\n' "$display" >>"$conf"
 		fi
 	fi
+	# ryovm_viewer distinguishes SPICE from Ryospice, since both map to the
+	# same display="spice" under the hood -- console reads this to pick the
+	# actual viewer binary. Only set for the two modes that use one.
+	if [ -n "$viewer_bin" ] && ! grep -qxE "ryovm_viewer=\"$viewer_bin\"" "$conf"; then
+		if grep -qE '^ryovm_viewer=' "$conf"; then
+			sed -i -E "s|^ryovm_viewer=.*|ryovm_viewer=\"$viewer_bin\"|" "$conf"
+		else
+			printf 'ryovm_viewer="%s"\n' "$viewer_bin" >>"$conf"
+		fi
+	fi
 	cd "$vms_dir"
 	local log="$vm_subdir/$vm_name.launch.log"
 	mkdir -p "$vm_subdir"
-	# --viewer none for the non-SPICE modes: quickemu validates its default
-	# viewer (spicy) even when the display never uses one, so a box without
-	# spice-gtk could not launch a plain gtk window or a headless machine.
+	# --viewer none for every mode except plain "spice": quickemu validates its
+	# default viewer (spicy) even when the display never uses one, so a box
+	# without spice-gtk could not launch a plain gtk window or a headless
+	# machine. Ryospice also opts out of quickemu's own spawn -- it's spawned
+	# separately below once the VM is confirmed up, same SPICE socket
+	# cmd_console attaches to.
 	local viewer=()
-	[ "$display" != "spice" ] && viewer=(--viewer none)
+	[ "$mode" != "spice" ] && viewer=(--viewer none)
 	local extra=()
 	if [ -n "$disposable" ]; then
 		extra+=(--status-quo)
@@ -920,6 +941,9 @@ cmd_launch() {
 		die "the VM failed to start: $(tail -n1 "$log" 2>/dev/null)
 $(tail -n 12 "$log" 2>/dev/null)"
 	fi
+	# subshelled: cmd_console can die() (exit) on a transient condition, which
+	# must not take the whole launch down with it once the VM is already up.
+	[ "$mode" = "ryospice" ] && ( cmd_console "$1" >/dev/null 2>&1 || true )
 	echo "launched $vm_name ($mode)"
 }
 
@@ -930,15 +954,21 @@ cmd_console() {
 	vm_running "$vm_pid" || die "$vm_name is not running"
 	local spice; spice="$(spice_target "$vm_ports" "$vm_subdir")"
 	[ -n "$spice" ] || die "$vm_name has no SPICE console; relaunch it in SPICE or Headless mode"
+	# ryovm_viewer picks Ryospice vs. spicy when both map to display="spice";
+	# unset (a VM created before this field existed) defaults to Ryospice,
+	# matching the new default launch mode.
+	local pref; pref="$(conf_get "$conf" ryovm_viewer)"
 	local viewer
 	case "$spice" in
 		unix:*)
 			local sock="${spice#unix:}"
-			if have spicy; then viewer=(spicy --title "$vm_name" --uri="spice+unix://$sock")
+			if [ "$pref" != "spicy" ] && have ryospice; then viewer=(ryospice --title "$vm_name" --uri="spice+unix://$sock")
+			elif have spicy; then viewer=(spicy --title "$vm_name" --uri="spice+unix://$sock")
 			elif have remote-viewer; then viewer=(remote-viewer "spice+unix://$sock")
 			else die "no SPICE viewer found (install spice-gtk)"; fi ;;
 		*)
-			if have spicy; then viewer=(spicy --title "$vm_name" --port "$spice")
+			if [ "$pref" != "spicy" ] && have ryospice; then viewer=(ryospice --title "$vm_name" --port "$spice")
+			elif have spicy; then viewer=(spicy --title "$vm_name" --port "$spice")
 			elif have remote-viewer; then viewer=(remote-viewer "spice://localhost:$spice")
 			else die "no SPICE viewer found (install spice-gtk)"; fi ;;
 	esac
@@ -983,7 +1013,7 @@ cmd_config() {
 	local conf; conf="$(conf_path "$1")"
 	local key="${2:?config needs a key}" val="${3-}"
 	case "$key" in
-		cpu_cores|ram|disk_size|display|guest_os|secureboot|tpm|iso|ryovm_os|ryovm_ssh_user|ryovm_burn) ;;
+		cpu_cores|ram|disk_size|display|guest_os|secureboot|tpm|iso|ryovm_os|ryovm_ssh_user|ryovm_burn|ryovm_viewer) ;;
 		*) die "config key not allowed: $key" ;;
 	esac
 	vm_paths "$conf"

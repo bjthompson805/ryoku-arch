@@ -15,7 +15,7 @@ Item {
     readonly property string name: pane.vm ? pane.vm.name : ""
     // the launch display also persists, so the choice survives the 5s refresh
     // (which re-creates the vm object) and is remembered next session.
-    property string launchMode: "window"
+    property string launchMode: "ryospice"
     // run the next launch on a burn-after-use overlay (quickemu --status-quo).
     property bool disposableRun: false
     readonly property var sealSnap: {
@@ -25,7 +25,19 @@ Item {
                 return ss[i];
         return null;
     }
-    readonly property var _modeFromDisplay: ({ "gtk": "window", "spice": "spice", "none": "headless" })
+    // ryospice and spice both persist display="spice" -- ryovm_viewer (unset
+    // on a VM created before this field existed) is what tells them apart.
+    // Unset defaults to ryospice, matching the new default launch mode.
+    function _modeFromDisplay(v) {
+        if (!v) return "ryospice";
+        if (v.display === "spice") return v.viewer === "spicy" ? "spice" : "ryospice";
+        return ({ "gtk": "window", "none": "headless" })[v.display] || "ryospice";
+    }
+    // ryospice has no release-focus or fullscreen hotkey of its own (focus
+    // release is automatic on pointer-leave; no fullscreen toggle at all
+    // yet), unlike spicy -- the KeyHint rows below need to know which one
+    // is actually running, not just that display="spice".
+    readonly property bool isRyospiceViewer: pane.vm && pane.vm.display === "spice" && pane.vm.viewer !== "spicy"
     // current disk cap in GB (from the conf), and the grow target the field edits.
     readonly property int capGb: {
         var d = pane.vm ? (pane.vm.disk || "") : "";
@@ -34,7 +46,7 @@ Item {
     }
     property int diskTarget: 64
     onVmChanged: {
-        pane.launchMode = pane._modeFromDisplay[pane.vm ? pane.vm.display : "gtk"] || "window";
+        pane.launchMode = pane._modeFromDisplay(pane.vm);
         var d = pane.vm ? (pane.vm.disk || "") : "", n = parseInt(d);
         pane.diskTarget = d.length === 0 ? 64 : (d.indexOf("M") >= 0 ? Math.max(1, Math.round(n / 1024)) : (n || 64));
     }
@@ -128,15 +140,20 @@ Item {
                         icon: "play"
                         label: pane.disposableRun ? "Launch · burn" : "Launch"
                         enabled: !Vm.busy && Vm.caps.quickemu === true
-                            && !(pane.launchMode === "spice" && Vm.caps.spice !== true)
+                            && !((pane.launchMode === "spice" || pane.launchMode === "ryospice") && Vm.caps.spice !== true)
                         onClicked: Vm.launch(pane.name, pane.launchMode, pane.disposableRun)
                     }
                     Segmented {
                         anchors.verticalCenter: parent.verticalCenter
                         segW: 74
-                        model: [{ key: "window", label: "Window" }, { key: "spice", label: "SPICE" }, { key: "headless", label: "Headless" }]
+                        model: [{ key: "ryospice", label: "Ryospice" }, { key: "window", label: "Window" }, { key: "spice", label: "SPICE" }, { key: "headless", label: "Headless" }]
                         current: pane.launchMode
-                        onSelected: (k) => { pane.launchMode = k; Vm.setConfig(pane.name, "display", ({ "window": "gtk", "spice": "spice", "headless": "none" })[k]); }
+                        onSelected: (k) => {
+                            pane.launchMode = k;
+                            Vm.setConfig(pane.name, "display", ({ "ryospice": "spice", "window": "gtk", "spice": "spice", "headless": "none" })[k]);
+                            if (k === "ryospice" || k === "spice")
+                                Vm.setConfig(pane.name, "ryovm_viewer", k === "spice" ? "spicy" : "ryospice");
+                        }
                     }
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
@@ -161,17 +178,18 @@ Item {
                 Text {
                     text: pane.det && pane.det.installed !== true
                         ? "First launch boots the OS installer — install onto the virtual disk, then power off. After that it boots from disk."
-                        : pane.launchMode === "spice" && Vm.caps.spice !== true
-                        ? "SPICE needs its viewer — install the spice-gtk package, then relaunch"
+                        : (pane.launchMode === "spice" || pane.launchMode === "ryospice") && Vm.caps.spice !== true
+                        ? "SPICE needs a viewer — install ryospice or the spice-gtk package, then relaunch"
                         : pane.disposableRun
                         ? "Disposable session: every disk write burns up at power-off — the machine boots identical next time"
                         : ({
+                            "ryospice": "Ryospice viewer · shared clipboard, zero-copy GL, no cursor lag",
                             "window": "Plain window · host↔guest clipboard is OFF in this mode",
-                            "spice": "SPICE viewer · shared clipboard, USB redirect, best desktop fidelity",
+                            "spice": "SPICE viewer (spicy) · shared clipboard, USB redirect",
                             "headless": "No display · reach it over SSH or attach a console anytime"
                         })[pane.launchMode] || ""
                     color: pane.det && pane.det.installed !== true ? Theme.dim
-                        : pane.launchMode === "spice" && Vm.caps.spice !== true ? Theme.warn
+                        : (pane.launchMode === "spice" || pane.launchMode === "ryospice") && Vm.caps.spice !== true ? Theme.warn
                         : pane.disposableRun ? Theme.ember : Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 11
@@ -360,15 +378,16 @@ Item {
                             }
 
                             KeyHint {
-                                keys: pane.vm && pane.vm.display === "spice" ? "Shift  F12"
+                                keys: pane.isRyospiceViewer ? "" : pane.vm && pane.vm.display === "spice" ? "Shift  F12"
                                     : pane.vm && pane.vm.display === "gtk" ? "Ctrl  Alt  G" : ""
-                                action: "Release the mouse and keyboard"
+                                action: pane.isRyospiceViewer ? "Move the pointer off the window to release it"
+                                    : "Release the mouse and keyboard"
                                 visible: pane.vm && pane.vm.display !== "none"
                             }
                             KeyHint {
                                 keys: pane.vm && pane.vm.display === "spice" ? "F11" : "Ctrl  Alt  F"
                                 action: "Toggle fullscreen"
-                                visible: pane.vm && pane.vm.display !== "none"
+                                visible: pane.vm && pane.vm.display !== "none" && !pane.isRyospiceViewer
                             }
                             Text {
                                 width: parent.width
