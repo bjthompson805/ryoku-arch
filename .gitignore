@@ -11,6 +11,7 @@
 /ryoku/apps/ryovm/fetch/ryovm-fetch
 /ryoku/shell/plugin/build/
 /ryoku/shell/plugin/dist/
+/ryoku/apps/ryospice/build/
 /release/repo/out/
 *.iso
 
