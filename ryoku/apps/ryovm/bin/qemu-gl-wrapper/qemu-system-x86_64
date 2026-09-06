@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Zero-copy SPICE GL wrapper, spliced into PATH ahead of the real qemu-system-x86_64
+# for quickemu's spice-display launches (see cmd_launch in ../ryovm).
+#
+# quickemu pairs local-socket SPICE GL scanout with `-display egl-headless`
+# and deliberately leaves `gl=on` off the `-spice` channel itself, per a
+# comment in its own source citing an old QEMU/SPICE bug where SPICE-owned
+# GL blocked the main loop. That bug is long fixed in the QEMU this system
+# ships. The egl-headless path it falls back to instead forces QEMU to read
+# every rendered frame back from GPU memory into host RAM before SPICE can
+# send it on -- that CPU-side copy is the dominant cost of a Linux-guest
+# ryovm VM (measured: ~1 full host core at an idle desktop) and the reason
+# the guest never gets a real hardware cursor plane.
+#
+# Routing GL scanout through `-spice gl=on` instead skips that copy: QEMU
+# hands spicy a DMA-BUF fd directly over the local socket, and spicy imports
+# it straight into its own GL context. Confirmed on this system: CPU load on
+# the QEMU process drops to ~15-25% at idle, and a real hardware cursor plane
+# appears where there wasn't one. (The remaining ceiling after that fix is
+# spice-gtk's own GtkGLArea, which is CPU-bound on GTK3's Cairo readback path
+# regardless of this wrapper -- see the ryovm project history for that trace.
+# There is no further win available here without a GTK4 spice-gtk, which
+# does not exist upstream.)
+#
+# This only ever rewrites the exact args quickemu emits for that one case
+# (egl-headless + a local `unix=on` spice channel); anything else -- other
+# guest types, --display window/headless, a remote/TCP spice target -- passes
+# through untouched, so this is safe to leave on PATH unconditionally.
+set -euo pipefail
+
+real_qemu=/usr/bin/qemu-system-x86_64
+if [ ! -x "$real_qemu" ]; then
+	# fall back to a PATH search that skips this wrapper's own directory
+	real_qemu="$(PATH="${PATH//$(dirname "$(readlink -f "$0")"):/}" command -v qemu-system-x86_64)"
+fi
+
+args=("$@")
+out=()
+rendernode=""
+spice_idx=-1
+
+for i in "${!args[@]}"; do
+	arg="${args[$i]}"
+	if [[ "$arg" == egl-headless,rendernode=* ]]; then
+		rendernode="${arg#egl-headless,rendernode=}"
+		out+=("none")
+		continue
+	fi
+	out+=("$arg")
+	if [[ "${out[-1]}" == "-spice" ]]; then
+		spice_idx=$((${#out[@]}))
+	fi
+done
+
+if [ -n "$rendernode" ] && [ "$spice_idx" -ge 0 ]; then
+	spice_opts="${out[$spice_idx]}"
+	if [[ "$spice_opts" == *"unix=on"* && "$spice_opts" != *"gl="* ]]; then
+		out[$spice_idx]="${spice_opts},gl=on,rendernode=${rendernode}"
+	fi
+fi
+
+exec "$real_qemu" "${out[@]}"

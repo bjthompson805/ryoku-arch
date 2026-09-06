@@ -29,6 +29,7 @@
 #   folder [name]                    print the VMs dir (or one VM dir)
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 vms_dir="${RYOVM_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/ryoku/vms}"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku"
 catalog_cache="$cache_dir/ryovm-catalog.json"
@@ -897,7 +898,12 @@ cmd_launch() {
 	else
 		rm -f "$vm_subdir/$vm_name.disposable"
 	fi
-	setsid quickemu --vm "$vm_name.conf" --display "$display" "${viewer[@]}" "${extra[@]}" >"$log" 2>&1 < /dev/null &
+	# splice the zero-copy SPICE GL wrapper ahead of the real qemu-system-x86_64:
+	# it only rewrites quickemu's exact local-spice + egl-headless invocation
+	# (see bin/qemu-gl-wrapper/qemu-system-x86_64), so it's a no-op for every
+	# other guest/display combination and safe to leave on PATH here always.
+	PATH="$script_dir/qemu-gl-wrapper:$PATH" \
+		setsid quickemu --vm "$vm_name.conf" --display "$display" "${viewer[@]}" "${extra[@]}" >"$log" 2>&1 < /dev/null &
 	local qpid=$!
 	# poll for readiness instead of one fixed beat: a slow first boot (qcow2
 	# creation, EFI vars) takes longer than any constant, and calling it a
