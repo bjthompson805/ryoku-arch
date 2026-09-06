@@ -54,10 +54,35 @@ static gboolean parse_args(int argc, char **argv, Args *out, GError **error) {
 	return TRUE;
 }
 
+/* Fires for every channel's own connect/disconnect lifecycle, not just a
+ * clean shutdown -- SPICE_CHANNEL_CLOSED covers the guest powering off
+ * (quickemu tears down the socket, which closes every channel the same
+ * way a deliberate spice_session_disconnect() would), and the ERROR_*
+ * cases cover the socket simply vanishing (VM killed, host crash) before
+ * a clean close ever happens. Without this, ryospice's window just sits
+ * there showing the guest's last frame forever once the VM is gone. */
+static void on_main_channel_event(SpiceChannel *channel, SpiceChannelEvent event,
+                                   gpointer user_data) {
+	(void)channel;
+	switch (event) {
+	case SPICE_CHANNEL_CLOSED:
+	case SPICE_CHANNEL_ERROR_CONNECT:
+	case SPICE_CHANNEL_ERROR_TLS:
+	case SPICE_CHANNEL_ERROR_LINK:
+	case SPICE_CHANNEL_ERROR_AUTH:
+	case SPICE_CHANNEL_ERROR_IO:
+		g_application_quit(G_APPLICATION(user_data));
+		break;
+	default:
+		break;
+	}
+}
+
 static void on_session_channel_new(SpiceSession *session, SpiceChannel *channel,
                                     gpointer user_data) {
-	(void)user_data;
+	(void)session;
 	if (SPICE_IS_MAIN_CHANNEL(channel)) {
+		g_signal_connect(channel, "channel-event", G_CALLBACK(on_main_channel_event), user_data);
 		spice_channel_connect(channel);
 	}
 }
@@ -78,7 +103,7 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
 	/* Main channel needs its own connect call the moment it appears, same
 	 * as the display channel does in display.c -- SpiceSession only
 	 * hands out channels via "channel-new", it doesn't connect them. */
-	g_signal_connect(session, "channel-new", G_CALLBACK(on_session_channel_new), NULL);
+	g_signal_connect(session, "channel-new", G_CALLBACK(on_session_channel_new), app);
 
 	ryo_spice_view_attach_session(RYO_SPICE_VIEW(view), session);
 	ryo_spice_input_attach(RYO_SPICE_VIEW(view), session);
