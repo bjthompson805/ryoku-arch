@@ -20,8 +20,12 @@
 struct _RyoSpiceView {
 	GtkWidget parent_instance;
 	SpiceDisplayChannel *channel; /* borrowed; owned by the session */
+	SpiceMainChannel *main_channel; /* borrowed; NULL until the main channel opens */
 	GdkTexture *texture;
 	gboolean y0top;
+	int last_sent_w, last_sent_h; /* 0 until the first monitor-config request is sent */
+	guint resize_debounce_id;     /* 0 when no debounce timer is pending */
+	int pending_w, pending_h;     /* size to send once the debounce timer fires */
 };
 
 G_DEFINE_FINAL_TYPE(RyoSpiceView, ryo_spice_view, GTK_TYPE_WIDGET)
@@ -67,8 +71,62 @@ static void ryo_spice_view_measure(GtkWidget *widget, GtkOrientation orientation
 	(void)for_size;
 }
 
+/* An interactive resize drag fires size_allocate on every intermediate
+ * pixel size, often faster than 100/sec -- sending a full guest monitor-
+ * config request (a blocking round trip on the guest, via
+ * wl_display_roundtrip() in the wlr-output-management backend) on every
+ * single one of those floods the guest with requests for sizes the user
+ * never actually settles on. Debounce to the size that's current once
+ * motion actually stops. */
+#define RESIZE_DEBOUNCE_MS 300
+
+static gboolean on_resize_debounce_timeout(gpointer user_data) {
+	RyoSpiceView *self = RYO_SPICE_VIEW(user_data);
+	self->resize_debounce_id = 0;
+
+	if (!self->main_channel) {
+		return G_SOURCE_REMOVE;
+	}
+	self->last_sent_w = self->pending_w;
+	self->last_sent_h = self->pending_h;
+	spice_main_channel_update_display(self->main_channel, 0, 0, 0, self->pending_w,
+	                                  self->pending_h, TRUE);
+	spice_main_channel_send_monitor_config(self->main_channel);
+	return G_SOURCE_REMOVE;
+}
+
+/* Tell the guest to resize its display to match our window whenever the
+ * window's actual pixel size changes -- without this nothing ever asks the
+ * guest to change resolution at all, no matter what backend display.c (on
+ * the vdagent side) implements to act on that request. spicy/remote-viewer
+ * do the equivalent of this on every resize; SPICE has no signal for "the
+ * client resized", it's the client's job to say so. */
+static void ryo_spice_view_size_allocate(GtkWidget *widget, int width, int height, int baseline) {
+	GTK_WIDGET_CLASS(ryo_spice_view_parent_class)->size_allocate(widget, width, height, baseline);
+
+	RyoSpiceView *self = RYO_SPICE_VIEW(widget);
+	if (!self->main_channel || width <= 0 || height <= 0) {
+		return;
+	}
+	if (width == self->pending_w && height == self->pending_h && self->resize_debounce_id) {
+		return; /* already the size the pending timer is about to send */
+	}
+	self->pending_w = width;
+	self->pending_h = height;
+
+	if (self->resize_debounce_id) {
+		g_source_remove(self->resize_debounce_id);
+	}
+	self->resize_debounce_id =
+	    g_timeout_add(RESIZE_DEBOUNCE_MS, on_resize_debounce_timeout, self);
+}
+
 static void ryo_spice_view_dispose(GObject *object) {
 	RyoSpiceView *self = RYO_SPICE_VIEW(object);
+	if (self->resize_debounce_id) {
+		g_source_remove(self->resize_debounce_id);
+		self->resize_debounce_id = 0;
+	}
 	g_clear_object(&self->texture);
 	G_OBJECT_CLASS(ryo_spice_view_parent_class)->dispose(object);
 }
@@ -80,6 +138,7 @@ static void ryo_spice_view_class_init(RyoSpiceViewClass *klass) {
 	object_class->dispose = ryo_spice_view_dispose;
 	widget_class->snapshot = ryo_spice_view_snapshot;
 	widget_class->measure = ryo_spice_view_measure;
+	widget_class->size_allocate = ryo_spice_view_size_allocate;
 }
 
 static void ryo_spice_view_init(RyoSpiceView *self) {
@@ -172,6 +231,24 @@ static void on_gl_draw(SpiceDisplayChannel *channel, guint x, guint y, guint wid
 static void on_channel_new(SpiceSession *session, SpiceChannel *channel, gpointer user_data) {
 	RyoSpiceView *self = RYO_SPICE_VIEW(user_data);
 	(void)session;
+
+	if (SPICE_IS_MAIN_CHANNEL(channel)) {
+		self->main_channel = SPICE_MAIN_CHANNEL(channel);
+		/* The window may already have its real size by the time the main
+		 * channel shows up (channel order isn't guaranteed); send once now
+		 * rather than waiting on a resize that may never come if the user
+		 * never touches the window. */
+		int width = gtk_widget_get_width(GTK_WIDGET(self));
+		int height = gtk_widget_get_height(GTK_WIDGET(self));
+		if (width > 0 && height > 0 &&
+		    (width != self->last_sent_w || height != self->last_sent_h)) {
+			self->last_sent_w = width;
+			self->last_sent_h = height;
+			spice_main_channel_update_display(self->main_channel, 0, 0, 0, width, height, TRUE);
+			spice_main_channel_send_monitor_config(self->main_channel);
+		}
+		return;
+	}
 
 	if (!SPICE_IS_DISPLAY_CHANNEL(channel) || self->channel) {
 		return;
