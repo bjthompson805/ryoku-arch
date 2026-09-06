@@ -556,8 +556,29 @@ tool_pkgs() { # $1 tool  $2 family
 		net:*)          echo curl wget ;;
 		cli:apt|cli:dnf-fedora|cli:dnf-rhel) echo htop tmux vim ripgrep fd-find unzip ;;
 		cli:*)          echo htop tmux vim ripgrep fd unzip ;;
+		# stock spice-vdagent installs (and starts) here on every family,
+		# deb/rpm/pacman included -- tool_runcmd below then downloads and
+		# installs the patched spice-vdagent-wayland build over it (its
+		# packaging Conflicts/Replaces/Provides spice-vdagent, so this is a
+		# normal in-place package upgrade, not two conflicting installs).
+		# Doing it this way, instead of skipping the stock package on those
+		# families, means a failed download (network hiccup, a moved/pulled
+		# release asset) leaves the guest with a working, if not
+		# Wayland-native, spice-vdagent rather than none at all.
 		spice:*)        echo spice-vdagent qemu-guest-agent ;;
 	esac
+}
+
+# Pinned release of https://github.com/bjthompson805/spice-vdagent-wayland,
+# the patched spice-vdagent fork with native Wayland clipboard and
+# resolution-setting (stock spice-vdagent has neither under Wayland at all --
+# see that repo's README). Deliberately pinned, not "latest": a fresh VM
+# should get a version this codebase has actually been tested against, not
+# whatever the fork happens to publish next. Bump by hand after verifying a
+# new release the same way v0.23.0 was (a real tag push, all three CI jobs
+# green, a real install tested on at least one guest of each family below).
+spice_vdagent_wayland_release() { # $1 asset filename -> full download URL
+	printf 'https://github.com/bjthompson805/spice-vdagent-wayland/releases/download/v0.23.0/%s' "$1"
 }
 
 # runcmd YAML list-items for one tool on one family (each printed line "  - ...").
@@ -576,6 +597,33 @@ tool_runcmd() { # $1 tool  $2 family
 			printf "  - [ su, -l, ryoku, -c, \"curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y\" ]\n" ;;
 		spice:apk)
 			printf '  - rc-update add spice-vdagentd default\n  - rc-service spice-vdagentd start\n' ;;
+		spice:apt)
+			printf '  - curl -fsSL -o /tmp/spice-vdagent-wayland.deb "%s"\n' \
+				"$(spice_vdagent_wayland_release spice-vdagent-wayland_0.23.0-1_amd64.deb)"
+			# apt-get install (not dpkg -i) so it pulls the .deb's own
+			# dependencies as needed. Stock spice-vdagentd is already
+			# running by this point (tool_pkgs installed it); enable+restart
+			# rather than enable --now so the already-active unit actually
+			# picks up the just-upgraded binary instead of a bare enable
+			# no-op'ing against a unit that's already active.
+			printf '  - apt-get install -y /tmp/spice-vdagent-wayland.deb\n'
+			printf '  - systemctl enable spice-vdagentd\n  - systemctl restart spice-vdagentd\n' ;;
+		spice:dnf-fedora|spice:dnf-rhel)
+			# Same Fedora-built rpm for both families: not verified against a
+			# real RHEL guest (dnf installs any structurally valid rpm
+			# regardless of its cosmetic %dist tag, but RHEL's own gtk4/
+			# libwayland package versions could still fail dependency
+			# resolution where Fedora's don't). If this dnf install fails,
+			# the stock spice-vdagent tool_pkgs already installed keeps
+			# working, same as any other failed runcmd step.
+			printf '  - dnf -y install "%s"\n' \
+				"$(spice_vdagent_wayland_release spice-vdagent-wayland-0.23.0-1.fc44.x86_64.rpm)"
+			printf '  - systemctl enable spice-vdagentd\n  - systemctl restart spice-vdagentd\n' ;;
+		spice:pacman)
+			printf '  - curl -fsSL -o /tmp/spice-vdagent-wayland.pkg.tar.zst "%s"\n' \
+				"$(spice_vdagent_wayland_release spice-vdagent-wayland-0.23.0-1-x86_64.pkg.tar.zst)"
+			printf '  - pacman -U --noconfirm /tmp/spice-vdagent-wayland.pkg.tar.zst\n'
+			printf '  - systemctl enable spice-vdagentd\n  - systemctl restart spice-vdagentd\n' ;;
 		spice:*)
 			printf '  - systemctl enable --now spice-vdagentd\n' ;;
 	esac
