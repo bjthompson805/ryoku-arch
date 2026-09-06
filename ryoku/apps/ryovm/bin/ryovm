@@ -569,18 +569,6 @@ tool_pkgs() { # $1 tool  $2 family
 	esac
 }
 
-# Pinned release of https://github.com/bjthompson805/spice-vdagent-wayland,
-# the patched spice-vdagent fork with native Wayland clipboard and
-# resolution-setting (stock spice-vdagent has neither under Wayland at all --
-# see that repo's README). Deliberately pinned, not "latest": a fresh VM
-# should get a version this codebase has actually been tested against, not
-# whatever the fork happens to publish next. Bump by hand after verifying a
-# new release the same way v0.23.0 was (a real tag push, all three CI jobs
-# green, a real install tested on at least one guest of each family below).
-spice_vdagent_wayland_release() { # $1 asset filename -> full download URL
-	printf 'https://github.com/bjthompson805/spice-vdagent-wayland/releases/download/v0.23.0/%s' "$1"
-}
-
 # runcmd YAML list-items for one tool on one family (each printed line "  - ...").
 tool_runcmd() { # $1 tool  $2 family
 	case "$1:$2" in
@@ -598,15 +586,25 @@ tool_runcmd() { # $1 tool  $2 family
 		spice:apk)
 			printf '  - rc-update add spice-vdagentd default\n  - rc-service spice-vdagentd start\n' ;;
 		spice:apt)
-			printf '  - curl -fsSL -o /tmp/spice-vdagent-wayland.deb "%s"\n' \
-				"$(spice_vdagent_wayland_release spice-vdagent-wayland_0.23.0-1_amd64.deb)"
+			# Resolves the CURRENT release's actual asset at provision time
+			# (GitHub's releases/latest API), not a version pinned in this
+			# file -- a new spice-vdagent-wayland release just works without
+			# ever touching ryovm again. No jq at this point in a fresh
+			# image's provisioning, so plain grep/cut against the API's own
+			# (pretty-printed) JSON lines, not real parsing: the "wayland_"
+			# (underscore, not hyphen) match is what excludes the
+			# "-dbgsym_" debug package, which otherwise also ends in
+			# "_amd64.deb". Ends up with an empty $url (and so a no-op,
+			# stock spice-vdagent left in place) if GitHub's anonymous API
+			# rate limit is hit -- 60 req/hour/IP, plausible if many VMs
+			# provision from behind the same NAT within the hour.
+			printf '  - url=$(curl -fsSL https://api.github.com/repos/bjthompson805/spice-vdagent-wayland/releases/latest | grep "browser_download_url" | grep "wayland_" | grep -v dbgsym | grep "_amd64.deb" | head -1 | cut -d"\\"" -f4); curl -fsSL -o /tmp/spice-vdagent-wayland.deb "$url" && apt-get install -y /tmp/spice-vdagent-wayland.deb\n'
 			# apt-get install (not dpkg -i) so it pulls the .deb's own
 			# dependencies as needed. Stock spice-vdagentd is already
 			# running by this point (tool_pkgs installed it); enable+restart
 			# rather than enable --now so the already-active unit actually
 			# picks up the just-upgraded binary instead of a bare enable
 			# no-op'ing against a unit that's already active.
-			printf '  - apt-get install -y /tmp/spice-vdagent-wayland.deb\n'
 			printf '  - systemctl enable spice-vdagentd\n  - systemctl restart spice-vdagentd\n' ;;
 		spice:dnf-fedora|spice:dnf-rhel)
 			# Same Fedora-built rpm for both families: not verified against a
@@ -615,14 +613,17 @@ tool_runcmd() { # $1 tool  $2 family
 			# libwayland package versions could still fail dependency
 			# resolution where Fedora's don't). If this dnf install fails,
 			# the stock spice-vdagent tool_pkgs already installed keeps
-			# working, same as any other failed runcmd step.
-			printf '  - dnf -y install "%s"\n' \
-				"$(spice_vdagent_wayland_release spice-vdagent-wayland-0.23.0-1.fc44.x86_64.rpm)"
+			# working, same as any other failed runcmd step. See the apt
+			# case above for why this resolves "latest" via the GitHub API
+			# rather than a pinned version/URL.
+			printf '  - url=$(curl -fsSL https://api.github.com/repos/bjthompson805/spice-vdagent-wayland/releases/latest | grep "browser_download_url" | grep "x86_64.rpm" | grep -v debuginfo | grep -v debugsource | head -1 | cut -d"\\"" -f4); dnf -y install "$url"\n'
 			printf '  - systemctl enable spice-vdagentd\n  - systemctl restart spice-vdagentd\n' ;;
 		spice:pacman)
-			printf '  - curl -fsSL -o /tmp/spice-vdagent-wayland.pkg.tar.zst "%s"\n' \
-				"$(spice_vdagent_wayland_release spice-vdagent-wayland-0.23.0-1-x86_64.pkg.tar.zst)"
-			printf '  - pacman -U --noconfirm /tmp/spice-vdagent-wayland.pkg.tar.zst\n'
+			# See the apt case above for why this resolves "latest" via the
+			# GitHub API rather than a pinned version/URL; "wayland-debug"
+			# excludes the debug package (spice-vdagent-wayland-debug-...),
+			# which otherwise also ends in -x86_64.pkg.tar.zst.
+			printf '  - url=$(curl -fsSL https://api.github.com/repos/bjthompson805/spice-vdagent-wayland/releases/latest | grep "browser_download_url" | grep "pkg.tar.zst" | grep -v wayland-debug | head -1 | cut -d"\\"" -f4); curl -fsSL -o /tmp/spice-vdagent-wayland.pkg.tar.zst "$url" && pacman -U --noconfirm /tmp/spice-vdagent-wayland.pkg.tar.zst\n'
 			printf '  - systemctl enable spice-vdagentd\n  - systemctl restart spice-vdagentd\n' ;;
 		spice:*)
 			printf '  - systemctl enable --now spice-vdagentd\n' ;;
@@ -914,7 +915,7 @@ cmd_spawn() {
 cmd_launch() {
 	require_engine
 	local conf; conf="$(conf_path "$1")"
-	local mode="${2:-ryospice}" display disposable="" viewer_bin=""
+	local mode="${2:-ryospice}" display disposable="" viewer_bin="" spice
 	[ "${3:-}" = "--disposable" ] && disposable=1
 	case "$mode" in
 		ryospice) display="spice"; viewer_bin="ryospice" ;;
@@ -995,9 +996,30 @@ cmd_launch() {
 		die "the VM failed to start: $(tail -n1 "$log" 2>/dev/null)
 $(tail -n 12 "$log" 2>/dev/null)"
 	fi
-	# subshelled: cmd_console can die() (exit) on a transient condition, which
-	# must not take the whole launch down with it once the VM is already up.
-	[ "$mode" = "ryospice" ] && ( cmd_console "$1" >/dev/null 2>&1 || true )
+	if [ "$mode" = "ryospice" ]; then
+		# vm_running above only confirms quickemu's own pid file exists --
+		# the SPICE server inside qemu can still be a few hundred ms from
+		# actually binding its socket at that point. Losing that race means
+		# ryospice's very first (and only -- it never retries a failed
+		# connect on its own) connection attempt gets "connection refused"
+		# and it just sits there with a blank window forever. Wait for the
+		# real target to actually accept a connection, not just for
+		# quickemu's own readiness signal, same poll-don't-guess approach
+		# as the loop above; the ports file itself may not exist yet either
+		# in the first iteration or two, so re-read it every pass.
+		for i in $(seq 1 40); do
+			spice="$(spice_target "$vm_ports")"
+			case "$spice" in
+				unix:*) [ -S "${spice#unix:}" ] && break ;;
+				[0-9]*) timeout 0.1 bash -c "exec 3<>/dev/tcp/127.0.0.1/$spice" 2>/dev/null && break ;;
+			esac
+			sleep 0.1
+		done
+		# subshelled: cmd_console can die() (exit) on a transient condition,
+		# which must not take the whole launch down with it once the VM is
+		# already up.
+		( cmd_console "$1" >/dev/null 2>&1 || true )
+	fi
 	echo "launched $vm_name ($mode)"
 }
 
