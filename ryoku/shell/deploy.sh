@@ -218,7 +218,25 @@ for appdir in "$here"/../apps/*/; do
   appname="$(basename "$appdir")"
   mkdir -p "$qstaging/$appname"
   cp -aL "${appdir}quickshell/." "$qstaging/$appname/"
-  for b in "${appdir}bin/"*; do [[ -f "$b" ]] && install -m755 "$b" "$bindir/$(basename "$b")"; done
+  # A file installs directly; a subdirectory (e.g. ryovm's qemu-gl-wrapper/,
+  # PATH-spliced ahead of the real qemu-system-x86_64 at launch time -- see
+  # cmd_launch) copies wholesale, since it has to land as a sibling dir next
+  # to the installed script for that script's own $(dirname)-relative PATH
+  # trick to find it. Missing this case is exactly why ryovm's zero-copy
+  # SPICE GL wrapper (committed, and confirmed working when run straight out
+  # of a repo checkout) was silently never actually in effect for any
+  # deployed, Hub-launched VM: install -m755 only ever copied bin/ryovm
+  # itself, this loop's own -f guard skipped the wrapper subdirectory next
+  # to it every time, and ryovm's $script_dir/qemu-gl-wrapper then pointed
+  # at a directory that plainly did not exist under ~/.local/bin.
+  for b in "${appdir}bin/"*; do
+    if [[ -f "$b" ]]; then
+      install -m755 "$b" "$bindir/$(basename "$b")"
+    elif [[ -d "$b" ]]; then
+      rm -rf "$bindir/$(basename "$b")"
+      cp -a "$b" "$bindir/"
+    fi
+  done
   # an app may carry Go helper(s): a subdir with a go.mod builds to a bin named
   # for the module (ryovm/fetch -> ryovm-fetch). keeps "drop in an app dir" true.
   for gomod in "${appdir}"*/go.mod; do
