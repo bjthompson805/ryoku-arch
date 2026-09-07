@@ -15,8 +15,17 @@ Provider {
     readonly property var entries: {
         var src = DesktopEntries.applications.values;
         var out = [];
-        for (var i = 0; i < src.length; i++)
-            if (src[i] && !src[i].noDisplay) out.push(src[i]);
+        for (var i = 0; i < src.length; i++) {
+            var e = src[i];
+            // X-Ryoku-IconLookup marks a stub .desktop entry that exists only
+            // so Apps.titleLookup (Singletons/Apps.qml) can resolve a window
+            // icon by title -- it must stay out of NoDisplay (Quickshell's
+            // DesktopEntries.applications drops NoDisplay entries entirely,
+            // which would make it invisible to that lookup too), so filter
+            // it out of the launcher here instead.
+            if (e && !e.noDisplay && (!e.categories || e.categories.indexOf("X-Ryoku-IconLookup") < 0))
+                out.push(e);
+        }
         return out;
     }
 

@@ -109,7 +109,7 @@ Item {
                         occ[w.id] = true;
                         if (strip.wsIconsOn) {
                             var arr = byWs[w.id] || (byWs[w.id] = []);
-                            var cls = cs[i].class || "";
+                            var cls = Apps.resolveIconKey(cs[i].class || "", cs[i].title || cs[i].initialTitle || "");
                             if (cls && arr.indexOf(cls) < 0 && arr.length < strip.maxWsIcons)
                                 arr.push(cls);
                         }
@@ -135,6 +135,19 @@ Item {
                 || n.indexOf("createworkspace") === 0 || n.indexOf("destroyworkspace") === 0)
                 occDebounce.restart();
         }
+    }
+    // classesByWs resolves each window's class through Apps.resolveIconKey,
+    // which for Proton/Steam wrapper classes depends on DesktopEntries having
+    // scanned far enough to know about the title-matched .desktop entry.
+    // that scan runs asynchronously and can still be in progress when this
+    // component completes (or when a window opens right at shell startup),
+    // so a resolution done too early gets permanently stuck on the raw
+    // wrapper class until some window event happens to re-trigger it. re-run
+    // the resolution whenever the desktop entry list changes so a late-
+    // arriving entry still gets picked up.
+    Connections {
+        target: DesktopEntries
+        function onApplicationsChanged() { occDebounce.restart(); }
     }
     // which workspaces to show. occupied-only (the default) lists the ones
     // with windows plus the active one, so empty numbers vanish; otherwise a
