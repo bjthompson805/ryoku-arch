@@ -7,7 +7,8 @@ import Quickshell.Services.UPower
 // desktop without a battery reports present=false (hover cluster + 蓄 surface
 // stay hidden). exposes pct, charge state, signed draw/charge wattage,
 // capacity, optional health, plus a formatted time-to-empty/full string. low
-// = discharging and <=20%.
+// = present, discharging and <=20% -- gated on present so the pre-UPower
+// startup window (batDev null, pct reads 0) can't read as a false low.
 Singleton {
     id: root
 
@@ -35,7 +36,7 @@ Singleton {
     readonly property bool charging: state === UPowerDeviceState.Charging
     readonly property bool full: state === UPowerDeviceState.FullyCharged || pct >= 100
     readonly property bool discharging: state === UPowerDeviceState.Discharging
-    readonly property bool low: !charging && pct <= 20
+    readonly property bool low: present && !charging && pct <= 20
 
     readonly property real rateW: !batDev ? 0
         : (discharging ? -batDev.changeRate : (charging ? batDev.changeRate : 0))
