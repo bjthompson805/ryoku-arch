@@ -61,4 +61,13 @@ Singleton {
             return h + "h " + m + "m";
         return m + "m";
     }
+
+    // fire a real desktop notification on the discharging <=20% edge (not a
+    // level, so plugging in and dropping back below 20% fires again) --
+    // the pill/popout tint alone is easy to miss if the bar isn't in view.
+    onLowChanged: {
+        if (low)
+            Spawn.spawn(["notify-send", "-u", "critical", "-i", "battery-caution",
+                "-a", "Ryoku", "Battery low", pct + "% remaining"]);
+    }
 }
