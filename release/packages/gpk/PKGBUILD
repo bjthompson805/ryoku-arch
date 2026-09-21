@@ -5,30 +5,43 @@
 # the [ryoku] repo and is a ryoku-desktop dep so a fresh install has it, vs
 # leaning on the best-effort post-install AUR build.
 #
-# upstream is Go (github.com/neur0map/glazepkg); repackaged here from the
-# pinned release binary, signed by the release key in the [ryoku] repo.
+# upstream is Go (github.com/neur0map/glazepkg); repackaged here from its release
+# binary. This tracks upstream's latest release instead of a pinned version:
+# pkgver() reads the tag GitHub's /releases/latest redirects to, and build()
+# fetches that release's binary, so every rebuild ships whatever is newest.
 # `gpk update` self-updates from upstream after install.
 pkgname=gpk
-pkgver=0.5.8
-pkgrel=2
+pkgver=0
+pkgrel=1
 pkgdesc="GlazePKG: the RyokuArch package manager, every package manager in one view"
 arch=('x86_64' 'aarch64')
 url="https://github.com/neur0map/glazepkg"
 license=('GPL-3.0-or-later')
 depends=('pacman')
+makedepends=('curl')
 provides=('gpk')
 conflicts=('gpk-bin')
 replaces=('gpk-bin')
 options=('!strip' '!debug')
-source_x86_64=("gpk-$pkgver-x86_64::https://github.com/neur0map/glazepkg/releases/download/v$pkgver/gpk-linux-amd64")
-source_aarch64=("gpk-$pkgver-aarch64::https://github.com/neur0map/glazepkg/releases/download/v$pkgver/gpk-linux-arm64")
-sha256sums_x86_64=('c379780e9b5352a0b1e59f7d391a1c2c01e09ab5257b83712b3d5aaa6acad3ba')
-sha256sums_aarch64=('e31c6553dbc1db21de4e8fdd7615e194e8e2e46682b296a416f520113d8dc8b6')
+source=()
+
+pkgver() {
+  local tag
+  tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$url/releases/latest")
+  tag=${tag##*/}
+  [[ $tag == v[0-9]* ]] || { echo "PKGBUILD: no latest gpk release (got '$tag')" >&2; return 1; }
+  printf '%s' "${tag#v}"
+}
+
+build() {
+  local asset=gpk-linux-amd64
+  if [[ $CARCH == aarch64 ]]; then asset=gpk-linux-arm64; fi
+  curl -fsSL --retry 3 -o "$srcdir/gpk" "$url/releases/download/v$pkgver/$asset"
+  # no checksum exists to pin against, so at least refuse an HTML error page
+  [[ $(head -c4 "$srcdir/gpk" | tail -c3) == ELF ]] \
+    || { echo "PKGBUILD: the downloaded gpk is not an ELF binary" >&2; return 1; }
+}
 
 package() {
-  if [[ $CARCH == aarch64 ]]; then
-    install -Dm755 "$srcdir/gpk-$pkgver-aarch64" "$pkgdir/usr/bin/gpk"
-  else
-    install -Dm755 "$srcdir/gpk-$pkgver-x86_64" "$pkgdir/usr/bin/gpk"
-  fi
+  install -Dm755 "$srcdir/gpk" "$pkgdir/usr/bin/gpk"
 }

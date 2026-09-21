@@ -17,10 +17,12 @@
 # The fork's OpenScreen artwork is overridden at build time with the Ryoku
 # brand mark (bundled ryomotion-logo.png): it replaces the in-app empty-state
 # and tray logo (public/openscreen.png) and is installed as the app icon.
-# Bump _commit (and pkgver/pkgrel) to ship a new upstream build to users.
+# Tracks the fork's default branch instead of a pinned commit: every rebuild
+# ships whatever upstream's HEAD is, and pkgver() encodes it. Only the Node
+# toolchain below stays pinned, since it is build tooling, not the program.
 pkgname=ryomotion
-pkgver=1.5.0
-pkgrel=11
+pkgver=0
+pkgrel=1
 pkgdesc="Ryoku Motion: screen-demo recorder and editor (OpenScreen, Linux)"
 arch=('x86_64')
 url="https://github.com/neur0map/ryomotion"
@@ -29,20 +31,28 @@ license=('MIT')
 depends=('gtk3' 'nss' 'alsa-lib' 'libnotify' 'pipewire' 'xdg-desktop-portal' 'gpu-screen-recorder')
 makedepends=('git')
 options=('!strip' '!debug')
-_commit=60ea129dabfed8c4936aa6264dc43452c1ed8ab5
 _node=22.22.1
-source=("$pkgname::git+https://github.com/neur0map/ryomotion.git#commit=$_commit"
+source=("$pkgname::git+https://github.com/neur0map/ryomotion.git"
         "node-$_node-linux-x64.tar.xz::https://nodejs.org/dist/v$_node/node-v$_node-linux-x64.tar.xz"
         "ryomotion-logo.png")
 sha256sums=('SKIP'
             '9a6bc82f9b491279147219f6a18add1e18424dce90d41d2a5fcd69d4924ba3aa'
             'fc1bf35f8da9cd9b7663c254838f6bc0b9d9e7478823ad8cf3bfb30930786b93')
 
+pkgver() {
+  cd "$srcdir/$pkgname"
+  local v
+  v=$(grep -m1 '"version"' package.json | sed -E 's/.*"version"[^"]*"([^"]+)".*/\1/' | tr -c 'A-Za-z0-9._\n' _)
+  printf '%s.r%s.g%s' "${v:-0}" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
 build() {
   cd "$srcdir/$pkgname"
   export PATH="$srcdir/node-v$_node-linux-x64/bin:$PATH"
-  export ELECTRON_CACHE="$srcdir/.electron-cache"
-  export npm_config_cache="$srcdir/.npm-cache"
+  # a persistent cache (build-local-repo.sh sets it) keeps npm and Electron
+  # downloads across rebuilds; otherwise makepkg --clean discards them.
+  export ELECTRON_CACHE="${RYOKU_BUILD_CACHE:-$srcdir}/.electron-cache"
+  export npm_config_cache="${RYOKU_BUILD_CACHE:-$srcdir}/.npm-cache"
   export HUSKY=0
   hash -r
 
