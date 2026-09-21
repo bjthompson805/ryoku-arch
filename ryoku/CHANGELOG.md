@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `hyprland` + `shell`: **Keep Awake and Game Mode read their options from
+  `flags.json`.** `ryoku-cmd-caffeine` holds idle + sleep by default and, with
+  `keepAwakeScreen` off, sleep only (a re-run `start` swaps the inhibitor).
+  `ryoku-cmd-game-mode` gates the compositor tune (`gameModeVisuals`,
+  `gameModeTearing`) and the Wi-Fi power-save change (`gameModeWifi`) on their
+  flags, and gained `reapply` to move a running tune to the current options.
+  Missing keys mean on, so scripts run standalone or from the launcher behave as
+  before (`hyprland/scripts/ryoku-cmd-caffeine`, `ryoku-cmd-game-mode`).
 - `hyprland` + `shell`: **`Super+Alt+D` opens the right (System) sidebar**, the
   mirror of `Super+D` for the left (Features) sidebar. The bind runs
   `ryoku-shell system`, a new IPC verb that toggles the System control centre;

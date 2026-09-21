@@ -8,7 +8,12 @@
 #   status   exit 0 = on
 #   start    apply, persist (idempotent, safe to re-run)
 #   stop     restore, clear
+#   reapply  redo the tune after an option changed (no-op when off)
 #   toggle
+#
+# each part of the tune is an option in flags.json (gameModeVisuals,
+# gameModeTearing, gameModeWifi), written by the sidebar's Game Mode panel. a
+# missing file or key means on, so out of the box it is the full tune.
 #
 # revert = exact. compositor changes are runtime eval overrides; `hyprctl
 # reload` rereads Lua and clears them, so nothing to track. the wifi helper
@@ -19,8 +24,15 @@ set -u
 
 state_dir="${RYOKU_STATE_PATH:-${XDG_STATE_HOME:-$HOME/.local/state}/ryoku}"
 state_file="${RYOKU_GAMEMODE_STATE_FILE:-$state_dir/game-mode.enabled}"
+flags_file="${RYOKU_FLAGS_FILE:-$state_dir/flags.json}"
+# in the runtime dir so a fresh login (wifi back at its default) re-applies.
+wifi_mark="${RYOKU_GAMEMODE_WIFI_MARK:-${XDG_RUNTIME_DIR:-/tmp}/ryoku-game-mode-wifi}"
 
 is_on() { [[ -f $state_file ]]; }
+
+opt_on() {
+  [[ $(jq -r --arg k "$1" 'if has($k) then .[$k] else true end' "$flags_file" 2>/dev/null) != false ]]
+}
 
 notify() {
   command -v notify-send >/dev/null 2>&1 && notify-send -a Ryoku "$1" "$2" || true
@@ -36,21 +48,17 @@ notify() {
 # which is exactly the game case.
 hypr_fast() {
   command -v hyprctl >/dev/null 2>&1 || return 0
-  hyprctl eval '
-hl.config({
-  general = { allow_tearing = true },
-  decoration = {
-    rounding = 0,
-    active_opacity = 1.0,
-    inactive_opacity = 1.0,
-    blur = { enabled = false },
-    shadow = { enabled = false },
-  },
-  animations = { enabled = false },
-  misc = { vrr = 2 },
-})
-hl.window_rule({ name = "game-mode-immediate", match = { class = ".*" }, immediate = true })
-' >/dev/null 2>&1 || true
+  local cfg="" rule=""
+  if opt_on gameModeTearing; then
+    cfg+='general = { allow_tearing = true }, misc = { vrr = 2 }, '
+    rule='hl.window_rule({ name = "game-mode-immediate", match = { class = ".*" }, immediate = true })'
+  fi
+  if opt_on gameModeVisuals; then
+    cfg+='decoration = { rounding = 0, active_opacity = 1.0, inactive_opacity = 1.0, blur = { enabled = false }, shadow = { enabled = false } }, animations = { enabled = false }, '
+  fi
+  [[ -n $cfg ]] || return 0
+  hyprctl eval "hl.config({ $cfg })
+$rule" >/dev/null 2>&1 || true
 }
 
 # reload rereads Lua and blows away every eval override above.
@@ -78,28 +86,66 @@ wifi_set() {  # off | on
   pkexec "$helper" "$1" >/dev/null 2>&1 || true
 }
 
+# the helper's `off` re-saves the current state, so a second run would record
+# "off" as the value to restore. the mark keeps it to one save per session.
+wifi_apply() {
+  if opt_on gameModeWifi; then
+    [[ -e $wifi_mark ]] && return 0
+    wifi_set off
+    : >"$wifi_mark" 2>/dev/null || true
+  else
+    wifi_release
+  fi
+}
+
+# option on with no mark = a session started before the mark existed, still
+# owed its restore.
+wifi_release() {
+  if [[ -e $wifi_mark ]] || opt_on gameModeWifi; then wifi_set on; fi
+  rm -f "$wifi_mark" 2>/dev/null || true
+}
+
 start() {
   mkdir -p "$state_dir" 2>/dev/null || true
   hypr_fast
-  wifi_set off
+  wifi_apply
   printf 'enabled\n' >"$state_file" 2>/dev/null || true
-  notify "力 Game Mode" "On - compositor stripped, WiFi power-save off"
+  notify "力 Game Mode" "On - $(summary)"
 }
 
 stop() {
   hypr_restore
-  wifi_set on
+  wifi_release
   rm -f "$state_file" 2>/dev/null || true
   notify "力 Game Mode" "Off - desktop restored"
+}
+
+reapply() {
+  is_on || return 0
+  hypr_restore
+  hypr_fast
+  wifi_apply
+}
+
+summary() {
+  local parts=()
+  opt_on gameModeVisuals && parts+=("effects off")
+  opt_on gameModeTearing && parts+=("tearing allowed")
+  opt_on gameModeWifi && has_wifi && parts+=("WiFi power-save off")
+  ((${#parts[@]})) || { echo "no changes selected"; return; }
+  printf '%s' "${parts[0]}"
+  printf ', %s' "${parts[@]:1}"
+  echo
 }
 
 case "${1:-toggle}" in
   status)     is_on ;;
   on | start) start ;;
   off | stop) stop ;;
+  reapply)    reapply ;;
   toggle)     if is_on; then stop; else start; fi ;;
   *)
-    echo "usage: ryoku-cmd-game-mode [status | start | stop | toggle]" >&2
+    echo "usage: ryoku-cmd-game-mode [status | start | stop | reapply | toggle]" >&2
     exit 1
     ;;
 esac

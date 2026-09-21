@@ -5,6 +5,10 @@
 # (systemd-run --user, setsid fallback) so it survives a shell reload/restart.
 # do it in-shell and the Wayland inhibitor dies on the swap, screen idles. the
 # request is persisted so a fresh login can pick it back up.
+#
+# what the inhibitor blocks follows keepAwakeScreen in flags.json (the sidebar's
+# Keep Awake panel): on (or unset) blocks idle + sleep, off blocks sleep only so
+# the screen still dims, locks, and turns off. re-run `start` after changing it.
 
 set -euo pipefail
 
@@ -12,9 +16,15 @@ state_dir="${RYOKU_STATE_PATH:-${XDG_STATE_HOME:-$HOME/.local/state}/ryoku}"
 state_file="${RYOKU_CAFFEINE_STATE_FILE:-$state_dir/caffeine.enabled}"
 lock_file="${RYOKU_CAFFEINE_LOCK_FILE:-${XDG_RUNTIME_DIR:-/tmp}/ryoku-caffeine.lock}"
 unit_name="${RYOKU_CAFFEINE_UNIT_NAME:-ryoku-caffeine-inhibit}"
+flags_file="${RYOKU_FLAGS_FILE:-$state_dir/flags.json}"
 
 inhibit_pattern="[r]yoku-caffeine-inhibit"
-desired_inhibit_pattern="(^|/)systemd-inhibit --what=idle:sleep --who=Ryoku .*Ryoku caffeine mode"
+
+inhibit_what() {
+  local keep_screen
+  keep_screen="$(jq -r 'if has("keepAwakeScreen") then .keepAwakeScreen else true end' "$flags_file" 2>/dev/null || true)"
+  if [[ $keep_screen == false ]]; then echo "sleep"; else echo "idle:sleep"; fi
+}
 
 usage() {
   cat <<'EOF'
@@ -38,7 +48,7 @@ command_present() {
 }
 
 helper_inhibitor_active() { pgrep -f "$inhibit_pattern" >/dev/null; }
-desired_inhibitor_active() { pgrep -f "$desired_inhibit_pattern" >/dev/null; }
+desired_inhibitor_active() { pgrep -f "(^|/)systemd-inhibit --what=$(inhibit_what) --who=Ryoku .*Ryoku caffeine mode" >/dev/null; }
 caffeine_active() { desired_inhibitor_active || helper_inhibitor_active; }
 caffeine_requested() { [[ -f $state_file ]] && grep -Fxq "enabled" "$state_file"; }
 
@@ -63,12 +73,14 @@ caffeine_unit_active() {
 
 start_inhibitor_with_systemd() {
   command_present systemd-run || return 1
+  local what
+  what="$(inhibit_what)"
   systemd-run \
     --user --quiet --collect \
     --unit="$unit_name" \
     --description="Ryoku caffeine idle inhibitor" \
     systemd-inhibit \
-    --what=idle:sleep \
+    --what="$what" \
     --who=Ryoku \
     --why="Ryoku caffeine mode" \
     bash -c 'exec -a ryoku-caffeine-inhibit sleep infinity' 9>&- >/dev/null 2>&1
@@ -76,7 +88,7 @@ start_inhibitor_with_systemd() {
 
 start_inhibitor_with_setsid() {
   setsid systemd-inhibit \
-    --what=idle:sleep \
+    --what="$(inhibit_what)" \
     --who=Ryoku \
     --why="Ryoku caffeine mode" \
     bash -c 'exec -a ryoku-caffeine-inhibit sleep infinity' 9>&- >/dev/null 2>&1 &

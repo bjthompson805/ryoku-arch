@@ -8,6 +8,8 @@
 #   - wifi power-save delegated to the privileged ryoku-wifi-powersave via
 #     pkexec (off on start, on on stop)
 #   - clean no-op when there's no wifi device or the helper is missing
+#   - the flags.json options (visuals / tearing / wifi) each gate their part of
+#     the tune, and `reapply` moves a running tune to the current options
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -40,7 +42,10 @@ export PATH="$bin:$PATH"
 export RYOKU_STATE_PATH="$tmp/state"
 export RYOKU_GAMEMODE_STATE_FILE="$tmp/state/game-mode.enabled"
 export RYOKU_NET_SYSFS="$net"
+export RYOKU_FLAGS_FILE="$tmp/state/flags.json"
+export RYOKU_GAMEMODE_WIFI_MARK="$tmp/wifi.mark"
 state="$RYOKU_GAMEMODE_STATE_FILE"
+flags="$RYOKU_FLAGS_FILE"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 on() { [[ -f $state ]]; }
@@ -77,6 +82,71 @@ on || fail "start failed on a no-WiFi host"
 grep -qF 'hyprctl eval' "$calls" || fail "compositor did not apply on a no-WiFi host"
 grep -qF 'ryoku-wifi-powersave' "$calls" && fail "touched WiFi on a host with no WiFi device"
 RYOKU_NET_SYSFS="$nonet" "$gm" stop
+
+# --- options: each switch gates its own part of the tune ------------------
+setflags() { mkdir -p "$tmp/state"; printf '%s\n' "$1" >"$flags"; }
+count() { grep -cF -- "$1" "$calls" || true; }
+
+setflags '{"gameModeVisuals": false}'
+: >"$calls"
+"$gm" start
+grep -qF 'allow_tearing = true' "$calls" || fail "visuals off dropped the tearing half too"
+grep -qF 'blur' "$calls" && fail "visuals off still stripped blur"
+grep -qF 'animations' "$calls" && fail "visuals off still stripped animations"
+"$gm" stop
+
+setflags '{"gameModeTearing": false}'
+: >"$calls"
+"$gm" start
+grep -qF 'blur = { enabled = false }' "$calls" || fail "tearing off dropped the visuals half too"
+grep -qF 'allow_tearing' "$calls" && fail "tearing off still enabled tearing"
+grep -qF 'immediate' "$calls" && fail "tearing off still added the immediate rule"
+grep -qF 'vrr' "$calls" && fail "tearing off still set vrr"
+"$gm" stop
+
+setflags '{"gameModeVisuals": false, "gameModeTearing": false, "gameModeWifi": false}'
+: >"$calls"
+"$gm" start
+on || fail "start with every option off did not persist the request"
+grep -qF 'hyprctl eval' "$calls" && fail "compositor touched with visuals and tearing both off"
+grep -qF 'pkexec' "$calls" && fail "wifi touched with the wifi option off"
+: >"$calls"
+"$gm" stop
+grep -qF 'pkexec' "$calls" && fail "stop restored a wifi setting it never changed"
+
+# --- reapply: a running tune follows the options ----------------------------
+setflags '{}'
+: >"$calls"
+"$gm" reapply
+[[ -s $calls ]] && fail "reapply while off touched something"
+
+"$gm" start
+[[ $(count 'ryoku-wifi-powersave off') == 1 ]] || fail "start did not turn wifi power-save off once"
+: >"$calls"
+"$gm" reapply
+reload_at="$(grep -nF 'hyprctl reload' "$calls" | head -1 | cut -d: -f1)"
+eval_at="$(grep -nF 'hyprctl eval' "$calls" | head -1 | cut -d: -f1)"
+[[ -n $reload_at && -n $eval_at && $reload_at -lt $eval_at ]] || fail "reapply did not reload then re-eval"
+grep -qF 'ryoku-wifi-powersave off' "$calls" && fail "reapply re-saved wifi state it already holds"
+
+setflags '{"gameModeWifi": false}'
+: >"$calls"
+"$gm" reapply
+grep -qE 'pkexec .*ryoku-wifi-powersave on' "$calls" || fail "dropping the wifi option mid-game did not restore power-save"
+: >"$calls"
+"$gm" stop
+grep -qF 'ryoku-wifi-powersave' "$calls" && fail "stop restored wifi twice"
+
+setflags '{}'
+"$gm" start
+setflags '{"gameModeWifi": false}'
+"$gm" reapply
+setflags '{}'
+: >"$calls"
+"$gm" reapply
+grep -qE 'pkexec .*ryoku-wifi-powersave off' "$calls" || fail "re-enabling the wifi option mid-game did not turn power-save off"
+"$gm" stop
+rm -f "$flags"
 
 # --- helper absent: wifi skipped even with a wifi device -------------------
 rm -f "$bin/ryoku-wifi-powersave"
