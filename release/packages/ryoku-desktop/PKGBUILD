@@ -27,19 +27,19 @@ depends=(
   "ryoku-rashin=$pkgver"
   "ryoku-blobs=$pkgver"
   "ryoku=$pkgver"
-  'ryoku-keyring'
   # the RyokuArch package manager (GlazePKG)
   'gpk'
   # compositor + Wayland session
   'hyprland'
   # Hyprland compositor plugins the Hub can toggle (Appearance / Animations).
-  # pinned to this build's version like the other monorepo packages, so a plugin
-  # .so never runs against a different release's headers. Off by default; the
-  # generated settings.lua only loads one once the user enables it.
-  "hypr-dynamic-cursors=$pkgver"
-  "ryoku-hypr-plugins=$pkgver"
-  "hyprglass=$pkgver"
-  "imgborders=$pkgver"
+  # not version-pinned: each is built against the installed Hyprland's headers
+  # (its prepare() matches them), and a rebuild for a new Hyprland may have to
+  # keep the previous plugin build until upstream pins that release. Off by
+  # default; the generated settings.lua only loads one once the user enables it.
+  'hypr-dynamic-cursors'
+  'ryoku-hypr-plugins'
+  'hyprglass'
+  'imgborders'
   'xorg-xwayland'
   'qt6-wayland'
   'qt6-5compat'
@@ -368,4 +368,20 @@ package() {
     "$pkgdir/usr/bin/ryoku-windows-entry"
   install -Dm755 "$_repo/system/boot/limine/45-ryoku-windows" \
     "$pkgdir/etc/boot/hooks/post.d/45-ryoku-windows"
+
+  # Rebuild after a system library upgrade: locally built packages record no
+  # library dependencies, so this pacman hook (one Target per ABI-coupled package
+  # in release/repo/abi.packages) starts ryoku-rebuild-abi once the transaction
+  # ends. The publish script is installed root-owned so that run never executes
+  # code out of the user's writable checkout.
+  install -Dm755 "$_repo/system/rebuild/ryoku-rebuild-abi" \
+    "$pkgdir/usr/bin/ryoku-rebuild-abi"
+  install -Dm755 "$_repo/release/repo/publish-local-repo.sh" \
+    "$pkgdir/usr/lib/ryoku/publish-local-repo"
+  install -d "$pkgdir/usr/share/libalpm/hooks"
+  awk -v targets="$(sed 's/^/Target = /' "$_repo/release/repo/abi.packages")" \
+    '/^@TARGETS@$/ { print targets; next } { print }' \
+    "$_repo/system/rebuild/ryoku-rebuild.hook" \
+    > "$pkgdir/usr/share/libalpm/hooks/ryoku-rebuild.hook"
+  chmod 644 "$pkgdir/usr/share/libalpm/hooks/ryoku-rebuild.hook"
 }

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Rebuild the Ryoku packages after a system upgrade changed a library they link
+# against, so the shell never starts against libraries that are gone. Started by
+# the pacman hook (ryoku-rebuild.hook) as a transient systemd unit, as root, after
+# the upgrade transaction; the packages are compiled as the checkout's owner and
+# installed here.
+#
+# It only acts on the commit the owner last built and published with sudo: the
+# checkout must be clean and at that commit, so an edit made to it since is never
+# built and installed as root without the owner's say-so. Otherwise it stops and
+# tells the owner to run `ryoku update`.
+set -uo pipefail
+
+DEST=/var/lib/ryoku/repo
+ARCH=x86_64
+PUBLISH=/usr/lib/ryoku/publish-local-repo
+
+log() { printf 'ryoku-rebuild-abi: %s\n' "$*"; }
+
+[[ -r $DEST/.owner ]] || exit 0
+user=$(sed -n 's/^user=//p' "$DEST/.owner")
+checkout=$(sed -n 's/^checkout=//p' "$DEST/.owner")
+[[ -n $user && -d $checkout ]] || { log "no usable owner record in $DEST/.owner"; exit 0; }
+home=$(getent passwd "$user" | cut -d: -f6)
+uid=$(id -u "$user")
+staging=$home/.cache/ryoku/repo-build
+
+as_user() { runuser -u "$user" -- env HOME="$home" XDG_CACHE_HOME="$home/.cache" "$@"; }
+
+notify() {
+  runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    notify-send -a Ryoku "$1" "$2" 2>/dev/null || true
+}
+
+# the transaction that started us still holds the pacman lock
+for _ in $(seq 1 360); do
+  [[ -e /var/lib/pacman/db.lck ]] || break
+  sleep 5
+done
+
+# an upgrade that lands mid-build changes the libraries again, so look twice more
+for _ in 1 2 3; do
+  if [[ $(as_user git -C "$checkout" rev-parse HEAD) != "$(cat "$DEST/.built-sha")" ]] \
+      || [[ -n $(as_user git -C "$checkout" status --porcelain) ]]; then
+    log "$checkout has changed since the last build; not building it unattended"
+    notify "Ryoku needs a rebuild" "The system libraries changed. Run: ryoku update"
+    exit 1
+  fi
+
+  rm -rf "$staging"
+  if ! as_user "$checkout/release/repo/build-local-repo.sh" --stage-only; then
+    log "the rebuild failed"
+    notify "Ryoku rebuild failed" "See: journalctl -u ryoku-abi-rebuild"
+    exit 1
+  fi
+  [[ -f $staging/.built-sha ]] || break   # already current
+
+  "$PUBLISH" "$staging" || { log "publishing failed"; exit 1; }
+  rm -rf "$staging"
+  if ! pacman -U --needed --noconfirm "$DEST/$ARCH"/*.pkg.tar.zst; then
+    log "installing the rebuilt packages failed"
+    notify "Ryoku rebuild failed" "See: journalctl -u ryoku-abi-rebuild"
+    exit 1
+  fi
+  log "rebuilt and installed"
+  notify "Ryoku was rebuilt" "It now matches the updated system libraries. Restart your session to load it."
+done

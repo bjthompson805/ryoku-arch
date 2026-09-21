@@ -11,6 +11,9 @@ How an installed Ryoku machine is put together, separate from the desktop in
   (optional toolchains).
 - `boot/` The boot chain: Limine with Ryoku branding, the Plymouth splash, and the
   mkinitcpio hooks.
+- `rebuild/` The automatic rebuild of the locally built Ryoku packages after a
+  system upgrade changes a library they link against: the pacman hook and the
+  root script it starts.
 - `hardware/` Hardware setup. `gpu/` picks the most capable GPU and pins it for
   Hyprland, `display/` scales high-resolution screens, and `drivers/` installs the
   right packages per vendor. The GPU and monitor settings are written as Hyprland

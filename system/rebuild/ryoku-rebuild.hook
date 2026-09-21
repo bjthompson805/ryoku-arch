@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+@TARGETS@
+
+[Action]
+Description = Scheduling a Ryoku rebuild against the updated system libraries
+When = PostTransaction
+Exec = /usr/bin/systemd-run --no-block --collect --quiet --unit=ryoku-abi-rebuild --description="Rebuild Ryoku for updated system libraries" --property=Nice=19 --property=IOSchedulingClass=idle --property=CPUSchedulingPolicy=idle /usr/bin/ryoku-rebuild-abi

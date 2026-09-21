@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **`rebuild/` keeps locally built Ryoku packages working across system upgrades.**
+  A pacman hook (`ryoku-rebuild.hook`, one `Target` per package in
+  `release/repo/abi.packages`) starts `ryoku-rebuild-abi` as a low-priority
+  transient unit when an upgrade replaces Hyprland, Qt, ffmpeg, or another library
+  the packages build against. It rebuilds as the checkout's owner, publishes with
+  the root-owned `publish-local-repo`, installs with `pacman -U`, and notifies the
+  desktop. It only acts on the commit the owner last built with sudo, from a clean
+  checkout, and otherwise notifies and leaves the rebuild to `ryoku update`.
+
 ### Fixed
 - `boot/limine/limine.conf`: ship `default_entry: 1` (the bootable flat
   placeholder) plus `remember_last_entry: yes`, not the bare `2`. Limine's
