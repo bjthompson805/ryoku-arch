@@ -3,7 +3,7 @@
 // an internal package, orchestrating pacman / yay / snapper / materialize
 // rather than reimplementing them.
 //
-//	ryoku update            snapshot -> channel pull or pacman -Syu -> deploy -> reload
+//	ryoku update            snapshot -> channel pull, or local rebuild + pacman -U -> deploy -> reload
 //	ryoku rollback [id]     guide restoring a snapshot from the boot menu (or list them)
 //	ryoku snapshots         list snapper snapshots
 //	ryoku status            version, commits behind the channel, snapshot count
@@ -67,7 +67,7 @@ func main() {
 func usage() {
 	fmt.Print(`Usage: ryoku <command>
 
-  update         apply channel commits (or pacman -Syu), redeploy, reload
+  update         apply channel commits (or rebuild + install the Ryoku packages), redeploy, reload
   rollback [id]  guide restoring a snapshot from the boot menu (no id: list them)
   snapshots      list snapper snapshots
   status         version, commits behind the channel, snapshot count

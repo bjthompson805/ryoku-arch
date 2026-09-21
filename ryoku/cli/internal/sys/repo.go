@@ -34,3 +34,22 @@ func ResolveRepo() string {
 	}
 	return ""
 }
+
+// LocalRepo returns the checkout a fork install compiles its local [ryoku] repo
+// from, or "" on any other machine. The shell installer records it; unlike
+// ResolveRepo it is not a dev checkout, so it never switches `ryoku update` to
+// the git channel. A path that is not a git work tree is ignored.
+func LocalRepo() string {
+	b, err := os.ReadFile(filepath.Join(StateDir(), "local-repo"))
+	if err != nil {
+		return ""
+	}
+	p := strings.TrimSpace(string(b))
+	if p == "" {
+		return ""
+	}
+	if _, err := RunOut("git", "-C", p, "rev-parse", "--git-dir"); err != nil {
+		return ""
+	}
+	return p
+}

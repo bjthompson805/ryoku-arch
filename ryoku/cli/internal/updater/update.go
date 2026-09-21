@@ -1,8 +1,6 @@
 package updater
 
 import (
-	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,7 +16,7 @@ const snapperConfig = "root"
 
 // gitSteps / pkgSteps are the ordered stages the GUI renders as a determinate
 // multi-segment bar. The git-channel path (a dev/mirror checkout) and the
-// packaged path (pacman) run different stages; stage2 re-begins pkgSteps and
+// packaged path (the local [ryoku] repo) run different stages; stage2 re-begins pkgSteps and
 // marks the pre-handoff steps done so the exec handoff keeps one continuous bar.
 var (
 	gitSteps = []runStep{
@@ -30,8 +28,7 @@ var (
 	}
 	pkgSteps = []runStep{
 		{Key: "snapshot", Label: "Taking a snapshot"},
-		{Key: "packages", Label: "Updating packages"},
-		{Key: "aur", Label: "Updating AUR packages"},
+		{Key: "packages", Label: "Rebuilding and installing Ryoku"},
 		{Key: "apply", Label: "Applying the new configuration"},
 		{Key: "reload", Label: "Reloading the desktop"},
 		{Key: "doctor", Label: "Healing the system"},
@@ -39,22 +36,28 @@ var (
 	}
 )
 
-// Update = the whole safe update, wrapped in a snapper pre/post pair.
-// checkout box -> git channel (fast-forward + redeploy). packaged box ->
-// pacman, then hand off to the binary pacman just installed (--stage2) so the
-// deploy and doctor semantics of the new release apply during this same
-// update, not one release late. stage2 quiesces the shell, materializes,
-// brings the desktop back, and runs `ryoku doctor` (same one users run by
-// hand) to heal stateful drift, then the post snapshot. snapshots are
-// best-effort: an unconfigured snapper never blocks an update, but a failed
-// step still aborts first. Each stage is published to the run-state file so
-// the update island and Hub show real, determinate progress.
+// Update = the whole safe update, wrapped in a snapper pre/post pair. It only
+// ever updates Ryoku: the rest of the system (pacman -Syu, the AUR) is the
+// user's, never touched here.
+// checkout box -> git channel (fast-forward + redeploy). fork install -> pull the
+// recorded checkout, rebuild the local [ryoku] repo from it, install those
+// packages, then hand off to the binary just installed (--stage2) so the deploy
+// and doctor semantics of the new release apply during this same update, not one
+// release late. stage2 quiesces the shell, materializes, brings the desktop
+// back, and runs `ryoku doctor` (same one users run by hand) to heal stateful
+// drift, then the post snapshot. snapshots are best-effort: an unconfigured
+// snapper never blocks an update, but a failed step still aborts first. Each
+// stage is published to the run-state file so the update island and Hub show
+// real, determinate progress.
 func Update(args []string) error {
 	if len(args) >= 2 && args[0] == "--stage2" {
 		return updateStage2(args[1])
 	}
 
 	checkout := sys.ResolveRepo() != ""
+	if !checkout && sys.LocalRepo() == "" {
+		return fmt.Errorf("this machine has no Ryoku checkout to update from; re-run the shell installer")
+	}
 	if checkout {
 		progress.begin(gitSteps)
 	} else {
@@ -83,28 +86,16 @@ func Update(args []string) error {
 	}
 
 	progress.at("packages")
-	progress.logf("Updating system packages (pacman)")
-	clearStalePacmanLock()
-	if err := sys.Sudo("pacman", "-Syu", "--noconfirm"); err != nil {
+	if err := localRepoUpdate(); err != nil {
 		// only advertise `ryoku rollback` when the pre snapshot it needs exists;
 		// snapperPre is best-effort and returns "" when it was skipped.
-		hint := "no pre-update snapshot exists (snapper was unavailable), so `ryoku rollback` cannot revert this; recover with pacman directly"
+		hint := "no pre-update snapshot exists (snapper was unavailable), so `ryoku rollback` cannot revert this"
 		if pre != "" {
 			hint = "see `ryoku rollback` (pre-update snapshot " + pre + ")"
 		}
-		e := fmt.Errorf("pacman -Syu failed; %s: %w", hint, err)
+		e := fmt.Errorf("%w; %s", err, hint)
 		progress.fail(e)
 		return e
-	}
-
-	if sys.Has("yay") {
-		progress.at("aur")
-		progress.logf("Updating AUR packages (yay)")
-		if err := sys.Run("yay", "-Sua", "--noconfirm"); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: yay update reported errors: %v\n", err)
-		}
-	} else {
-		progress.skip("aur")
 	}
 
 	// exec replaces this process with the freshly installed binary; on any
@@ -135,11 +126,6 @@ func updateStage2(pre string) error {
 	progress.begin(pkgSteps)
 	progress.setSnapshot(pre)
 	progress.markDone("snapshot", "packages")
-	if sys.Has("yay") {
-		progress.markDone("aur")
-	} else {
-		progress.skip("aur")
-	}
 
 	progress.at("apply")
 	progress.logf("Applying the new configuration")
@@ -188,7 +174,7 @@ func rashinReindex() {
 }
 
 // clearStalePacmanLock mirrors doctor's reconcilePacmanLock right before the
-// system upgrade: a db.lck left by a crashed pacman would fail the very update
+// package install: a db.lck left by a crashed pacman would fail the very update
 // the user is running to heal the box. A lock owned by a live pacman is left
 // alone. Composed from sys primitives, same reason as snapHelpers below.
 func clearStalePacmanLock() {
@@ -391,7 +377,7 @@ func Status(args []string) error {
 // statusReport = what the Hub and the update island read from
 // `ryoku status --json`. installed + available versions, how far behind,
 // per-item list. from the git update channel on a Ryoku checkout (the live
-// mirror), else from the [ryoku] pacman repo.
+// mirror), else from the checkout a fork install builds from.
 type statusReport struct {
 	Installed string       `json:"installedVersion"`
 	Latest    string       `json:"latestVersion"`
@@ -403,65 +389,22 @@ type statusReport struct {
 	Snapshots int          `json:"snapshots"`
 }
 
-// buildStatus prefers the git update channel (a checkout tracking main). No
-// checkout (a packaged install) -> read the running and available commits from
-// the [ryoku] repo's package versions and list what is incoming between them via
-// the public GitHub compare API, so the Hub's Updates list is the same commit
-// subjects a dev box shows, not bare package names.
+// buildStatus prefers the git update channel (a dev checkout tracking main), then
+// the fork install's recorded checkout. A machine with neither has nothing to
+// track and reports an empty, up-to-date status.
 func buildStatus() statusReport {
 	if r, ok := channelStatus(); ok {
 		return r
 	}
-	installed := sys.InstalledVersion()
-	latest := latestAvailable("ryoku-desktop")
-	for _, u := range pendingUpdates() {
-		if u.Name == "ryoku-desktop" {
-			latest = u.New
-		}
+	if r, ok := localStatus(); ok {
+		return r
 	}
-	return packagedStatus(installed, latest)
-}
-
-// packagedStatus builds the report for a packaged install from the running and
-// available package versions. The GitHub lookups are best-effort and stubbable
-// (RYOKU_GITHUB_API), so the sha/compare/recent branching is unit-testable
-// without pacman, the same reason wantedSnapperHelpers is split out.
-func packagedStatus(installed, latest string) statusReport {
-	installedSha := shortCommit(installed)
-	latestSha := shortCommit(latest)
-
-	r := statusReport{
-		Installed: installedSha,
-		Latest:    latestSha,
-		Updates:   []updateItem{}, // non-nil, so a current box marshals [] like the git path
-		Recent:    []updateItem{}, // non-nil, so the JSON stays stable when nothing is fetched
+	return statusReport{
+		Updates:   []updateItem{},
+		Recent:    []updateItem{},
 		Channel:   ryokuChannel(),
 		Snapshots: snapshotCount(),
 	}
-	// up to date: nothing incoming, but list the recent history the installed
-	// version contains (best-effort, newest-first) so the Hub's Updates page
-	// still shows meaningful content instead of a blank section.
-	if installedSha != "" && installedSha == latestSha {
-		if rec := recentCommits(installedSha); len(rec) > 0 {
-			r.Recent = rec
-		}
-		return r
-	}
-	// the [ryoku] repo isn't synced yet: nothing to compare.
-	if installedSha == "" || latestSha == "" {
-		return r
-	}
-	r.Available = true
-	if ups, behind := incomingCommits(installedSha, latestSha); len(ups) > 0 {
-		r.Updates = ups
-		r.Behind = behind
-	} else {
-		// compare unreachable (offline / rate-limited): still surface the
-		// pending Ryoku bump so the section isn't empty and available holds.
-		r.Updates = []updateItem{{Name: "ryoku-desktop", Old: installed, New: latest}}
-		r.Behind = 1
-	}
-	return r
 }
 
 // shortCommit pulls the abbreviated commit hash out of a packaged version
@@ -486,53 +429,12 @@ func isHex(s string) bool {
 	return s != ""
 }
 
-// latestAvailable: version of pkg in the [ryoku] repo, or "" when the repo
-// isn't synced/configured. `pacman -Sl ryoku` = "<repo> <pkg> <ver>".
-func latestAvailable(pkg string) string {
-	out, err := sys.RunOut("pacman", "-Sl", "ryoku")
-	if err != nil {
-		return ""
-	}
-	sc := bufio.NewScanner(strings.NewReader(out))
-	for sc.Scan() {
-		f := strings.Fields(sc.Text())
-		if len(f) >= 3 && f[1] == pkg {
-			return f[2]
-		}
-	}
-	return ""
-}
-
-// updateItem = one row in the update list. pacman -> a package (name,
-// old -> new). git channel -> a commit (subject in Name, short hash in New).
+// updateItem = one row in the update list: a commit (subject in Name, short hash
+// in New; a commit has no from/to pair, so Old stays empty).
 type updateItem struct {
 	Name string `json:"name"`
 	Old  string `json:"old"`
 	New  string `json:"new"`
-}
-
-// pendingUpdates: packages with a newer version available, via checkupdates
-// (pacman-contrib). syncs to a private db, so no root needed. empty when
-// the system is current or checkupdates is absent.
-func pendingUpdates() []updateItem {
-	ups := []updateItem{}
-	if !sys.Has("checkupdates") {
-		return ups
-	}
-	// cap the check: checkupdates syncs package dbs over the network and the
-	// update island polls this, so it MUST never hang status. generous so a
-	// slow sync still finishes.
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	out, _ := exec.CommandContext(ctx, "checkupdates").Output()
-	sc := bufio.NewScanner(strings.NewReader(string(out)))
-	for sc.Scan() {
-		f := strings.Fields(sc.Text())
-		if len(f) >= 4 && f[2] == "->" {
-			ups = append(ups, updateItem{Name: f[0], Old: f[1], New: f[3]})
-		}
-	}
-	return ups
 }
 
 func snapshotCount() int {

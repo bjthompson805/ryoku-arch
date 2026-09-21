@@ -193,11 +193,12 @@ func gitShort(repo, ref string) string {
 	return strings.TrimSpace(out)
 }
 
-// gitLog: commits in rng newest-first as display rows. Subject in Name,
-// short hash in New (a commit has no from/to pair, so Old stays empty).
-func gitLog(repo, rng string) []updateItem {
+// gitLog: commits in rng (a range, or a count and a ref) newest-first as display
+// rows. Subject in Name, short hash in New (a commit has no from/to pair, so Old
+// stays empty).
+func gitLog(repo string, rng ...string) []updateItem {
 	ups := []updateItem{}
-	out, err := sys.RunOut("git", "-C", repo, "log", "--abbrev=7", "--format=%h%x1f%s", rng)
+	out, err := sys.RunOut("git", append([]string{"-C", repo, "log", "--abbrev=7", "--format=%h%x1f%s"}, rng...)...)
 	if err != nil {
 		return ups
 	}

@@ -2,7 +2,28 @@
 
 ## Unreleased
 
+### Removed
+- The hosted-repo update path: `pacman -Syu`, `yay -Sua`, `checkupdates`, and the
+  GitHub compare and commits lookups (`commits.go`, `RYOKU_GITHUB_API`,
+  `RYOKU_REPO_SLUG`) are gone. The recovery script URL and the doctor issues link
+  point at this fork.
+
 ### Added
+- **`doctor` no longer asks for `ryoku-keyring`.** The package channel reconciler
+  used to warn when the package was missing; with the package removed and the
+  local repo unsigned, that check would fire on every install.
+- **`ryoku update` only updates Ryoku, never the system.** On a fork install (the
+  shell installer records the checkout in `~/.local/state/ryoku/local-repo`) it
+  fast-forwards that checkout, runs its `release/repo/build-local-repo.sh`, and
+  installs the built packages with `pacman -U --needed`. No `pacman -Syu`, no
+  database sync, no `yay`: the "Updating AUR packages" step is gone from the run
+  state, and a failed build installs nothing and fails the update. A machine with
+  neither a dev checkout nor a recorded one gets a clear error
+  (`internal/updater/localrepo.go`).
+- **`ryoku status` reads the recorded checkout.** Installed is the commit embedded
+  in the `ryoku-desktop` version, latest is `origin/<channel>`, and the update list
+  and recent history come from `git log`, the same rows a dev box shows
+  (`localStatus`).
 - **`doctor` heals the looping limine boot countdown.** On the
   limine-mkinitcpio-hook layout the OS entry is a directory and the kernel is a
   `//` sub-entry, but `default_entry` was a bare `2`, which Limine resolves as
