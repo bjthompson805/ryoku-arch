@@ -155,6 +155,11 @@ func runUninstall(yes, dry bool) int {
 						fmt.Println("warning: could not rewrite /etc/pacman.conf")
 					}
 				}
+				// the repo's only reader is the stanza just dropped
+				if err := run("sudo", "-n", "rm", "-rf", localRepoDir); err != nil {
+					fmt.Println("warning: could not remove " + localRepoDir)
+				}
+				_ = os.Remove(filepath.Join(home, ".local/state/ryoku/local-repo"))
 			}
 		}
 	}

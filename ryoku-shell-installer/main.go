@@ -492,7 +492,7 @@ func (m model) viewPlan() string {
 		row("previous", "Omarchy install detected; its repo and mirror pin get retired")
 	}
 	if !f.online {
-		s.WriteString(fg(cRed, gWarn+" repo.ryoku.dev unreachable, the install will fail without network") + "\n")
+		s.WriteString(fg(cRed, gWarn+" "+repoURL+" unreachable, the install will fail without network") + "\n")
 	}
 	if f.btrfsRoot {
 		row("snapshots", "btrfs root: snapper snapshots will be configured by ryoku doctor")

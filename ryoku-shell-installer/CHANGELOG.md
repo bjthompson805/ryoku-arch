@@ -4,6 +4,20 @@
 
 ### Added
 
+- **No keyring step.** The installer no longer installs or checks
+  `ryoku-keyring`, which no longer exists.
+- **The install is self-hosted from the fork.** Instead of trusting the hosted
+  `[ryoku]` repo and upstream's key, the installer clones the fork
+  (`RYOKU_SHELL_REPO` overrides the remote) into `~/.local/share/ryoku/repo`,
+  installs the build toolchain, and runs `release/repo/build-local-repo.sh` to
+  compile every package into `/var/lib/ryoku/repo`. That directory is registered
+  as `[ryoku]` over `file://` with `SigLevel = Never`, replacing any existing
+  `[ryoku]` stanza. The new `build` step runs before anything on the machine is
+  backed up or removed, so a failed compile leaves the box untouched. The
+  checkout is recorded in `~/.local/state/ryoku/local-repo` for `ryoku update`,
+  `--uninstall` removes the local repo and that record, `install.sh` fetches the
+  installer from the fork, and the connectivity probe checks the git remote
+  (`engine.go`, `engine_repo_test.go`).
 - Safety gates: non-systemd systems (Artix/openrc/runit/s6/dinit) are
   refused before anything runs; Secure Boot is read from the
   SecureBoot/SetupMode efivars and, when enforcing, forces the NVIDIA

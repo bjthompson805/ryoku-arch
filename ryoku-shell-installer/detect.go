@@ -199,9 +199,9 @@ func detect() *facts {
 	f.hostname, _ = os.Hostname()
 	f.userShell = os.Getenv("SHELL")
 
-	// repo reachability probe; the install needs the network anyway.
+	// git remote reachability probe; the install needs the network anyway.
 	client := &http.Client{Timeout: 6 * time.Second}
-	if resp, err := client.Head("https://repo.ryoku.dev/stable/x86_64/ryoku.db"); err == nil {
+	if resp, err := client.Head(strings.TrimSuffix(repoURL, ".git")); err == nil {
 		resp.Body.Close()
 		f.online = resp.StatusCode < 500
 	}

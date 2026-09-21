@@ -22,18 +22,38 @@ import (
 // line-anchored so a commented-out "#[ryoku]" stanza does not count.
 var ryokuStanzaRe = regexp.MustCompile(`(?m)^\[ryoku\]`)
 
-const repoURL = "https://github.com/neur0map/ryoku-arch.git"
+// the checkout the desktop is built from. A fork installs itself: nothing is
+// hosted but this git remote, and RYOKU_SHELL_REPO points the installer at
+// another one.
+var repoURL = envOr("RYOKU_SHELL_REPO", "https://github.com/bjthompson805/ryoku-arch.git")
+
+// build-local-repo.sh compiles the [ryoku] packages from the checkout and
+// publishes them here; pacman reads the directory as [ryoku] over file://.
+// SigLevel = Never because this machine built the packages itself (there is no
+// signing key to trust), and the repo is scoped to that one section.
+const localRepoDir = "/var/lib/ryoku/repo"
 
 const pacmanStanza = `
 [ryoku]
-SigLevel = Required
-Server = https://repo.ryoku.dev/stable/$arch
+SigLevel = Never
+Server = file://` + localRepoDir + `/$arch
 `
+
+// makedepends for the whole release/packages set, which build-local-repo.sh
+// compiles on this machine (the same host set the container install test uses).
+// hyprland and hyprcursor are here because the compositor plugin packages build
+// against their headers.
+var buildPkgs = []string{
+	"git", "base-devel", "go", "rust", "cmake", "ninja",
+	"qt6-base", "qt6-declarative", "qt6-shadertools", "qt6-multimedia",
+	"hyprland", "hyprcursor", "pango", "cairo", "pixman", "libdrm", "libinput",
+	"libxkbcommon", "wayland", "wayland-protocols", "ffmpeg", "pkgconf", "lz4",
+}
 
 // desktop set from deploy.sh plus the session/system packages the ISO puts in
 // base.packages that ryoku-desktop does not depend on. --needed makes overlap
 // free.
-var ryokuPkgs = []string{"ryoku-keyring", "ryoku-shell", "ryoku-hub", "ryoku-blobs", "ryoku", "ryoku-desktop"}
+var ryokuPkgs = []string{"ryoku-shell", "ryoku-hub", "ryoku-blobs", "ryoku", "ryoku-desktop"}
 
 var sessionPkgs = []string{
 	"sddm", "networkmanager", "iwd", "iw",
@@ -58,11 +78,6 @@ var aurPkgs = []string{"bibata-cursor-theme-bin", "localsend-bin", "voxtype-bin"
 
 // system/packages/dev.packages; ryoku recovery builds from source and needs go.
 var devPkgs = []string{"go", "nodejs", "npm", "python", "python-pip", "python-pipx", "mise"}
-
-var sparsePaths = []string{
-	"ryoku/lockscreen", "ryoku/assets", "ryoku/apps",
-	"system/hardware/drivers", "release/packages/ryoku-keyring",
-}
 
 type plan struct {
 	nvidia    bool // proprietary NVIDIA driver setup
@@ -176,16 +191,18 @@ func newEngine(f *facts, p *plan, dry bool, ref, payloadOverride string) *engine
 			}
 		}
 	}
-	// repo trust comes before conflict removal on purpose: nothing gets
-	// uninstalled until the [ryoku] db has actually been fetched. legacy
+	// the build and repo registration come before conflict removal on purpose:
+	// nothing gets uninstalled until the [ryoku] db has actually been built and
+	// synced, so a failed compile leaves the machine untouched. legacy
 	// sources go first so the full upgrade already runs on clean mirrors.
 	e.steps = []estep{
 		{"legacy", "Retiring the previous distro's package sources", stepLegacy},
 		{"sysupgrade", "Updating the system (pacman -Syu)", stepSysupgrade},
-		{"tools", "Installing installer tools (git, base-devel)", stepTools},
-		{"payload", "Fetching the Ryoku payload", stepPayload},
+		{"tools", "Installing the build toolchain", stepTools},
+		{"payload", "Fetching the Ryoku checkout", stepPayload},
+		{"build", "Building the Ryoku packages (this takes a while)", stepBuild},
 		{"backup", "Backing up your configs", stepBackup},
-		{"repo", "Trusting the [ryoku] package repository", stepRepo},
+		{"repo", "Registering the local [ryoku] package repository", stepRepo},
 		{"conflicts", "Clearing conflicting shells and daemons", stepConflicts},
 		{"packages", "Installing the Ryoku desktop", stepPackages},
 		{"drivers", "Setting up GPU drivers", stepDrivers},
@@ -457,7 +474,7 @@ func stepSysupgrade(e *engine) error {
 }
 
 func stepTools(e *engine) error {
-	return e.sudo("pacman", "-S", "--needed", "--noconfirm", "git", "base-devel")
+	return e.sudo(append([]string{"pacman", "-S", "--needed", "--noconfirm"}, buildPkgs...)...)
 }
 
 func stepPayload(e *engine) error {
@@ -469,31 +486,55 @@ func stepPayload(e *engine) error {
 		e.say("using payload checkout " + e.payload)
 		return nil
 	}
-	cache := os.Getenv("XDG_CACHE_HOME")
-	if cache == "" {
-		cache = filepath.Join(e.f.homeDir, ".cache")
+	// a persistent full checkout, not a throwaway: it is what the packages are
+	// built from now and what `ryoku update` pulls and rebuilds from later. The
+	// history is needed (package versions count commits); blobless keeps the
+	// clone to the commits and trees plus the files of the checked-out tip.
+	data := os.Getenv("XDG_DATA_HOME")
+	if data == "" {
+		data = filepath.Join(e.f.homeDir, ".local/share")
 	}
-	e.payload = filepath.Join(cache, "ryoku-shell-install/repo")
+	e.payload = filepath.Join(data, "ryoku/repo")
 
 	if _, err := os.Stat(filepath.Join(e.payload, ".git")); err == nil {
-		if err := e.cmd(e.payload, nil, "git", "fetch", "--depth=1", "origin", e.ref); err != nil {
+		if err := e.cmd(e.payload, nil, "git", "fetch", "origin"); err != nil {
 			return err
 		}
-		if err := e.cmd(e.payload, nil, "git", "checkout", "-f", "FETCH_HEAD"); err != nil {
-			return err
+		if exec.Command("git", "-C", e.payload, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/"+e.ref).Run() == nil {
+			return e.cmd(e.payload, nil, "git", "checkout", "-f", "-B", e.ref, "origin/"+e.ref)
 		}
-	} else {
-		if !e.dry {
-			if err := os.MkdirAll(filepath.Dir(e.payload), 0o755); err != nil {
-				return err
-			}
-		}
-		if err := e.cmd("", nil, "git", "clone", "--depth=1", "--filter=blob:none", "--sparse",
-			"--branch", e.ref, repoURL, e.payload); err != nil {
+		return e.cmd(e.payload, nil, "git", "checkout", "-f", e.ref)
+	}
+	if !e.dry {
+		if err := os.MkdirAll(filepath.Dir(e.payload), 0o755); err != nil {
 			return err
 		}
 	}
-	return e.cmd(e.payload, nil, "git", append([]string{"sparse-checkout", "set"}, sparsePaths...)...)
+	return e.cmd("", nil, "git", "clone", "--filter=blob:none", "--branch", e.ref, repoURL, e.payload)
+}
+
+// stepBuild compiles the desktop packages from the checkout into the local
+// [ryoku] repo, then records the checkout so `ryoku update` can pull and
+// rebuild it. The heavy, network-hungry part of the install: a failure here
+// stops the run before anything on the machine has been changed.
+func stepBuild(e *engine) error {
+	script := filepath.Join(e.payload, "release/repo/build-local-repo.sh")
+	if !e.dry {
+		if _, err := os.Stat(script); err != nil {
+			return fmt.Errorf("%s is missing: this checkout has no local-repo build", script)
+		}
+	}
+	if err := e.cmd(e.payload, nil, script); err != nil {
+		return err
+	}
+	if e.dry {
+		return nil
+	}
+	rec := filepath.Join(e.f.homeDir, ".local/state/ryoku/local-repo")
+	if err := os.MkdirAll(filepath.Dir(rec), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(rec, []byte(e.payload+"\n"), 0o644)
 }
 
 // paths under $HOME that materialize or the seeds will touch. hypr, quickshell
@@ -659,54 +700,48 @@ func stepConflicts(e *engine) error {
 	return nil
 }
 
-func stepRepo(e *engine) error {
-	// on a box that already has ryoku-keyring, the keyring files under
-	// /usr/share/pacman/keyrings are package-owned: seeding and deleting them
-	// again would strip files out of the installed package. the trustdb is
-	// already populated, so the whole dance is unnecessary.
-	if !e.dry && pacmanHas("ryoku-keyring") {
-		e.say("ryoku-keyring already installed, key trust in place")
-	} else {
-		kdir := filepath.Join(e.payload, "release/packages/ryoku-keyring")
-		kd := "/usr/share/pacman/keyrings"
-		for _, f := range []string{"ryoku.gpg", "ryoku-trusted", "ryoku-revoked"} {
-			if err := e.sudo("install", "-Dm644", filepath.Join(kdir, f), filepath.Join(kd, f)); err != nil {
-				return err
-			}
+// withLocalRepo returns pacman.conf text with the local [ryoku] repo registered
+// in place of any existing [ryoku] section; changed is false when the conf
+// already points at it. An older stanza (the hosted upstream repo, say) would
+// keep the box updating from somewhere this install no longer trusts.
+func withLocalRepo(conf string) (next string, changed bool) {
+	if ryokuStanzaRe.MatchString(conf) {
+		if strings.Contains(conf, "file://"+localRepoDir) {
+			return conf, false
 		}
-		if err := e.sudo("pacman-key", "--populate", "ryoku"); err != nil {
-			return err
-		}
-		// drop the seeds so the ryoku-keyring package installs without a file
-		// conflict; the trustdb keeps the key (same dance as deploy.sh).
-		if err := e.sudo("rm", "-f", kd+"/ryoku.gpg", kd+"/ryoku-trusted", kd+"/ryoku-revoked"); err != nil {
-			return err
-		}
+		conf = stripPacmanSection(conf, "ryoku")
 	}
+	return strings.TrimRight(conf, "\n") + "\n" + pacmanStanza, true
+}
 
+// swapFileScript writes content to dst by whole-file swap, not `>>`: a crash
+// mid-append could leave a truncated stanza that pacman rejects while a resume's
+// regex check still sees `[ryoku]` and skips the repair. mv on the same fs
+// commits atomically. chmod pins 0644: the new inode's mode would otherwise
+// follow the invoking user's umask (sudo propagates it), and a umask-077 box
+// would flip pacman.conf to 0600, breaking every non-root pacman reader,
+// including this installer's own resume read.
+func swapFileScript(dst, content string) string {
+	tmp := dst + ".ryoku-new"
+	return `printf '%s' '` + strings.ReplaceAll(content, "'", `'\''`) + `' > ` + tmp + ` && ` +
+		`chmod 644 ` + tmp + ` && mv -f ` + tmp + ` ` + dst
+}
+
+func stepRepo(e *engine) error {
 	conf, err := os.ReadFile("/etc/pacman.conf")
 	if err != nil {
 		return err
 	}
-	if !ryokuStanzaRe.Match(conf) {
-		// whole-file swap, not `>>`: a crash mid-append could leave a truncated
-		// stanza that pacman rejects while a resume's regex check still sees
-		// `[ryoku]` and skips the repair. mv on the same fs commits atomically.
-		// chmod pins 0644: the new inode's mode would otherwise follow the
-		// invoking user's umask (sudo propagates it), and a umask-077 box would
-		// flip pacman.conf to 0600, breaking every non-root pacman reader,
-		// including this installer's own resume read above.
-		if err := e.sudoSh(`{ cat /etc/pacman.conf && printf '%s' '` + pacmanStanza + `'; } > /etc/pacman.conf.ryoku-new && ` +
-			`chmod 644 /etc/pacman.conf.ryoku-new && ` +
-			`mv -f /etc/pacman.conf.ryoku-new /etc/pacman.conf`); err != nil {
+	if next, changed := withLocalRepo(string(conf)); !changed {
+		e.say("local [ryoku] repository already present in /etc/pacman.conf")
+	} else {
+		if err := e.sudoSh(swapFileScript("/etc/pacman.conf", next)); err != nil {
 			return err
 		}
-		e.say("added the [ryoku] repository to /etc/pacman.conf")
-	} else {
-		e.say("[ryoku] repository already present in /etc/pacman.conf")
+		e.say("registered the local [ryoku] repository in /etc/pacman.conf")
 	}
 	// refresh right after the -Syu step, so this cannot strand a partial
-	// upgrade; it only pulls the fresh [ryoku] db.
+	// upgrade; it only reads the freshly built local [ryoku] db.
 	return e.sudo("pacman", "-Sy")
 }
 
@@ -1103,7 +1138,6 @@ func stepVerify(e *engine) error {
 	}
 	conf, _ := os.ReadFile("/etc/pacman.conf")
 	check(strings.Contains(string(conf), "[ryoku]"), "[ryoku] repository in /etc/pacman.conf")
-	check(pacmanHas("ryoku-keyring"), "ryoku-keyring package installed")
 	check(pacmanHas("ryoku-desktop"), "ryoku-desktop package installed")
 	check(has("ryoku"), "ryoku CLI on PATH")
 	st, err := os.Stat("/usr/share/ryoku/config")

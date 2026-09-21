@@ -1,9 +1,16 @@
 # ryoku-shell
 
-Install the Ryoku desktop on an existing Arch machine, without the ISO.
+Install this fork of the Ryoku desktop on an existing Arch machine, without the
+ISO. Nothing is hosted beyond the git remote: the desktop packages are compiled
+on the machine from a checkout of the fork, so the install does not depend on
+upstream's package repo, key, or servers.
+
+The build is heavy. Expect a toolchain download (Go, Rust, Qt, and friends), the
+Cargo and Go module downloads, Ryo Motion's Node tarball and Electron, and a long
+compile. Run it on a fast, unmetered connection.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/bjthompson805/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
 ```
 
 Headless / unattended:
@@ -43,15 +50,26 @@ a bubbletea TUI sharing the ISO installer's visual language:
    carry-over, AUR extras, fish shell); sections group the list when it gets
    long.
 3. **Install**, streamed step by step:
-   legacy-repo retirement → `pacman -Syu` → tools → sparse payload clone → config backup (with a
-   generated `restore.sh`) → `[ryoku]` repo + keyring trust → conflict removal
-   → desktop packages → GPU drivers → SDDM/qylock/network wiring →
+   legacy-repo retirement → `pacman -Syu` → build toolchain → checkout of the
+   fork (a blobless full clone in `~/.local/share/ryoku/repo`) → package build
+   (`release/repo/build-local-repo.sh` compiles every `release/packages/`
+   PKGBUILD into `/var/lib/ryoku/repo`) → config backup (with a generated
+   `restore.sh`) → that local repo registered as `[ryoku]` in `pacman.conf`
+   (`SigLevel = Never`: you built the packages yourself, there is no key) →
+   conflict removal → desktop packages → GPU drivers → SDDM/qylock/network wiring →
    `ryoku materialize` + seeds (wallpapers, brand, keyboard layout salvaged
    from the old setup) → AUR extras → `ryoku doctor` → verify.
 
-Afterwards the machine is a normal Ryoku box: `ryoku update` updates it
-forever, `ryoku doctor` heals it, and the `[ryoku]` pacman repository signs
-everything. Nothing here ever needs re-running.
+Afterwards the machine is a normal Ryoku box: `ryoku doctor` heals it, and
+`ryoku update` pulls the fork's checkout, rebuilds the local `[ryoku]` repo from
+it (skipped when nothing changed), installs the built packages with `pacman -U`,
+then runs the usual materialize and doctor stages. It never upgrades the rest of
+the system. When you upgrade a library the packages link against (Hyprland, Qt,
+ffmpeg, and so on), a pacman hook rebuilds them in the background. A failed build
+installs nothing. `ryomotion` and `gpk` build from their upstream's latest rather
+than a pinned version, so pick up a newer one with
+`release/repo/build-local-repo.sh --force` in the checkout. Nothing here ever
+needs re-running.
 
 Migration policy: rival shells are uninstalled (toggle), conflicting daemons
 are disabled but never uninstalled, the old display manager is disabled (not
@@ -94,9 +112,10 @@ The binary and its checksum are committed (same convention as
 raw.githubusercontent.com with no release infrastructure. Test a branch with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/<branch>/ryoku-shell-installer/install.sh \
+curl -fsSL https://raw.githubusercontent.com/bjthompson805/ryoku-arch/<branch>/ryoku-shell-installer/install.sh \
   | RYOKU_SHELL_REF=<branch> bash
 ```
 
 `--payload /path/to/checkout` (or `RYOKU_SHELL_PAYLOAD`) skips the payload
-clone and uses a local repo, for iterating without pushing.
+clone and builds from a local repo, for iterating without pushing;
+`RYOKU_SHELL_REPO` points the clone at a different git remote.
