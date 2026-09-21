@@ -11,6 +11,11 @@
   delivers them (`ryowalls/quickshell/logo.svg`, `ryovm/quickshell/logo.svg`).
 
 ### Fixed
+- `ryospice/`: **Ryospice windows now show an icon in the pill.** The viewer had
+  no desktop entry or icon, so its window class (`org.ryoku.ryospice`) matched
+  nothing. It now ships a monitor-and-cursor mark on the ryovm tile plus a
+  launcher-hidden `org.ryoku.ryospice.desktop` stub, installed by the
+  `ryoku-desktop` package and the dev deploy (`ryospice/logo.svg`).
 - `ryovm/`: **a newly created VM now selects Ryospice, not Window.** A fresh conf
   has no `display=` yet, and `ryovm list`/`get` reported that as `gtk`, so the
   launch selector showed Window until the first launch stamped a mode. An unset

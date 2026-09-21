@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ryospice
+GenericName=SPICE Viewer
+Comment=Display window for ryovm machines
+Exec=ryospice
+Terminal=false
+Icon=ryospice
+Categories=System;X-Ryoku-IconLookup;

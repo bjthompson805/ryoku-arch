@@ -277,6 +277,8 @@ for cmakedir in "$here"/../apps/*/; do
       installed=1
     done
     (( installed )) || say "WARNING: $appname built but produced no executable to install"
+    for d in "${cmakedir}"*.desktop; do [[ -f "$d" ]] && install -Dm644 "$d" "$appshare/applications/$(basename "$d")"; done
+    [[ -f "${cmakedir}logo.svg" ]] && install -Dm644 "${cmakedir}logo.svg" "$appshare/icons/hicolor/scalable/apps/$appname.svg"
   else
     say "WARNING: $appname failed to build (missing dependencies?); skipping install"
   fi
