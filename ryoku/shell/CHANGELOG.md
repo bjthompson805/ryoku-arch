@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **Saving a screenshot with the default filename no longer asks to replace an
+  existing file.** The capture was written to the default path before the save
+  dialog opened on that same path, so the dialog always found a file there. The
+  capture now goes to a temporary file and is copied to the name you choose, so
+  cancelling the dialog also leaves nothing behind in `~/Pictures/Screenshots`.
+  The Beautify "Save image" dialog now suggests the same default name and folder
+  (`ryoshot/shell.qml`).
 - **OSD popups (Caps/Num/Scroll Lock, backlight, volume) now display over
   fullscreen windows.** Removed fullscreen suppression on the overlay layer
   window so passive OSD notifications remain visible in fullscreen.

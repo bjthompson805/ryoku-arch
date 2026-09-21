@@ -31,7 +31,7 @@ ShellRoot {
     property var hoverWindow: null
     property var windowRects: []
     property bool dialogMode: false
-    property string savedAuto: ""
+    property string saveSrc: ""
     property string beautifySrc: ""
     property string beautifyBgImage: ""
     property bool composeActive: false
@@ -413,11 +413,13 @@ ShellRoot {
         });
     }
 
+    // The grab goes to a temp file, not defaultPath: the dialog suggests
+    // defaultPath, and a file already sitting there triggers its overwrite prompt.
     function doSave() {
-        var auto = root.defaultPath;
-        grabTo(auto, function (ok) {
+        var tmp = "/tmp/ryoshot-save.png";
+        grabTo(tmp, function (ok) {
             if (!ok) { Qt.quit(); return; }
-            root.savedAuto = auto;
+            root.saveSrc = tmp;
             root.dialogMode = true;
             saveDialog.open();
         });
@@ -471,15 +473,14 @@ ShellRoot {
             command = ["sh", "-c",
                 "zenity --file-selection --save --filename=\"$1\" --file-filter='PNG | *.png' 2>/dev/null"
                 + " || kdialog --getsavefilename \"$1\" '*.png' 2>/dev/null",
-                "_", root.savedAuto];
+                "_", root.defaultPath];
             running = true;
         }
         onExited: (code) => {
             var chosen = saveOut.text.trim();
             console.log("ryoshot: save-dialog exit " + code + " path=" + JSON.stringify(chosen));
             if (code === 0 && chosen.length > 0) {
-                if (chosen !== root.savedAuto) copyFileProc.run(root.savedAuto, chosen);
-                else Qt.quit();
+                copyFileProc.run(root.saveSrc, chosen);
             } else {
                 root.dialogMode = false;
             }
@@ -723,7 +724,7 @@ ShellRoot {
                     composeOnly: root.composeActive
                     composeMode: root.composeMode
                     onCopyRequested: (p) => copyProc.run(p)
-                    onSaveRequested: (p) => { root.savedAuto = p; root.dialogMode = true; saveDialog.open(); }
+                    onSaveRequested: (p) => { root.saveSrc = p; root.dialogMode = true; saveDialog.open(); }
                     onPickImageRequested: { root.dialogMode = true; bgDialog.open(); }
                     onCloseRequested: { root.composeActive = false; root.phase = "editing"; }
                 }
