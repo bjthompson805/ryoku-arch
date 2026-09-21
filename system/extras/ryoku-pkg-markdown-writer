@@ -3,17 +3,32 @@
 # Installs or updates markdown-writer (github.com/bjthompson805/markdown-writer)
 # from its latest GitHub Release. This fork doesn't run the upstream [ryoku]
 # CI/signed-repo pipeline (see release/packages/), so there's nothing to pin
-# and commit for a personal app like this one -- just rerun this whenever you
-# want the newest upstream build. deploy.sh installs this to ~/.local/bin on
-# every deploy (it globs system/extras/ryoku-*), so it's always on PATH.
+# and commit for a personal app like this one. `ryoku update` runs this on a fork
+# install, and it only installs a release newer than the one on the box, so it is
+# cheap to run every time; --force installs the latest regardless.
+# deploy.sh installs this to ~/.local/bin on every deploy (it globs
+# system/extras/ryoku-*), so it's always on PATH.
 
 set -euo pipefail
+
+force=0
+[[ ${1:-} == --force ]] && force=1
 
 repo="bjthompson805/markdown-writer"
 
 echo "ryoku-pkg-markdown-writer: checking $repo for the latest release..." >&2
 release_json=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest")
 tag=$(jq -r '.tag_name' <<<"$release_json")
+
+# the tag is the pacman version (v0.1.0-1 -> 0.1.0-1); never step back to an older
+# release than the one installed
+latest=${tag#v}
+installed=$(pacman -Q markdown-writer 2>/dev/null | awk '{print $2}' || true)
+if (( ! force )) && [[ -n $installed ]] && (( $(vercmp "$installed" "$latest") >= 0 )); then
+  echo "ryoku-pkg-markdown-writer: $installed is already current (latest release $tag)" >&2
+  exit 0
+fi
+
 asset_url=$(jq -r '.assets[] | select(.name | test("-x86_64\\.pkg\\.tar\\.zst$")) | .browser_download_url' <<<"$release_json" | head -1)
 
 [[ -n $asset_url && $asset_url != "null" ]] || {

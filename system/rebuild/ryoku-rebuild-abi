@@ -49,7 +49,7 @@ for _ in 1 2 3; do
   fi
 
   rm -rf "$staging"
-  if ! as_user "$checkout/release/repo/build-local-repo.sh" --stage-only; then
+  if ! as_user "$checkout/release/repo/build-local-repo.sh" --stage-only --no-upstream; then
     log "the rebuild failed"
     notify "Ryoku rebuild failed" "See: journalctl -u ryoku-abi-rebuild"
     exit 1

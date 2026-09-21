@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+- **`ryoku-pkg-markdown-writer` only installs a newer release.** It compares the
+  latest release's version with the installed one and exits when the box is current
+  or ahead (the release was `0.1.0-1` while a box ran `0.2.0-1`, so it would have
+  downgraded it); `--force` installs the latest regardless. `ryoku update` runs it.
+- **The unattended rebuild passes `--no-upstream`**, so a system upgrade rebuilds
+  against the new libraries but never pulls in a newer upstream release as root.
+
 ### Added
 - **`rebuild/` keeps locally built Ryoku packages working across system upgrades.**
   A pacman hook (`ryoku-rebuild.hook`, one `Target` per package in
