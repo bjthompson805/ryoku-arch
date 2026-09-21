@@ -11,8 +11,9 @@ import (
 // desktop packages from a checkout into a local file repo and records that
 // checkout (sys.LocalRepo). An update advances the checkout, rebuilds the repo
 // from it, and installs those packages with pacman -U. That is all it does to the
-// system: no database sync and no upgrade of anything else, so nothing outside
-// Ryoku changes, and a library upgrade the user runs themselves is answered by
+// system: no database sync and no upgrade of anything else (markdown-writer, the
+// one app of this fork that ships outside the repo, is refreshed too), so nothing
+// outside Ryoku changes, and a library upgrade the user runs themselves is answered by
 // the rebuild the pacman hook starts (system/rebuild/).
 
 // localRepoDir is where build-local-repo.sh publishes the packages.
@@ -26,6 +27,19 @@ func localRepoDir() string {
 
 // installedVersion is the installed ryoku-desktop version. A seam for tests.
 var installedVersion = sys.InstalledVersion
+
+// markdownWriterHelper installs or updates markdown-writer from its latest
+// GitHub release, and does nothing when the installed one is current.
+const markdownWriterHelper = "/usr/bin/ryoku-pkg-markdown-writer"
+
+// updateMarkdownWriter runs the helper. A seam for tests.
+var updateMarkdownWriter = func() error { return sys.Run(markdownWriterHelper) }
+
+// markdownWriterInstalled reports whether there is a markdown-writer to keep
+// current. A seam for tests.
+var markdownWriterInstalled = func() bool {
+	return sys.PkgInstalled("markdown-writer") && sys.Exists(markdownWriterHelper)
+}
 
 // pacmanInstall installs package files without touching the sync databases, so
 // it can never turn into a partial upgrade. A seam for tests.
@@ -61,6 +75,16 @@ func localRepoUpdate() error {
 	if err := pacmanInstall(pkgs); err != nil {
 		return fmt.Errorf("installing the Ryoku packages failed (if a new dependency could not be fetched, "+
 			"update your system with pacman -Syu yourself first; ryoku never does): %w", err)
+	}
+
+	// markdown-writer ships from its own GitHub releases, not the local repo; keep
+	// it current with the rest. Best-effort: being offline or rate-limited must not
+	// fail an update that already installed everything else.
+	if markdownWriterInstalled() {
+		progress.logf("Checking for a newer markdown-writer")
+		if err := updateMarkdownWriter(); err != nil {
+			progress.logf("warning: could not update markdown-writer (%v)", err)
+		}
 	}
 	return nil
 }

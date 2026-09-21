@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,10 +86,7 @@ func TestLocalRepoUpdateBuildsThenInstallsThePackages(t *testing.T) {
 	writeFile(t, pkg, "x")
 	t.Setenv("RYOKU_LOCAL_REPO", repo)
 
-	var got []string
-	origInstall := pacmanInstall
-	t.Cleanup(func() { pacmanInstall = origInstall })
-	pacmanInstall = func(pkgs []string) error { got = pkgs; return nil }
+	got := stubInstallSeams(t, false, nil)
 
 	if err := localRepoUpdate(); err != nil {
 		t.Fatalf("localRepoUpdate: %v", err)
@@ -96,8 +94,8 @@ func TestLocalRepoUpdateBuildsThenInstallsThePackages(t *testing.T) {
 	if _, err := os.Stat(built); err != nil {
 		t.Errorf("the recorded checkout's build script did not run: %v", err)
 	}
-	if len(got) != 1 || got[0] != pkg {
-		t.Errorf("installed %v, want just %s", got, pkg)
+	if len(*got) != 1 || (*got)[0] != pkg {
+		t.Errorf("installed %v, want just %s", *got, pkg)
 	}
 }
 
@@ -111,15 +109,12 @@ func TestLocalRepoUpdateInstallsNothingWhenTheBuildFails(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "x86_64", "old-1-1-any.pkg.tar.zst"), "x")
 	t.Setenv("RYOKU_LOCAL_REPO", repo)
 
-	called := false
-	origInstall := pacmanInstall
-	t.Cleanup(func() { pacmanInstall = origInstall })
-	pacmanInstall = func([]string) error { called = true; return nil }
+	installed := stubInstallSeams(t, false, nil)
 
 	if err := localRepoUpdate(); err == nil {
 		t.Fatal("a failed build must fail the update")
 	}
-	if called {
+	if len(*installed) != 0 {
 		t.Error("packages were installed after a failed build")
 	}
 }
@@ -128,5 +123,68 @@ func TestLocalRepoUpdateWithoutARecord(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	if err := localRepoUpdate(); err == nil {
 		t.Error("no recorded checkout must be an error")
+	}
+}
+
+// stubInstallSeams replaces the pacman and markdown-writer seams for one test.
+func stubInstallSeams(t *testing.T, present bool, update func() error) *[]string {
+	t.Helper()
+	var installed []string
+	origInstall, origPresent, origUpdate := pacmanInstall, markdownWriterInstalled, updateMarkdownWriter
+	t.Cleanup(func() {
+		pacmanInstall, markdownWriterInstalled, updateMarkdownWriter = origInstall, origPresent, origUpdate
+	})
+	pacmanInstall = func(pkgs []string) error { installed = pkgs; return nil }
+	markdownWriterInstalled = func() bool { return present }
+	updateMarkdownWriter = update
+	return &installed
+}
+
+func localRepoFixture(t *testing.T) {
+	t.Helper()
+	src := t.TempDir()
+	mustGit(t, src, "init", "-q")
+	buildScript(t, src, "true")
+	recordLocalRepo(t, src)
+	repo := t.TempDir()
+	writeFile(t, filepath.Join(repo, "x86_64", "ryoku-1-1-any.pkg.tar.zst"), "x")
+	t.Setenv("RYOKU_LOCAL_REPO", repo)
+}
+
+func TestLocalRepoUpdateRefreshesMarkdownWriterAfterTheInstall(t *testing.T) {
+	localRepoFixture(t)
+	calls := 0
+	stubInstallSeams(t, true, func() error { calls++; return nil })
+
+	if err := localRepoUpdate(); err != nil {
+		t.Fatalf("localRepoUpdate: %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("markdown-writer helper ran %d times, want 1", calls)
+	}
+}
+
+func TestLocalRepoUpdateSkipsMarkdownWriterWhenAbsent(t *testing.T) {
+	localRepoFixture(t)
+	calls := 0
+	stubInstallSeams(t, false, func() error { calls++; return nil })
+
+	if err := localRepoUpdate(); err != nil {
+		t.Fatalf("localRepoUpdate: %v", err)
+	}
+	if calls != 0 {
+		t.Errorf("the helper ran %d times on a box without markdown-writer", calls)
+	}
+}
+
+func TestLocalRepoUpdateSurvivesAMarkdownWriterFailure(t *testing.T) {
+	localRepoFixture(t)
+	installed := stubInstallSeams(t, true, func() error { return fmt.Errorf("offline") })
+
+	if err := localRepoUpdate(); err != nil {
+		t.Fatalf("a markdown-writer failure must not fail the update: %v", err)
+	}
+	if len(*installed) != 1 {
+		t.Errorf("the Ryoku packages were not installed: %v", *installed)
 	}
 }

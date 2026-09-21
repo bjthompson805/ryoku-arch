@@ -20,6 +20,11 @@
   state, and a failed build installs nothing and fails the update. A machine with
   neither a dev checkout nor a recorded one gets a clear error
   (`internal/updater/localrepo.go`).
+- **`ryoku update` keeps `markdown-writer` current.** After installing the Ryoku
+  packages it runs `ryoku-pkg-markdown-writer` when `markdown-writer` is installed.
+  The helper compares the latest release with the installed version and never
+  installs an older one, so it is cheap; a failure (offline, rate-limited) only
+  warns (`localrepo.go`, `TestLocalRepoUpdateRefreshesMarkdownWriterAfterTheInstall`).
 - **`ryoku status` reads the recorded checkout.** Installed is the commit embedded
   in the `ryoku-desktop` version, latest is `origin/<channel>`, and the update list
   and recent history come from `git log`, the same rows a dev box shows
