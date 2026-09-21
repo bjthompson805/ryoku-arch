@@ -48,7 +48,15 @@ var buildPkgs = []string{
 	"qt6-base", "qt6-declarative", "qt6-shadertools", "qt6-multimedia",
 	"hyprland", "hyprcursor", "pango", "cairo", "pixman", "libdrm", "libinput",
 	"libxkbcommon", "wayland", "wayland-protocols", "ffmpeg", "pkgconf", "lz4",
+	// ryospice (a CMake app inside ryoku-desktop) and ryomotion's npm build
+	"gtk4", "spice-gtk", "spice-protocol", "python",
 }
+
+// steps that bring the machine in line with this installer version rather than
+// change it: they are idempotent and cheap, so a resumed run repeats them. A
+// retry after a failure then picks up a newer checkout and toolchain list
+// instead of building the old ones again.
+var resumeAlways = map[string]bool{"tools": true, "payload": true}
 
 // desktop set from deploy.sh plus the session/system packages the ISO puts in
 // base.packages that ryoku-desktop does not depend on. --needed makes overlap
@@ -261,7 +269,7 @@ func (e *engine) runFrom(idx int) chan any {
 			s := e.steps[i]
 			e.events <- evStep{idx: i, title: s.title}
 			e.log("==== step " + s.id + " ====")
-			if e.p.resume && e.state != nil && e.state.has(s.id) {
+			if e.p.resume && e.state != nil && e.state.has(s.id) && !resumeAlways[s.id] {
 				e.say("finished in the previous run, resuming past it")
 				continue
 			}
@@ -760,7 +768,21 @@ func stepPackages(e *engine) error {
 	}
 	// -Syu, not -S: a resumed run holds the db its first attempt synced, and
 	// a publish in between replaces or prunes the files that db points at.
-	return e.sudo(append([]string{"pacman", "-Syu", "--needed", "--noconfirm"}, pkgs...)...)
+	if err := e.sudo(append([]string{"pacman", "-Syu", "--needed", "--noconfirm"}, pkgs...)...); err != nil {
+		return err
+	}
+	// the upgrade above can move a library the packages were built against, and
+	// the optional packages (the Hyprland plugins, gpk, ...) are not pulled in as
+	// dependencies. Let the build script rebuild if the libraries changed (it does
+	// nothing otherwise), then install everything the local repo holds.
+	if err := e.cmd(e.payload, nil, filepath.Join(e.payload, "release/repo/build-local-repo.sh")); err != nil {
+		return err
+	}
+	built, _ := filepath.Glob(filepath.Join(localRepoDir, "x86_64", "*.pkg.tar.zst"))
+	if len(built) == 0 {
+		return nil
+	}
+	return e.sudo(append([]string{"pacman", "-U", "--needed", "--noconfirm"}, built...)...)
 }
 
 func stepDrivers(e *engine) error {

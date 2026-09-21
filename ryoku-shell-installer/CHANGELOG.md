@@ -4,6 +4,14 @@
 
 ### Added
 
+- **A retry picks up fixes.** The `tools` and `payload` steps repeat on a resumed
+  run (they are idempotent), so re-running the installer after a failure updates
+  the checkout and the build toolchain instead of rebuilding the old ones. The
+  toolchain gains `gtk4`, `spice-gtk`, `spice-protocol`, and `python` (the first
+  VM install failed building `ryospice` without `gtk4`). After the desktop
+  install the build script runs once more, in case the upgrade moved a library,
+  and everything the local repo holds is installed, the optional packages
+  included (`engine.go`, `TestResumeRepeatsTheSyncStepsButSkipsFinishedWork`).
 - **No keyring step.** The installer no longer installs or checks
   `ryoku-keyring`, which no longer exists.
 - **The install is self-hosted from the fork.** Instead of trusting the hosted

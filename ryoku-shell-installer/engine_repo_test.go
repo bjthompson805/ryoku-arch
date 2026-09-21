@@ -65,3 +65,32 @@ func TestSwapFileScriptWritesContentVerbatim(t *testing.T) {
 		t.Errorf("mode = %v, want 0644", fi.Mode().Perm())
 	}
 }
+
+func TestResumeRepeatsTheSyncStepsButSkipsFinishedWork(t *testing.T) {
+	ran := map[string]int{}
+	step := func(id string) estep {
+		return estep{id: id, title: id, fn: func(*engine) error { ran[id]++; return nil }}
+	}
+	e := &engine{
+		dry:   true,
+		p:     &plan{resume: true},
+		state: &runState{Completed: []string{"tools", "payload", "backup"}},
+		steps: []estep{step("tools"), step("payload"), step("build"), step("backup")},
+	}
+	for ev := range e.runFrom(0) {
+		if d, ok := ev.(evDone); ok {
+			if d.err != nil {
+				t.Fatalf("run failed: %v", d.err)
+			}
+			break
+		}
+	}
+	for _, id := range []string{"tools", "payload", "build"} {
+		if ran[id] != 1 {
+			t.Errorf("step %s ran %d times, want 1", id, ran[id])
+		}
+	}
+	if ran["backup"] != 0 {
+		t.Errorf("backup was finished in the previous run and must be skipped, ran %d times", ran["backup"])
+	}
+}
