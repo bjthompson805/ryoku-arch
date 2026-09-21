@@ -574,9 +574,10 @@ func (d *daemon) paintWorker() {
 		// wallInit at every daemon bootstrap, racing Game Mode's own re-apply from
 		// the same login with no ordering between the two, so a repaint landing
 		// second silently undoes it. Re-assert whenever Game Mode is the one
-		// currently on; idempotent and cheap either way.
+		// currently on; idempotent and cheap either way. rearm rather than start
+		// so the repaint does not announce Game Mode on every wallpaper change.
 		if gameModeOn() {
-			_ = exec.Command("ryoku-cmd-game-mode", "start").Run()
+			_ = exec.Command("ryoku-cmd-game-mode", "rearm").Run()
 		}
 		select {
 		case d.ledsSig <- struct{}{}:

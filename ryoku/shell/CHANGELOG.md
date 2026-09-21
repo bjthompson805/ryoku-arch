@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- **Changing the wallpaper with Game Mode on no longer sends a "Game Mode is on"
+  notification each time.** The repaint re-asserts Game Mode after reloading
+  Hyprland, and that used the announcing `start`; it now uses the silent `rearm`
+  (`ipc/wallpaper.go`). A dev deploy now also refreshes `ryoku-cmd-game-mode` on
+  `PATH`, so a stale copy from an older deploy cannot shadow it (`deploy.sh`).
 - **Saving a screenshot with the default filename no longer asks to replace an
   existing file.** The capture was written to the default path before the save
   dialog opened on that same path, so the dialog always found a file there. The

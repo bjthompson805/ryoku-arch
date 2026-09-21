@@ -412,6 +412,11 @@
   `shell/fish` (with its non-brand greeting) was dropped for `ryoku/apps/fish`.
 
 ### Fixed
+- `hyprland/scripts/ryoku-cmd-game-mode`: **added `rearm`, a silent re-assert of a
+  running Game Mode.** Callers that reload Hyprland themselves used `start` to put
+  the tune back, which announced "Game Mode: On" every time. `rearm` redoes the
+  tune with no notification and no second reload, and does nothing when Game Mode
+  is off.
 - `hyprland/modules/autostart.lua`: the first-run welcome walkthrough is no longer
   suppressed forever when it fails to launch. The launch chained `qs -c welcome`,
   `mkdir`, and `touch welcome-seen` with `;`, so the seen-flag was written even

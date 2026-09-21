@@ -30,7 +30,11 @@ cat >"$bin/pkexec" <<EOF
 echo "pkexec \$*" >>"$calls"
 exit 0
 EOF
-printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/notify-send"
+cat >"$bin/notify-send" <<EOF
+#!/usr/bin/env bash
+echo "notify-send \$*" >>"$calls"
+exit 0
+EOF
 printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/ryoku-wifi-powersave"
 chmod +x "$bin"/*
 
@@ -129,6 +133,14 @@ eval_at="$(grep -nF 'hyprctl eval' "$calls" | head -1 | cut -d: -f1)"
 [[ -n $reload_at && -n $eval_at && $reload_at -lt $eval_at ]] || fail "reapply did not reload then re-eval"
 grep -qF 'ryoku-wifi-powersave off' "$calls" && fail "reapply re-saved wifi state it already holds"
 
+# --- rearm: silent re-assert after an external reload -----------------------
+: >"$calls"
+"$gm" rearm
+grep -qF 'hyprctl eval' "$calls" || fail "rearm did not re-apply the compositor tune"
+grep -qF 'hyprctl reload' "$calls" && fail "rearm reloaded Hyprland itself"
+grep -qF 'notify-send' "$calls" && fail "rearm announced Game Mode"
+grep -qF 'ryoku-wifi-powersave off' "$calls" && fail "rearm re-saved wifi state it already holds"
+
 setflags '{"gameModeWifi": false}'
 : >"$calls"
 "$gm" reapply
@@ -147,6 +159,11 @@ setflags '{}'
 grep -qE 'pkexec .*ryoku-wifi-powersave off' "$calls" || fail "re-enabling the wifi option mid-game did not turn power-save off"
 "$gm" stop
 rm -f "$flags"
+
+# --- rearm while off does nothing ------------------------------------------
+: >"$calls"
+"$gm" rearm
+[[ -s $calls ]] && fail "rearm while off touched something"
 
 # --- helper absent: wifi skipped even with a wifi device -------------------
 rm -f "$bin/ryoku-wifi-powersave"

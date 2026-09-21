@@ -236,6 +236,9 @@
   `backend/schemes.go`, `backend/hypr.go`).
 
 ### Fixed
+- **Applying a Hub change with Game Mode on no longer re-announces Game Mode.**
+  Every Hyprland reload from the Hub re-asserts the tune through the silent
+  `rearm` instead of `start` (`backend/hypr.go`).
 - **A Wi-Fi network's password row can be dismissed again.** Tapping a secured,
   unknown network opened an inline password row that only closed on a successful
   connect, so deciding not to connect left it stuck open. Tapping the network

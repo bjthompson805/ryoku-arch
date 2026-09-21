@@ -576,7 +576,7 @@ func gameModeOn() bool {
 
 func reassertGameMode() {
 	if gameModeOn() {
-		_ = exec.Command("ryoku-cmd-game-mode", "start").Run()
+		_ = exec.Command("ryoku-cmd-game-mode", "rearm").Run()
 	}
 }
 

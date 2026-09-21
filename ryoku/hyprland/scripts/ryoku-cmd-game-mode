@@ -9,6 +9,8 @@
 #   start    apply, persist (idempotent, safe to re-run)
 #   stop     restore, clear
 #   reapply  redo the tune after an option changed (no-op when off)
+#   rearm    re-assert the tune after something else reloaded Hyprland, silently
+#            (no-op when off)
 #   toggle
 #
 # each part of the tune is an option in flags.json (gameModeVisuals,
@@ -123,6 +125,13 @@ stop() {
 reapply() {
   is_on || return 0
   hypr_restore
+  rearm
+}
+
+# for callers that just reloaded Hyprland themselves (wallpaper repaint, Hub):
+# no restore reload of our own and no notification, the tune was already on.
+rearm() {
+  is_on || return 0
   hypr_fast
   wifi_apply
 }
@@ -143,9 +152,10 @@ case "${1:-toggle}" in
   on | start) start ;;
   off | stop) stop ;;
   reapply)    reapply ;;
+  rearm)      rearm ;;
   toggle)     if is_on; then stop; else start; fi ;;
   *)
-    echo "usage: ryoku-cmd-game-mode [status | start | stop | reapply | toggle]" >&2
+    echo "usage: ryoku-cmd-game-mode [status | start | stop | reapply | rearm | toggle]" >&2
     exit 1
     ;;
 esac

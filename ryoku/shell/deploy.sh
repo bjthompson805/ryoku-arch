@@ -106,6 +106,12 @@ say "installed $bindir/ryoku-cmd-webcam"
 install -m755 "$here/../hyprland/scripts/ryoku-cmd-webcam-bridge" "$bindir/ryoku-cmd-webcam-bridge"
 say "installed $bindir/ryoku-cmd-webcam-bridge"
 
+# The wallpaper daemon and the Hub call this by bare name to re-assert Game Mode
+# after a Hyprland reload. A stale copy left on PATH by an older deploy lacks
+# `rearm`, so the re-assert silently does nothing.
+install -m755 "$here/../hyprland/scripts/ryoku-cmd-game-mode" "$bindir/ryoku-cmd-game-mode"
+say "installed $bindir/ryoku-cmd-game-mode"
+
 # Build ryoku-livewall, the software-decode video-wallpaper daemon the shell drives
 # for live wallpapers. Needs wayland-scanner + a C toolchain + ffmpeg/wayland dev
 # libs (build-time only); skip cleanly when absent so a plain config deploy still
