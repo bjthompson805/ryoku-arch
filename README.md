@@ -1,3 +1,46 @@
+# Ryoku for an existing Arch install
+
+This is a fork of [Ryoku Arch](https://github.com/neur0map/ryoku-arch) at its
+**Beta 17** release (`0.12.8-beta.17`). Its purpose is to make the Ryoku shell
+easy to install on top of an Arch Linux system you already have, with no ISO and
+no reinstall.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bjthompson805/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
+```
+
+The installer asks before it changes anything, saves your existing configs to
+`~/.local/state/ryoku/shell-install/` with a generated `restore.sh`, and can be
+undone by running the same command with `bash -s -- --uninstall`. It needs an
+x86_64 Arch-based system that boots with systemd.
+
+**How it differs from upstream**
+
+- **Nothing is hosted but this repository.** The desktop packages are compiled on
+  your machine from a checkout of this repo (in `~/.local/share/ryoku/repo`) into
+  a local pacman repo, so the install does not depend on upstream's package
+  repository, signing key, or servers. Expect a long first build.
+- **`ryoku update` only updates Ryoku.** It pulls this repo, rebuilds, and installs
+  the Ryoku packages. It never runs `pacman -Syu` or touches the AUR; upgrading the
+  rest of the system is yours. The installer itself does one full system upgrade
+  at the start, so the dependencies it installs match your system.
+- **A system upgrade should not break the shell.** The packages are built against
+  the libraries you have, so when you upgrade Hyprland, Qt, ffmpeg, or another
+  library they link against, a pacman hook rebuilds them in the background and
+  notifies you.
+- **`ryomotion` and `gpk` track their upstream's latest release** instead of a
+  pinned version.
+- **No ISO, no release channels.** The fork follows its own `main` and is not kept
+  mergeable with upstream, which has diverged.
+- **The store still reads upstream's `ryoku-extras`** (rices and extras).
+
+What follows is upstream's README. Where it describes the ISO, the hosted
+`[ryoku]` repository, the download page, or release channels, it does not apply
+to this fork. Its "Already on Arch" install and recovery one-liners have been
+changed to fetch this fork's scripts.
+
+---
+
 <div align="center">
 
 <img src="https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku/assets/brand/logo-mark.png" alt="Ryoku" width="160" />
@@ -133,12 +176,13 @@ Prefer to build it yourself? The archiso profile and build script live in
 ### Already on Arch (no ISO)
 
 One line converts an existing Arch machine into a Ryoku box: it backs up your
-configs (with a `restore.sh` to undo), trusts the signed `[ryoku]` repo, migrates
-you off conflicting shells and daemons, and wires up the full desktop. It never
+configs (with a `restore.sh` to undo), builds the packages from this repository
+into a local `[ryoku]` repo, migrates you off conflicting shells and daemons, and
+wires up the full desktop. It never
 partitions a disk.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/bjthompson805/ryoku-arch/main/ryoku-shell-installer/install.sh | bash
 ```
 
 Preview everything it would do without changing anything by appending
@@ -171,14 +215,15 @@ Everything updates through one command:
 ryoku update
 ```
 
-It takes a snapshot, runs the package transactions (`pacman -Syu` against the
-official repos and the signed `[ryoku]` repo, then `yay` for the AUR), re-lays
-the desktop configs into your home, reloads the shell, and takes a paired
-post-snapshot. A failed package step aborts before anything else changes.
+It takes a snapshot, pulls the fork, rebuilds the Ryoku packages from it, installs
+them, re-lays the desktop configs into your home, reloads the shell, and takes a
+paired post-snapshot. It never upgrades the rest of the system. A failed build
+installs nothing.
 
-The desktop ships from the `[ryoku]` pacman repository, signed by the release key
-and trusted through the `ryoku-keyring` package, so updates are verified the same
-way the rest of the system is.
+The desktop is compiled on your machine from this repository into a local
+`[ryoku]` pacman repo. After you upgrade Hyprland, Qt, ffmpeg, or another library
+it builds against, a pacman hook rebuilds it in the background so the shell keeps
+working.
 
 Your settings survive every update. The base configs are Ryoku-owned and
 refreshed in place, while your own edits live in override files that are never
@@ -204,7 +249,7 @@ If the `ryoku` command itself is gone, drop to a TTY (`Ctrl+Alt+F2`, then log in
 and run the same recovery straight from the repo:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neur0map/ryoku-arch/main/bin/ryoku-recovery | bash
+curl -fsSL https://raw.githubusercontent.com/bjthompson805/ryoku-arch/main/bin/ryoku-recovery | bash
 ```
 
 This is a true last resort. It discards local Ryoku config customizations

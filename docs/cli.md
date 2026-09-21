@@ -51,8 +51,10 @@ anything else changes). What it actually runs depends on the world:
   branch (`main` for everyone), fast-forwards the checkout when it is sitting
   cleanly on that branch, and redeploys with `deploy.sh`. A feature branch or a
   dirty tree is left to git only the redeploy runs.
-- **Packaged install:** `sudo pacman -Syu`, then `yay -Sua` if yay is present,
-  then `ryoku materialize`, then a shell reload.
+- **Fork install:** pulls the recorded checkout, rebuilds the local `[ryoku]` repo
+  from it (skipped when nothing changed), installs the built packages with
+  `pacman -U`, then `ryoku materialize` and a shell reload. It never runs
+  `pacman -Syu` or touches the AUR: the rest of the system is yours to update.
 
 Throughout, it publishes progress to `$XDG_RUNTIME_DIR/ryoku-update.json` so the
 shell's update island can show the run.

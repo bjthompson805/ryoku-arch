@@ -91,6 +91,9 @@ System-level definition installed into the target.
   `leds/` (`ryoku-leds`, the OpenRGB accent sync), `drivers/` (per-vendor
   `nvidia`/`intel`/`amd`/`vulkan` install scripts), `power/` (`ryoku-hw-laptop`,
   the shared laptop detector; `ryoku-idle`, the laptop-gated `hypridle` launcher).
+- `rebuild/` the pacman hook (`ryoku-rebuild.hook`) and `ryoku-rebuild-abi`, which
+  rebuild the locally built Ryoku packages after a system upgrade changes a
+  library they link against (shipped by `ryoku-desktop`).
 - `extras/` the helpers behind the Hub's Extras section, shipped to `/usr/bin` by
   `ryoku-desktop`: `ryoku-extras-install` (installs, removes, and reports the
   optional bundles from the `ryoku-extras` catalogue), the `ryoku-pkg-*` routing
@@ -124,9 +127,9 @@ System-level definition installed into the target.
   (`release/packages/`). `ryoku-desktop` is the umbrella: it version-pins the
   monorepo components (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`, `ryoku-blobs`,
   `ryoku`, and the Hyprland plugins `hypr-dynamic-cursors`, `ryoku-hypr-plugins`,
-  `hyprglass`, `imgborders`) and also depends on `ryoku-keyring` and the `gpk`
+  `hyprglass`, `imgborders`) and also depends on the `gpk`
   package manager, and lays the base config under `/usr/share/ryoku/config`.
-- The installer adds the `[ryoku]` repo, imports the keyring, and installs
+- The installer adds the `[ryoku]` repo and installs
   `ryoku-desktop`; per-user config is then copied into `~/.config` by
   `ryoku materialize`, which clobbers Ryoku-owned files and prunes dropped ones
   but never touches user files.
@@ -152,11 +155,11 @@ raw.githubusercontent.com serves them with no release infrastructure.
 ## `release/` packaging
 
 - `packages/` one directory per pacman package in the `[ryoku]` repo, each a
-  `PKGBUILD` that builds from the checked-out monorepo. Twelve in all: the
+  `PKGBUILD` that builds from the checked-out monorepo. Fourteen in all: the
   monorepo components (`ryoku-shell`, `ryoku-hub`, `ryoku-rashin`, `ryoku`,
-  `ryoku-blobs`), the `ryoku-desktop` umbrella, `ryoku-keyring`, the `gpk`
-  package manager, and the Hyprland plugins (`hypr-dynamic-cursors`,
-  `ryoku-hypr-plugins`, `hyprglass`, `imgborders`).
+  `ryoku-blobs`), the `ryoku-desktop` umbrella, the packages built from an
+  upstream (`gpk`, `ryomotion`, `awww`, `wallust`), and the Hyprland plugins
+  (`hypr-dynamic-cursors`, `ryoku-hypr-plugins`, `hyprglass`, `imgborders`).
 - `repo/` builds the signed `[ryoku]` repo from those PKGBUILDs: `build-repo.sh`
   runs `makepkg`, signs every artifact with the release key, and `repo-add`s the
   signed `ryoku.db` into `out/`, laid out exactly as the public mirror serves it.
