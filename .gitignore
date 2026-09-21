@@ -13,6 +13,9 @@
 /ryoku/shell/plugin/dist/
 /ryoku/apps/ryospice/build/
 /release/repo/out/
+/release/packages/*/PKGBUILD.build
+/release/packages/*/src/
+/release/packages/*/pkg/
 *.iso
 
 # Isolated worktrees

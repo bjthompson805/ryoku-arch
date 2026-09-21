@@ -1,0 +1,13 @@
+hyprland
+hyprcursor
+qt6-base
+qt6-declarative
+qt6-multimedia
+ffmpeg
+wayland
+pango
+cairo
+pixman
+libdrm
+libinput
+libxkbcommon

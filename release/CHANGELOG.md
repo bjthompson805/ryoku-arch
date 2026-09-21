@@ -2,7 +2,46 @@
 
 ## Unreleased
 
+### Changed
+- **`ryoku-keyring` is removed.** Nothing verifies a signature any more: the
+  `[ryoku]` repo of a fork install is a local, unsigned `file://` repo the machine
+  built itself, so the package that trusted upstream's release key had no job. The
+  package directory is gone and `ryoku-desktop` no longer depends on it.
+  `keys/ryoku-release-key.pub.asc` stays (the ISO and publish workflows read it).
+- **The four Hyprland plugin packages are no longer pinned by `ryoku-desktop`.**
+  They are built against the installed Hyprland, and a rebuild for a new Hyprland
+  may have to keep the previous plugin build until upstream pins that release.
+- **`gpk` and `ryomotion` track upstream's latest instead of a pin.** `gpk`
+  resolves the tag `/releases/latest` redirects to in `pkgver()` and fetches that
+  release's binary; `ryomotion` builds the fork's default branch and encodes it as
+  `<package.json version>.r<count>.g<sha>`. Neither is checksum-pinned any more
+  (gpk is only checked to be an ELF binary), so a rebuild ships whatever upstream
+  published. The Node toolchain `ryomotion` fetches stays pinned.
+
 ### Added
+- **`release/repo/build-local-repo.sh` builds the `[ryoku]` set on the machine
+  that uses it, and `publish-local-repo.sh` publishes it as root.** The build runs
+  `build-repo.sh` in a new unsigned mode (`RYOKU_REPO_UNSIGNED=1`) into a staging
+  dir; publishing swaps the whole set into `/var/lib/ryoku/repo/<arch>/` and
+  records the commit, the installed versions of the ABI-coupled system packages
+  (`release/repo/abi.packages`), a generation counter, and the checkout's owner.
+  A build is needed when the commit moved or those versions changed; a
+  library-only rebuild carries over the upstream-following packages untouched.
+  Every build appends the generation to the package version so `pacman -U`
+  replaces the old package even for the same commit. `--force` rebuilds
+  everything (also how a newer `ryomotion` or `gpk` is picked up) and
+  `--stage-only` stops before publishing. Git clones, the Node tarball, and the
+  npm and Electron downloads are cached in `~/.cache/ryoku`. `build-repo.sh` builds
+  each package from a throwaway `PKGBUILD.build` copy, because makepkg rewrites
+  `pkgver=` in the file it reads when a `pkgver()` changes it.
+- **A failed optional package keeps its last good build.** With a previous repo to
+  fall back on (`RYOKU_REPO_CARRY_DIR`), a package `ryoku-desktop` does not pin
+  that fails to build is carried over instead of aborting the set; the packages it
+  pins and `ryoku-desktop` itself must always build. `RYOKU_REPO_SKIP_EXTERNAL`
+  skips the ones that follow an upstream.
+- **`ryoku-desktop` ships the automatic rebuild.** A pacman hook generated from
+  `release/repo/abi.packages`, `/usr/bin/ryoku-rebuild-abi`, and a root-owned
+  `/usr/lib/ryoku/publish-local-repo` (see `system/CHANGELOG.md`).
 - **`awww` now ships from the `[ryoku]` repo** as a hard `ryoku-desktop`
   dependency, not the AUR. awww (swww renamed upstream) is the animated wallpaper
   daemon the shell drives: `ryoku/shell/ipc/wallpaper.go` runs `awww img` on every
