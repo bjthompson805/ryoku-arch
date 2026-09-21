@@ -68,10 +68,10 @@ it (skipped when nothing changed), installs the built packages with `pacman -U`,
 then runs the usual materialize and doctor stages. It never upgrades the rest of
 the system. When you upgrade a library the packages link against (Hyprland, Qt,
 ffmpeg, and so on), a pacman hook rebuilds them in the background. A failed build
-installs nothing. `ryomotion` and `gpk` build from their upstream's latest rather
-than a pinned version, so pick up a newer one with
-`release/repo/build-local-repo.sh --force` in the checkout. Nothing here ever
-needs re-running.
+installs nothing. `ryomotion` and `gpk` track their upstream's latest rather than a
+pinned version: each `ryoku update` checks whether upstream has a newer release
+and rebuilds just that package if so. It also keeps `markdown-writer` current from
+its GitHub releases. Nothing here ever needs re-running.
 
 Migration policy: rival shells are uninstalled (toggle), conflicting daemons
 are disabled but never uninstalled, the old display manager is disabled (not

@@ -45,6 +45,13 @@ shell from breaking:
   (`ryomotion`, `gpk`, `awww`, `wallust`) and gives every build a higher version
   (a generation counter appended to the commit-derived one) so `pacman -U`
   replaces the old package.
+- **Upstream-following packages update themselves.** `gpk` and `ryomotion` each
+  have an `upstream` script beside their PKGBUILD (the latest release tag, the
+  default branch's commit). `ryoku update` probes them and rebuilds only a package
+  whose upstream moved since it was built; the unattended rebuild never does, so a
+  system upgrade cannot pull in new code as root. `markdown-writer` ships from its
+  own GitHub releases, so `ryoku update` runs `ryoku-pkg-markdown-writer`, which
+  installs a release only when it is newer than the installed one.
 
 A build failure of a required package installs nothing. An optional package
 (anything `ryoku-desktop` does not pin) that fails keeps its last good build, or,
