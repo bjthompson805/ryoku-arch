@@ -16,7 +16,7 @@ arch=('x86_64')
 url="https://ryoku.dev"
 license=('GPL-3.0-or-later')
 # go builds the app helpers (ryovm-fetch); cmake+Qt6 build any compiled ryoku/apps app.
-makedepends=('go' 'cmake' 'ninja' 'qt6-base' 'qt6-declarative')
+makedepends=('go' 'cmake' 'ninja' 'qt6-base' 'qt6-declarative' 'gtk4' 'spice-gtk' 'spice-protocol' 'libdrm' 'pkgconf')
 depends=(
   # Ryoku. the monorepo components are pinned to this build's own version:
   # every publish rebuilds them all with one shared RYOKU_PKGVER, and the shell
@@ -31,15 +31,9 @@ depends=(
   'gpk'
   # compositor + Wayland session
   'hyprland'
-  # Hyprland compositor plugins the Hub can toggle (Appearance / Animations).
-  # not version-pinned: each is built against the installed Hyprland's headers
-  # (its prepare() matches them), and a rebuild for a new Hyprland may have to
-  # keep the previous plugin build until upstream pins that release. Off by
-  # default; the generated settings.lua only loads one once the user enables it.
-  'hypr-dynamic-cursors'
-  'ryoku-hypr-plugins'
-  'hyprglass'
-  'imgborders'
+  # ryospice, the SPICE viewer built from ryoku/apps/ryospice, links these
+  'gtk4'
+  'spice-gtk'
   'xorg-xwayland'
   'qt6-wayland'
   'qt6-5compat'
@@ -150,6 +144,16 @@ depends=(
   'ttf-material-symbols-variable'
 )
 optdepends=(
+  # Hyprland compositor plugins the Hub can toggle (Appearance / Animations).
+  # optional because each is built against the installed Hyprland's headers (its
+  # prepare() needs upstream's hyprpm.toml to pin that release), which can lag a
+  # new Hyprland; the shell installer and `ryoku update` install whichever were
+  # built. Off by default; the generated settings.lua only loads one once the
+  # user enables it.
+  'hypr-dynamic-cursors: cursor shake and tilt effects (Hub)'
+  'ryoku-hypr-plugins: window title bars and focus flash (Hub)'
+  'hyprglass: glass window effect (Hub)'
+  'imgborders: image window borders (Hub)'
   'tesseract: OCR text grab (pill Super+D)'
   'tesseract-data-eng: English OCR language data'
   'zbar: QR code scanning (pill Super+D)'
@@ -166,7 +170,6 @@ optdepends=(
   'looking-glass: low-latency VM display in a desktop window'
   'quickemu: build and run virtual machines in ryovm'
   'libisoburn: instant cloud machines in ryovm (cloud-init seed ISO; xorriso)'
-  'spice-gtk: SPICE console + headless VM viewer for ryovm'
   # webcam deck toggle: only pulled in on machines whose built-in camera is a
   # MIPI/ISP sensor with no direct V4L2 device (e.g. Intel IPU6/IPU7) -- a
   # plain USB/UVC webcam needs none of this, ryoku-cmd-webcam chmods it directly.

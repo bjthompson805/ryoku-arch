@@ -46,10 +46,10 @@ shell from breaking:
   (a generation counter appended to the commit-derived one) so `pacman -U`
   replaces the old package.
 
-A build failure never installs anything. An optional package (anything
-`ryoku-desktop` does not pin) that fails keeps its last good build instead of
-blocking the rest, so a broken upstream HEAD or a Hyprland release its plugins
-do not support yet cannot hold the shell rebuild hostage.
+A build failure of a required package installs nothing. An optional package
+(anything `ryoku-desktop` does not pin) that fails keeps its last good build, or,
+on a first install with none, is left out, so a broken upstream HEAD or a Hyprland
+release its plugins do not support yet cannot hold the shell hostage.
 
 ## `ryoku update`
 

@@ -8,9 +8,14 @@
   built itself, so the package that trusted upstream's release key had no job. The
   package directory is gone and `ryoku-desktop` no longer depends on it.
   `keys/ryoku-release-key.pub.asc` stays (the ISO and publish workflows read it).
-- **The four Hyprland plugin packages are no longer pinned by `ryoku-desktop`.**
-  They are built against the installed Hyprland, and a rebuild for a new Hyprland
-  may have to keep the previous plugin build until upstream pins that release.
+- **The four Hyprland plugin packages are optional dependencies of
+  `ryoku-desktop`, not pinned hard ones.** They are built against the installed
+  Hyprland, which needs upstream's `hyprpm.toml` to pin that release, and that can
+  lag a new Hyprland. The installer and `ryoku update` install whichever were built.
+- **`ryoku-desktop` declares what `ryospice` needs.** `gtk4` and `spice-gtk` become
+  hard dependencies (the binary links them), and the build needs `gtk4`,
+  `spice-gtk`, `spice-protocol`, `libdrm`, and `pkgconf`; the first install failed
+  in `package()` because the build host had no `gtk4`.
 - **`gpk` and `ryomotion` track upstream's latest instead of a pin.** `gpk`
   resolves the tag `/releases/latest` redirects to in `pkgver()` and fetches that
   release's binary; `ryomotion` builds the fork's default branch and encodes it as
@@ -37,8 +42,10 @@
 - **A failed optional package keeps its last good build.** With a previous repo to
   fall back on (`RYOKU_REPO_CARRY_DIR`), a package `ryoku-desktop` does not pin
   that fails to build is carried over instead of aborting the set; the packages it
-  pins and `ryoku-desktop` itself must always build. `RYOKU_REPO_SKIP_EXTERNAL`
-  skips the ones that follow an upstream.
+  pins and `ryoku-desktop` itself must always build. An unsigned build with no
+  earlier build to fall back on leaves a failed optional package out instead of
+  aborting the install. `RYOKU_REPO_SKIP_EXTERNAL` skips the ones that follow an
+  upstream.
 - **`ryoku-desktop` ships the automatic rebuild.** A pacman hook generated from
   `release/repo/abi.packages`, `/usr/bin/ryoku-rebuild-abi`, and a root-owned
   `/usr/lib/ryoku/publish-local-repo` (see `system/CHANGELOG.md`).

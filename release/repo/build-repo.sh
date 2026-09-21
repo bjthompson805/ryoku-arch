@@ -31,7 +31,8 @@
 #                       for a repo this machine consumes itself (build-local-repo.sh)
 #   RYOKU_REPO_CARRY_DIR  a previous repo dir to fall back on (unsigned mode): an
 #                       optional package whose build fails keeps its last good
-#                       build from there instead of aborting the whole set
+#                       build from there instead of aborting the whole set (with
+#                       no earlier build it is left out; a required one aborts)
 #   RYOKU_REPO_SKIP_EXTERNAL  1 = do not rebuild optional packages that follow an
 #                       upstream (no RYOKU_PKGVER); carry them over untouched
 #   RYOKU_PACKAGES_DIR  PKGBUILD parent dir   (default: <repo>/release/packages)
@@ -104,7 +105,8 @@ if [[ $UNSIGNED != 1 ]]; then sign_args=(--sign --key "$KEY_ID"); fi
 # itself: they must all build fresh, together. every other package is optional,
 # and with a CARRY_DIR it may fall back on its last good build when it fails (an
 # upstream-tracking package whose HEAD broke, a Hyprland plugin before upstream
-# pins the new compositor). optional packages that also follow an upstream (no
+# pins the new compositor); an unsigned build with nothing to fall back on leaves
+# it out rather than lose the whole install. optional packages that also follow an upstream (no
 # RYOKU_PKGVER) can be skipped outright, which is what a rebuild for changed
 # system libraries wants: only the ABI-coupled packages need it.
 required=" ryoku-desktop $(grep -oE '"[a-z0-9-]+=\$pkgver"' "$PACKAGES_DIR/ryoku-desktop/PKGBUILD" 2>/dev/null \
@@ -135,9 +137,14 @@ for pkgbuild in "${pkgbuilds[@]}"; do
       && cp PKGBUILD PKGBUILD.build \
       && trap 'rm -f PKGBUILD.build' EXIT \
       && makepkg -p PKGBUILD.build --force --clean --nodeps --noconfirm "${sign_args[@]}" ); then
-    (( optional )) && carry_over "$name" \
-      || die "$name failed to build"
-    log "warning: $name failed to build; kept its last good build"
+    (( optional )) || die "$name failed to build"
+    if carry_over "$name"; then
+      log "warning: $name failed to build; kept its last good build"
+    elif (( UNSIGNED )); then
+      log "warning: $name failed to build and has no earlier build; leaving it out"
+    else
+      die "$name failed to build"
+    fi
   fi
 done
 
