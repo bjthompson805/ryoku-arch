@@ -7,9 +7,6 @@ repo. Packages publish only from `main` release tags, never from `unstable-dev`.
 
 ## The set
 
-- `ryoku-keyring` -- the release signing key, into `/usr/share/pacman/keyrings`.
-  Installed first so pacman trusts the repo. (Built from key material beside its
-  own PKGBUILD; the only package that is not built from the source tree.)
 - `ryoku-shell` -- the shell IPC daemon (Go), to `/usr/bin/ryoku-shell`.
 - `ryoku-hub` -- the Hub backend (Go), to `/usr/bin/ryoku-hub`.
 - `ryoku` -- the control CLI (update / rollback / snapshots / materialize / ...),
@@ -43,9 +40,10 @@ full checkout. The Go binaries and the QML plugin are built into `$srcdir`, so
 the source tree is never modified, and `makepkg --clean` removes `$srcdir` and
 `$pkgdir` afterward.
 
-The `gpk`, `wallust`, and `ryoku-keyring` PKGBUILDs are the exceptions: they
-fetch a pinned upstream artifact (a release binary, a git commit, and the
-release key material, respectively) rather than building from the checkout.
+The `gpk`, `ryomotion`, `awww`, and `wallust` PKGBUILDs are the exceptions: they
+fetch an upstream artifact (`gpk` and `ryomotion` its latest release and default
+branch, `awww` and `wallust` a pinned git commit) rather than building from the
+checkout.
 
 makedepends across the set: `go` (ryoku-shell, ryoku-hub, ryoku),
 `cmake ninja qt6-shadertools qt6-declarative` (ryoku-blobs), and `rust` + `git`

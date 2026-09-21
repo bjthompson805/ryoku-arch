@@ -28,7 +28,7 @@ import (
 // has run it, so the set stays small instead of piling up like a migration
 // ledger.
 
-const ryokuIssuesURL = "https://github.com/neur0map/ryoku-arch/issues"
+const ryokuIssuesURL = "https://github.com/bjthompson805/ryoku-arch/issues"
 
 type recStatus int
 
@@ -824,7 +824,7 @@ func baseSource(s string) string {
 	return s
 }
 
-// ---- reconciler: ryoku package channel + keyring -----------------------------
+// ---- reconciler: ryoku package channel -----------------------------
 
 func reconcileRyokuChannel(_ bool) recResult {
 	if !sys.PkgInstalled("ryoku-desktop") {
@@ -834,10 +834,6 @@ func reconcileRyokuChannel(_ bool) recResult {
 	if !strings.Contains(string(conf), "[ryoku]") {
 		return warnRes("ryoku-desktop is installed but the [ryoku] repo is not in pacman.conf; updates will not arrive").
 			withFix("add the [ryoku] repo (see docs/development.md)")
-	}
-	if !sys.PkgInstalled("ryoku-keyring") {
-		return warnRes("the [ryoku] repo is configured but ryoku-keyring is missing; signatures will fail").
-			withFix("sudo pacman -S ryoku-keyring")
 	}
 	return okRes("ryoku package channel configured")
 }
