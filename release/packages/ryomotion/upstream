@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# The commit ryomotion's default branch is at: what the PKGBUILD builds, and what
+# release/repo/build-local-repo.sh compares with the last build to see whether
+# upstream moved.
+set -euo pipefail
+
+git ls-remote --exit-code https://github.com/neur0map/ryomotion.git HEAD | cut -c1-7

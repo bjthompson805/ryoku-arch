@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# The version of gpk's latest upstream release: what pkgver() builds, and what
+# release/repo/build-local-repo.sh compares with the last build to see whether a
+# newer one exists.
+set -euo pipefail
+
+tag=$(curl -fsSLI --max-time 20 -o /dev/null -w '%{url_effective}' https://github.com/neur0map/glazepkg/releases/latest)
+tag=${tag##*/}
+[[ $tag == v[0-9]* ]] || { echo "no latest gpk release (got '$tag')" >&2; exit 1; }
+printf '%s\n' "${tag#v}"

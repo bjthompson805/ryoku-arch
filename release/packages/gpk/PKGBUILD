@@ -7,8 +7,9 @@
 #
 # upstream is Go (github.com/neur0map/glazepkg); repackaged here from its release
 # binary. This tracks upstream's latest release instead of a pinned version:
-# pkgver() reads the tag GitHub's /releases/latest redirects to, and build()
-# fetches that release's binary, so every rebuild ships whatever is newest.
+# pkgver() reads the tag GitHub's /releases/latest redirects to (the `upstream`
+# script beside this file), and build() fetches that release's binary, so every
+# rebuild ships whatever is newest.
 # `gpk update` self-updates from upstream after install.
 pkgname=gpk
 pkgver=0
@@ -26,11 +27,7 @@ options=('!strip' '!debug')
 source=()
 
 pkgver() {
-  local tag
-  tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$url/releases/latest")
-  tag=${tag##*/}
-  [[ $tag == v[0-9]* ]] || { echo "PKGBUILD: no latest gpk release (got '$tag')" >&2; return 1; }
-  printf '%s' "${tag#v}"
+  "$startdir/upstream"
 }
 
 build() {

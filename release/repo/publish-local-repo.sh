@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Publish a repo staged by build-local-repo.sh into /var/lib/ryoku/repo, as root:
 # swap the package set in whole, and record what it was built from (the commit,
-# the versions of the ABI-coupled system packages, and a generation counter that
+# the versions of the ABI-coupled system packages, the upstream versions the
+# upstream-following packages were built from, and a generation counter that
 # keeps versions increasing), plus, when given, whose checkout it came from.
 #
 # ryoku-desktop installs a copy to /usr/lib/ryoku/publish-local-repo, so the
@@ -46,7 +47,8 @@ if [[ -d $DEST/$ARCH ]]; then mv "$DEST/$ARCH" "$DEST/$ARCH.old"; fi
 mv "$DEST/$ARCH.new" "$DEST/$ARCH"
 rm -rf "$DEST/$ARCH.old"
 
-for f in .built-sha .built-abi .generation; do
+for f in .built-sha .built-abi .generation .built-upstream; do
+  [[ -f $staging/$f ]] || continue
   install -m644 -o root -g root "$staging/$f" "$DEST/$f"
 done
 if [[ -n $owner ]]; then

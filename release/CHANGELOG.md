@@ -29,13 +29,18 @@
   `build-repo.sh` in a new unsigned mode (`RYOKU_REPO_UNSIGNED=1`) into a staging
   dir; publishing swaps the whole set into `/var/lib/ryoku/repo/<arch>/` and
   records the commit, the installed versions of the ABI-coupled system packages
-  (`release/repo/abi.packages`), a generation counter, and the checkout's owner.
-  A build is needed when the commit moved or those versions changed; a
-  library-only rebuild carries over the upstream-following packages untouched.
-  Every build appends the generation to the package version so `pacman -U`
-  replaces the old package even for the same commit. `--force` rebuilds
-  everything (also how a newer `ryomotion` or `gpk` is picked up) and
-  `--stage-only` stops before publishing. Git clones, the Node tarball, and the
+  (`release/repo/abi.packages`), the upstream versions the upstream-following
+  packages were built from, a generation counter, and the checkout's owner.
+  A build is needed when the commit moved (everything is rebuilt), when those
+  system versions changed (only what links against them), or when an upstream has a
+  newer release (only that package): a package directory with an executable
+  `upstream` script (`gpk`: the latest release tag, `ryomotion`: the default
+  branch's commit) is probed on every run, and a probe that fails offline counts as
+  unchanged. Every build appends the generation to the package version so
+  `pacman -U` replaces the old package even for the same commit. `--force`
+  rebuilds everything, `--stage-only` stops before publishing, and `--no-upstream`
+  skips the upstream probes (the unattended rebuild uses it, so it never pulls in
+  new code). Git clones, the Node tarball, and the
   npm and Electron downloads are cached in `~/.cache/ryoku`. `build-repo.sh` builds
   each package from a throwaway `PKGBUILD.build` copy, because makepkg rewrites
   `pkgver=` in the file it reads when a `pkgver()` changes it.
@@ -44,8 +49,8 @@
   that fails to build is carried over instead of aborting the set; the packages it
   pins and `ryoku-desktop` itself must always build. An unsigned build with no
   earlier build to fall back on leaves a failed optional package out instead of
-  aborting the install. `RYOKU_REPO_SKIP_EXTERNAL` skips the ones that follow an
-  upstream.
+  aborting the install. `RYOKU_REPO_ONLY` narrows a build to the named packages and
+  carries the rest over untouched.
 - **`ryoku-desktop` ships the automatic rebuild.** A pacman hook generated from
   `release/repo/abi.packages`, `/usr/bin/ryoku-rebuild-abi`, and a root-owned
   `/usr/lib/ryoku/publish-local-repo` (see `system/CHANGELOG.md`).

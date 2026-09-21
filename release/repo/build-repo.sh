@@ -33,8 +33,8 @@
 #                       optional package whose build fails keeps its last good
 #                       build from there instead of aborting the whole set (with
 #                       no earlier build it is left out; a required one aborts)
-#   RYOKU_REPO_SKIP_EXTERNAL  1 = do not rebuild optional packages that follow an
-#                       upstream (no RYOKU_PKGVER); carry them over untouched
+#   RYOKU_REPO_ONLY     space-separated package names: build just these and carry
+#                       every other package over from the carry dir untouched
 #   RYOKU_PACKAGES_DIR  PKGBUILD parent dir   (default: <repo>/release/packages)
 set -euo pipefail
 
@@ -48,7 +48,7 @@ REPO_ARCH=${RYOKU_REPO_ARCH:-x86_64}
 PACKAGES_DIR=${RYOKU_PACKAGES_DIR:-$RELEASE_DIR/packages}
 UNSIGNED=${RYOKU_REPO_UNSIGNED:-0}
 CARRY_DIR=${RYOKU_REPO_CARRY_DIR:-}
-SKIP_EXTERNAL=${RYOKU_REPO_SKIP_EXTERNAL:-0}
+ONLY=" ${RYOKU_REPO_ONLY:-} "
 
 ARCH_DIR=$OUT_DIR/$REPO_ARCH
 DB_PATH=$ARCH_DIR/$REPO_NAME.db.tar.gz
@@ -106,9 +106,8 @@ if [[ $UNSIGNED != 1 ]]; then sign_args=(--sign --key "$KEY_ID"); fi
 # and with a CARRY_DIR it may fall back on its last good build when it fails (an
 # upstream-tracking package whose HEAD broke, a Hyprland plugin before upstream
 # pins the new compositor); an unsigned build with nothing to fall back on leaves
-# it out rather than lose the whole install. optional packages that also follow an upstream (no
-# RYOKU_PKGVER) can be skipped outright, which is what a rebuild for changed
-# system libraries wants: only the ABI-coupled packages need it.
+# it out rather than lose the whole install. RYOKU_REPO_ONLY narrows a build to
+# the packages that need it (a new upstream release, changed system libraries).
 required=" ryoku-desktop $(grep -oE '"[a-z0-9-]+=\$pkgver"' "$PACKAGES_DIR/ryoku-desktop/PKGBUILD" 2>/dev/null \
   | sed -E 's/^"|=.*$//g' | tr '\n' ' ') "
 
@@ -127,9 +126,7 @@ for pkgbuild in "${pkgbuilds[@]}"; do
   name=$(basename "$pkgdir")
   optional=1
   [[ $required == *" $name "* ]] && optional=0
-  external=0
-  grep -q RYOKU_PKGVER "$pkgbuild" || external=1
-  if (( optional && external && SKIP_EXTERNAL )) && carry_over "$name"; then
+  if [[ $ONLY != "  " && $ONLY != *" $name "* ]] && carry_over "$name"; then
     continue
   fi
   log "Building $name"
