@@ -58,7 +58,9 @@ a bubbletea TUI sharing the ISO installer's visual language:
    (`SigLevel = Never`: you built the packages yourself, there is no key) →
    conflict removal → desktop packages → GPU drivers → SDDM/qylock/network wiring →
    `ryoku materialize` + seeds (wallpapers, brand, keyboard layout salvaged
-   from the old setup) → AUR extras → `ryoku doctor` → verify.
+   from the old setup) → AUR extras → standard extras (`chromium`, the CLI tools
+   the shell config uses, the OCR, QR, capture, and VM helpers, and `markdown-writer`
+   from its latest GitHub release; all best-effort) → `ryoku doctor` → verify.
 
 Afterwards the machine is a normal Ryoku box: `ryoku doctor` heals it, and
 `ryoku update` pulls the fork's checkout, rebuilds the local `[ryoku]` repo from

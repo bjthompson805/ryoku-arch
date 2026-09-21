@@ -79,6 +79,21 @@ var sessionPkgs = []string{
 	"rust",
 }
 
+// the rest of the ISO's user-facing base set (system/packages/base.packages) that
+// ryoku-desktop does not depend on: the browser, the shell tools the fish config
+// reaches for, and what the optional desktop features (OCR, QR, night light,
+// screen capture, RGB sync, VMs) call. Installed best-effort in their own step,
+// so a package that conflicts with something already on the box cannot abort the
+// desktop install. The boot chain (limine, plymouth, kernels, ...) is left out.
+var extraPkgs = []string{
+	"chromium",
+	"bash-completion", "bat", "btop", "eza", "fd", "fzf", "ripgrep", "zoxide", "lazygit", "github-cli",
+	"ddcutil", "openrgb", "gst-libav", "hyprsunset",
+	"tesseract", "tesseract-data-eng", "zbar", "wf-recorder", "wtype",
+	"ttf-firacode-nerd", "ttf-hack-nerd",
+	"qemu-desktop", "edk2-ovmf", "virglrenderer",
+}
+
 // the standard Ryoku extras, all best-effort here. awww (the wallpaper daemon)
 // and wallust (the palette generator) are hard ryoku-desktop depends from the
 // [ryoku] repo, so the packages step already pulled them; no AUR build is needed.
@@ -217,6 +232,7 @@ func newEngine(f *facts, p *plan, dry bool, ref, payloadOverride string) *engine
 		{"session", "Wiring the login session (SDDM, network)", stepSession},
 		{"configs", "Laying down your Ryoku configs", stepConfigs},
 		{"aur", "Building the AUR extras", stepAUR},
+		{"extras", "Installing the standard extras (chromium, CLI tools, markdown-writer)", stepExtras},
 		{"shell", "Switching your login shell to fish", stepFish},
 		{"doctor", "Converging the system (ryoku doctor)", stepDoctor},
 		{"verify", "Verifying the install", stepVerify},
@@ -1119,6 +1135,30 @@ func stepAUR(e *engine) error {
 	if len(failed) > 0 {
 		e.say("AUR packages that did not install: " + strings.Join(failed, " "))
 		e.say("re-run later with: " + helper + " -S " + strings.Join(failed, " "))
+	}
+	return nil
+}
+
+// stepExtras installs the standard extras. Everything here is best-effort: the
+// desktop already works without it, so a conflict or a failed download warns
+// and the run carries on.
+func stepExtras(e *engine) error {
+	args := append([]string{"pacman", "-S", "--needed", "--noconfirm"}, extraPkgs...)
+	if err := e.sudo(args...); err != nil {
+		// one conflicting package fails the whole transaction: retry each
+		e.say("bulk install failed, retrying one by one")
+		for _, p := range extraPkgs {
+			if err := e.sudo("pacman", "-S", "--needed", "--noconfirm", p); err != nil {
+				e.say("warning: could not install " + p + " (continuing)")
+			}
+		}
+	}
+	// markdown-writer is not packaged anywhere: the helper installs the latest
+	// GitHub release. It is run from the checkout, so it does not depend on
+	// ryoku-desktop's copy already being on PATH.
+	helper := filepath.Join(e.payload, "system/extras/ryoku-pkg-markdown-writer")
+	if err := e.cmd("", nil, "bash", helper); err != nil {
+		e.say("warning: markdown-writer did not install; run ryoku-pkg-markdown-writer later")
 	}
 	return nil
 }

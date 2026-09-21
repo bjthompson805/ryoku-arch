@@ -94,3 +94,24 @@ func TestResumeRepeatsTheSyncStepsButSkipsFinishedWork(t *testing.T) {
 		t.Errorf("backup was finished in the previous run and must be skipped, ran %d times", ran["backup"])
 	}
 }
+
+func TestExtrasStepFollowsThePackagesAndCoversTheBrowser(t *testing.T) {
+	e := newEngine(&facts{}, &plan{}, true, "main", "")
+	idx := map[string]int{}
+	for i, s := range e.steps {
+		idx[s.id] = i
+	}
+	if idx["extras"] <= idx["packages"] {
+		t.Errorf("extras (%d) must run after packages (%d): it drives the installed helper set", idx["extras"], idx["packages"])
+	}
+	seen := map[string]bool{}
+	for _, p := range extraPkgs {
+		if seen[p] {
+			t.Errorf("%s is listed twice in extraPkgs", p)
+		}
+		seen[p] = true
+	}
+	if !seen["chromium"] {
+		t.Error("chromium is part of the ISO's base set and must be installed")
+	}
+}

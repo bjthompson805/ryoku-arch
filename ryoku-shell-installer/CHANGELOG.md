@@ -4,6 +4,14 @@
 
 ### Added
 
+- **A standard-extras step installs what the ISO ships but the desktop does not
+  depend on.** `chromium`, the CLI tools the fish config reaches for (`eza`, `bat`,
+  `zoxide`, `fzf`, `ripgrep`, and friends), the helpers behind the optional
+  features (`tesseract`, `zbar`, `wf-recorder`, `wtype`, `hyprsunset`, `openrgb`,
+  `ddcutil`, `qemu-desktop` with its firmware), and the Nerd fonts, plus
+  `markdown-writer` through `system/extras/ryoku-pkg-markdown-writer`. Best-effort
+  and separate from the desktop install, so a conflict with something already on the
+  box warns instead of aborting (`stepExtras`, `extraPkgs`).
 - **A retry picks up fixes.** The `tools` and `payload` steps repeat on a resumed
   run (they are idempotent), so re-running the installer after a failure updates
   the checkout and the build toolchain instead of rebuilding the old ones. The
