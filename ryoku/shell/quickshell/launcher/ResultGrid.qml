@@ -11,7 +11,8 @@ Flickable {
     id: grid
 
     property real s: 1
-    // entries: flat [{ id, title, icon, execute }] sorted by title.
+    // entries: flat provider rows [{ id, title, icon, actions: [{ execute }] }]
+    // sorted by title; the first action is the launch.
     property var entries: []
     property int selectedIndex: 0
 
@@ -62,15 +63,12 @@ Flickable {
     onVisibleChanged: if (visible) { selectedIndex = 0; contentY = 0; }
 
     function activate() {
-        var e = grid.entries[grid.selectedIndex];
-        if (e && e.execute)
-            e.execute();
-        grid.activated();
+        launch(grid.entries[grid.selectedIndex]);
     }
 
     function launch(entry) {
-        if (entry && entry.execute)
-            entry.execute();
+        if (entry && entry.actions && entry.actions.length > 0 && entry.actions[0].execute)
+            entry.actions[0].execute();
         grid.activated();
     }
 
