@@ -116,8 +116,8 @@ Every commit passes the hooks in `.githooks/`; never use `--no-verify`.
   no filler comment lines.
 - `pre-push`: shellcheck when installed.
 
-One logical change per commit. Update the matching `CHANGELOG.md` in the area you
-touched, and keep the change documented where future readers will look.
+Update the matching `CHANGELOG.md` in the area you touched, and keep the change
+documented where future readers will look.
 
 ## Research
 

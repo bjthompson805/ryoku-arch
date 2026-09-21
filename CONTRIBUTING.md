@@ -85,7 +85,6 @@ Every commit passes the hooks in `.githooks/`. Never use `--no-verify`.
   `global`, `installation`, `system`, `ryoku`, `docs`, `test`, `tooling`,
   `release`. Shell changes use `[global]`.
 - No em-dash anywhere in text. No authorship or attribution trailers. No filler.
-- One logical change per commit.
 - Update the matching `CHANGELOG.md` in the area you touched.
 
 ## Pull requests

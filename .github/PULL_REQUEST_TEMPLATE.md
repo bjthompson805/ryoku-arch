@@ -14,7 +14,7 @@ Describe how you verified this on a running system, not only that it parses.
 
 ## Checklist
 
-- [ ] One logical change, with a clear `[area] scope: summary` commit subject.
+- [ ] A clear `[area] scope: summary` commit subject.
 - [ ] Matching `CHANGELOG.md` updated in the area I touched.
 - [ ] The git hooks pass locally; I did not use `--no-verify`.
 - [ ] Lua parses (`luac -p`), shell scripts pass `bash -n`, and QML passes
