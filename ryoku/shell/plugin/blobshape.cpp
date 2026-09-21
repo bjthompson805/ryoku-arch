@@ -89,14 +89,20 @@ void BlobShape::geometryChange(const QRectF& newGeometry, const QRectF& oldGeome
     QQuickItem::geometryChange(newGeometry, oldGeometry);
     updateCenteredDeformMatrix();
     if (m_group) {
-        // accumulate sub-pixel drift, else slow moves desync the shader
+        // accumulate sub-pixel drift, else slow moves and slow size eases
+        // desync the shader: the tail of an ease changes by under half a pixel
+        // per frame, so dropping it leaves this shape's own quad stale while the
+        // frame, re-polished by a neighbour, reads the true size (a doubled edge).
         m_pendingDx += static_cast<float>(newGeometry.x() - oldGeometry.x());
         m_pendingDy += static_cast<float>(newGeometry.y() - oldGeometry.y());
-        const auto dw = std::abs(newGeometry.width() - oldGeometry.width());
-        const auto dh = std::abs(newGeometry.height() - oldGeometry.height());
-        if (std::abs(m_pendingDx) > 0.5f || std::abs(m_pendingDy) > 0.5f || dw > 0.5 || dh > 0.5) {
+        m_pendingDw += static_cast<float>(newGeometry.width() - oldGeometry.width());
+        m_pendingDh += static_cast<float>(newGeometry.height() - oldGeometry.height());
+        if (std::abs(m_pendingDx) > 0.5f || std::abs(m_pendingDy) > 0.5f || std::abs(m_pendingDw) > 0.5f ||
+            std::abs(m_pendingDh) > 0.5f) {
             m_pendingDx = 0;
             m_pendingDy = 0;
+            m_pendingDw = 0;
+            m_pendingDh = 0;
             m_group->markShapeDirty(this);
         }
     }

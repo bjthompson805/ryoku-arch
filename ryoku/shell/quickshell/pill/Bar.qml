@@ -476,7 +476,7 @@ Item {
             // left capsule: seal, now-playing, title.
             Rectangle {
                 id: nLeftCap
-                readonly property real titleMax: Math.max(0, nacreFace.sideMax - 2 * nacreFace.capPad - nSeal.width - nLeftRow.spacing - (nMediaMod.visible ? nMediaMod.width + nLeftRow.spacing : 0))
+                readonly property real titleMax: Math.max(0, nacreFace.sideMax - 2 * nacreFace.capPad - nSeal.width - nLeftRow.spacing - (nMediaReveal.visible ? nMediaReveal.width + nLeftRow.spacing : 0))
                 anchors.left: parent.left
                 anchors.leftMargin: 0
                 anchors.top: parent.top
@@ -486,8 +486,10 @@ Item {
                 bottomLeftRadius: 0
                 bottomRightRadius: height / 3
                 color: "transparent"
+                // no width Behavior of its own: the title and the now-playing
+                // reveal already ease their widths, and a second ease here made
+                // the frame lobe chase them and trail the text.
                 width: nLeftRow.implicitWidth + 2 * nacreFace.capPad
-                Behavior on width { NumberAnimation { duration: Motion.spatial; easing.type: Easing.OutCubic } }
 
                 Row {
                     id: nLeftRow
@@ -504,17 +506,23 @@ Item {
                         onTapped: Spawn.spawn(["ryoku-shell", "launcher"])
                         BrandMark { size: 11 * bar.s }
                     }
-                    BarModule {
-                        id: nMediaMod
+                    BarReveal {
+                        id: nMediaReveal
                         anchors.verticalCenter: parent.verticalCenter
                         s: bar.s
-                        height: bar.moduleSpan
-                        padX: 8 * bar.s
-                        visible: Config.barShowMedia && Media.present
-                        onTapped: nMedia.toggle()
-                        onWheeled: (steps) => bar.nudgeVolume(steps)
-                        onHoveredChanged: bar.hoverPopoutRequested("media", nMediaMod.mapToItem(null, nMediaMod.width / 2, nMediaMod.height / 2).x, nMediaMod.hovered)
-                        BarMedia { id: nMedia; s: bar.s; vertical: true }
+                        dropWhenClosed: true
+                        shown: Config.barShowMedia && Media.present
+
+                        BarModule {
+                            id: nMediaMod
+                            s: bar.s
+                            height: bar.moduleSpan
+                            padX: 8 * bar.s
+                            onTapped: nMedia.toggle()
+                            onWheeled: (steps) => bar.nudgeVolume(steps)
+                            onHoveredChanged: bar.hoverPopoutRequested("media", nMediaMod.mapToItem(null, nMediaMod.width / 2, nMediaMod.height / 2).x, nMediaMod.hovered)
+                            BarMedia { id: nMedia; s: bar.s; vertical: true }
+                        }
                     }
                     BarTitle {
                         anchors.verticalCenter: parent.verticalCenter

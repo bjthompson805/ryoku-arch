@@ -8,7 +8,7 @@ for finer detail.
 ### Added
 - Update-delivery guard: `bin/ryoku-dev-verify-delivery` fails a commit when a
   `ryoku/apps` config reaches no user (shipped by no package, installer, or
-  deploy path) and reports how far `main` lags `unstable-dev`. Wired into
+  deploy path). Wired into
   pre-commit, post-commit, and a Delivery check workflow. `docs/updates.md`
   documents the update, materialize, and doctor flow and the delivery contract.
 - Fresh repository layout: `installation/`, `system/`, `ryoku/`, each with a README
