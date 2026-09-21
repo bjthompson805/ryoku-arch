@@ -84,7 +84,7 @@ Every commit passes the hooks in `.githooks/`. Never use `--no-verify`.
 - Subjects are `[area] scope: imperative summary`, where area is one of
   `global`, `installation`, `system`, `ryoku`, `docs`, `test`, `tooling`,
   `release`. Shell changes use `[global]`.
-- No em-dash anywhere in text. No authorship or attribution trailers. No filler.
+- No em-dash anywhere in text. No filler.
 - Update the matching `CHANGELOG.md` in the area you touched.
 
 ## Pull requests

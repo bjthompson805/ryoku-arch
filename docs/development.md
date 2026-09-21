@@ -111,7 +111,7 @@ Every commit passes the hooks in `.githooks/`; never use `--no-verify`.
 
 - `commit-msg`: subject is `[area] scope: summary` with area in
   `global | installation | system | ryoku | docs | test | tooling | release`
-  (shell uses `[global]`). No em-dash, no authorship/attribution trailer.
+  (shell uses `[global]`). No em-dash.
 - `pre-commit`: no em-dash in text files, valid bash syntax on staged scripts,
   no filler comment lines.
 - `pre-push`: shellcheck when installed.

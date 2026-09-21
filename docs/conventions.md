@@ -83,6 +83,5 @@ literal and lowercase-hyphenated for scripts.
 Run the hooks; never use `--no-verify`. Subjects are `[area] scope: imperative
 summary`, where area is one of
 `global | installation | system | ryoku | docs | test | tooling | release`
-(shell changes use `[global]`). No em-dash, no authorship or attribution
-trailer, no filler. Details in
+(shell changes use `[global]`). No em-dash, no filler. Details in
 `docs/development.md`.
