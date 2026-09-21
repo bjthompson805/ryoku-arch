@@ -18,6 +18,12 @@
   stops the watcher before swapping that tree, then starts the daemon against
   the new configuration.
 
+### Changed
+- **The Lid Sleep quick toggle is on the sidebar by default.** It no longer waits
+  behind the pencil edit mode; a fresh `shell.json` seeds it after Tablet Mode,
+  and the Hub's Shell page reset baseline matches (`Singletons/Config.qml`,
+  `ShellSettingsPage.qml`).
+
 ### Added
 - **Keep Awake and Game Mode tiles have an info button that explains the mode
   and lets you choose what it does.** The small "i" at the right of each tile in

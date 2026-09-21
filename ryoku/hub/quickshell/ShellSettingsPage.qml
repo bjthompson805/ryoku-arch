@@ -99,7 +99,7 @@ Item {
         "fontFamily": "JetBrainsMono Nerd Font", "fontScale": 1.3,
         "sidebarLeftEnabled": true, "sidebarLeftTab": "profile", "sidebarRightEnabled": true, "sidebarLeftPanes": ["stash"], "sidebarRightPanes": ["notifications", "calendar", "media", "weather", "recording"],
         "sidebarClickless": true, "sidebarWidth": 340, "sidebarCornerSize": 34,
-        "sidebarToggles": ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"],
+        "sidebarToggles": ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet", "lidsleep"],
         "enabled": true, "bars": 64, "height": 0.42, "thickness": 0.58,
         "bloom": 0.6, "reflection": 0.1, "idleWave": true,
         "style": "bars", "shape": "rounded", "position": "bottom", "mirror": false,
@@ -164,7 +164,7 @@ Item {
         property bool sidebarClickless: true
         property real sidebarWidth: 340
         property real sidebarCornerSize: 34
-        property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"]
+        property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet", "lidsleep"]
         property bool enabled: true
         property int bars: 64
         property real height: 0.42
@@ -392,7 +392,7 @@ Item {
             property bool sidebarClickless: true
             property real sidebarWidth: 340
             property real sidebarCornerSize: 34
-            property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"]
+            property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet", "lidsleep"]
         }
     }
 

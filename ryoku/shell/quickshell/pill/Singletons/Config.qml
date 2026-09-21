@@ -209,7 +209,7 @@ Singleton {
             property bool sidebarClickless: true
             property real sidebarWidth: 340
             property real sidebarCornerSize: 34
-            property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet"]
+            property var sidebarToggles: ["wifi", "bluetooth", "mic", "webcam", "dnd", "night", "airplane", "tablet", "lidsleep"]
             property real roundness: 10
         }
     }
