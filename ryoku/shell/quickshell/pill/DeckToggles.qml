@@ -61,7 +61,7 @@ Item {
             case "wifi": return root.deck.wifiOn;
             case "bluetooth": return root.deck.btOn;
             case "mic": return !root.deck.micMuted;
-            case "dnd": return Flags.dnd;
+            case "dnd": return Flags.dndActive;
             case "night": return root.deck.nightOn;
             case "airplane": return root.deck.airplaneOn;
             case "tablet": return root.deck.tabletOn;
@@ -75,7 +75,7 @@ Item {
             case "wifi": root.deck.toggleWifi(); break;
             case "bluetooth": root.deck.toggleBt(); break;
             case "mic": root.deck.toggleMic(); break;
-            case "dnd": Flags.dnd = !Flags.dnd; break;
+            case "dnd": Flags.dnd = !Flags.dndActive; break;
             case "night": root.deck.toggleNight(); break;
             case "airplane": root.deck.toggleAirplane(); break;
             case "tablet": root.deck.toggleTablet(); break;

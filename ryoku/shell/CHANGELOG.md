@@ -12,6 +12,17 @@
   the new configuration.
 
 ### Added
+- **Keep Awake and Game Mode tiles have an info button that explains the mode
+  and lets you choose what it does.** The small "i" at the right of each tile in
+  the System sidebar unfolds a details card: a plain description of the mode,
+  then a switch for each part you might not want. Keep Awake: keep the screen on
+  (off still blocks sleep but lets the screen dim, lock, and turn off), turn off
+  when the battery is low, and turn off automatically after 1, 2, 4, or 8 hours.
+  Game Mode: turn off blur, shadows, and animations, allow tearing and variable
+  refresh, turn off Wi-Fi power saving, and turn on Do Not Disturb. Defaults keep
+  today's behavior, and a change applies at once while the mode is running
+  (`DeckModeInfo.qml`, `ModeOption.qml`, `ModeChoice.qml`, `KeepAwakeGuard.qml`,
+  `Singletons/Flags.qml`).
 - **The pill bar's AI-agent module now has a Codex tab.** Selecting Claude or
   Codex switches the bar percentage and its popout together; Codex reads its
   subscription windows through the local app-server and summarizes native
@@ -369,6 +380,10 @@
   box and an installed box preserve the same set.
 
 ### Changed
+- **Game Mode's Do Not Disturb no longer rewrites your own DND setting.** It is
+  now derived (`Flags.dndActive`: your DND, or Game Mode with its DND option on),
+  so leaving Game Mode has nothing to restore. The bar icon, the DND tile, and
+  notification suppression all read the derived value.
 - **The desktop calendar grew up: edit, time ranges, and navigation that comes
   home.** Clicking an event now reopens it in the add field for editing (Enter
   replaces it, Esc cancels), a leading `9:30-10:30` range is parsed into start

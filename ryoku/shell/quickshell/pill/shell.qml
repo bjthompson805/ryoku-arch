@@ -106,7 +106,7 @@ ShellRoot {
     Binding {
         target: Notifs
         property: "dnd"
-        value: Flags.dnd
+        value: Flags.dndActive
     }
 
     // pill weather units from the config: "auto" follows the locale. WeatherCore
@@ -122,7 +122,7 @@ ShellRoot {
 
     PanelWindow {
         id: inhibitWin
-        visible: Flags.keepAwake
+        visible: Flags.keepAwake && Flags.keepAwakeScreen
         implicitWidth: 1
         implicitHeight: 1
         color: "transparent"
@@ -131,7 +131,7 @@ ShellRoot {
         WlrLayershell.namespace: "pill-inhibit"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         anchors { top: true; left: true }
-        IdleInhibitor { window: inhibitWin; enabled: Flags.keepAwake }
+        IdleInhibitor { window: inhibitWin; enabled: Flags.keepAwake && Flags.keepAwakeScreen }
     }
 
     // keyboard-return bounce. the pill overlay never unmaps, and dropping an
@@ -179,7 +179,22 @@ ShellRoot {
         function onKeepAwakeChanged() {
             root.syncCaffeine(Flags.keepAwake ? "start" : "stop");
         }
+        function onKeepAwakeScreenChanged() {
+            if (Flags.keepAwake)
+                caffeineOptionSync.restart();
+        }
     }
+
+    // the scripts read their options from flags.json, so a re-apply waits out
+    // Flags' atomic write instead of racing it and reading the value it is
+    // replacing. the restart also folds a burst of taps into one re-apply.
+    Timer {
+        id: caffeineOptionSync
+        interval: 250
+        onTriggered: root.syncCaffeine("start")
+    }
+
+    KeepAwakeGuard {}
 
     // game mode's compositor + WiFi tuning lives outside the shell, same
     // shape as Keep-Awake. ryoku-cmd-game-mode drives hyprctl and
@@ -197,6 +212,17 @@ ShellRoot {
         function onGameModeChanged() {
             root.syncGameMode(Flags.gameMode ? "start" : "stop");
         }
+        function onGameModeVisualsChanged() { gameOptionSync.restart(); }
+        function onGameModeTearingChanged() { gameOptionSync.restart(); }
+        function onGameModeWifiChanged() { gameOptionSync.restart(); }
+    }
+
+    // same wait-for-the-write as caffeineOptionSync. reapply is a no-op unless
+    // Game Mode is on; the DND option is applied by Flags itself.
+    Timer {
+        id: gameOptionSync
+        interval: 250
+        onTriggered: root.syncGameMode("reapply")
     }
 
     // Lid Sleep: on (default) leaves logind's own suspend-on-lid-close

@@ -257,10 +257,10 @@ Grid {
 
         MaterialIcon {
             anchors.centerIn: parent
-            text: Flags.dnd ? "notifications_off"
+            text: Flags.dndActive ? "notifications_off"
                 : (Notifs.unread > 0 ? "notifications_unread" : "notifications")
-            fill: Notifs.unread > 0 && !Flags.dnd ? 1 : 0
-            color: Flags.dnd ? Theme.vermLit
+            fill: Notifs.unread > 0 && !Flags.dndActive ? 1 : 0
+            color: Flags.dndActive ? Theme.vermLit
                 : (Notifs.unread > 0 ? Theme.cream : Theme.subtle)
             font.pixelSize: status.glyphPx
         }

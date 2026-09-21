@@ -12,9 +12,12 @@ import "Singletons"
  * profile name) as wide stat-tiles carrying an inline switch, then the
  * momentary quick-toggles (wifi, bluetooth, mic, do-not-disturb, night,
  * airplane, tablet, webcam) as a collapsible, reorderable tile row
- * (DeckToggles.qml) beneath. this file owns most toggles' live state/probes
- * (webcam is the exception -- Singletons/Webcam.qml owns it instead, since
- * the bar's bridge indicator needs it live even while the deck is closed);
+ * (DeckToggles.qml) beneath. each session tile carries a small info button that
+ * unfolds a details card (DeckModeInfo.qml) between the tiles and that row:
+ * what the mode does and the switches for its optional parts. this file owns
+ * most toggles' live state/probes (webcam is the exception --
+ * Singletons/Webcam.qml owns it instead, since the bar's bridge indicator needs
+ * it live even while the deck is closed);
  * DeckToggles owns the catalog, layout and edit-mode UI. polling here (wifi
  * / mic / night / airplane / tablet probes) is gated on `active` so it only
  * runs while the deck is open. content is column-wide; the deck renders the
@@ -29,6 +32,10 @@ Item {
     implicitHeight: content.implicitHeight
 
     readonly property string scripts: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/"
+
+    // which session tile's details card is unfolded ("" | "awake" | "game").
+    // session-only: it folds shut whenever the sidebar closes.
+    property string infoMode: ""
 
     // ── keep-awake elapsed ────────────────────────────────────────────────
     property int awakeElapsed: 0
@@ -140,7 +147,12 @@ Item {
         airplaneProc.running = true;
         tabletProc.running = true;
     }
-    onActiveChanged: if (active) repoll()
+    onActiveChanged: {
+        if (active)
+            repoll();
+        else
+            root.infoMode = "";
+    }
     Component.onCompleted: repoll()
     Timer {
         interval: 4000
@@ -150,23 +162,29 @@ Item {
     }
 
     // ── wide session stat-tile: glyph · label · live value. lights the whole
-    // tile vermilion-tinted when on and the whole face taps to toggle, matching
-    // the quick-toggles below (no separate switch; the tint is the state).
+    // tile vermilion-tinted when on and the face taps to toggle, matching the
+    // quick-toggles below (no separate switch; the tint is the state). the info
+    // button at the right edge is a sibling of the face, not a child, so its tap
+    // never also reaches the toggle.
     component StatTile: Rectangle {
         id: st
         property string glyph: ""
         property string label: ""
         property string value: ""
         property bool on: false
+        property bool infoOpen: false
         signal toggled()
+        signal infoRequested()
+
+        readonly property bool hot: stHov.hovered || infoHov.hovered
 
         height: 46 * root.s
         radius: Theme.radius
         color: st.on ? Qt.alpha(Theme.brand, 0.16)
-            : (stHov.hovered ? Theme.frameBg : Theme.tileBg)
+            : (st.hot ? Theme.frameBg : Theme.tileBg)
         border.width: 1
         border.color: st.on ? Theme.brand
-            : (stHov.hovered ? Theme.frameBorder : Theme.border)
+            : (st.hot ? Theme.frameBorder : Theme.border)
         Behavior on color { ColorAnimation { duration: Motion.fast } }
         Behavior on border.color { ColorAnimation { duration: Motion.fast } }
 
@@ -185,8 +203,8 @@ Item {
         Column {
             anchors.left: stIcon.right
             anchors.leftMargin: 10 * root.s
-            anchors.right: parent.right
-            anchors.rightMargin: 10 * root.s
+            anchors.right: infoBtn.left
+            anchors.rightMargin: 4 * root.s
             anchors.verticalCenter: parent.verticalCenter
             spacing: 1 * root.s
 
@@ -213,8 +231,37 @@ Item {
             }
         }
 
-        HoverHandler { id: stHov; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: st.toggled() }
+        Item {
+            id: face
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.right: infoBtn.left
+
+            HoverHandler { id: stHov; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: st.toggled() }
+        }
+
+        Item {
+            id: infoBtn
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 30 * root.s
+
+            GlyphIcon {
+                anchors.centerIn: parent
+                width: 13 * root.s
+                height: 13 * root.s
+                name: "info"
+                color: st.infoOpen ? Theme.brand : (infoHov.hovered ? Theme.cream : Theme.iconDim)
+                stroke: 1.7
+                Behavior on color { ColorAnimation { duration: Motion.fast } }
+            }
+
+            HoverHandler { id: infoHov; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: st.infoRequested() }
+        }
     }
 
     Column {
@@ -236,7 +283,9 @@ Item {
                 label: "Keep Awake"
                 value: Flags.keepAwake ? root.fmtAwake(root.awakeElapsed) : "OFF"
                 on: Flags.keepAwake
+                infoOpen: root.infoMode === "awake"
                 onToggled: Flags.keepAwake = !Flags.keepAwake
+                onInfoRequested: root.infoMode = root.infoMode === "awake" ? "" : "awake"
             }
             StatTile {
                 width: parent.tileW
@@ -244,8 +293,17 @@ Item {
                 label: "Game Mode"
                 value: Flags.gameMode ? "ON" : "OFF"
                 on: Flags.gameMode
+                infoOpen: root.infoMode === "game"
                 onToggled: Flags.gameMode = !Flags.gameMode
+                onInfoRequested: root.infoMode = root.infoMode === "game" ? "" : "game"
             }
+        }
+
+        DeckModeInfo {
+            width: parent.width
+            s: root.s
+            mode: root.infoMode
+            onCloseRequested: root.infoMode = ""
         }
 
         // quick-toggles: collapsible, reorderable row (wifi/bluetooth/mic/

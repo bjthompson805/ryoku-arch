@@ -9,13 +9,24 @@ import Quickshell.Io
 // up on the next file event, and it survives a daemon restart.
 // keepAwakeSince = epoch ms Keep-Awake last turned on (0 when off), so every
 // surface reads the same "how long" elapsed.
+// the keepAwake* / gameMode* option flags are the deck's mode panels
+// (DeckModeInfo.qml). ryoku-cmd-caffeine and ryoku-cmd-game-mode read them
+// straight from this file, so a launcher toggle or a login re-apply honors them
+// too; the defaults here are the full, original behavior.
 Singleton {
     id: root
 
     property alias dnd: adapter.dnd
     property alias keepAwake: adapter.keepAwake
     property alias keepAwakeSince: adapter.keepAwakeSince
+    property alias keepAwakeScreen: adapter.keepAwakeScreen
+    property alias keepAwakeHours: adapter.keepAwakeHours
+    property alias keepAwakeLowBattery: adapter.keepAwakeLowBattery
     property alias gameMode: adapter.gameMode
+    property alias gameModeVisuals: adapter.gameModeVisuals
+    property alias gameModeTearing: adapter.gameModeTearing
+    property alias gameModeWifi: adapter.gameModeWifi
+    property alias gameModeDnd: adapter.gameModeDnd
     property alias lidSleep: adapter.lidSleep
 
     // stamp when Keep-Awake turns on, clear when off, so no toggle site has
@@ -28,17 +39,11 @@ Singleton {
             adapter.keepAwakeSince = 0;
     }
 
-    // game mode pulls DND on so notifs can't break a fullscreen game's
-    // tearing / direct scanout, and restores the prior DND on exit, so
-    // users who keep DND on independently of gaming aren't clobbered.
-    onGameModeChanged: {
-        if (gameMode) {
-            adapter.gameDndPrev = dnd;
-            dnd = true;
-        } else {
-            dnd = adapter.gameDndPrev;
-        }
-    }
+    // Game Mode's Do Not Disturb is derived, never written into `dnd`: that stays
+    // the user's own setting, so leaving Game Mode (or dropping the option
+    // mid-game) has nothing to restore. read this, not `dnd`, for "are
+    // notifications held back".
+    readonly property bool dndActive: dnd || (gameMode && gameModeDnd)
 
     FileView {
         id: file
@@ -58,8 +63,14 @@ Singleton {
             property bool dnd: false
             property bool keepAwake: false
             property real keepAwakeSince: 0
+            property bool keepAwakeScreen: true
+            property real keepAwakeHours: 0
+            property bool keepAwakeLowBattery: false
             property bool gameMode: false
-            property bool gameDndPrev: false
+            property bool gameModeVisuals: true
+            property bool gameModeTearing: true
+            property bool gameModeWifi: true
+            property bool gameModeDnd: true
             // true = logind's own default (lid close suspends). false = the
             // Lid Sleep quick-toggle's override: ryoku-cmd-lid-sleep blocks
             // logind's handle-lid-switch and just dpms the screen off/on
