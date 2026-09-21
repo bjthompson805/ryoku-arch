@@ -11,6 +11,10 @@
   delivers them (`ryowalls/quickshell/logo.svg`, `ryovm/quickshell/logo.svg`).
 
 ### Fixed
+- `ryovm/`: **a newly created VM now selects Ryospice, not Window.** A fresh conf
+  has no `display=` yet, and `ryovm list`/`get` reported that as `gtk`, so the
+  launch selector showed Window until the first launch stamped a mode. An unset
+  display now reports `spice`, which the app reads as Ryospice (`bin/ryovm`).
 - `ryovm/`: **instant machines now hand over a shell only once the tools are
   actually there.** The connect flow waited for `sshd` to answer, but a cloud
   image installs its toolset in cloud-init's *final* stage, which runs 20s

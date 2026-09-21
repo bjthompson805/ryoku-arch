@@ -193,7 +193,7 @@ cmd_list() {
 		local guest os disp viewer cores ram disk used running ssh spice disposable sealed tpm sb uefi
 		guest="$(conf_get "$conf" guest_os)"
 		os="$(os_slug "$conf")"
-		disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="gtk"
+		disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="spice"
 		viewer="$(conf_get "$conf" ryovm_viewer)"
 		cores="$(conf_get "$conf" cpu_cores)"
 		ram="$(conf_get "$conf" ram)"
@@ -230,7 +230,7 @@ cmd_get() {
 	local guest os disp viewer cores ram disk used running snaps="[]" disposable sealed tpm sb uefi
 	guest="$(conf_get "$conf" guest_os)"
 	os="$(os_slug "$conf")"
-	disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="gtk"
+	disp="$(conf_get "$conf" display)"; [ -z "$disp" ] && disp="spice"
 	viewer="$(conf_get "$conf" ryovm_viewer)"
 	cores="$(conf_get "$conf" cpu_cores)"
 	ram="$(conf_get "$conf" ram)"
