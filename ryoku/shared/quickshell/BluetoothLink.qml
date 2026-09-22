@@ -155,6 +155,15 @@ Singleton {
             scanTimer.stop();
     }
 
+    // start a scan, or restart the 25s window if one is already running. for
+    // refresh buttons: unlike toggleScan, a second press never cancels it.
+    function startScan() {
+        if (!root.adapter || root.adapter.enabled !== true)
+            return;
+        root.adapter.discovering = true;
+        scanTimer.restart();
+    }
+
     // a surface losing visibility (tab switch, popout close) calls this so
     // BlueZ isn't left chewing the radio in the background.
     function stopScan() {

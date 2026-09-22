@@ -89,13 +89,16 @@ Item {
                 font.family: Theme.font
                 font.pixelSize: 9.5 * root.s
                 font.weight: Font.DemiBold
+            }
 
-                MouseArea {
-                    anchors.fill: parent
-                    anchors.margins: -6 * root.s
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: BluetoothLink.toggleScan()
-                }
+            // compact hosts (the popout) pin their own refresh button in the
+            // header they own, so only the standalone drill-in draws one here.
+            RefreshButton {
+                s: root.s
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !root.compact && (BluetoothLink.adapter ? BluetoothLink.adapter.enabled === true : false)
+                spinning: BluetoothLink.discovering
+                onClicked: BluetoothLink.startScan()
             }
 
             LinkToggle {

@@ -356,37 +356,13 @@ Item {
                 }
             }
 
-            Item {
+            RefreshButton {
                 id: refreshBtn
+                s: root.s
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: 18 * root.s
-                height: 18 * root.s
-
-                MaterialIcon {
-                    id: refreshGlyph
-                    anchors.centerIn: parent
-                    text: "refresh"
-                    fill: 1
-                    color: refreshArea.containsMouse ? Theme.cream : Theme.subtle
-                    font.pixelSize: 14 * root.s
-
-                    RotationAnimation on rotation {
-                        running: AgentUsage.refreshing
-                        from: 0
-                        to: 360
-                        duration: 700
-                        loops: Animation.Infinite
-                    }
-                }
-
-                MouseArea {
-                    id: refreshArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: AgentUsage.refreshNow()
-                }
+                spinning: AgentUsage.refreshing
+                onClicked: AgentUsage.refreshNow()
             }
         }
 
