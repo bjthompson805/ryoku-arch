@@ -9,13 +9,20 @@
 # number in range before it reaches the rule, and the battery names written
 # there are read from sysfs here, never passed in.
 #
-#   status    supported / enabled / end / min, one "key value" per line
-#   on | off  enable or disable the limit
-#   set N     make N% the limit (50-100) and restart upower to load it
+#   status              supported / enabled / end / min / full_when_off,
+#                       one "key value" per line
+#   on | off            enable or disable the limit
+#   set N               make N% the limit (50-100) and restart upower to load it
+#   full-when-off on|off  opt in or out of charging to full while powered off
+#   release             if opted in, lift the firmware threshold to 100%; run
+#                       by the systemd-shutdown hook at poweroff
 set -u
 
 sysfs="${RYOKU_POWER_SYSFS:-/sys/class/power_supply}"
 rule="${RYOKU_CHARGE_LIMIT_RULE:-/etc/udev/rules.d/61-ryoku-charge-limit.rules}"
+# on the root filesystem, not /var: the shutdown hook reads it after every
+# other mount is gone.
+full_flag="${RYOKU_CHARGE_LIMIT_FULL_FLAG:-/etc/ryoku/charge-limit-full-when-off}"
 min_limit=50
 # start sits this far under end, so hardware that honours both resumes charging
 # a few points below the limit instead of topping up every percent. hardware
@@ -23,7 +30,7 @@ min_limit=50
 hysteresis=5
 
 usage() {
-  echo "usage: ryoku-charge-limit [status | on | off | set <$min_limit-100>]" >&2
+  echo "usage: ryoku-charge-limit [status | on | off | set <$min_limit-100> | full-when-off <on|off> | release]" >&2
 }
 
 # laptop batteries: type Battery, minus peripheral (scope Device) cells. the
@@ -58,8 +65,13 @@ case "${1:-}" in
       enabled="$(prop "$path" ChargeThresholdEnabled)"
       end="$(prop "$path" ChargeEndThreshold)"
     fi
-    printf 'supported %s\nenabled %s\nend %s\nmin %s\n' \
-      "${supported:-false}" "${enabled:-false}" "${end:-0}" "$min_limit"
+    if [[ -e $full_flag ]]; then
+      full=true
+    else
+      full=false
+    fi
+    printf 'supported %s\nenabled %s\nend %s\nmin %s\nfull_when_off %s\n' \
+      "${supported:-false}" "${enabled:-false}" "${end:-0}" "$min_limit" "$full"
     ;;
   on | off)
     path="$(upower_path)"
@@ -99,6 +111,25 @@ case "${1:-}" in
       [[ -n $(prop "$path" ChargeEndThreshold) ]] && break
       sleep 0.2
     done
+    ;;
+  full-when-off)
+    case "${2:-}" in
+      on) mkdir -p "${full_flag%/*}" && : >"$full_flag" ;;
+      off) rm -f "$full_flag" ;;
+      *) usage; exit 2 ;;
+    esac
+    ;;
+  release)
+    # straight to sysfs, around UPower: its saved setting stays on, so the next
+    # boot re-applies the limit by itself. end is raised before start is
+    # lowered, since the kernel keeps start below end.
+    [[ -e $full_flag ]] || exit 0
+    while read -r b; do
+      [[ -n $b ]] || continue
+      [[ -w $sysfs/$b/charge_control_end_threshold ]] && echo 100 >"$sysfs/$b/charge_control_end_threshold"
+      [[ -w $sysfs/$b/charge_control_start_threshold ]] && echo 0 >"$sysfs/$b/charge_control_start_threshold"
+    done < <(batteries)
+    exit 0
     ;;
   *)
     usage

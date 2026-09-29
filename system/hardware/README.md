@@ -35,6 +35,14 @@ in the machine.
     `on`/`off` need no root (UPower lets the active user toggle the limit);
     `set N` writes the `CHARGE_LIMIT` udev rule UPower reads the percentage
     from and restarts upower, so it runs as root through pkexec.
+    `full-when-off on|off` sets the opt-in flag
+    `/etc/ryoku/charge-limit-full-when-off`, and `release` lifts the firmware
+    threshold to 100% when that flag is set.
+  - `charge-limit.shutdown` A systemd-shutdown hook, installed as
+    `/usr/lib/systemd/system-shutdown/ryoku-charge-limit.shutdown`. On poweroff
+    (not reboot) it runs `ryoku-charge-limit release`, so an opted-in battery
+    charges to full while the machine is off. It writes sysfs directly and
+    leaves UPower's saved setting on, so the next boot re-applies the limit.
   - `51-ryoku-charge-limit.rules` A polkit rule that lets the active wheel user
     run exactly that helper without a password, so changing the percentage
     stays one step.

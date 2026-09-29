@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# systemd-shutdown runs every executable in /usr/lib/systemd/system-shutdown/ at
+# the very end of shutdown, with the verb as $1. only a poweroff lifts the
+# charge limit, so the battery can fill while the machine is off; a reboot
+# keeps it, since the next boot re-applies the limit within seconds anyway.
+if [[ ${1:-} == "poweroff" ]]; then
+  /usr/bin/ryoku-charge-limit release
+fi

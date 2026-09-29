@@ -42,6 +42,9 @@ Singleton {
     property bool limitEnabled: false
     property int limitEnd: 0
     property int limitMin: 50
+    // lift the limit at poweroff so the battery fills while the machine is off;
+    // the next boot re-applies it.
+    property bool limitFullWhenOff: false
 
     // a percentage change finished (saved, refused, or a prompt dismissed)
     // and limitEnd has been re-read, so an edited field can drop its draft.
@@ -116,6 +119,12 @@ Singleton {
 
     // a new percentage rewrites a udev rule and restarts upower, so it goes
     // through pkexec; 51-ryoku-charge-limit.rules lets wheel skip the password.
+    // the opt-in is a root-owned flag the shutdown hook reads, so pkexec again.
+    function setLimitFullWhenOff(on) {
+        limitFullWhenOff = on;
+        runLimit(["pkexec", "/usr/bin/ryoku-charge-limit", "full-when-off", on ? "on" : "off"]);
+    }
+
     // a change made while the prompt is still up is queued, not dropped, so the
     // field never shows a number that was never sent.
     function setLimit(percent) {
@@ -155,6 +164,7 @@ Singleton {
                 root.limitEnabled = kv.enabled === "true";
                 root.limitEnd = parseInt(kv.end) || 0;
                 root.limitMin = parseInt(kv.min) || root.limitMin;
+                root.limitFullWhenOff = kv.full_when_off === "true";
                 if (root.limitSetting && !limitCmd.running) {
                     root.limitSetting = false;
                     root.limitSettled();

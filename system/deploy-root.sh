@@ -60,7 +60,9 @@ say "installed webcam kill-switch helper and polkit rule"
 install -Dm755 "$repo/system/hardware/power/ryoku-charge-limit" /usr/bin/ryoku-charge-limit
 install -Dm644 "$repo/system/hardware/power/51-ryoku-charge-limit.rules" \
   /etc/polkit-1/rules.d/51-ryoku-charge-limit.rules
-say "installed battery charge-limit helper and polkit rule"
+install -Dm755 "$repo/system/hardware/power/charge-limit.shutdown" \
+  /usr/lib/systemd/system-shutdown/ryoku-charge-limit.shutdown
+say "installed battery charge-limit helper, polkit rule, and shutdown hook"
 
 # markdown-writer: not part of upstream's deploy-root.sh, added for this fork.
 # Fetches and installs the latest GitHub release every run, so re-running this

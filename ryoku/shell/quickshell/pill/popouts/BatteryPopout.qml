@@ -276,6 +276,32 @@ Item {
                     function onLimitSettled() { limitField.pending = NaN; }
                 }
             }
+
+            Item {
+                width: parent.width
+                height: fullToggle.height
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.right: fullToggle.left
+                    anchors.rightMargin: 10 * root.s
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Charge to full when off"
+                    elide: Text.ElideRight
+                    color: Theme.cream
+                    font.family: Theme.font
+                    font.pixelSize: 14 * limitField.sizeScale
+                    font.weight: Font.Medium
+                }
+                LinkToggle {
+                    id: fullToggle
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: root.s
+                    on: Battery.limitFullWhenOff
+                    onToggled: Battery.setLimitFullWhenOff(!Battery.limitFullWhenOff)
+                }
+            }
         }
 
         Divider {}

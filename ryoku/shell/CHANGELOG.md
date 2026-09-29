@@ -41,6 +41,12 @@
   `ryoku-charge-limit`). The percentage field is the shared `NumberField`, which
   gains a `sizeScale` for compact hosts, and the pill Theme maps the Hub token
   names it reads.
+- **The battery popout can let the battery charge to full while the laptop is
+  off.** A "Charge to full when off" switch under "Stop at" lifts the charge
+  limit when you power off (not when you reboot), and the next boot puts your
+  limit back on its own, so a full charge no longer means booting just to turn
+  the limit off (`Singletons/Battery.qml`, `popouts/BatteryPopout.qml`, backed
+  by `ryoku-charge-limit full-when-off` and its shutdown hook).
 - **Keep Awake and Game Mode tiles have an info button that explains the mode
   and lets you choose what it does.** The small "i" at the right of each tile in
   the System sidebar unfolds a details card: a plain description of the mode,

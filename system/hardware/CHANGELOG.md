@@ -29,6 +29,17 @@
   the battery names come from sysfs. Shipped to `/usr/bin` by the
   `ryoku-desktop` hardware glob (and by `deploy-root.sh` on a checkout);
   covered by `tests/charge-limit.sh`.
+- `power/ryoku-charge-limit` `full-when-off` + `release`, and
+  `power/charge-limit.shutdown`: an opt-in to charge to full while powered off.
+  `full-when-off on|off` sets `/etc/ryoku/charge-limit-full-when-off` (on the
+  root filesystem, which is still readable at the end of shutdown), and
+  `status` reports it as `full_when_off`. The systemd-shutdown hook, installed
+  as `/usr/lib/systemd/system-shutdown/ryoku-charge-limit.shutdown` by the
+  package and `deploy-root.sh`, runs `release` on poweroff only; `release`
+  writes 100 to each laptop battery's end threshold (and 0 to a start
+  threshold where one exists) straight to sysfs, leaving UPower's saved setting
+  on so the next boot re-applies the limit. The hook's source is named outside
+  the `ryoku-*` hardware glob so it is not also installed to `/usr/bin`.
 - `gpu/ryoku-gpu-lib32`: installs the 32-bit (lib32) GPU userspace for the
   detected hardware, so 32-bit and Proton/DXVK games render on the real GPU
   instead of falling back to software. The base install and the 64-bit driver

@@ -5,7 +5,8 @@
 # covers battery discovery (peripheral cells and mains skipped); that `status`
 # reports UPower's threshold properties; that `on`/`off` call
 # EnableChargeThreshold on the right device; that `set` writes the rule and
-# restarts upower; and that `set` rejects anything but an in-range whole number.
+# restarts upower; that `set` rejects anything but an in-range whole number;
+# and that `release` lifts the firmware thresholds only when full-when-off is on.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -46,6 +47,8 @@ export PATH="$bin:$PATH"
 export RYOKU_POWER_SYSFS="$ps"
 export RYOKU_CHARGE_LIMIT_RULE="$tmp/61-ryoku-charge-limit.rules"
 rule="$RYOKU_CHARGE_LIMIT_RULE"
+export RYOKU_CHARGE_LIMIT_FULL_FLAG="$tmp/etc/ryoku/charge-limit-full-when-off"
+flag="$RYOKU_CHARGE_LIMIT_FULL_FLAG"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
@@ -55,6 +58,7 @@ grep -qx "supported true" <<<"$out" || fail "status missing supported"
 grep -qx "enabled true" <<<"$out" || fail "status missing enabled"
 grep -qx "end 65" <<<"$out" || fail "status missing end"
 grep -qx "min 50" <<<"$out" || fail "status missing min"
+grep -qx "full_when_off false" <<<"$out" || fail "status missing full_when_off"
 grep -q "devices/battery_BAT1 " "$calls" || fail "status did not query battery_BAT1"
 grep -q "hidpp" "$calls" && fail "status queried a peripheral battery"
 
@@ -103,5 +107,33 @@ out="$(RYOKU_POWER_SYSFS="$empty" "$helper" status)"
 grep -qx "supported false" <<<"$out" || fail "status without a battery did not report unsupported"
 RYOKU_POWER_SYSFS="$empty" "$helper" on 2>/dev/null && fail "on without a battery succeeded"
 RYOKU_POWER_SYSFS="$empty" "$helper" set 70 2>/dev/null && fail "set without a battery succeeded"
+
+# --- release: a no-op until full-when-off is on ------------------------------
+echo 65 >"$ps/BAT1/charge_control_end_threshold"
+echo 60 >"$ps/BAT1/charge_control_start_threshold"
+echo 80 >"$ps/hidpp_battery_0/charge_control_end_threshold"
+"$helper" release || fail "release without the opt-in failed"
+[[ $(cat "$ps/BAT1/charge_control_end_threshold") == 65 ]] || fail "release lifted the limit without the opt-in"
+
+# --- full-when-off toggles the flag that status reports ----------------------
+"$helper" full-when-off on
+[[ -e $flag ]] || fail "full-when-off on did not create the flag"
+"$helper" status | grep -qx "full_when_off true" || fail "status did not report full_when_off on"
+"$helper" full-when-off bogus 2>/dev/null && fail "full-when-off accepted a bad argument"
+
+# --- release with the opt-in: end to 100, start to 0, laptop battery only -----
+"$helper" release || fail "release failed"
+[[ $(cat "$ps/BAT1/charge_control_end_threshold") == 100 ]] || fail "release did not raise the end threshold"
+[[ $(cat "$ps/BAT1/charge_control_start_threshold") == 0 ]] || fail "release did not lower the start threshold"
+[[ $(cat "$ps/hidpp_battery_0/charge_control_end_threshold") == 80 ]] || fail "release touched a peripheral battery"
+
+# --- end-only hardware (no start threshold file) still releases --------------
+rm "$ps/BAT1/charge_control_start_threshold"
+echo 65 >"$ps/BAT1/charge_control_end_threshold"
+"$helper" release || fail "release failed without a start threshold"
+[[ $(cat "$ps/BAT1/charge_control_end_threshold") == 100 ]] || fail "release skipped end-only hardware"
+
+"$helper" full-when-off off
+[[ -e $flag ]] && fail "full-when-off off did not remove the flag"
 
 echo "charge-limit: all checks passed"
