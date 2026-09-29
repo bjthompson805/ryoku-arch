@@ -47,13 +47,14 @@ Item {
     // field's bound value from a separate button (Create, Grow/Set) needs to
     // flush a pending typed edit first, or a value typed and then acted on
     // without ever blurring the field is silently lost. Call before reading.
+    // Rebinds rather than assigns the text: the blur that would restore the
+    // binding never comes from a button, so an assignment here left the
+    // display frozen and made the steppers look dead from then on.
     function commit() {
         var v = parseFloat(input.text);
-        if (!isNaN(v)) {
-            var q = root.clampq(v);
-            root.modified(q);
-            input.text = q.toFixed(root.decimals);
-        }
+        if (!isNaN(v))
+            root.modified(root.clampq(v));
+        input.text = Qt.binding(() => root.shown.toFixed(root.decimals));
     }
     // when debounced, steppers accumulate locally and commit once the hand
     // settles (350ms); otherwise every bump commits immediately.
