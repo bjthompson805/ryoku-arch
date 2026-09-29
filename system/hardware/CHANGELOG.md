@@ -14,6 +14,21 @@
   with no behaviour change (empty/absent fields still render as `""`).
 
 ### Added
+- `power/ryoku-charge-limit` + `power/51-ryoku-charge-limit.rules`: the battery
+  popout's charge-limit backend, on top
+  of UPower's charge-threshold support. `status` reports whether the battery
+  supports a limit, whether it is on, and its percentage; `on`/`off` call
+  UPower's `EnableChargeThreshold` (no root needed for the active user); `set N`
+  (50 to 100) writes `/etc/udev/rules.d/61-ryoku-charge-limit.rules` with a
+  `CHARGE_LIMIT` of `N-5,N` for each laptop battery, then restarts upower so it
+  loads the new percentage, and runs as root through pkexec; the polkit rule
+  lets the active wheel user run exactly that binary without a password, and is
+  installed to `/usr/share/polkit-1/rules.d` (`/etc/polkit-1/rules.d` by
+  `deploy-root.sh`). The percentage is
+  the only caller input and is range-checked before it reaches the rule, and
+  the battery names come from sysfs. Shipped to `/usr/bin` by the
+  `ryoku-desktop` hardware glob (and by `deploy-root.sh` on a checkout);
+  covered by `tests/charge-limit.sh`.
 - `gpu/ryoku-gpu-lib32`: installs the 32-bit (lib32) GPU userspace for the
   detected hardware, so 32-bit and Proton/DXVK games render on the real GPU
   instead of falling back to software. The base install and the 64-bit driver

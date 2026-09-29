@@ -16,6 +16,9 @@ Item {
     property real to: 100
     property real step: 1
     property int decimals: 0
+    // size multiplier for a compact host (the pill's popouts pass their own `s`);
+    // 1 is the Hub's native size. not `scale`: Item already has that transform.
+    property real sizeScale: 1
 
     // Tab/Shift+Tab chaining: a bare TextInput has no built-in focus-chain
     // participation (unlike Controls' TextField), so a consumer stacking
@@ -35,8 +38,8 @@ Item {
 
     signal modified(real value)
 
-    implicitWidth: 320
-    implicitHeight: 38
+    implicitWidth: 320 * sizeScale
+    implicitHeight: 38 * sizeScale
 
     function clampq(v) {
         var c = Math.max(root.from, Math.min(root.to, v));
@@ -89,12 +92,12 @@ Item {
     Text {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.width - field.width - 14
+        width: parent.width - field.width - 14 * root.sizeScale
         elide: Text.ElideRight
         text: root.label
         color: Theme.cream
         font.family: Theme.font
-        font.pixelSize: 14
+        font.pixelSize: 14 * root.sizeScale
         font.weight: Font.Medium
     }
 
@@ -102,7 +105,7 @@ Item {
         id: field
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 7
+        spacing: 7 * root.sizeScale
 
         component StepKey: Rectangle {
             id: key
@@ -112,8 +115,8 @@ Item {
             // still pressed, then TapHandler.onTapped fires again on release --
             // without this guard that's a double bump (e.g. two steps at once).
             property bool repeated: false
-            width: 30
-            height: 30
+            width: 30 * root.sizeScale
+            height: 30 * root.sizeScale
             radius: Theme.radius
             color: tap.pressed ? Theme.keyTop : (hov.hovered ? Theme.surface : Theme.surfaceLo)
             border.width: 1
@@ -126,7 +129,7 @@ Item {
                 text: key.glyph
                 color: hov.hovered ? Theme.bright : Theme.subtle
                 font.family: Theme.mono
-                font.pixelSize: key.glyph === "−" ? 17 : 15
+                font.pixelSize: (key.glyph === "−" ? 17 : 15) * root.sizeScale
                 font.weight: Font.DemiBold
             }
 
@@ -148,8 +151,8 @@ Item {
 
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: 86
-            height: 30
+            width: 86 * root.sizeScale
+            height: 30 * root.sizeScale
             radius: Theme.radius
             color: Theme.surfaceLo
             border.width: 1
@@ -159,7 +162,7 @@ Item {
             TextInput {
                 id: input
                 anchors.fill: parent
-                anchors.rightMargin: root.unit !== "" ? 24 : 0
+                anchors.rightMargin: root.unit !== "" ? 24 * root.sizeScale : 0
                 horizontalAlignment: TextInput.AlignHCenter
                 verticalAlignment: TextInput.AlignVCenter
                 KeyNavigation.tab: root.tabTo
@@ -167,7 +170,7 @@ Item {
                 text: root.shown.toFixed(root.decimals)
                 color: Theme.bright
                 font.family: Theme.mono
-                font.pixelSize: 14
+                font.pixelSize: 14 * root.sizeScale
                 font.weight: Font.DemiBold
                 selectByMouse: true
                 clip: true
@@ -197,12 +200,12 @@ Item {
             Text {
                 visible: root.unit !== ""
                 anchors.right: parent.right
-                anchors.rightMargin: 9
+                anchors.rightMargin: 9 * root.sizeScale
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.unit
                 color: Theme.faint
                 font.family: Theme.mono
-                font.pixelSize: 11
+                font.pixelSize: 11 * root.sizeScale
                 font.weight: Font.Medium
             }
         }

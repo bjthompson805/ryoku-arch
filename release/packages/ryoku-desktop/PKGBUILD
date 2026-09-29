@@ -364,6 +364,12 @@ package() {
   install -Dm644 "$_repo/system/hardware/camera/50-ryoku-webcam.rules" \
     "$pkgdir/usr/share/polkit-1/rules.d/50-ryoku-webcam.rules"
 
+  # Battery charge limit: a polkit rule authorizes the privileged helper
+  # (ryoku-charge-limit, installed to /usr/bin by the hardware glob above)
+  # without a password, so changing the popout's percentage stays one step.
+  install -Dm644 "$_repo/system/hardware/power/51-ryoku-charge-limit.rules" \
+    "$pkgdir/usr/share/polkit-1/rules.d/51-ryoku-charge-limit.rules"
+
   # Windows dual-boot: cross-drive detector + a limine-entry-tool post.d hook
   # that re-asserts the uuid()-addressed chainload entry whenever the boot menu
   # is regenerated -- separate-drive Windows survives kernel updates.

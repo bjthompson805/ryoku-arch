@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.UPower
 
 // laptop battery state for the pill, from UPower's display device. gated so a
@@ -8,7 +9,8 @@ import Quickshell.Services.UPower
 // stay hidden). exposes pct, charge state, signed draw/charge wattage,
 // capacity, optional health, plus a formatted time-to-empty/full string. low
 // = present, discharging and <=20% -- gated on present so the pre-UPower
-// startup window (batDev null, pct reads 0) can't read as a false low.
+// startup window (batDev null, pct reads 0) can't read as a false low. also
+// carries UPower's charge limit and the "holding" state it produces.
 Singleton {
     id: root
 
@@ -33,8 +35,34 @@ Singleton {
     readonly property int pct: Math.round(frac * 100)
     readonly property int state: batDev ? batDev.state : UPowerDeviceState.Unknown
 
-    readonly property bool charging: state === UPowerDeviceState.Charging
-    readonly property bool full: state === UPowerDeviceState.FullyCharged || pct >= 100
+    // charge limit, from UPower's charge-threshold support. Quickshell's UPower
+    // binding has no threshold properties, so these come from the
+    // ryoku-charge-limit helper (see refreshLimit).
+    property bool limitSupported: false
+    property bool limitEnabled: false
+    property int limitEnd: 0
+    property int limitMin: 50
+
+    // a percentage change finished (saved, refused, or a prompt dismissed)
+    // and limitEnd has been re-read, so an edited field can drop its draft.
+    signal limitSettled()
+    property bool limitSetting: false
+    property int queuedLimit: -1
+
+    readonly property bool powerIn: state === UPowerDeviceState.Charging
+    // on AC but parked at the limit. firmware reports that three ways: pending
+    // charge, "full" well below 100%, or (this Samsung, among others) still
+    // "charging" once the cell reaches the limit. above the limit that last
+    // case holds whatever the rate says: a battery without a power reading gets
+    // its rate from the energy delta, so settling down to a lowered limit shows
+    // as watts "charging" though nothing flows in.
+    readonly property bool holding: present && limitEnabled && !UPower.onBattery
+        && (state === UPowerDeviceState.PendingCharge
+            || (state === UPowerDeviceState.FullyCharged && pct < 99)
+            || (powerIn && (frac * 100 > limitEnd
+                || (Math.abs(batDev.changeRate) < 0.05 && frac * 100 >= limitEnd - 1))))
+    readonly property bool charging: powerIn && !holding
+    readonly property bool full: !holding && (state === UPowerDeviceState.FullyCharged || pct >= 100)
     readonly property bool discharging: state === UPowerDeviceState.Discharging
     readonly property bool low: present && !charging && pct <= 20
 
@@ -50,9 +78,10 @@ Singleton {
     readonly property string timeStr: !batDev ? ""
         : (charging ? fmt(batDev.timeToFull) : (discharging ? fmt(batDev.timeToEmpty) : ""))
 
-    readonly property string stateLabel: charging ? "Charging"
+    readonly property string stateLabel: holding ? "Holding at " + limitEnd + "%"
+        : (charging ? "Charging"
         : (full ? "On AC · Full"
-        : (discharging ? "Discharging" : "On AC"))
+        : (discharging ? "Discharging" : "On AC")))
 
     function fmt(sec) {
         var s = Math.max(0, Math.round(sec));
@@ -70,5 +99,95 @@ Singleton {
         if (low)
             Spawn.spawn(["notify-send", "-u", "critical", "-i", "battery-caution",
                 "-a", "Ryoku", "Battery low", pct + "% remaining"]);
+    }
+
+    function refreshLimit() {
+        if (present && !limitStatus.running)
+            limitStatus.running = true;
+    }
+
+    // UPower lets the active user toggle the limit, so no pkexec here. the
+    // switch flips at once and the status re-read afterwards corrects it if
+    // UPower refused.
+    function setLimitEnabled(on) {
+        limitEnabled = on;
+        runLimit(["ryoku-charge-limit", on ? "on" : "off"]);
+    }
+
+    // a new percentage rewrites a udev rule and restarts upower, so it goes
+    // through pkexec; 51-ryoku-charge-limit.rules lets wheel skip the password.
+    // a change made while the prompt is still up is queued, not dropped, so the
+    // field never shows a number that was never sent.
+    function setLimit(percent) {
+        if (limitCmd.running) {
+            queuedLimit = Math.round(percent);
+            return;
+        }
+        limitSetting = true;
+        runLimit(["pkexec", "/usr/bin/ryoku-charge-limit", "set", String(Math.round(percent))]);
+    }
+
+    function runLimit(argv) {
+        if (limitCmd.running)
+            return;
+        limitCmd.command = argv;
+        limitCmd.running = true;
+    }
+
+    onPresentChanged: refreshLimit()
+
+    Connections {
+        target: UPower
+        function onOnBatteryChanged() { root.refreshLimit(); }
+    }
+
+    Process {
+        id: limitStatus
+        command: ["ryoku-charge-limit", "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var kv = {};
+                text.trim().split("\n").forEach(function (line) {
+                    var parts = line.split(" ");
+                    kv[parts[0]] = parts[1];
+                });
+                root.limitSupported = kv.supported === "true";
+                root.limitEnabled = kv.enabled === "true";
+                root.limitEnd = parseInt(kv.end) || 0;
+                root.limitMin = parseInt(kv.min) || root.limitMin;
+                if (root.limitSetting && !limitCmd.running) {
+                    root.limitSetting = false;
+                    root.limitSettled();
+                }
+            }
+        }
+    }
+
+    Process {
+        id: limitCmd
+        stderr: StdioCollector { id: limitErr }
+        onExited: function (exitCode) {
+            // 126/127: the polkit prompt was dismissed, not a failure worth a toast.
+            if (exitCode !== 0 && exitCode !== 126 && exitCode !== 127)
+                Spawn.spawn(["notify-send", "-a", "Ryoku", "Charge limit not changed",
+                    limitErr.text.trim() || ("ryoku-charge-limit exited " + exitCode)]);
+            if (root.queuedLimit >= 0) {
+                var next = root.queuedLimit;
+                root.queuedLimit = -1;
+                root.setLimit(next);
+            } else {
+                root.refreshLimit();
+            }
+        }
+    }
+
+    // upower restarts after a new percentage, and the limit can also change
+    // from a terminal; a slow re-read keeps the popout honest either way.
+    Timer {
+        interval: 30000
+        running: root.present
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.refreshLimit()
     }
 }

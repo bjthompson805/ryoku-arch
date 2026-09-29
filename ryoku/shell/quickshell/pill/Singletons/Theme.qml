@@ -77,6 +77,15 @@ Singleton {
     readonly property int radius: Math.round(Config.roundness)
     readonly property int shadowStep: 6
 
+    // the Hub token names the shared NumberField reads, mapped onto this
+    // palette so the field follows the wallpaper like every other pill control.
+    readonly property color surface:   tileBg
+    readonly property color surfaceLo: cardBot
+    readonly property color keyTop:    Qt.lighter(tileBg, 1.25)
+    readonly property color ember:     vermLit
+    readonly property color line:      border
+    readonly property int quick:       Motion.fast
+
     /**
      * MPRIS trackArtists arrives as a JS array from some players and as a
      * plain string from others (Spotify); calling join on the string throws

@@ -30,6 +30,17 @@
   `ShellSettingsPage.qml`).
 
 ### Added
+- **The battery popout can set a charge limit, and shows when the battery is
+  holding at it.** On a laptop whose battery supports a limit, a Charge Limit
+  switch sits under the charge bar, with a "Stop at" percentage (50 to 100%)
+  below it. Both take effect at once with no password prompt; a new percentage
+  briefly restarts upower so it loads the change. When
+  the laptop is plugged in and parked at the limit, the popout reads
+  "Holding at 65%", and the bar and popout stop showing it as charging
+  (`Singletons/Battery.qml`, `popouts/BatteryPopout.qml`, backed by
+  `ryoku-charge-limit`). The percentage field is the shared `NumberField`, which
+  gains a `sizeScale` for compact hosts, and the pill Theme maps the Hub token
+  names it reads.
 - **Keep Awake and Game Mode tiles have an info button that explains the mode
   and lets you choose what it does.** The small "i" at the right of each tile in
   the System sidebar unfolds a details card: a plain description of the mode,

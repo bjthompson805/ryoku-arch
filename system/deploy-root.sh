@@ -55,6 +55,13 @@ install -Dm644 "$repo/system/hardware/camera/50-ryoku-webcam.rules" \
   /etc/polkit-1/rules.d/50-ryoku-webcam.rules
 say "installed webcam kill-switch helper and polkit rule"
 
+# Battery charge limit. Same reasoning as the wifi helper above: the polkit
+# rule is pinned to /usr/bin/ryoku-charge-limit, so the helper must live there.
+install -Dm755 "$repo/system/hardware/power/ryoku-charge-limit" /usr/bin/ryoku-charge-limit
+install -Dm644 "$repo/system/hardware/power/51-ryoku-charge-limit.rules" \
+  /etc/polkit-1/rules.d/51-ryoku-charge-limit.rules
+say "installed battery charge-limit helper and polkit rule"
+
 # markdown-writer: not part of upstream's deploy-root.sh, added for this fork.
 # Fetches and installs the latest GitHub release every run, so re-running this
 # script also keeps it current -- see system/extras/ryoku-pkg-markdown-writer.

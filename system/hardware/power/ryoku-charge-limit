@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# battery charge limit, on top of UPower's own charge-threshold support. UPower
+# remembers whether the limit is on and re-applies it every boot, and the active
+# user may toggle it without root. the percentage is the CHARGE_LIMIT udev
+# property ("start,end") on the battery, which UPower reads only when it starts,
+# so `set` rewrites that rule and restarts upower as root through pkexec.
+# 51-ryoku-charge-limit.rules permits this exact binary for wheel with no
+# password, so the limit is the only caller input: it is checked as a whole
+# number in range before it reaches the rule, and the battery names written
+# there are read from sysfs here, never passed in.
+#
+#   status    supported / enabled / end / min, one "key value" per line
+#   on | off  enable or disable the limit
+#   set N     make N% the limit (50-100) and restart upower to load it
+set -u
+
+sysfs="${RYOKU_POWER_SYSFS:-/sys/class/power_supply}"
+rule="${RYOKU_CHARGE_LIMIT_RULE:-/etc/udev/rules.d/61-ryoku-charge-limit.rules}"
+min_limit=50
+# start sits this far under end, so hardware that honours both resumes charging
+# a few points below the limit instead of topping up every percent. hardware
+# with only an end threshold ignores it.
+hysteresis=5
+
+usage() {
+  echo "usage: ryoku-charge-limit [status | on | off | set <$min_limit-100>]" >&2
+}
+
+# laptop batteries: type Battery, minus peripheral (scope Device) cells. the
+# name check keeps anything unexpected out of the udev rule.
+batteries() {
+  local d name
+  for d in "$sysfs"/*; do
+    name="${d##*/}"
+    [[ $name =~ ^[A-Za-z0-9_.-]+$ ]] || continue
+    [[ $(cat "$d/type" 2>/dev/null) == "Battery" ]] || continue
+    [[ $(cat "$d/scope" 2>/dev/null) == "Device" ]] && continue
+    printf '%s\n' "$name"
+  done
+}
+
+upower_path() {
+  local bat
+  bat="$(batteries | head -n 1)"
+  [[ -n $bat ]] && printf '/org/freedesktop/UPower/devices/battery_%s\n' "${bat//[^A-Za-z0-9]/_}"
+}
+
+prop() {
+  busctl get-property org.freedesktop.UPower "$1" org.freedesktop.UPower.Device "$2" 2>/dev/null | awk '{ print $2 }'
+}
+
+case "${1:-}" in
+  status)
+    path="$(upower_path)"
+    supported="" enabled="" end=""
+    if [[ -n $path ]]; then
+      supported="$(prop "$path" ChargeThresholdSupported)"
+      enabled="$(prop "$path" ChargeThresholdEnabled)"
+      end="$(prop "$path" ChargeEndThreshold)"
+    fi
+    printf 'supported %s\nenabled %s\nend %s\nmin %s\n' \
+      "${supported:-false}" "${enabled:-false}" "${end:-0}" "$min_limit"
+    ;;
+  on | off)
+    path="$(upower_path)"
+    [[ -n $path ]] || { echo "ryoku-charge-limit: no battery" >&2; exit 1; }
+    if [[ $1 == "on" ]]; then
+      want=true
+    else
+      want=false
+    fi
+    busctl call org.freedesktop.UPower "$path" org.freedesktop.UPower.Device EnableChargeThreshold b "$want"
+    ;;
+  set)
+    limit="${2:-}"
+    if [[ ! $limit =~ ^[0-9]{1,3}$ ]] || (( 10#$limit < min_limit || 10#$limit > 100 )); then
+      usage
+      exit 2
+    fi
+    limit=$((10#$limit))
+    mapfile -t bats < <(batteries)
+    (( ${#bats[@]} > 0 )) || { echo "ryoku-charge-limit: no battery" >&2; exit 1; }
+    {
+      echo "# written by ryoku-charge-limit: UPower reads CHARGE_LIMIT as \"start,end\"."
+      for b in "${bats[@]}"; do
+        printf 'SUBSYSTEM=="power_supply", KERNEL=="%s", ENV{CHARGE_LIMIT}="%d,%d"\n' \
+          "$b" $((limit - hysteresis)) "$limit"
+      done
+    } >"$rule.tmp" || exit 1
+    mv -f "$rule.tmp" "$rule" || exit 1
+    udevadm control --reload
+    udevadm trigger --subsystem-match=power_supply --action=change
+    udevadm settle --timeout=5
+    systemctl restart upower
+    # the bus name comes back before the battery object does; wait for it so a
+    # caller re-reading `status` right after this sees the new limit, not a gap.
+    path="$(upower_path)"
+    for _ in {1..25}; do
+      [[ -n $(prop "$path" ChargeEndThreshold) ]] && break
+      sleep 0.2
+    done
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac

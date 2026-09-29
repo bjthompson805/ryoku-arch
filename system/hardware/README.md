@@ -30,6 +30,14 @@ in the machine.
     type, battery presence, and lid switches. It is shared by GPU and idle policy.
   - `ryoku-idle` Starts `hypridle` only on laptops, using Ryoku's dim/lock/DPMS/
     suspend timeouts.
+  - `ryoku-charge-limit` Reads and changes the battery charge limit through
+    UPower's charge-threshold support, for the battery popout. `status` and
+    `on`/`off` need no root (UPower lets the active user toggle the limit);
+    `set N` writes the `CHARGE_LIMIT` udev rule UPower reads the percentage
+    from and restarts upower, so it runs as root through pkexec.
+  - `51-ryoku-charge-limit.rules` A polkit rule that lets the active wheel user
+    run exactly that helper without a password, so changing the percentage
+    stays one step.
 - `leds/`
   - `ryoku-leds` Applies the current wallust accent color to OpenRGB-compatible
     keyboards and attached lighting devices. It is best-effort: missing OpenRGB,

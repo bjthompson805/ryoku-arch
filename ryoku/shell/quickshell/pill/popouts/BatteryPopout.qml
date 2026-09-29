@@ -17,8 +17,10 @@ Item {
 
     property real s: 1
     // popout open flag (content contract): no live polling lives here -- the
-    // Battery singleton feeds itself off UPower -- but we honour the contract.
+    // Battery singleton feeds itself off UPower -- but opening re-reads the
+    // charge limit, which UPower's binding doesn't carry.
     property bool open: false
+    onOpenChanged: if (open) Battery.refreshLimit()
 
     anchors.fill: parent
 
@@ -224,6 +226,55 @@ Item {
 
                 Behavior on width { NumberAnimation { duration: Motion.effects; easing.type: Easing.OutCubic } }
                 Behavior on color { ColorAnimation { duration: Motion.effects } }
+            }
+        }
+
+        Divider { visible: Battery.limitSupported }
+
+        // charge limit: UPower's threshold switch and the percentage it stops
+        // at. the field stays live with the switch off, so a new percentage can
+        // be set before turning the limit on.
+        Column {
+            width: parent.width
+            spacing: 7 * root.s
+            visible: Battery.limitSupported
+
+            Item {
+                width: parent.width
+                height: limitToggle.height
+
+                MicroLabel {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    label: "Charge limit"
+                    s: root.s
+                }
+                LinkToggle {
+                    id: limitToggle
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: root.s
+                    on: Battery.limitEnabled
+                    onToggled: Battery.setLimitEnabled(!Battery.limitEnabled)
+                }
+            }
+
+            NumberField {
+                id: limitField
+                width: parent.width
+                sizeScale: 0.8 * root.s
+                label: "Stop at"
+                unit: "%"
+                from: Battery.limitMin
+                to: 100
+                debounce: true
+                value: Battery.limitEnd
+                onModified: (v) => Battery.setLimit(v)
+
+                Connections {
+                    target: Battery
+                    function onLimitSettled() { limitField.pending = NaN; }
+                }
             }
         }
 
