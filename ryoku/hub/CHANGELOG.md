@@ -236,6 +236,12 @@
   `backend/schemes.go`, `backend/hypr.go`).
 
 ### Fixed
+- **Closing the Hub while previews are still loading no longer crashes it.**
+  Quitting (Super+Q, Escape, or the close button) while a page was still
+  streaming remote images, such as the Lockscreen skin gifs or store previews,
+  tore down the QML engine with those downloads in flight, and qs aborted on a
+  double-deleted network reply. Quitting now unloads the Hub first, which
+  cancels the downloads, then exits on the next tick (`shell.qml`, `Hub.qml`).
 - **Applying a Hub change with Game Mode on no longer re-announces Game Mode.**
   Every Hyprland reload from the Hub re-asserts the tune through the silent
   `rearm` instead of `start` (`backend/hypr.go`).

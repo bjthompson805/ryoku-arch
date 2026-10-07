@@ -27,6 +27,7 @@ Rectangle {
     // to flash once the target page is up. Set by go(s, tab, highlight);
     // consumed by highlightTimer, then cleared for the same reason as above.
     property string targetHighlight: ""
+    signal quitRequested()
 
     readonly property var sectionDefs: [
         { "key": "profile",     "name": "Profile",         "icon": "user",     "pinned": "top" },
@@ -110,7 +111,7 @@ Rectangle {
     }
 
     focus: true
-    Keys.onEscapePressed: Qt.quit()
+    Keys.onEscapePressed: hub.quitRequested()
     Keys.onPressed: (e) => {
         if (e.key === Qt.Key_K && (e.modifiers & Qt.ControlModifier)) {
             navRail.focusSearch();
@@ -226,7 +227,7 @@ Rectangle {
             sections: hub.sectionDefs
             current: hub.section
             onNavigate: (s) => hub.go(s)
-            onEscaped: Qt.quit()
+            onEscaped: hub.quitRequested()
         }
 
         Item {
@@ -387,6 +388,6 @@ Rectangle {
         }
 
         HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: Qt.quit() }
+        TapHandler { onTapped: hub.quitRequested() }
     }
 }
