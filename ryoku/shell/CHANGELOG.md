@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- **Ryoshot's Save, Copy, Upload, and Beautify no longer freeze for seconds.**
+  Each wrote the capture as a PNG on the UI thread first, about 2.6 seconds for
+  a 2880x1800 shot with the overlay frozen. Grabs are now written as an
+  uncompressed BMP (about 15ms) and `magick` encodes the PNG out of process in
+  about a second, pixel-identical and 4% larger. Save opens its dialog at once
+  and encodes while it is open; Copy hides the overlay at once and finishes the
+  clipboard hand-off behind it; Upload encodes just before sending; Beautify
+  opens straight from the BMP. Beautify's own export takes the BMP path for a
+  preset, solid, or gradient background, while None and image backgrounds keep
+  the PNG grab so transparency survives. A failed HD upscale no longer passes
+  off a stale earlier export as its result. Selections across monitors stitch
+  from BMP slices (`ryoshot/shell.qml`, `ryoshot/Beautify.qml`).
 - **Changing the wallpaper with Game Mode on no longer sends a "Game Mode is on"
   notification each time.** The repaint re-asserts Game Mode after reloading
   Hyprland, and that used the announcing `start`; it now uses the silent `rearm`

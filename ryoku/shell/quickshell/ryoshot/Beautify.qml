@@ -126,39 +126,56 @@ Item {
     readonly property real fullW: ratioV <= 0 ? minW : (ratioV >= minW / minH ? minH * ratioV : minW)
     readonly property real fullH: ratioV <= 0 ? minH : (ratioV >= minW / minH ? minH : minW / ratioV)
 
-    // grab the composition to `path`. HD (opt-in) reroutes through the GPU
-    // upscaler first: waifu2x doubles the resolution with no denoise so text edges
-    // stay crisp. A missing tool or an already-large shot falls back to the grab.
+    // grab the composition to `path`. Qt's PNG writer takes seconds on a frame
+    // this size and blocks the UI, so an opaque frame is grabbed as BMP and magick
+    // encodes it out of process. BMP has no alpha channel, so a None or image
+    // background, which can leave pixels transparent, keeps the PNG grab.
+    // HD (opt-in) reroutes through the GPU upscaler: waifu2x doubles the
+    // resolution with no denoise so text edges stay crisp. A missing tool or an
+    // already-large shot falls back to the plain grab.
     readonly property string rawTmp: "/tmp/ryoshot-beautified-raw.png"
+    readonly property string rawBmp: "/tmp/ryoshot-beautified-raw.bmp"
+    readonly property bool opaqueFrame: bgKind === "preset" || bgKind === "solid" || bgKind === "gradient"
     function exportStage(path, cb) {
         beautify.busy = true;
         function done(ok) { beautify.busy = false; if (cb) cb(ok); }
-        var target = beautify.hd ? beautify.rawTmp : path;
+        var fast = beautify.opaqueFrame;
+        var target = fast ? beautify.rawBmp : (beautify.hd ? beautify.rawTmp : path);
         var scheduled = stage.grabToImage(function (r) {
             var ok = false;
             try { ok = r ? r.saveToFile(target) : false; }
             catch (e) { console.log("ryoshot: beautify grab failed: " + e); }
             if (!ok) { done(false); return; }
-            if (beautify.hd) hdProc.upscale(target, path, function () { done(true); });
+            if (fast || beautify.hd) encodeProc.finish(target, path, beautify.hd, done);
             else done(true);
         }, Qt.size(Math.round(beautify.fullW), Math.round(beautify.fullH)));
         if (!scheduled) done(false);
     }
+    // waifu2x reads PNG but not BMP, so a BMP grab gets a quick level-1 PNG for
+    // it; the final encode is level 5, matching the toolbar shot.
     Process {
-        id: hdProc
+        id: encodeProc
         property var cb: null
-        function upscale(src, dst, cb_) {
-            hdProc.cb = cb_;
+        function finish(src, dst, hd, cb_) {
+            encodeProc.cb = cb_;
             command = ["sh", "-c",
-                'src="$1"; dst="$2"; m=/usr/share/waifu2x-ncnn-vulkan/models-cunet; ' +
+                'src="$1"; dst="$2"; m=/usr/share/waifu2x-ncnn-vulkan/models-cunet; rm -f "$dst"; ' +
+                'if [ "$3" = 1 ] && command -v waifu2x-ncnn-vulkan >/dev/null 2>&1; then ' +
                 'h=$(identify -format "%h" "$src" 2>/dev/null | head -1); ' +
-                'if command -v waifu2x-ncnn-vulkan >/dev/null 2>&1 && [ "${h:-0}" -gt 0 ] && [ "${h:-0}" -lt 2000 ]; then ' +
-                'waifu2x-ncnn-vulkan -i "$src" -o "$dst" -s 2 -n 0 -m "$m" >/dev/null 2>&1 && [ -s "$dst" ] || cp -f "$src" "$dst"; ' +
-                'else cp -f "$src" "$dst"; fi',
-                "sh", src, dst];
+                'if [ "${h:-0}" -gt 0 ] && [ "${h:-0}" -lt 2000 ]; then ' +
+                'in="$src"; case "$src" in *.png) ;; *) in="${src%.*}.png"; magick "$src" -quality 10 "$in" || in="" ;; esac; ' +
+                '[ -n "$in" ] && waifu2x-ncnn-vulkan -i "$in" -o "$dst" -s 2 -n 0 -m "$m" >/dev/null 2>&1 && [ -s "$dst" ] && exit 0; ' +
+                'fi; fi; ' +
+                'case "$src" in *.png) cp -f "$src" "$dst" ;; *) magick "$src" -quality 50 "$dst" ;; esac',
+                "sh", src, dst, hd ? "1" : "0"];
             running = true;
         }
-        onExited: (code, status) => { var f = hdProc.cb; hdProc.cb = null; if (f) f(); }
+        onExited: (code, status) => {
+            console.log("ryoshot: beautify encode exit " + code);
+            var f = encodeProc.cb;
+            encodeProc.cb = null;
+            if (f) f(code === 0);
+        }
     }
 
     // ---- named looks + persisted default ----

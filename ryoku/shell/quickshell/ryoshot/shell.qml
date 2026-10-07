@@ -32,7 +32,10 @@ ShellRoot {
     property var windowRects: []
     property bool dialogMode: false
     property string saveSrc: ""
+    property string saveDest: ""
     property string beautifySrc: ""
+    readonly property string beautifyRaw: "/tmp/ryoshot-beautify-src.bmp"
+    property bool handedOff: false
     property string beautifyBgImage: ""
     property bool composeActive: false
     property string composeMode: ""
@@ -377,7 +380,7 @@ ShellRoot {
             if (!inter) continue;
             slices.push({
                 win: overlays[i],
-                tmp: "/tmp/ryoshot-seam-" + i + ".png",
+                tmp: "/tmp/ryoshot-seam-" + i + ".bmp",
                 ox: Math.round(s.x + inter.x - globalSel.x),
                 oy: Math.round(s.y + inter.y - globalSel.y)
             });
@@ -405,30 +408,42 @@ ShellRoot {
         stitchProc.runWith(args, after);
     }
 
+    // Grabs land as uncompressed BMP because Qt's PNG writer takes seconds on a
+    // full-resolution shot and blocks the UI; magick encodes the PNG out of process.
     function doCopy() {
-        var auto = defaultPath;
-        grabTo(auto, function (ok) {
-            if (ok) copyProc.run(auto);
+        var raw = "/tmp/ryoshot-copy.bmp";
+        grabTo(raw, function (ok) {
+            if (ok) copyProc.run(defaultPath, raw);
             else Qt.quit();
         });
     }
 
     // The grab goes to a temp file, not defaultPath: the dialog suggests
     // defaultPath, and a file already sitting there triggers its overwrite prompt.
+    // The PNG encodes while the dialog is open.
     function doSave() {
-        var tmp = "/tmp/ryoshot-save.png";
-        grabTo(tmp, function (ok) {
+        var raw = "/tmp/ryoshot-save.bmp";
+        var png = "/tmp/ryoshot-save.png";
+        grabTo(raw, function (ok) {
             if (!ok) { Qt.quit(); return; }
-            root.saveSrc = tmp;
+            root.saveSrc = png;
+            pngEncodeProc.run(raw, png);
             root.dialogMode = true;
             saveDialog.open();
         });
     }
 
+    function finishSave() {
+        var dest = root.saveDest;
+        root.saveDest = "";
+        if (root.saveSrc === "") { Qt.quit(); return; }
+        copyFileProc.run(root.saveSrc, dest);
+    }
+
     function doUpload() {
-        var tmp = "/tmp/ryoshot-upload.png";
-        grabTo(tmp, function (ok) {
-            if (ok) uploadProc.run(tmp);
+        var raw = "/tmp/ryoshot-upload.bmp";
+        grabTo(raw, function (ok) {
+            if (ok) uploadProc.run(raw, "/tmp/ryoshot-upload.png");
             else Qt.quit();
         });
     }
@@ -439,11 +454,11 @@ ShellRoot {
         if (root.textEditing) root.commitText();
         root.clearSelection();
         root.beautifySrc = "";
-        root.grabTo("/tmp/ryoshot-beautify-src.png", function (ok) {
+        root.grabTo(root.beautifyRaw, function (ok) {
             if (!ok) return;
             root.composeMode = mode;
             root.composeActive = true;
-            root.beautifySrc = "/tmp/ryoshot-beautify-src.png";
+            root.beautifySrc = root.beautifyRaw;
             root.phase = "beautify";
         });
     }
@@ -480,7 +495,8 @@ ShellRoot {
             var chosen = saveOut.text.trim();
             console.log("ryoshot: save-dialog exit " + code + " path=" + JSON.stringify(chosen));
             if (code === 0 && chosen.length > 0) {
-                copyFileProc.run(root.saveSrc, chosen);
+                root.saveDest = chosen;
+                if (!pngEncodeProc.busy) root.finishSave();
             } else {
                 root.dialogMode = false;
             }
@@ -504,6 +520,30 @@ ShellRoot {
         }
     }
 
+    // -quality 50 is zlib level 5 with no row filter: about 1s on a 2880x1800
+    // shot and 4% larger than magick's default, which takes over 4s. A Save
+    // pressed again while one runs is queued so its PNG is not the old shot.
+    Process {
+        id: pngEncodeProc
+        property bool busy: false
+        property var queued: null
+        property string dst: ""
+        function run(src, out) {
+            if (busy) { queued = [src, out]; return; }
+            busy = true;
+            dst = out;
+            command = ["magick", src, "-quality", "50", out];
+            running = true;
+        }
+        onExited: (code) => {
+            console.log("ryoshot: png encode exit " + code);
+            busy = false;
+            if (queued) { var q = queued; queued = null; run(q[0], q[1]); return; }
+            if (code !== 0 && root.saveSrc === dst) root.saveSrc = "";
+            if (root.saveDest !== "") root.finishSave();
+        }
+    }
+
     Process {
         id: copyFileProc
         function run(src, dst) { command = ["cp", "--", src, dst]; running = true; }
@@ -512,12 +552,17 @@ ShellRoot {
 
     Process {
         id: copyProc
-        function run(file) {
+        // `raw`, when given, is a BMP grab that magick encodes into `file` first.
+        // the overlay hides at once, since nothing is left to show while the
+        // encode and clipboard hand-off finish.
+        function run(file, raw) {
+            root.handedOff = true;
             command = ["sh", "-c",
-                "wl-copy --type image/png < \"$1\"; "
+                "[ -z \"$2\" ] || magick \"$2\" -quality 50 \"$1\" || exit 1; "
+                + "wl-copy --type image/png < \"$1\"; "
                 + "if [ \"$(stat -c%s \"$1\")\" -ge 4900000 ]; then magick \"$1\" -quality 92 jpeg:- | cliphist store; "
                 + "else cliphist store < \"$1\"; fi",
-                "_", file];
+                "_", file, raw || ""];
             running = true;
         }
         onExited: (code) => { console.log("ryoshot: wl-copy exit " + code); Qt.quit(); }
@@ -526,10 +571,12 @@ ShellRoot {
     Process {
         id: uploadProc
         stdout: StdioCollector { id: uploadOut }
-        function run(file) {
-            command = ["curl", "-sf", "--max-time", "30", "-A", "Mozilla/5.0", "-F", "reqtype=fileupload",
-                "-F", "time=72h", "-F", "fileToUpload=@" + file,
-                "https://litterbox.catbox.moe/resources/internals/api.php"];
+        function run(raw, file) {
+            command = ["sh", "-c",
+                "magick \"$1\" -quality 50 \"$2\" || exit 1; "
+                + "exec curl -sf --max-time 30 -A Mozilla/5.0 -F reqtype=fileupload -F time=72h "
+                + "-F \"fileToUpload=@$2\" https://litterbox.catbox.moe/resources/internals/api.php",
+                "_", raw, file];
             running = true;
         }
         onExited: (code) => {
@@ -595,7 +642,7 @@ ShellRoot {
             id: win
             required property var modelData
             screen: modelData
-            visible: !root.dialogMode
+            visible: !root.dialogMode && !root.handedOff
 
             anchors { top: true; left: true; right: true; bottom: true }
             color: "transparent"
@@ -691,9 +738,9 @@ ShellRoot {
                         if (root.textEditing) root.commitText();
                         root.clearSelection();
                         root.beautifySrc = "";
-                        root.grabTo("/tmp/ryoshot-beautify-src.png", function (ok) {
+                        root.grabTo(root.beautifyRaw, function (ok) {
                             if (!ok) return;
-                            root.beautifySrc = "/tmp/ryoshot-beautify-src.png";
+                            root.beautifySrc = root.beautifyRaw;
                             root.phase = "beautify";
                         });
                     }
