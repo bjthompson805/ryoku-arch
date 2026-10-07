@@ -571,20 +571,48 @@ ShellRoot {
     Process {
         id: uploadProc
         stdout: StdioCollector { id: uploadOut }
+        // no -f, so a rejected upload still yields the host's status and reply;
+        // the status rides on the last line of stdout. exit 99 marks a failed encode.
         function run(raw, file) {
             command = ["sh", "-c",
-                "magick \"$1\" -quality 50 \"$2\" || exit 1; "
-                + "exec curl -sf --max-time 30 -A Mozilla/5.0 -F reqtype=fileupload -F time=72h "
+                "magick \"$1\" -quality 50 \"$2\" || exit 99; "
+                + "exec curl -s --max-time 30 -A Mozilla/5.0 -w '\\n%{http_code}' -F reqtype=fileupload -F time=72h "
                 + "-F \"fileToUpload=@$2\" https://litterbox.catbox.moe/resources/internals/api.php",
                 "_", raw, file];
             running = true;
         }
         onExited: (code) => {
-            var url = uploadOut.text.trim();
-            console.log("ryoshot: upload exit " + code + " url=" + JSON.stringify(url));
-            if (code === 0 && url.indexOf("http") === 0) urlCopyProc.run(url);
-            else Qt.quit();
+            var out = uploadOut.text.trim();
+            var cut = out.lastIndexOf("\n");
+            var status = cut < 0 ? out : out.slice(cut + 1);
+            var body = cut < 0 ? "" : out.slice(0, cut).trim();
+            console.log("ryoshot: upload exit " + code + " http " + status + " reply=" + JSON.stringify(body.slice(0, 200)));
+            if (code === 0 && status === "200" && body.indexOf("http") === 0) { urlCopyProc.run(body); return; }
+            root.handedOff = true;
+            notifyProc.fail("Upload failed", root.uploadError(code, status, body));
         }
+    }
+
+    // a plain-text reply is the host's own error message; an HTML one is a
+    // firewall or proxy page, which says nothing useful in a notification.
+    function uploadError(code, status, body) {
+        if (code === 99) return "Couldn't prepare the image for upload.";
+        if (code === 6) return "No connection: couldn't reach the upload host.";
+        if (code === 28) return "The upload timed out after 30 seconds.";
+        if (code !== 0) return "Couldn't connect to the upload host (curl error " + code + ").";
+        if (body.indexOf("<") === 0) return "The upload host blocked the request (HTTP " + status + ").";
+        var msg = body.length > 0 && body.length <= 120 ? ": " + body : "";
+        if (status !== "200") return "The upload host returned HTTP " + status + msg;
+        return "The upload host sent an unexpected reply" + msg;
+    }
+
+    Process {
+        id: notifyProc
+        function fail(title, text) {
+            command = ["notify-send", "-a", "Ryoshot", "-i", "dialog-error", title, text];
+            running = true;
+        }
+        onExited: () => Qt.quit()
     }
 
     Process {

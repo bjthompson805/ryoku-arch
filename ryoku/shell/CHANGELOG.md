@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- **A failed ryoshot upload now says so.** It used to close without a word and
+  leave the clipboard as it was. An "Upload failed" notification now names the
+  cause: no connection, a timeout, the host's firewall blocking the request, or
+  the host's own error with its status and message (for example "HTTP 412: No
+  file!"). curl no longer runs with `-f`, so the host's reply reaches ryoshot
+  instead of being swallowed (`ryoshot/shell.qml`).
 - **Ryoshot's Save, Copy, Upload, and Beautify no longer freeze for seconds.**
   Each wrote the capture as a PNG on the UI thread first, about 2.6 seconds for
   a 2880x1800 shot with the overlay frozen. Grabs are now written as an
