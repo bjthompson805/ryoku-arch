@@ -5,6 +5,8 @@ Rectangle {
     property string icon: ""
     property bool active: false
     property bool dim: false
+    property string tip: ""
+    property string keys: ""
 
     signal clicked()
 
@@ -26,7 +28,8 @@ Rectangle {
         id: ma
         anchors.fill: parent
         hoverEnabled: true
-        enabled: !btn.dim
-        onClicked: btn.clicked()
+        onClicked: { if (!btn.dim) btn.clicked(); }
     }
+
+    Tooltip { text: btn.tip; keys: btn.keys; shown: ma.containsMouse }
 }

@@ -66,30 +66,38 @@ Item {
     property bool busy: false
 
     readonly property var presets: [
-        { "a": "#4facfe", "b": "#00c6a7", "ang": 135 },
-        { "a": "#f6543e", "b": "#f7b733", "ang": 135 },
-        { "a": "#7b4397", "b": "#dc2430", "ang": 135 },
-        { "a": "#11998e", "b": "#38ef7d", "ang": 135 },
-        { "a": "#ee9ca7", "b": "#ffdde1", "ang": 135 },
-        { "a": "#334155", "b": "#0f172a", "ang": 135 },
-        { "a": "#e2342a", "b": "#14120f", "ang": 135 },
-        { "a": "#00c3ff", "b": "#ffff1c", "ang": 135 },
-        { "a": "#ffecd2", "b": "#fcb69f", "ang": 135 },
-        { "a": "#3e6868", "b": "#0f1514", "ang": 135 },
-        { "a": "#ff6a88", "b": "#ff99ac", "ang": 135 },
-        { "a": "#141e30", "b": "#243b55", "ang": 135 }
+        { "name": "Ocean",    "a": "#4facfe", "b": "#00c6a7", "ang": 135 },
+        { "name": "Sunset",   "a": "#f6543e", "b": "#f7b733", "ang": 135 },
+        { "name": "Plum",     "a": "#7b4397", "b": "#dc2430", "ang": 135 },
+        { "name": "Mint",     "a": "#11998e", "b": "#38ef7d", "ang": 135 },
+        { "name": "Blush",    "a": "#ee9ca7", "b": "#ffdde1", "ang": 135 },
+        { "name": "Slate",    "a": "#334155", "b": "#0f172a", "ang": 135 },
+        { "name": "Ember",    "a": "#e2342a", "b": "#14120f", "ang": 135 },
+        { "name": "Citrus",   "a": "#00c3ff", "b": "#ffff1c", "ang": 135 },
+        { "name": "Peach",    "a": "#ffecd2", "b": "#fcb69f", "ang": 135 },
+        { "name": "Pine",     "a": "#3e6868", "b": "#0f1514", "ang": 135 },
+        { "name": "Rose",     "a": "#ff6a88", "b": "#ff99ac", "ang": 135 },
+        { "name": "Midnight", "a": "#141e30", "b": "#243b55", "ang": 135 }
     ]
     readonly property var palette: [
         "#ffffff", "#0e0d0b", "#e2342a", "#f3701e", "#f7b733", "#38ef7d",
         "#4facfe", "#2b6cb0", "#7b4397", "#ee9ca7", "#3e6868", "#c7bfae"
     ]
     readonly property var ratioRow: [
-        { "k": "auto", "l": "Auto" }, { "k": "1:1", "l": "1:1" }, { "k": "4:3", "l": "4:3" },
-        { "k": "3:2", "l": "3:2" }, { "k": "16:9", "l": "16:9" }, { "k": "9:16", "l": "9:16" }
+        { "k": "auto", "l": "Auto", "t": "Fit the canvas to the capture" },
+        { "k": "1:1", "l": "1:1", "t": "Square" },
+        { "k": "4:3", "l": "4:3", "t": "Standard landscape" },
+        { "k": "3:2", "l": "3:2", "t": "Photo landscape" },
+        { "k": "16:9", "l": "16:9", "t": "Widescreen" },
+        { "k": "9:16", "l": "9:16", "t": "Portrait" }
     ]
     readonly property var socialRow: [
-        { "k": "x", "l": "X" }, { "k": "instagram", "l": "Instagram" }, { "k": "story", "l": "Story" },
-        { "k": "linkedin", "l": "LinkedIn" }, { "k": "youtube", "l": "YouTube" }, { "k": "pinterest", "l": "Pinterest" }
+        { "k": "x", "l": "X", "t": "X post (16:9)" },
+        { "k": "instagram", "l": "Instagram", "t": "Instagram post (1:1)" },
+        { "k": "story", "l": "Story", "t": "Instagram or TikTok story (9:16)" },
+        { "k": "linkedin", "l": "LinkedIn", "t": "LinkedIn post (1.91:1)" },
+        { "k": "youtube", "l": "YouTube", "t": "YouTube thumbnail (16:9)" },
+        { "k": "pinterest", "l": "Pinterest", "t": "Pinterest pin (2:3)" }
     ]
     readonly property var ratioMap: ({ "auto": 0, "1:1": 1, "4:3": 1.3333, "3:2": 1.5, "16:9": 1.7778, "9:16": 0.5625, "x": 1.7778, "instagram": 1, "story": 0.5625, "linkedin": 1.91, "youtube": 1.7778, "pinterest": 0.6667 })
 
@@ -252,6 +260,9 @@ Item {
     }
 
     // ============================ frosted backdrop ============================
+    // takes hover so the editing toolbar underneath does not light up or show
+    // its tooltips through the editor.
+    MouseArea { anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
@@ -299,9 +310,9 @@ Item {
             anchors.rightMargin: 18
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
-            TopBtn { label: "Back"; onTapped: beautify.closeRequested() }
-            TopBtn { label: beautify.busy ? "Working\u2026" : "Copy"; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.copyRequested(beautify.exportTmp); }); } }
-            TopBtn { label: beautify.busy ? "Working\u2026" : "Save image"; accent: true; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.saveRequested(beautify.exportTmp); }); } }
+            TopBtn { label: "Back"; tip: "Back to the editor"; keys: "Esc"; onTapped: beautify.closeRequested() }
+            TopBtn { label: beautify.busy ? "Working\u2026" : "Copy"; tip: "Copy the styled image to the clipboard"; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.copyRequested(beautify.exportTmp); }); } }
+            TopBtn { label: beautify.busy ? "Working\u2026" : "Save image"; tip: "Save the styled image to a file"; accent: true; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.saveRequested(beautify.exportTmp); }); } }
         }
     }
 
@@ -358,6 +369,7 @@ Item {
                             Pill {
                                 required property var modelData
                                 label: modelData.name
+                                tip: "Apply the " + modelData.name + " look"
                                 onTapped: beautify.applyLook(modelData.cfg)
                             }
                         }
@@ -367,10 +379,12 @@ Item {
                         spacing: 8
                         TopBtn {
                             label: beautify.hasDefault ? "\u2605 Update default" : "\u2605 Set as default"
+                            tip: "Start every shot with this style, and apply it to toolbar Copy and Save"
                             onTapped: beautify.saveDefault()
                         }
                         TopBtn {
                             label: "Reset"
+                            tip: "Strip all styling back to the raw capture"
                             onTapped: beautify.resetDefault()
                         }
                     }
@@ -400,17 +414,18 @@ Item {
                                     GradientStop { position: 0.0; color: cell.modelData.a }
                                     GradientStop { position: 1.0; color: cell.modelData.b }
                                 }
-                                MouseArea { anchors.fill: parent; onClicked: { beautify.bgKind = "preset"; beautify.bgPreset = cell.index; } }
+                                MouseArea { id: cellMa; anchors.fill: parent; hoverEnabled: true; onClicked: { beautify.bgKind = "preset"; beautify.bgPreset = cell.index; } }
+                                Tooltip { text: cell.modelData.name; shown: cellMa.containsMouse }
                             }
                         }
                     }
                     Row {
                         width: parent.width
                         spacing: 8
-                        BgType { label: "Solid"; on: beautify.bgKind === "solid"; onTapped: beautify.bgKind = "solid" }
-                        BgType { label: "Gradient"; on: beautify.bgKind === "gradient"; onTapped: beautify.bgKind = "gradient" }
-                        BgType { label: "Image"; on: beautify.bgKind === "image"; onTapped: { beautify.bgKind = "image"; beautify.pickImageRequested(); } }
-                        BgType { label: "None"; on: beautify.bgKind === "none"; onTapped: beautify.bgKind = "none" }
+                        BgType { label: "Solid"; tip: "Solid colour background"; on: beautify.bgKind === "solid"; onTapped: beautify.bgKind = "solid" }
+                        BgType { label: "Gradient"; tip: "Custom two-colour gradient"; on: beautify.bgKind === "gradient"; onTapped: beautify.bgKind = "gradient" }
+                        BgType { label: "Image"; tip: "Choose an image for the background"; on: beautify.bgKind === "image"; onTapped: { beautify.bgKind = "image"; beautify.pickImageRequested(); } }
+                        BgType { label: "None"; tip: "Transparent background"; on: beautify.bgKind === "none"; onTapped: beautify.bgKind = "none" }
                     }
                     ColorRow { visible: beautify.bgKind === "solid"; width: parent.width; current: beautify.bgSolid; onPicked: (c) => beautify.bgSolid = c }
                     Column {
@@ -480,7 +495,7 @@ Item {
                         spacing: 6
                         Repeater {
                             model: beautify.ratioRow
-                            Pill { label: modelData.l; on: beautify.ratioKey === modelData.k; onTapped: beautify.ratioKey = modelData.k }
+                            Pill { label: modelData.l; tip: modelData.t; on: beautify.ratioKey === modelData.k; onTapped: beautify.ratioKey = modelData.k }
                         }
                     }
                     Flow {
@@ -488,7 +503,7 @@ Item {
                         spacing: 6
                         Repeater {
                             model: beautify.socialRow
-                            Pill { label: modelData.l; on: beautify.ratioKey === modelData.k; onTapped: beautify.ratioKey = modelData.k }
+                            Pill { label: modelData.l; tip: modelData.t; on: beautify.ratioKey === modelData.k; onTapped: beautify.ratioKey = modelData.k }
                         }
                     }
                 }
@@ -496,8 +511,8 @@ Item {
                 // ---------- SHARE ----------
                 Group {
                     title: "SHARE"
-                    ToggleRow { width: parent.width; label: "Watermark (" + beautify.mark + " handle)"; on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
-                    ToggleRow { width: parent.width; label: "HD \u00d72 (AI upscale)"; on: beautify.hd; onToggled: (v) => beautify.hd = v }
+                    ToggleRow { width: parent.width; label: "Watermark (" + beautify.mark + " handle)"; tip: "Stamp your handle in the corner"; on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
+                    ToggleRow { width: parent.width; label: "HD \u00d72 (AI upscale)"; tip: "Double the resolution on export (slower)"; on: beautify.hd; onToggled: (v) => beautify.hd = v }
                 }
             }
         }
@@ -695,6 +710,8 @@ Item {
     component TopBtn: Rectangle {
         id: tbn
         property string label: ""
+        property string tip: ""
+        property string keys: ""
         property bool accent: false
         signal tapped()
         implicitWidth: tl.implicitWidth + 32
@@ -705,11 +722,13 @@ Item {
         border.color: beautify.hair
         Text { id: tl; anchors.centerIn: parent; text: tbn.label; color: tbn.accent ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.DemiBold }
         MouseArea { id: tbnMa; anchors.fill: parent; hoverEnabled: true; onClicked: tbn.tapped() }
+        Tooltip { text: tbn.tip; keys: tbn.keys; shown: tbnMa.containsMouse }
     }
 
     component BgType: Rectangle {
         id: bgt
         property string label: ""
+        property string tip: ""
         property bool on: false
         signal tapped()
         width: (parent.width - 3 * 8) / 4
@@ -718,11 +737,13 @@ Item {
         color: bgt.on ? beautify.vermilion : (btMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
         Text { anchors.centerIn: parent; text: bgt.label; color: bgt.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: bgt.on ? Font.DemiBold : Font.Medium }
         MouseArea { id: btMa; anchors.fill: parent; hoverEnabled: true; onClicked: bgt.tapped() }
+        Tooltip { text: bgt.tip; shown: btMa.containsMouse }
     }
 
     component Pill: Rectangle {
         id: pill
         property string label: ""
+        property string tip: ""
         property bool on: false
         signal tapped()
         implicitWidth: pl.implicitWidth + 22
@@ -731,6 +752,7 @@ Item {
         color: pill.on ? beautify.vermilion : (plMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
         Text { id: pl; anchors.centerIn: parent; text: pill.label; color: pill.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: pill.on ? Font.DemiBold : Font.Medium }
         MouseArea { id: plMa; anchors.fill: parent; hoverEnabled: true; onClicked: pill.tapped() }
+        Tooltip { text: pill.tip; shown: plMa.containsMouse }
     }
 
     component ColorRow: Flow {
@@ -753,6 +775,7 @@ Item {
                 scale: crMa.containsMouse ? 1.12 : 1
                 Behavior on scale { NumberAnimation { duration: 80 } }
                 MouseArea { id: crMa; anchors.fill: parent; hoverEnabled: true; onClicked: cr.picked(sw.modelData) }
+                Tooltip { text: String(sw.modelData).toUpperCase(); shown: crMa.containsMouse }
             }
         }
     }
@@ -760,6 +783,7 @@ Item {
     component ToggleRow: Item {
         id: tr
         property string label: ""
+        property string tip: ""
         property bool on: false
         signal toggled(bool v)
         width: parent.width
@@ -783,7 +807,8 @@ Item {
                 color: "#ffffff"
                 Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
             }
-            MouseArea { anchors.fill: parent; onClicked: tr.toggled(!tr.on) }
+            MouseArea { id: trMa; anchors.fill: parent; hoverEnabled: true; onClicked: tr.toggled(!tr.on) }
+            Tooltip { text: tr.tip; shown: trMa.containsMouse }
         }
     }
 }

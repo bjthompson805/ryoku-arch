@@ -90,6 +90,10 @@ Item {
                 }
 
                 HoverHandler { id: recHover }
+                Tooltip {
+                    text: panel.listening ? "Press Esc to cancel" : "Record a new capture hotkey"
+                    shown: recHover.hovered
+                }
                 TapHandler {
                     onTapped: {
                         panel.listening = !panel.listening;

@@ -51,28 +51,34 @@ Item {
     }
 
     readonly property var tools: [
-        { id: "select",  icon: "select",  implemented: true },
-        { id: "rect",    icon: "rect",    implemented: true },
-        { id: "ellipse", icon: "ellipse", implemented: true },
-        { id: "line",    icon: "line",    implemented: true },
-        { id: "arrow",   icon: "arrow",   implemented: true },
-        { id: "pen",     icon: "pen",     implemented: true },
-        { id: "marker",  icon: "marker",  implemented: true },
-        { id: "text",    icon: "text",    implemented: true },
-        { id: "blur",    icon: "blur",    implemented: true },
-        { id: "pixelate", icon: "pixelate", implemented: true },
-        { id: "magnify", icon: "magnify", implemented: true },
-        { id: "counter", icon: "counter", implemented: true }
+        { id: "select",  icon: "select",  tip: "Select and move",   implemented: true },
+        { id: "rect",    icon: "rect",    tip: "Rectangle",         implemented: true },
+        { id: "ellipse", icon: "ellipse", tip: "Ellipse",           implemented: true },
+        { id: "line",    icon: "line",    tip: "Line",              implemented: true },
+        { id: "arrow",   icon: "arrow",   tip: "Arrow",             implemented: true },
+        { id: "pen",     icon: "pen",     tip: "Pen",               implemented: true },
+        { id: "marker",  icon: "marker",  tip: "Highlighter",       implemented: true },
+        { id: "text",    icon: "text",    tip: "Text",              implemented: true },
+        { id: "blur",    icon: "blur",    tip: "Blur",              implemented: true },
+        { id: "pixelate", icon: "pixelate", tip: "Pixelate",        implemented: true },
+        { id: "magnify", icon: "magnify", tip: "Magnifier",         implemented: true },
+        { id: "counter", icon: "counter", tip: "Numbered step",     implemented: true }
     ]
 
     readonly property var swatches: [
-        "#e2342a", "#ffffff", "#1a1a1a", "#e23b3b", "#f2c14e", "#5bbf73", "#4f8fe0"
+        { c: "#e2342a", name: "Vermilion" },
+        { c: "#ffffff", name: "White" },
+        { c: "#1a1a1a", name: "Black" },
+        { c: "#e23b3b", name: "Red" },
+        { c: "#f2c14e", name: "Yellow" },
+        { c: "#5bbf73", name: "Green" },
+        { c: "#4f8fe0", name: "Blue" }
     ]
 
     readonly property var widths: [
-        { id: 2, dot: 5 },
-        { id: 4, dot: 9 },
-        { id: 7, dot: 13 }
+        { id: 2, dot: 5, tip: "Thin stroke" },
+        { id: 4, dot: 9, tip: "Medium stroke" },
+        { id: 7, dot: 13, tip: "Thick stroke" }
     ]
 
     Rectangle {
@@ -95,6 +101,7 @@ Item {
                 IconButton {
                     required property var modelData
                     icon: modelData.icon
+                    tip: modelData.tip
                     active: tb.activeTool === modelData.id
                     dim: !modelData.implemented
                     onClicked: { if (modelData.implemented) tb.toolPicked(modelData.id); }
@@ -110,13 +117,14 @@ Item {
                     Layout.preferredWidth: 18
                     Layout.preferredHeight: 18
                     radius: 9
-                    color: modelData
-                    readonly property bool sel: Qt.colorEqual(tb.activeColor, modelData)
+                    color: modelData.c
+                    readonly property bool sel: Qt.colorEqual(tb.activeColor, modelData.c)
                     border.color: sel ? "#ffffff" : Qt.rgba(1, 1, 1, 0.18)
                     border.width: sel ? 2 : 1
                     scale: swMa.containsMouse ? 1.12 : 1.0
                     Behavior on scale { NumberAnimation { duration: 90 } }
-                    MouseArea { id: swMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.colorPicked(modelData) }
+                    MouseArea { id: swMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.colorPicked(modelData.c) }
+                    Tooltip { text: modelData.name; shown: swMa.containsMouse }
                 }
             }
 
@@ -132,6 +140,7 @@ Item {
                     readonly property bool sel: tb.activeWidth === modelData.id
                     color: sel ? tb.vermilion : (whMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
                     MouseArea { id: whMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.widthPicked(modelData.id) }
+                    Tooltip { text: modelData.tip; shown: whMa.containsMouse }
                     Rectangle {
                         anchors.centerIn: parent
                         width: modelData.dot
@@ -144,18 +153,18 @@ Item {
 
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
-            IconButton { icon: "sketch"; active: tb.activeRough; onClicked: tb.roughToggled() }
+            IconButton { icon: "sketch"; tip: "Hand-drawn style"; active: tb.activeRough; onClicked: tb.roughToggled() }
 
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
-            IconButton { icon: "undo"; dim: !tb.canUndo; onClicked: { if (tb.canUndo) tb.undoRequested(); } }
-            IconButton { icon: "redo"; dim: !tb.canRedo; onClicked: { if (tb.canRedo) tb.redoRequested(); } }
+            IconButton { icon: "undo"; tip: "Undo"; keys: "Ctrl Z"; dim: !tb.canUndo; onClicked: { if (tb.canUndo) tb.undoRequested(); } }
+            IconButton { icon: "redo"; tip: "Redo"; keys: "Ctrl Y"; dim: !tb.canRedo; onClicked: { if (tb.canRedo) tb.redoRequested(); } }
 
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
-            IconButton { icon: "copy"; onClicked: tb.copyRequested() }
-            IconButton { icon: "save"; onClicked: tb.saveRequested() }
-            IconButton { icon: "upload"; onClicked: tb.uploadRequested() }
+            IconButton { icon: "copy"; tip: "Copy to clipboard"; onClicked: tb.copyRequested() }
+            IconButton { icon: "save"; tip: "Save to file"; onClicked: tb.saveRequested() }
+            IconButton { icon: "upload"; tip: "Upload and copy a public link (expires in 3 days)"; onClicked: tb.uploadRequested() }
 
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
 
@@ -173,6 +182,7 @@ Item {
                     font.weight: Font.DemiBold
                 }
                 MouseArea { id: beautMa; anchors.fill: parent; hoverEnabled: true; onClicked: tb.beautifyRequested() }
+                Tooltip { text: "Beautify"; shown: beautMa.containsMouse }
             }
 
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: tb.sep; Layout.leftMargin: 3; Layout.rightMargin: 3 }
@@ -180,6 +190,7 @@ Item {
             IconButton {
                 id: gear
                 icon: "gear"
+                tip: "Capture hotkey"
                 active: tb.settingsOpen
                 onClicked: { tb.settingsOpen = !tb.settingsOpen; tb.settingsRequested(); }
             }

@@ -30,6 +30,12 @@
   `ShellSettingsPage.qml`).
 
 ### Added
+- **Every ryoshot button has a tooltip.** Hovering a toolbar tool, colour, stroke
+  width, or action, the hotkey Record button, or any Beautify control shows a
+  label at once, with the shortcut beside Undo, Redo, and Back. The tip sits
+  below the control and flips above near the bottom of the screen. Undo and Redo
+  show theirs even while dimmed, and the Beautify editor now takes hover so the
+  toolbar underneath it stays quiet (`ryoshot/Tooltip.qml`).
 - **The battery popout can set a charge limit, and shows when the battery is
   holding at it.** On a laptop whose battery supports a limit, a Charge Limit
   switch sits under the charge bar, with a "Stop at" percentage (50 to 100%)
