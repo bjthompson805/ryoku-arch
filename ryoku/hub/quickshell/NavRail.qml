@@ -133,16 +133,6 @@ Rectangle {
             color: Theme.keyTop
             border.width: 1
             border.color: Theme.line
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: 1
-                height: 3
-                radius: 3
-                color: Theme.keyBot
-            }
         }
 
         NavButton {
@@ -381,16 +371,6 @@ Rectangle {
             opacity: rail.query.length > 0 ? 0.4 : (rail.sectionPinned(rail.current) !== "" ? 0 : 1)
             Behavior on y { NumberAnimation { duration: Theme.medium; easing.type: Theme.ease } }
             Behavior on opacity { NumberAnimation { duration: Theme.quick } }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: 1
-                height: 3
-                radius: 3
-                color: Theme.keyBot
-            }
         }
 
         Column {
