@@ -236,6 +236,12 @@
   `backend/schemes.go`, `backend/hypr.go`).
 
 ### Fixed
+- **The keybind legend names the workspace section "Workspaces".** The parser
+  opened a category for every comment line, so the paragraph above the
+  workspace binds made five empty categories and named the real one after its
+  last line ("on. Super+Alt+N sends the active window..."). A comment block now
+  opens one category, named by the first sentence of its first line, and a
+  section with no binds is left out (`backend/keybinds.go`).
 - **Closing the Hub while previews are still loading no longer crashes it.**
   Quitting (Super+Q, Escape, or the close button) while a page was still
   streaming remote images, such as the Lockscreen skin gifs or store previews,
